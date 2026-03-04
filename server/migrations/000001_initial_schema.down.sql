@@ -1,0 +1,17 @@
+DROP TABLE IF EXISTS mindmap_refresh_token;
+DROP TABLE IF EXISTS mindmap_journal_habits;
+DROP TABLE IF EXISTS mindmap_journal_goal;
+DROP TABLE IF EXISTS mindmap_journal;
+DROP TABLE IF EXISTS mindmap_habit_tracker;
+DROP TABLE IF EXISTS mindmap_habit;
+DROP TABLE IF EXISTS mindmap_goal;
+DROP TABLE IF EXISTS mindmap_project;
+DROP TABLE IF EXISTS mindmap_user;
+DROP TYPE IF EXISTS project_status;
+DROP TYPE IF EXISTS journal_type;
+DROP TYPE IF EXISTS habit_tracker_status;
+DROP TYPE IF EXISTS habit_tracker;
+DROP TYPE IF EXISTS habit_frequency;
+DROP TYPE IF EXISTS goal_impact;
+DROP TYPE IF EXISTS goal_priority;
+DROP TYPE IF EXISTS goal_status;
