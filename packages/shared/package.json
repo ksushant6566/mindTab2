@@ -1,0 +1,22 @@
+{
+  "name": "@mindtab/shared",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./validation": "./src/validation/index.ts",
+    "./constants": "./src/constants/enums.ts"
+  },
+  "scripts": {
+    "lint": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "zod": "^3.23.3"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.3"
+  }
+}
