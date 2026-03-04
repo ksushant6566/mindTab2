@@ -1,0 +1,15 @@
+{
+  "name": "mindtab",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm --filter @mindtab/web dev",
+    "build": "pnpm --filter @mindtab/api-spec build && pnpm --filter @mindtab/shared build && pnpm --filter @mindtab/web build",
+    "lint": "pnpm -r lint",
+    "clean": "pnpm -r clean"
+  },
+  "packageManager": "pnpm@9.1.0",
+  "engines": {
+    "node": ">=20"
+  }
+}
