@@ -14,6 +14,9 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/ksushant6566/mindtab/server/internal/config"
+	"github.com/ksushant6566/mindtab/server/internal/handler"
+	mw "github.com/ksushant6566/mindtab/server/internal/middleware"
+	"github.com/ksushant6566/mindtab/server/internal/store"
 )
 
 func main() {
@@ -39,15 +42,22 @@ func main() {
 	}
 	slog.Info("connected to database")
 
+	queries := store.New(pool)
+	authHandler := handler.NewAuthHandler(queries, cfg.JWTSecret, cfg.GoogleClientID)
+
 	r := chi.NewRouter()
 	r.Use(chimw.RequestID)
 	r.Use(chimw.RealIP)
 	r.Use(chimw.Recoverer)
+	r.Use(mw.CORS(cfg.AllowedOrigins))
 
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{"status":"ok"}`))
 	})
+
+	r.Post("/auth/google", authHandler.Google)
+	r.Post("/auth/refresh", authHandler.Refresh)
 
 	srv := &http.Server{
 		Addr:         ":" + cfg.Port,
