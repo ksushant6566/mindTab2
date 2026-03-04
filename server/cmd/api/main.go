@@ -43,7 +43,19 @@ func main() {
 	slog.Info("connected to database")
 
 	queries := store.New(pool)
+
+	// Initialize handlers.
 	authHandler := handler.NewAuthHandler(queries, cfg.JWTSecret, cfg.GoogleClientID)
+	usersHandler := handler.NewUsersHandler(queries)
+	goalsHandler := handler.NewGoalsHandler(queries, pool)
+	habitsHandler := handler.NewHabitsHandler(queries, pool)
+	habitTrackerHandler := handler.NewHabitTrackerHandler(queries)
+	journalsHandler := handler.NewJournalsHandler(queries)
+	projectsHandler := handler.NewProjectsHandler(queries, pool)
+	activityHandler := handler.NewActivityHandler(queries)
+	bookmarksHandler := handler.NewBookmarksHandler(queries)
+	readingListsHandler := handler.NewReadingListsHandler(queries)
+	searchHandler := handler.NewSearchHandler(queries)
 
 	r := chi.NewRouter()
 	r.Use(chimw.RequestID)
@@ -51,13 +63,74 @@ func main() {
 	r.Use(chimw.Recoverer)
 	r.Use(mw.CORS(cfg.AllowedOrigins))
 
+	// Health check.
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{"status":"ok"}`))
 	})
 
+	// Public routes.
 	r.Post("/auth/google", authHandler.Google)
 	r.Post("/auth/refresh", authHandler.Refresh)
+	r.Get("/users/{id}", usersHandler.GetByID)
+	r.Get("/activity", activityHandler.GetUserActivity)
+
+	// Protected routes.
+	r.Group(func(r chi.Router) {
+		r.Use(mw.Auth(cfg.JWTSecret))
+
+		r.Get("/users/me", usersHandler.GetMe)
+		r.Patch("/users/me", usersHandler.UpdateMe)
+
+		// Goals — register literal paths before {id} param.
+		r.Get("/goals", goalsHandler.List)
+		r.Post("/goals", goalsHandler.Create)
+		r.Get("/goals/count", goalsHandler.GetCount)
+		r.Get("/goals/unassigned", goalsHandler.GetUnassigned)
+		r.Patch("/goals/positions", goalsHandler.UpdatePositions)
+		r.Post("/goals/archive-completed", goalsHandler.ArchiveCompleted)
+		r.Get("/goals/{id}", goalsHandler.Get)
+		r.Patch("/goals/{id}", goalsHandler.Update)
+		r.Delete("/goals/{id}", goalsHandler.Delete)
+
+		// Habits.
+		r.Get("/habits", habitsHandler.List)
+		r.Post("/habits", habitsHandler.Create)
+		r.Get("/habits/{id}", habitsHandler.Get)
+		r.Patch("/habits/{id}", habitsHandler.Update)
+		r.Delete("/habits/{id}", habitsHandler.Delete)
+		r.Post("/habits/{id}/track", habitsHandler.Track)
+		r.Delete("/habits/{id}/track", habitsHandler.Untrack)
+
+		// Habit tracker.
+		r.Get("/habit-tracker", habitTrackerHandler.List)
+
+		// Journals — register /journals/count before /journals/{id}.
+		r.Get("/journals", journalsHandler.List)
+		r.Post("/journals", journalsHandler.Create)
+		r.Get("/journals/count", journalsHandler.GetCount)
+		r.Get("/journals/{id}", journalsHandler.Get)
+		r.Patch("/journals/{id}", journalsHandler.Update)
+		r.Delete("/journals/{id}", journalsHandler.Delete)
+
+		// Projects — register /projects/stats before /projects/{id}.
+		r.Get("/projects", projectsHandler.List)
+		r.Post("/projects", projectsHandler.Create)
+		r.Get("/projects/stats", projectsHandler.GetWithStats)
+		r.Get("/projects/{id}", projectsHandler.Get)
+		r.Patch("/projects/{id}", projectsHandler.Update)
+		r.Delete("/projects/{id}", projectsHandler.Delete)
+		r.Post("/projects/{id}/archive", projectsHandler.Archive)
+
+		// Search.
+		r.Get("/search/goals", searchHandler.Goals)
+		r.Get("/search/habits", searchHandler.Habits)
+		r.Get("/search/journals", searchHandler.Journals)
+
+		// Sync.
+		r.Post("/sync/bookmarks", bookmarksHandler.Sync)
+		r.Post("/sync/reading-lists", readingListsHandler.Sync)
+	})
 
 	srv := &http.Server{
 		Addr:         ":" + cfg.Port,
