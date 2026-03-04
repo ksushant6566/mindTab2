@@ -1,0 +1,1544 @@
+openapi: 3.0.3
+info:
+  title: MindTab API
+  description: API for MindTab — goal tracking and micro journaling platform.
+  version: 0.1.0
+  contact:
+    name: MindTab
+    url: https://mindtab.in
+
+servers:
+  - url: /api/v1
+    description: API v1
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Auth
+    description: Authentication endpoints
+  - name: Users
+    description: User profile management
+  - name: Goals
+    description: Goal CRUD and batch operations
+  - name: Habits
+    description: Habit CRUD and tracking
+  - name: HabitTracker
+    description: Habit tracking records
+  - name: Journals
+    description: Journal CRUD
+  - name: Projects
+    description: Project CRUD and stats
+  - name: Activity
+    description: Activity heatmap
+  - name: Search
+    description: Full-text search
+  - name: Sync
+    description: Bookmark and reading list sync
+
+paths:
+  # ─── Auth ───────────────────────────────────────────────────────────────
+  /auth/google:
+    post:
+      operationId: authGoogle
+      tags: [Auth]
+      summary: Exchange Google ID token for JWT
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [idToken]
+              properties:
+                idToken:
+                  type: string
+      responses:
+        "200":
+          description: Authentication successful
+          headers:
+            Set-Cookie:
+              description: httpOnly refresh token cookie
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid ID token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /auth/refresh:
+    post:
+      operationId: authRefresh
+      tags: [Auth]
+      summary: Refresh access token using httpOnly cookie
+      security: []
+      responses:
+        "200":
+          description: Token refreshed
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [accessToken]
+                properties:
+                  accessToken:
+                    type: string
+        "401":
+          description: Invalid or expired refresh token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  # ─── Users ──────────────────────────────────────────────────────────────
+  /users/me:
+    get:
+      operationId: getCurrentUser
+      tags: [Users]
+      summary: Get current authenticated user
+      responses:
+        "200":
+          description: Current user profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    patch:
+      operationId: updateCurrentUser
+      tags: [Users]
+      summary: Update current user (XP or onboarding)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                xpToAdd:
+                  type: integer
+                onboardingCompleted:
+                  type: boolean
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /users/{id}:
+    get:
+      operationId: getUserById
+      tags: [Users]
+      summary: Get public user profile
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            maxLength: 255
+      responses:
+        "200":
+          description: Public user profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ─── Goals ──────────────────────────────────────────────────────────────
+  /goals:
+    get:
+      operationId: listGoals
+      tags: [Goals]
+      summary: List goals
+      parameters:
+        - name: projectId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: includeArchived
+          in: query
+          schema:
+            type: boolean
+            default: false
+      responses:
+        "200":
+          description: List of goals
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Goal"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      operationId: createGoal
+      tags: [Goals]
+      summary: Create a goal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GoalCreate"
+      responses:
+        "201":
+          description: Goal created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Goal"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /goals/{id}:
+    get:
+      operationId: getGoal
+      tags: [Goals]
+      summary: Get a single goal
+      parameters:
+        - $ref: "#/components/parameters/UuidId"
+      responses:
+        "200":
+          description: Goal with project summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Goal"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      operationId: updateGoal
+      tags: [Goals]
+      summary: Update a goal
+      parameters:
+        - $ref: "#/components/parameters/UuidId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GoalUpdate"
+      responses:
+        "200":
+          description: Updated goal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Goal"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deleteGoal
+      tags: [Goals]
+      summary: Soft-delete a goal
+      parameters:
+        - $ref: "#/components/parameters/UuidId"
+      responses:
+        "204":
+          description: Goal deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /goals/count:
+    get:
+      operationId: countGoals
+      tags: [Goals]
+      summary: Count goals
+      parameters:
+        - name: projectId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: includeArchived
+          in: query
+          schema:
+            type: boolean
+            default: false
+      responses:
+        "200":
+          description: Goal count
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [count]
+                properties:
+                  count:
+                    type: integer
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /goals/unassigned:
+    get:
+      operationId: listUnassignedGoals
+      tags: [Goals]
+      summary: List goals without a project
+      responses:
+        "200":
+          description: Unassigned goals
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Goal"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /goals/positions:
+    patch:
+      operationId: updateGoalPositions
+      tags: [Goals]
+      summary: Batch update goal positions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [goals, sequence]
+              properties:
+                goals:
+                  type: array
+                  items:
+                    type: object
+                    required: [id, position]
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      position:
+                        type: integer
+                      status:
+                        $ref: "#/components/schemas/GoalStatus"
+                sequence:
+                  type: integer
+      responses:
+        "200":
+          description: Positions updated
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, sequence]
+                properties:
+                  success:
+                    type: boolean
+                  sequence:
+                    type: integer
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /goals/archive-completed:
+    post:
+      operationId: archiveCompletedGoals
+      tags: [Goals]
+      summary: Archive all completed goals
+      responses:
+        "200":
+          description: Completed goals archived
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, count]
+                properties:
+                  success:
+                    type: boolean
+                  count:
+                    type: integer
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # ─── Habits ─────────────────────────────────────────────────────────────
+  /habits:
+    get:
+      operationId: listHabits
+      tags: [Habits]
+      summary: List all active habits
+      responses:
+        "200":
+          description: List of habits
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Habit"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      operationId: createHabit
+      tags: [Habits]
+      summary: Create a habit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HabitCreate"
+      responses:
+        "201":
+          description: Habit created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Habit"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          description: Duplicate habit title
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /habits/{id}:
+    get:
+      operationId: getHabit
+      tags: [Habits]
+      summary: Get a single habit
+      parameters:
+        - $ref: "#/components/parameters/UuidId"
+      responses:
+        "200":
+          description: Habit details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Habit"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      operationId: updateHabit
+      tags: [Habits]
+      summary: Update a habit
+      parameters:
+        - $ref: "#/components/parameters/UuidId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HabitUpdate"
+      responses:
+        "200":
+          description: Updated habit
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Habit"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Duplicate habit title
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      operationId: deleteHabit
+      tags: [Habits]
+      summary: Hard-delete a habit
+      parameters:
+        - $ref: "#/components/parameters/UuidId"
+      responses:
+        "204":
+          description: Habit deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /habits/{id}/track:
+    post:
+      operationId: trackHabit
+      tags: [Habits]
+      summary: Mark habit as completed for a date (+10 XP)
+      parameters:
+        - $ref: "#/components/parameters/UuidId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [date]
+              properties:
+                date:
+                  type: string
+                  format: date
+                  description: Date in YYYY-MM-DD format
+      responses:
+        "201":
+          description: Habit tracked
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id]
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: untrackHabit
+      tags: [Habits]
+      summary: Unmark habit for a date (-10 XP)
+      parameters:
+        - $ref: "#/components/parameters/UuidId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [date]
+              properties:
+                date:
+                  type: string
+                  format: date
+                  description: Date in YYYY-MM-DD format
+      responses:
+        "204":
+          description: Habit tracking removed
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ─── Habit Tracker ──────────────────────────────────────────────────────
+  /habit-tracker:
+    get:
+      operationId: listHabitTrackerRecords
+      tags: [HabitTracker]
+      summary: Get all habit tracking records
+      responses:
+        "200":
+          description: All tracking records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/HabitTrackerRecord"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # ─── Journals ───────────────────────────────────────────────────────────
+  /journals:
+    get:
+      operationId: listJournals
+      tags: [Journals]
+      summary: List journals
+      parameters:
+        - name: projectId
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: List of journals
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Journal"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      operationId: createJournal
+      tags: [Journals]
+      summary: Create a journal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JournalCreate"
+      responses:
+        "201":
+          description: Journal created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Journal"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          description: Duplicate journal title
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /journals/{id}:
+    get:
+      operationId: getJournal
+      tags: [Journals]
+      summary: Get a single journal
+      parameters:
+        - $ref: "#/components/parameters/UuidId"
+      responses:
+        "200":
+          description: Journal with project summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Journal"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      operationId: updateJournal
+      tags: [Journals]
+      summary: Update a journal
+      parameters:
+        - $ref: "#/components/parameters/UuidId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JournalUpdate"
+      responses:
+        "200":
+          description: Updated journal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Journal"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Duplicate journal title
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      operationId: deleteJournal
+      tags: [Journals]
+      summary: Hard-delete a journal
+      parameters:
+        - $ref: "#/components/parameters/UuidId"
+      responses:
+        "204":
+          description: Journal deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /journals/count:
+    get:
+      operationId: countJournals
+      tags: [Journals]
+      summary: Count journals
+      responses:
+        "200":
+          description: Journal count
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [count]
+                properties:
+                  count:
+                    type: integer
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # ─── Projects ───────────────────────────────────────────────────────────
+  /projects:
+    get:
+      operationId: listProjects
+      tags: [Projects]
+      summary: List projects with nested goals
+      parameters:
+        - name: includeArchived
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/ProjectStatus"
+      responses:
+        "200":
+          description: List of projects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Project"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      operationId: createProject
+      tags: [Projects]
+      summary: Create a project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectCreate"
+      responses:
+        "201":
+          description: Project created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /projects/{id}:
+    get:
+      operationId: getProject
+      tags: [Projects]
+      summary: Get a project with nested goals
+      parameters:
+        - $ref: "#/components/parameters/UuidId"
+      responses:
+        "200":
+          description: Project details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      operationId: updateProject
+      tags: [Projects]
+      summary: Update a project
+      parameters:
+        - $ref: "#/components/parameters/UuidId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectUpdate"
+      responses:
+        "200":
+          description: Updated project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deleteProject
+      tags: [Projects]
+      summary: Soft-delete a project (cascades to goals and journals)
+      parameters:
+        - $ref: "#/components/parameters/UuidId"
+      responses:
+        "200":
+          description: Project deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success]
+                properties:
+                  success:
+                    type: boolean
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /projects/stats:
+    get:
+      operationId: getProjectStats
+      tags: [Projects]
+      summary: List projects with goal and journal counts
+      responses:
+        "200":
+          description: Projects with stats
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProjectWithStats"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /projects/{id}/archive:
+    post:
+      operationId: archiveProject
+      tags: [Projects]
+      summary: Archive a project and its contents
+      parameters:
+        - $ref: "#/components/parameters/UuidId"
+      responses:
+        "200":
+          description: Archived project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ─── Activity ───────────────────────────────────────────────────────────
+  /activity:
+    get:
+      operationId: getActivity
+      tags: [Activity]
+      summary: Activity heatmap for the last 365 days
+      security: []
+      parameters:
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: string
+            maxLength: 255
+      responses:
+        "200":
+          description: Activity heatmap data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActivityDay"
+        "400":
+          description: Missing userId parameter
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  # ─── Search ─────────────────────────────────────────────────────────────
+  /search/goals:
+    get:
+      operationId: searchGoals
+      tags: [Search]
+      summary: Search goals by title (max 5 results)
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        "200":
+          description: Matching goals
+          content:
+            application/json:
+              schema:
+                type: array
+                maxItems: 5
+                items:
+                  $ref: "#/components/schemas/Goal"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /search/habits:
+    get:
+      operationId: searchHabits
+      tags: [Search]
+      summary: Search habits by title (max 5 results)
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        "200":
+          description: Matching habits
+          content:
+            application/json:
+              schema:
+                type: array
+                maxItems: 5
+                items:
+                  $ref: "#/components/schemas/Habit"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /search/journals:
+    get:
+      operationId: searchJournals
+      tags: [Search]
+      summary: Search journals by title (max 5 results)
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        "200":
+          description: Matching journals
+          content:
+            application/json:
+              schema:
+                type: array
+                maxItems: 5
+                items:
+                  $ref: "#/components/schemas/Journal"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # ─── Sync ───────────────────────────────────────────────────────────────
+  /sync/bookmarks:
+    post:
+      operationId: syncBookmarks
+      tags: [Sync]
+      summary: Sync browser bookmarks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SyncRequest"
+      responses:
+        "200":
+          description: Bookmarks synced
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /sync/reading-lists:
+    post:
+      operationId: syncReadingLists
+      tags: [Sync]
+      summary: Sync reading lists
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SyncRequest"
+      responses:
+        "200":
+          description: Reading lists synced
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+components:
+  # ─── Security ─────────────────────────────────────────────────────────
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  # ─── Parameters ───────────────────────────────────────────────────────
+  parameters:
+    UuidId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  # ─── Reusable Responses ──────────────────────────────────────────────
+  responses:
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    ValidationError:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
+  # ─── Schemas ──────────────────────────────────────────────────────────
+  schemas:
+    # ── Enums ──────────────────────────────────────────────────────────
+    GoalStatus:
+      type: string
+      enum: [pending, in_progress, completed, archived]
+
+    GoalPriority:
+      type: string
+      enum: [priority_1, priority_2, priority_3, priority_4]
+
+    GoalImpact:
+      type: string
+      enum: [low, medium, high]
+
+    HabitFrequency:
+      type: string
+      enum: [daily, weekly]
+
+    HabitTrackerStatus:
+      type: string
+      enum: [pending, completed]
+
+    JournalType:
+      type: string
+      enum: [article, book, video, podcast, website]
+
+    ProjectStatus:
+      type: string
+      enum: [active, paused, completed, archived]
+
+    # ── Error ──────────────────────────────────────────────────────────
+    Error:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+        code:
+          type: string
+          description: Machine-readable error code
+
+    # ── Auth ───────────────────────────────────────────────────────────
+    AuthResponse:
+      type: object
+      required: [accessToken, user]
+      properties:
+        accessToken:
+          type: string
+        user:
+          $ref: "#/components/schemas/User"
+
+    # ── User ───────────────────────────────────────────────────────────
+    User:
+      type: object
+      required: [id, email, xp, onboardingCompleted, createdAt]
+      properties:
+        id:
+          type: string
+          maxLength: 255
+          description: User ID (varchar, not UUID)
+        name:
+          type: string
+          nullable: true
+        email:
+          type: string
+          format: email
+        image:
+          type: string
+          nullable: true
+        xp:
+          type: integer
+          default: 0
+        onboardingCompleted:
+          type: boolean
+          default: false
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    # ── Goal ───────────────────────────────────────────────────────────
+    Goal:
+      type: object
+      required: [id, status, priority, impact, position, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        status:
+          $ref: "#/components/schemas/GoalStatus"
+        priority:
+          $ref: "#/components/schemas/GoalPriority"
+        impact:
+          $ref: "#/components/schemas/GoalImpact"
+        position:
+          type: integer
+        projectId:
+          type: string
+          format: uuid
+          nullable: true
+        project:
+          $ref: "#/components/schemas/ProjectSummary"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    GoalCreate:
+      type: object
+      required: [title]
+      properties:
+        title:
+          type: string
+          maxLength: 256
+        description:
+          type: string
+        status:
+          $ref: "#/components/schemas/GoalStatus"
+        priority:
+          $ref: "#/components/schemas/GoalPriority"
+        impact:
+          $ref: "#/components/schemas/GoalImpact"
+        position:
+          type: integer
+        projectId:
+          type: string
+          format: uuid
+          nullable: true
+        completedAt:
+          type: string
+          format: date-time
+
+    GoalUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+          maxLength: 256
+        description:
+          type: string
+          nullable: true
+        status:
+          $ref: "#/components/schemas/GoalStatus"
+        priority:
+          $ref: "#/components/schemas/GoalPriority"
+        impact:
+          $ref: "#/components/schemas/GoalImpact"
+        position:
+          type: integer
+        projectId:
+          type: string
+          format: uuid
+          nullable: true
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    # ── Habit ──────────────────────────────────────────────────────────
+    Habit:
+      type: object
+      required: [id, frequency, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        frequency:
+          $ref: "#/components/schemas/HabitFrequency"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+        deletedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    HabitCreate:
+      type: object
+      required: [title]
+      properties:
+        title:
+          type: string
+          maxLength: 256
+        description:
+          type: string
+        frequency:
+          $ref: "#/components/schemas/HabitFrequency"
+
+    HabitUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+          maxLength: 256
+        description:
+          type: string
+          nullable: true
+        frequency:
+          $ref: "#/components/schemas/HabitFrequency"
+
+    # ── Habit Tracker Record ───────────────────────────────────────────
+    HabitTrackerRecord:
+      type: object
+      required: [id, habitId, userId, status, date, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        habitId:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          maxLength: 255
+        status:
+          $ref: "#/components/schemas/HabitTrackerStatus"
+        date:
+          type: string
+          format: date
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    # ── Journal ────────────────────────────────────────────────────────
+    Journal:
+      type: object
+      required: [id, title, content, type, source, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        content:
+          type: string
+        type:
+          $ref: "#/components/schemas/JournalType"
+        source:
+          type: string
+        projectId:
+          type: string
+          format: uuid
+          nullable: true
+        project:
+          $ref: "#/components/schemas/ProjectSummary"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+        deletedAt:
+          type: string
+          format: date-time
+          nullable: true
+        archivedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    JournalCreate:
+      type: object
+      required: [title, content]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 256
+        content:
+          type: string
+          minLength: 1
+        projectId:
+          type: string
+          format: uuid
+          nullable: true
+
+    JournalUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 256
+        content:
+          type: string
+          minLength: 1
+        type:
+          $ref: "#/components/schemas/JournalType"
+        source:
+          type: string
+        projectId:
+          type: string
+          format: uuid
+          nullable: true
+
+    # ── Project ────────────────────────────────────────────────────────
+    ProjectSummary:
+      type: object
+      required: [id, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          nullable: true
+        status:
+          $ref: "#/components/schemas/ProjectStatus"
+
+    Project:
+      type: object
+      required: [id, status, startDate, createdBy, lastUpdatedBy, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        status:
+          $ref: "#/components/schemas/ProjectStatus"
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+          nullable: true
+        createdBy:
+          type: string
+          maxLength: 255
+        lastUpdatedBy:
+          type: string
+          maxLength: 255
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+        goals:
+          type: array
+          items:
+            $ref: "#/components/schemas/Goal"
+
+    ProjectCreate:
+      type: object
+      required: [name, startDate]
+      properties:
+        name:
+          type: string
+          maxLength: 256
+        description:
+          type: string
+        status:
+          $ref: "#/components/schemas/ProjectStatus"
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+          nullable: true
+
+    ProjectUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 256
+        description:
+          type: string
+          nullable: true
+        status:
+          $ref: "#/components/schemas/ProjectStatus"
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+          nullable: true
+
+    ProjectWithStats:
+      allOf:
+        - $ref: "#/components/schemas/Project"
+        - type: object
+          required: [goalStats, journalStats]
+          properties:
+            goalStats:
+              type: object
+              required: [total, pending, inProgress, completed]
+              properties:
+                total:
+                  type: integer
+                pending:
+                  type: integer
+                inProgress:
+                  type: integer
+                completed:
+                  type: integer
+            journalStats:
+              type: object
+              required: [total]
+              properties:
+                total:
+                  type: integer
+
+    # ── Activity ───────────────────────────────────────────────────────
+    ActivityDay:
+      type: object
+      required: [date, count, details]
+      properties:
+        date:
+          type: string
+          format: date
+        count:
+          type: integer
+        details:
+          type: object
+          required:
+            - goalsCreated
+            - goalsCompleted
+            - habitsCreated
+            - habitsMarked
+            - journalsCreated
+            - journalsUpdated
+          properties:
+            goalsCreated:
+              type: integer
+            goalsCompleted:
+              type: integer
+            habitsCreated:
+              type: integer
+            habitsMarked:
+              type: integer
+            journalsCreated:
+              type: integer
+            journalsUpdated:
+              type: integer
+
+    # ── Sync ───────────────────────────────────────────────────────────
+    SyncRequest:
+      type: object
+      required: [items, metadata]
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            required: [title, url]
+            properties:
+              id:
+                type: string
+              title:
+                type: string
+              url:
+                type: string
+                format: uri
+              dateAdded:
+                type: string
+                format: date-time
+        metadata:
+          type: object
+          required: [source, count]
+          properties:
+            source:
+              type: string
+            count:
+              type: integer
+
+    SyncResponse:
+      type: object
+      required: [success, message, itemCount]
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        itemCount:
+          type: integer

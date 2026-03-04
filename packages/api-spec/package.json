@@ -1,0 +1,17 @@
+{
+  "name": "@mindtab/api-spec",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "openapi-typescript openapi.yaml -o dist/api-types.ts",
+    "clean": "rm -rf dist"
+  },
+  "main": "./dist/api-types.ts",
+  "exports": {
+    ".": "./dist/api-types.ts"
+  },
+  "devDependencies": {
+    "openapi-typescript": "^7.6.1"
+  }
+}
