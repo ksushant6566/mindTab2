@@ -11,6 +11,7 @@ type Config struct {
 	JWTSecret      string
 	GoogleClientID string
 	AllowedOrigins []string
+	StaticDir      string
 }
 
 func Load() (*Config, error) {
@@ -23,6 +24,7 @@ func Load() (*Config, error) {
 			"https://app.mindtab.in",
 			"http://localhost:5173",
 		},
+		StaticDir: getEnv("STATIC_DIR", "./static"),
 	}
 
 	if cfg.DatabaseURL == "" {

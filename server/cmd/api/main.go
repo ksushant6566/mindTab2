@@ -132,6 +132,10 @@ func main() {
 		r.Post("/sync/reading-lists", readingListsHandler.Sync)
 	})
 
+	// SPA fallback — must be last
+	spaHandler := handler.NewSPAHandler(cfg.StaticDir)
+	r.Handle("/*", spaHandler)
+
 	srv := &http.Server{
 		Addr:         ":" + cfg.Port,
 		Handler:      r,
