@@ -1,0 +1,44 @@
+{
+	"manifest_version": 3,
+	"name": "MindTab",
+	"version": "1.2",
+	"description": "Manage goals, track progress, note down ideas, and stay focused with MindTab.",
+	"host_permissions": [
+		"https://app.mindtab.in/*",
+		"https://api.mindtab.in/*"
+	],
+	"permissions": [
+		"storage",
+		"tabs",
+		"alarms",
+		"scripting",
+		"bookmarks",
+		"readingList",
+		"cookies"
+	],
+	"chrome_url_overrides": {
+		"newtab": "newtab.html"
+	},
+	"background": {
+		"service_worker": "background.js"
+	},
+	"action": {
+		"default_popup": "popup.html",
+		"default_icon": {
+			"16": "icons/icon16.png",
+			"48": "icons/icon48.png",
+			"128": "icons/icon128.png"
+		}
+	},
+	"icons": {
+		"16": "icons/icon16.png",
+		"48": "icons/icon48.png",
+		"128": "icons/icon128.png"
+	},
+	"web_accessible_resources": [
+		{
+			"resources": ["app/*"],
+			"matches": ["https://app.mindtab.in/*"]
+		}
+	]
+}
