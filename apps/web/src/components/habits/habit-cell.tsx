@@ -1,0 +1,35 @@
+import React, { useState } from 'react'
+import { CheckedState } from '@radix-ui/react-checkbox'
+import { Checkbox } from '~/components/ui/checkbox'
+import Confetti from 'react-confetti'
+import { motion, AnimatePresence } from 'framer-motion'
+
+type HabitCellProps = { habit: any; date: string; isEditable: boolean; isChecked: boolean; onCheckedChange: (checked: CheckedState, date: string) => void; }
+
+export const HabitCell: React.FC<HabitCellProps> = ({ habit, date, isEditable, isChecked, onCheckedChange }) => {
+    const [showConfetti, setShowConfetti] = useState(false)
+    const [confettiSource, setConfettiSource] = useState({ x: 0, y: 0 })
+    const [showXp, setShowXp] = useState(false)
+    const [xpAmount, setXpAmount] = useState(10)
+    const [xpKey, setXpKey] = useState(0)
+
+    return (
+        <div className='flex justify-center items-center h-full w-full relative'>
+            <button onClick={(event) => { const rect = event.currentTarget.getBoundingClientRect(); const scrollX = window.scrollX || window.pageXOffset; const scrollY = window.scrollY || window.pageYOffset; setConfettiSource({ x: rect.left + rect.width / 2 + scrollX, y: rect.top + rect.height / 2 + scrollY }); }} className="w-8 h-8 md:w-full md:h-11 max-h-full">
+                <Checkbox className="w-full h-full" disabled={!isEditable} checked={isChecked} onCheckedChange={(checked) => {
+                    if (checked) { setShowConfetti(true); setXpAmount(10); setXpKey((k) => k + 1); setShowXp(true); } else { setXpAmount(-10); setXpKey((k) => k + 1); setShowXp(true); }
+                    onCheckedChange(checked, date)
+                }} />
+            </button>
+            <AnimatePresence>
+                {showXp && (
+                    <motion.span key={`xp-${xpKey}`} className={`absolute -top-3 left-1/2 -translate-x-1/2 font-bold text-xs whitespace-nowrap pointer-events-none z-10 ${xpAmount > 0 ? "text-amber-400" : "text-red-400"}`}
+                        initial={{ opacity: 1, y: 0 }} animate={{ opacity: 0, y: -24 }} exit={{ opacity: 0 }} transition={{ duration: 1.2, ease: "easeOut" }} onAnimationComplete={() => setShowXp(false)}>
+                        {xpAmount > 0 ? "+10 XP" : "-10 XP"}
+                    </motion.span>
+                )}
+            </AnimatePresence>
+            {showConfetti && (<Confetti recycle={false} gravity={0.5} opacity={0.7} wind={0.5} initialVelocityY={40} initialVelocityX={10} numberOfPieces={15} colors={['#FFD700', '#FF6347', '#4169E1', '#32CD32', '#FF1493']} confettiSource={{ x: confettiSource.x, y: confettiSource.y, w: 0, h: 0 }} style={{ position: 'fixed', pointerEvents: 'none', width: '100%', height: '100%', top: '0', left: '0' }} tweenDuration={100} onConfettiComplete={(confetti) => { confetti?.stop(); confetti?.reset(); setShowConfetti(false); }} />)}
+        </div>
+    )
+}
