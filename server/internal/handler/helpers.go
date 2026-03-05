@@ -26,7 +26,6 @@ func WriteError(w http.ResponseWriter, status int, message string) {
 // ReadJSON decodes the request body into dst.
 func ReadJSON(r *http.Request, dst any) error {
 	dec := json.NewDecoder(r.Body)
-	dec.DisallowUnknownFields()
 	if err := dec.Decode(dst); err != nil {
 		return fmt.Errorf("invalid JSON: %w", err)
 	}

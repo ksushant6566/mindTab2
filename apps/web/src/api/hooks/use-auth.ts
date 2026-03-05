@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
+import { useEffect } from "react";
+import { create } from "zustand";
 import { api, setAccessToken } from "../client";
 
 interface User {
@@ -12,23 +13,23 @@ interface User {
 
 interface AuthState {
   user: User | null;
+  accessToken: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  _hasChecked: boolean;
+  _refreshSession: () => Promise<void>;
+  login: (googleIdToken: string) => Promise<void>;
+  logout: () => void;
 }
 
-export function useAuth() {
-  const [state, setState] = useState<AuthState>({
-    user: null,
-    isAuthenticated: false,
-    isLoading: true,
-  });
+const useAuthStore = create<AuthState>((set, get) => ({
+  user: null,
+  accessToken: null,
+  isAuthenticated: false,
+  isLoading: true,
+  _hasChecked: false,
 
-  // Try to restore session on mount via refresh token
-  useEffect(() => {
-    refreshSession();
-  }, []);
-
-  async function refreshSession() {
+  _refreshSession: async () => {
     try {
       const { data, error } = await api.POST("/auth/refresh");
       if (data && !error) {
@@ -36,10 +37,12 @@ export function useAuth() {
         // Fetch user info
         const userRes = await api.GET("/users/me");
         if (userRes.data) {
-          setState({
+          set({
             user: userRes.data as User,
+            accessToken: data.accessToken,
             isAuthenticated: true,
             isLoading: false,
+            _hasChecked: true,
           });
           return;
         }
@@ -47,27 +50,58 @@ export function useAuth() {
     } catch {
       // Refresh failed — user is not authenticated
     }
-    setState({ user: null, isAuthenticated: false, isLoading: false });
-  }
+    set({
+      user: null,
+      accessToken: null,
+      isAuthenticated: false,
+      isLoading: false,
+      _hasChecked: true,
+    });
+  },
 
-  const login = useCallback(async (googleIdToken: string) => {
+  login: async (googleIdToken: string) => {
     const { data, error } = await api.POST("/auth/google", {
       body: { idToken: googleIdToken },
     });
     if (data && !error) {
       setAccessToken(data.accessToken);
-      setState({
+      set({
         user: data.user as User,
+        accessToken: data.accessToken,
         isAuthenticated: true,
         isLoading: false,
       });
     }
-  }, []);
+  },
 
-  const logout = useCallback(() => {
+  logout: () => {
     setAccessToken(null);
-    setState({ user: null, isAuthenticated: false, isLoading: false });
-  }, []);
+    set({
+      user: null,
+      accessToken: null,
+      isAuthenticated: false,
+      isLoading: false,
+    });
+  },
+}));
 
-  return { ...state, login, logout, refreshSession };
+export function useAuth() {
+  const store = useAuthStore();
+
+  // On first call, trigger a refresh check
+  useEffect(() => {
+    if (!store._hasChecked) {
+      store._refreshSession();
+    }
+  }, [store._hasChecked]);
+
+  return {
+    user: store.user,
+    accessToken: store.accessToken,
+    isAuthenticated: store.isAuthenticated,
+    isLoading: store.isLoading,
+    login: store.login,
+    logout: store.logout,
+    refreshSession: store._refreshSession,
+  };
 }

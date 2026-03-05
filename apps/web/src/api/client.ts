@@ -23,4 +23,41 @@ api.use({
     }
     return request;
   },
+
+  async onResponse({ request, response }) {
+    if (response.status === 401) {
+      // Attempt to refresh the token
+      try {
+        const refreshRes = await fetch(
+          `${import.meta.env.VITE_API_URL || ""}/auth/refresh`,
+          {
+            method: "POST",
+            credentials: "include",
+          },
+        );
+
+        if (refreshRes.ok) {
+          const data = await refreshRes.json();
+          setAccessToken(data.accessToken);
+
+          // Retry the original request with the new token
+          const retryRequest = new Request(request, {
+            headers: new Headers(request.headers),
+          });
+          retryRequest.headers.set(
+            "Authorization",
+            `Bearer ${data.accessToken}`,
+          );
+          return fetch(retryRequest);
+        }
+      } catch {
+        // Refresh failed
+      }
+
+      // If refresh failed, redirect to login
+      setAccessToken(null);
+      window.location.href = "/login";
+    }
+    return response;
+  },
 });

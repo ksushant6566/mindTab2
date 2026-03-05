@@ -8,7 +8,7 @@ info:
     url: https://mindtab.in
 
 servers:
-  - url: /api/v1
+  - url: /
     description: API v1
 
 security:

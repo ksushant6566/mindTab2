@@ -29,9 +29,9 @@ export const Goals: React.FC<GoalsProps> = ({ viewMode }) => {
     const { mutate: deleteGoal, isPending: isDeletingGoal, variables: deleteGoalVariables } = useDeleteGoal();
     const { mutate: archiveCompletedGoals } = useArchiveCompletedGoals();
 
-    const onCreateGoal = (goal: any) => {
+    const onCreateGoal = (goal: { title: string; description?: string; status?: string; priority?: string; impact?: string; position?: number; projectId?: string | null; completedAt?: string }) => {
         const goalData = activeProjectId ? { ...goal, projectId: activeProjectId } : goal;
-        createGoal(goalData as any);
+        createGoal(goalData);
         setIsCreateGoalOpen(false);
     };
 
@@ -44,20 +44,20 @@ export const Goals: React.FC<GoalsProps> = ({ viewMode }) => {
         if (goal.status === "pending") newStatus = "in_progress";
         else if (goal.status === "in_progress") newStatus = "completed";
         else newStatus = "pending";
-        (updateGoal as any)({ id: goalId, status: newStatus });
+        updateGoal({ id: goalId, status: newStatus });
     };
 
-    const handleDeleteGoal = (goalId: string) => (deleteGoal as any)({ id: goalId });
+    const handleDeleteGoal = (goalId: string) => deleteGoal(goalId);
 
-    const onSaveEditGoal = (goal: any) => {
+    const onSaveEditGoal = (goal: Record<string, unknown>) => {
         if (!editGoalId) return;
         const sanitizedGoal = Object.fromEntries(Object.entries(goal).filter(([_, v]) => v !== null));
-        (updateGoal as any)({ ...sanitizedGoal, id: editGoalId });
+        updateGoal({ ...sanitizedGoal, id: editGoalId } as { id: string; title?: string; description?: string; status?: string; priority?: string; impact?: string; position?: number; projectId?: string | null; completedAt?: string | null });
         setEditGoalId(null);
     };
 
     const onCancelEditGoal = () => setEditGoalId(null);
-    const handleArchiveCompleted = () => { (archiveCompletedGoals as any)({}); };
+    const handleArchiveCompleted = () => { archiveCompletedGoals(); };
     const handleShowArchived = () => { setShowArchived(!showArchived); };
 
     const sortedPendingGoals = useMemo(() => (goals as any[])?.filter((g: any) => g.status === "pending"), [goals]);
@@ -82,9 +82,9 @@ export const Goals: React.FC<GoalsProps> = ({ viewMode }) => {
                             <EditGoalDialog open={!!editGoalId} onOpenChange={(open: boolean) => { if (!open) setEditGoalId(null); }} goal={(goals as any[]).find((g: any) => g.id === editGoalId)!} onSave={onSaveEditGoal} onCancel={onCancelEditGoal} />
                         )}
                         {viewMode === "list" ? (
-                            <ListGoals pendingGoals={sortedPendingGoals} inProgressGoals={sortedInProgressGoals} completedGoals={sortedCompletedGoals} onEdit={setEditGoalId} onDelete={handleDeleteGoal} onToggleStatus={toggleGoalStatus} onArchiveCompleted={handleArchiveCompleted} isDeleting={isDeletingGoal} deleteVariables={deleteGoalVariables as any} />
+                            <ListGoals pendingGoals={sortedPendingGoals} inProgressGoals={sortedInProgressGoals} completedGoals={sortedCompletedGoals} onEdit={setEditGoalId} onDelete={handleDeleteGoal} onToggleStatus={toggleGoalStatus} onArchiveCompleted={handleArchiveCompleted} isDeleting={isDeletingGoal} deleteVariables={deleteGoalVariables} />
                         ) : (
-                            <KanbanGoals pendingGoals={sortedPendingGoals} inProgressGoals={sortedInProgressGoals} completedGoals={sortedCompletedGoals} archivedGoals={sortedArchivedGoals} onEdit={setEditGoalId} onDelete={handleDeleteGoal} onToggleStatus={toggleGoalStatus} onArchiveCompleted={handleArchiveCompleted} onShowArchived={handleShowArchived} showArchived={showArchived} isDeleting={isDeletingGoal} deleteVariables={deleteGoalVariables as any} />
+                            <KanbanGoals pendingGoals={sortedPendingGoals} inProgressGoals={sortedInProgressGoals} completedGoals={sortedCompletedGoals} archivedGoals={sortedArchivedGoals} onEdit={setEditGoalId} onDelete={handleDeleteGoal} onToggleStatus={toggleGoalStatus} onArchiveCompleted={handleArchiveCompleted} onShowArchived={handleShowArchived} showArchived={showArchived} isDeleting={isDeletingGoal} deleteVariables={deleteGoalVariables} />
                         )}
                     </div>
                 )}

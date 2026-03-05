@@ -33,7 +33,7 @@ UPDATE mindmap_journal SET
 WHERE id = $1 AND user_id = $2;
 
 -- name: DeleteJournal :exec
-DELETE FROM mindmap_journal WHERE id = $1 AND user_id = $2;
+UPDATE mindmap_journal SET deleted_at = CURRENT_TIMESTAMP WHERE id = $1 AND user_id = $2;
 
 -- name: CheckJournalTitleExists :one
 SELECT EXISTS(

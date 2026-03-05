@@ -73,11 +73,12 @@ func main() {
 	r.Post("/auth/google", authHandler.Google)
 	r.Post("/auth/refresh", authHandler.Refresh)
 	r.Get("/users/{id}", usersHandler.GetByID)
-	r.Get("/activity", activityHandler.GetUserActivity)
 
 	// Protected routes.
 	r.Group(func(r chi.Router) {
 		r.Use(mw.Auth(cfg.JWTSecret))
+
+		r.Get("/activity", activityHandler.GetUserActivity)
 
 		r.Get("/users/me", usersHandler.GetMe)
 		r.Patch("/users/me", usersHandler.UpdateMe)
