@@ -47,11 +47,11 @@ function IndexPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <main className="flex min-h-screen w-full flex-col items-center bg-background">
       <div className="w-full flex flex-col items-center p-6 px-12 max-w-screen-2xl mx-auto">
         <Header />
-        <Home />
       </div>
-    </div>
+      <Home />
+    </main>
   );
 }

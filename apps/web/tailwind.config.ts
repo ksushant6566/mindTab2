@@ -1,11 +1,15 @@
 import type { Config } from "tailwindcss";
 import tailwindAnimate from "tailwindcss-animate";
+import { fontFamily } from "tailwindcss/defaultTheme";
 
 const config: Config = {
   darkMode: "class",
   content: ["./index.html", "./src/**/*.{ts,tsx}"],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ["Geist Sans", ...fontFamily.sans],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",

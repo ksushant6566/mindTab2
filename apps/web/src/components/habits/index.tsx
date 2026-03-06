@@ -50,7 +50,7 @@ export const Habits: React.FC<HabitsProps> = ({ viewMode }) => {
         }
     };
 
-    const { data: habits, isFetching: isFetchingHabits } = useQuery({
+    const { data: habits, isLoading: isLoadingHabits } = useQuery({
         ...habitsQueryOptions(),
         refetchOnWindowFocus: false,
         refetchOnMount: false,
@@ -108,7 +108,7 @@ export const Habits: React.FC<HabitsProps> = ({ viewMode }) => {
 
     return (
         <div className="flex flex-col gap-4">
-            {isFetchingHabits ? (
+            {isLoadingHabits ? (
                 <HabitTableSkeleton viewMode={viewMode} />
             ) : viewMode === "table" ? (
                 <HabitTable
