@@ -10,7 +10,7 @@ interface SortableGoalProps {
   onDelete: (id: string) => void
   onToggleStatus: (id: string, checked: CheckedState) => void
   isDeleting: boolean
-  deleteVariables?: { id: string }
+  deleteVariables?: string
 }
 
 export const SortableGoal: React.FC<SortableGoalProps> = ({ goal, onEdit, onDelete, onToggleStatus, isDeleting, deleteVariables }) => {

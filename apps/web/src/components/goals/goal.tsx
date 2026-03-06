@@ -38,7 +38,7 @@ interface GoalProps {
     onDelete: (id: string) => void;
     onToggleStatus: (id: string, checked: CheckedState) => void;
     isDeleting: boolean;
-    deleteVariables?: { id: string };
+    deleteVariables?: string;
 }
 
 export const Goal: React.FC<GoalProps> = ({
@@ -123,7 +123,7 @@ export const Goal: React.FC<GoalProps> = ({
                     variant="ghost"
                     className="hover:bg-red-900 active:bg-red-900 h-8 w-8 p-0.5"
                     onClick={() => onDelete(goal.id)}
-                    disabled={isDeleting && deleteVariables?.id === goal.id}
+                    disabled={isDeleting && deleteVariables === goal.id}
                 >
                     <Trash2 className="h-4 w-4" />
                 </Button>

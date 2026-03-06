@@ -4,6 +4,7 @@ import {
 import { SortableContext, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { type CheckedState } from "@radix-ui/react-checkbox";
 import React, { useEffect, useRef, useCallback } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { ScrollArea } from "~/components/ui/scroll-area";
 import { useUpdateGoalPositions } from "~/api/hooks";
 import { DroppableColumn } from "./droppable-column";
@@ -21,13 +22,14 @@ interface KanbanGoalsProps {
     pendingGoals?: TGoal[]; inProgressGoals?: TGoal[]; completedGoals?: TGoal[]; archivedGoals?: TGoal[];
     onEdit: (id: string) => void; onDelete: (id: string) => void; onToggleStatus: (id: string, checked: CheckedState) => void;
     onArchiveCompleted?: () => void; onShowArchived?: () => void; showArchived?: boolean;
-    isDeleting: boolean; deleteVariables?: { id: string };
+    isDeleting: boolean; deleteVariables?: string;
 }
 
 export const KanbanGoals: React.FC<KanbanGoalsProps> = ({
     pendingGoals = [], inProgressGoals = [], completedGoals = [], archivedGoals = [],
     onEdit, onDelete, onToggleStatus, onArchiveCompleted, onShowArchived, showArchived = false, isDeleting, deleteVariables,
 }) => {
+    const qc = useQueryClient();
     const [activeId, setActiveId] = React.useState<string | null>(null);
     const [localPendingGoals, setLocalPendingGoals] = React.useState<TGoal[]>([]);
     const [localInProgressGoals, setLocalInProgressGoals] = React.useState<TGoal[]>([]);
@@ -96,7 +98,24 @@ export const KanbanGoals: React.FC<KanbanGoalsProps> = ({
         }
 
         const sequence = ++sequenceRef.current;
-        updatePositions({ goals: updates, sequence } as any);
+        updatePositions(
+            { goals: updates, sequence } as any,
+            {
+                onError: (_err: any, _vars: any, context: any) => {
+                    if (context?.sequence === sequenceRef.current) {
+                        setLocalPendingGoals(pendingGoals);
+                        setLocalInProgressGoals(inProgressGoals);
+                        setLocalCompletedGoals(completedGoals);
+                        context?.previousGoals?.forEach(([key, data]: any) => qc.setQueryData(key, data));
+                    }
+                },
+                onSettled: (_data: any, _err: any, _vars: any, context: any) => {
+                    if (context?.sequence === sequenceRef.current) {
+                        qc.invalidateQueries({ queryKey: ["goals"] });
+                    }
+                },
+            }
+        );
         setActiveId(null);
     };
 

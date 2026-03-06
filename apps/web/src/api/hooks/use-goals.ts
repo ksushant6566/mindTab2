@@ -80,7 +80,10 @@ export function useCreateGoal() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["goals"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["goals"] });
+      qc.invalidateQueries({ queryKey: ["projects"] });
+    },
   });
 }
 
@@ -108,7 +111,24 @@ export function useUpdateGoal() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["goals"] }),
+    async onMutate(variables) {
+      await qc.cancelQueries({ queryKey: ["goals"] });
+      const previousGoals = qc.getQueriesData({ queryKey: ["goals"] });
+      qc.setQueriesData({ queryKey: ["goals"] }, (old: any) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((goal: any) =>
+          goal.id === variables.id ? { ...goal, ...variables } : goal
+        );
+      });
+      return { previousGoals };
+    },
+    onError(_err, _vars, context) {
+      context?.previousGoals?.forEach(([key, data]: any) => qc.setQueryData(key, data));
+    },
+    onSettled() {
+      qc.invalidateQueries({ queryKey: ["goals"] });
+      qc.invalidateQueries({ queryKey: ["projects"] });
+    },
   });
 }
 
@@ -121,7 +141,22 @@ export function useDeleteGoal() {
       });
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["goals"] }),
+    async onMutate(id) {
+      await qc.cancelQueries({ queryKey: ["goals"] });
+      const previousGoals = qc.getQueriesData({ queryKey: ["goals"] });
+      qc.setQueriesData({ queryKey: ["goals"] }, (old: any) => {
+        if (!Array.isArray(old)) return old;
+        return old.filter((goal: any) => goal.id !== id);
+      });
+      return { previousGoals };
+    },
+    onError(_err, _id, context) {
+      context?.previousGoals?.forEach(([key, data]: any) => qc.setQueryData(key, data));
+    },
+    onSettled() {
+      qc.invalidateQueries({ queryKey: ["goals"] });
+      qc.invalidateQueries({ queryKey: ["projects"] });
+    },
   });
 }
 
@@ -138,7 +173,27 @@ export function useUpdateGoalPositions() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["goals"] }),
+    async onMutate(variables) {
+      await qc.cancelQueries({ queryKey: ["goals"] });
+      const previousGoals = qc.getQueriesData({ queryKey: ["goals"] });
+      qc.setQueriesData({ queryKey: ["goals"] }, (old: any) => {
+        if (!Array.isArray(old)) return old;
+        const updated = old.map((goal: any) => {
+          const update = variables.goals.find((g) => g.id === goal.id);
+          if (update) {
+            return { ...goal, position: update.position, status: update.status ?? goal.status };
+          }
+          return goal;
+        });
+        updated.sort((a: any, b: any) => {
+          const statusOrder: Record<string, number> = { pending: 0, in_progress: 1, completed: 2, archived: 3 };
+          if (a.status !== b.status) return (statusOrder[a.status] ?? 0) - (statusOrder[b.status] ?? 0);
+          return a.position - b.position;
+        });
+        return updated;
+      });
+      return { previousGoals, sequence: variables.sequence };
+    },
   });
 }
 
@@ -150,6 +205,21 @@ export function useArchiveCompletedGoals() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["goals"] }),
+    async onMutate() {
+      await qc.cancelQueries({ queryKey: ["goals"] });
+      const previousGoals = qc.getQueriesData({ queryKey: ["goals"] });
+      qc.setQueriesData({ queryKey: ["goals"] }, (old: any) => {
+        if (!Array.isArray(old)) return old;
+        return old.filter((goal: any) => goal.status !== "completed");
+      });
+      return { previousGoals };
+    },
+    onError(_err, _vars, context) {
+      context?.previousGoals?.forEach(([key, data]: any) => qc.setQueryData(key, data));
+    },
+    onSettled() {
+      qc.invalidateQueries({ queryKey: ["goals"] });
+      qc.invalidateQueries({ queryKey: ["projects"] });
+    },
   });
 }
