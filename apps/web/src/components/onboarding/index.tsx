@@ -90,7 +90,9 @@ export function Onboarding({ userName, onComplete }: OnboardingProps) {
     const handleOnboardingComplete = async () => {
         setIsCompletingPending(true);
         try {
-            const { error } = await (api as any).POST("/users/complete-onboarding");
+            const { error } = await api.PATCH("/users/me", {
+                body: { onboardingCompleted: true },
+            });
             if (error) throw error;
             setIsCompleting(true);
             setTimeout(() => {
