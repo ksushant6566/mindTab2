@@ -25,7 +25,7 @@ services:
     command:
       [
         "-path", "/migrations",
-        "-database", "postgres://mindtab:mindtab@db:5432/mindtab?sslmode=disable",
+        "-database", "${DATABASE_URL:-postgres://mindtab:mindtab@db:5432/mindtab?sslmode=disable}",
         "up",
       ]
 
@@ -40,7 +40,7 @@ services:
         condition: service_completed_successfully
     environment:
       PORT: "8080"
-      DATABASE_URL: postgres://mindtab:mindtab@db:5432/mindtab?sslmode=disable
+      DATABASE_URL: ${DATABASE_URL:-postgres://mindtab:mindtab@db:5432/mindtab?sslmode=disable}
       JWT_SECRET: ${JWT_SECRET:-dev-secret-key-min-32-chars-long!!}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
     ports:
