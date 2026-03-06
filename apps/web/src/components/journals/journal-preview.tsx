@@ -84,10 +84,10 @@ export const JournalPreview = ({
                             minute: "numeric",
                         })}
                     </span>
-                    {journal.project && (
+                    {(journal.project || journal.projectName) && (
                         <span className="flex items-center gap-1 rounded-md bg-blue-100 dark:bg-blue-900 px-1 py-0.5 text-xs text-blue-800 dark:text-blue-200">
                             <FolderOpen className="h-3 w-3" />
-                            {journal.project.name || "Project"}
+                            {journal.project?.name || journal.projectName || "Project"}
                         </span>
                     )}
                 </div>

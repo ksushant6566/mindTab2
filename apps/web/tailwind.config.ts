@@ -46,6 +46,22 @@ const config: Config = {
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
       },
+      keyframes: {
+        moveUpDown: {
+          "0%": { transform: "translateY(5px)", opacity: "0" },
+          "15%": { transform: "translateY(0px)", opacity: "1" },
+          "85%": { transform: "translateY(0px)", opacity: "1" },
+          "100%": { transform: "translateY(-5px)", opacity: "0" },
+        },
+        shimmer: {
+          from: { backgroundPosition: "0 0" },
+          to: { backgroundPosition: "-200% 0" },
+        },
+      },
+      animation: {
+        moveUpDown: "moveUpDown ease-in-out 3s infinite",
+        shimmer: "shimmer 3s linear infinite",
+      },
     },
   },
   plugins: [tailwindAnimate],

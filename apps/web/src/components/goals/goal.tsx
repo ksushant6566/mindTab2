@@ -95,10 +95,10 @@ export const Goal: React.FC<GoalProps> = ({
                         />
                         {goal.impact}
                     </span>
-                    {goal.project && (
+                    {(goal.project || goal.projectName) && (
                         <span className="flex items-center gap-1 rounded-md bg-blue-100 dark:bg-blue-900 px-1 py-0.5 text-xs text-blue-800 dark:text-blue-200">
                             <FolderOpen className="h-3 w-3" />
-                            {goal.project.name || "Project"}
+                            {goal.project?.name || goal.projectName || "Project"}
                         </span>
                     )}
                 </div>

@@ -123,9 +123,9 @@ export const JournalDialog = ({ isOpen, onOpenChange, defaultMode, journal }: TJ
                 ) : (
                     <div className="p-4 pt-2 flex flex-wrap gap-1 -mt-2">
                         <div className="flex flex-wrap gap-1">
-                            {journal.project && (
+                            {(journal.project || (journal as any).projectName) && (
                                 <span className="flex items-center gap-1 rounded-md bg-blue-100 dark:bg-blue-900 px-2 py-0.5 text-sm text-blue-800 dark:text-blue-200">
-                                    <FolderOpen className="h-3 w-3" />{journal.project.name || "Project"}
+                                    <FolderOpen className="h-3 w-3" />{journal.project?.name || (journal as any).projectName || "Project"}
                                 </span>
                             )}
                             {mentionedItems.goal.map((item) => (

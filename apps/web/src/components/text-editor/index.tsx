@@ -200,6 +200,13 @@ export const TipTapEditor = ({
     immediatelyRender: false,
   })
 
+  // Sync content prop changes to the editor (useEditor only uses content on init)
+  useEffect(() => {
+    if (editor && !editor.isDestroyed && content !== editor.getHTML()) {
+      editor.commands.setContent(content, false)
+    }
+  }, [content, editor])
+
   const getSelectionRect = (editor: Editor) => {
     const { from, to } = editor.state.selection
     const start = editor.view.coordsAtPos(from)
