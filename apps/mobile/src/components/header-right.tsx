@@ -6,47 +6,7 @@ import { useAuth } from "~/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
 import { habitTrackerQueryOptions } from "@mindtab/core";
 import { api } from "~/lib/api-client";
-
-function calculateStreak(tracker: any[]): number {
-  if (!tracker || tracker.length === 0) return 0;
-
-  // tracker is an array of habits with completions
-  // A streak day = at least one habit completed that day
-  const completedDates = new Set<string>();
-  for (const habit of tracker) {
-    if (habit.completions) {
-      for (const c of habit.completions) {
-        completedDates.add(c.date);
-      }
-    }
-  }
-
-  if (completedDates.size === 0) return 0;
-
-  // Count consecutive days ending at today or yesterday
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  let streak = 0;
-  let checkDate = new Date(today);
-
-  // Check if today is completed, if not start from yesterday
-  const todayStr = checkDate.toISOString().split("T")[0];
-  if (!completedDates.has(todayStr)) {
-    checkDate.setDate(checkDate.getDate() - 1);
-  }
-
-  while (true) {
-    const dateStr = checkDate.toISOString().split("T")[0];
-    if (completedDates.has(dateStr)) {
-      streak++;
-      checkDate.setDate(checkDate.getDate() - 1);
-    } else {
-      break;
-    }
-  }
-
-  return streak;
-}
+import { calculateStreak } from "~/lib/streak";
 
 export function HeaderRight() {
   const router = useRouter();
