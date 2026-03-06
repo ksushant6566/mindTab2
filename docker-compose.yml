@@ -1,0 +1,68 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: mindtab
+      POSTGRES_PASSWORD: mindtab
+      POSTGRES_DB: mindtab
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mindtab"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  migrate:
+    image: migrate/migrate
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./server/migrations:/migrations
+    command:
+      [
+        "-path", "/migrations",
+        "-database", "postgres://mindtab:mindtab@db:5432/mindtab?sslmode=disable",
+        "up",
+      ]
+
+  api:
+    build:
+      context: ./server
+      dockerfile: Dockerfile.dev
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      PORT: "8080"
+      DATABASE_URL: postgres://mindtab:mindtab@db:5432/mindtab?sslmode=disable
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-key-min-32-chars-long!!}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./server:/app
+
+  web:
+    image: node:20-alpine
+    working_dir: /app
+    command: sh -c "corepack enable && pnpm install --frozen-lockfile && pnpm dev"
+    depends_on:
+      - api
+    environment:
+      API_URL: http://api:8080
+      VITE_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+    ports:
+      - "5173:5173"
+    volumes:
+      - .:/app
+      - web_node_modules:/app/node_modules
+
+volumes:
+  pgdata:
+  web_node_modules:

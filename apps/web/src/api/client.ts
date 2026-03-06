@@ -25,7 +25,8 @@ api.use({
   },
 
   async onResponse({ request, response }) {
-    if (response.status === 401) {
+    const url = new URL(request.url, window.location.origin);
+    if (response.status === 401 && !url.pathname.startsWith("/auth/")) {
       // Attempt to refresh the token
       try {
         const refreshRes = await fetch(
