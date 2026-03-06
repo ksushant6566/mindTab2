@@ -3,9 +3,9 @@ import {
   useMutation,
   useQueryClient,
 } from "@tanstack/react-query";
-import { api } from "../client";
+import type { ApiClient } from "./types";
 
-export function projectsQueryOptions(params?: {
+export function projectsQueryOptions(api: ApiClient, params?: {
   includeArchived?: boolean;
   status?: string;
 }) {
@@ -21,7 +21,7 @@ export function projectsQueryOptions(params?: {
   });
 }
 
-export function projectQueryOptions(id: string) {
+export function projectQueryOptions(api: ApiClient, id: string) {
   return queryOptions({
     queryKey: ["projects", id],
     queryFn: async () => {
@@ -34,7 +34,7 @@ export function projectQueryOptions(id: string) {
   });
 }
 
-export function projectsStatsQueryOptions() {
+export function projectsStatsQueryOptions(api: ApiClient) {
   return queryOptions({
     queryKey: ["projects", "stats"],
     queryFn: async () => {
@@ -45,7 +45,7 @@ export function projectsStatsQueryOptions() {
   });
 }
 
-export function useCreateProject() {
+export function useCreateProject(api: ApiClient) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (body: {
@@ -65,7 +65,7 @@ export function useCreateProject() {
   });
 }
 
-export function useUpdateProject() {
+export function useUpdateProject(api: ApiClient) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({
@@ -90,7 +90,7 @@ export function useUpdateProject() {
   });
 }
 
-export function useDeleteProject() {
+export function useDeleteProject(api: ApiClient) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
@@ -104,7 +104,7 @@ export function useDeleteProject() {
   });
 }
 
-export function useArchiveProject() {
+export function useArchiveProject(api: ApiClient) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {

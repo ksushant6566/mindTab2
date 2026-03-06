@@ -3,9 +3,9 @@ import {
   useMutation,
   useQueryClient,
 } from "@tanstack/react-query";
-import { api } from "../client";
+import type { ApiClient } from "./types";
 
-export function goalsQueryOptions(params?: {
+export function goalsQueryOptions(api: ApiClient, params?: {
   projectId?: string;
   includeArchived?: boolean;
 }) {
@@ -21,7 +21,7 @@ export function goalsQueryOptions(params?: {
   });
 }
 
-export function goalQueryOptions(id: string) {
+export function goalQueryOptions(api: ApiClient, id: string) {
   return queryOptions({
     queryKey: ["goals", id],
     queryFn: async () => {
@@ -34,7 +34,7 @@ export function goalQueryOptions(id: string) {
   });
 }
 
-export function goalsCountQueryOptions(params?: {
+export function goalsCountQueryOptions(api: ApiClient, params?: {
   projectId?: string;
   includeArchived?: boolean;
 }) {
@@ -50,7 +50,7 @@ export function goalsCountQueryOptions(params?: {
   });
 }
 
-export function unassignedGoalsQueryOptions() {
+export function unassignedGoalsQueryOptions(api: ApiClient) {
   return queryOptions({
     queryKey: ["goals", "unassigned"],
     queryFn: async () => {
@@ -61,7 +61,7 @@ export function unassignedGoalsQueryOptions() {
   });
 }
 
-export function useCreateGoal() {
+export function useCreateGoal(api: ApiClient) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (body: {
@@ -87,7 +87,7 @@ export function useCreateGoal() {
   });
 }
 
-export function useUpdateGoal() {
+export function useUpdateGoal(api: ApiClient) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({
@@ -132,7 +132,7 @@ export function useUpdateGoal() {
   });
 }
 
-export function useDeleteGoal() {
+export function useDeleteGoal(api: ApiClient) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
@@ -160,7 +160,7 @@ export function useDeleteGoal() {
   });
 }
 
-export function useUpdateGoalPositions() {
+export function useUpdateGoalPositions(api: ApiClient) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (body: {
@@ -197,7 +197,7 @@ export function useUpdateGoalPositions() {
   });
 }
 
-export function useArchiveCompletedGoals() {
+export function useArchiveCompletedGoals(api: ApiClient) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async () => {

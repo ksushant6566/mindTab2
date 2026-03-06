@@ -3,9 +3,9 @@ import {
   useMutation,
   useQueryClient,
 } from "@tanstack/react-query";
-import { api } from "../client";
+import type { ApiClient } from "./types";
 
-export function journalsQueryOptions(params?: { projectId?: string }) {
+export function journalsQueryOptions(api: ApiClient, params?: { projectId?: string }) {
   return queryOptions({
     queryKey: ["journals", params],
     queryFn: async () => {
@@ -18,7 +18,7 @@ export function journalsQueryOptions(params?: { projectId?: string }) {
   });
 }
 
-export function journalQueryOptions(id: string) {
+export function journalQueryOptions(api: ApiClient, id: string) {
   return queryOptions({
     queryKey: ["journals", id],
     queryFn: async () => {
@@ -31,7 +31,7 @@ export function journalQueryOptions(id: string) {
   });
 }
 
-export function journalsCountQueryOptions() {
+export function journalsCountQueryOptions(api: ApiClient) {
   return queryOptions({
     queryKey: ["journals", "count"],
     queryFn: async () => {
@@ -42,7 +42,7 @@ export function journalsCountQueryOptions() {
   });
 }
 
-export function useCreateJournal() {
+export function useCreateJournal(api: ApiClient) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (body: {
@@ -60,7 +60,7 @@ export function useCreateJournal() {
   });
 }
 
-export function useUpdateJournal() {
+export function useUpdateJournal(api: ApiClient) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({
@@ -85,7 +85,7 @@ export function useUpdateJournal() {
   });
 }
 
-export function useDeleteJournal() {
+export function useDeleteJournal(api: ApiClient) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {

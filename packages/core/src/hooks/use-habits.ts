@@ -3,9 +3,9 @@ import {
   useMutation,
   useQueryClient,
 } from "@tanstack/react-query";
-import { api } from "../client";
+import type { ApiClient } from "./types";
 
-export function habitsQueryOptions() {
+export function habitsQueryOptions(api: ApiClient) {
   return queryOptions({
     queryKey: ["habits"],
     queryFn: async () => {
@@ -16,7 +16,7 @@ export function habitsQueryOptions() {
   });
 }
 
-export function habitQueryOptions(id: string) {
+export function habitQueryOptions(api: ApiClient, id: string) {
   return queryOptions({
     queryKey: ["habits", id],
     queryFn: async () => {
@@ -29,7 +29,7 @@ export function habitQueryOptions(id: string) {
   });
 }
 
-export function habitTrackerQueryOptions() {
+export function habitTrackerQueryOptions(api: ApiClient) {
   return queryOptions({
     queryKey: ["habit-tracker"],
     queryFn: async () => {
@@ -40,7 +40,7 @@ export function habitTrackerQueryOptions() {
   });
 }
 
-export function useCreateHabit() {
+export function useCreateHabit(api: ApiClient) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (body: {
@@ -58,7 +58,7 @@ export function useCreateHabit() {
   });
 }
 
-export function useUpdateHabit() {
+export function useUpdateHabit(api: ApiClient) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({
@@ -81,7 +81,7 @@ export function useUpdateHabit() {
   });
 }
 
-export function useDeleteHabit() {
+export function useDeleteHabit(api: ApiClient) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
@@ -108,7 +108,7 @@ export function useDeleteHabit() {
   });
 }
 
-export function useTrackHabit() {
+export function useTrackHabit(api: ApiClient) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, date }: { id: string; date: string }) => {
@@ -150,7 +150,7 @@ export function useTrackHabit() {
   });
 }
 
-export function useUntrackHabit() {
+export function useUntrackHabit(api: ApiClient) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, date }: { id: string; date: string }) => {

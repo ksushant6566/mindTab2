@@ -1,7 +1,7 @@
 import { queryOptions } from "@tanstack/react-query";
-import { api } from "../client";
+import type { ApiClient } from "./types";
 
-export function activityQueryOptions(userId: string) {
+export function activityQueryOptions(api: ApiClient, userId: string) {
   return queryOptions({
     queryKey: ["activity", userId],
     queryFn: async () => {

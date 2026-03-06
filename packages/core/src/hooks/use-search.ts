@@ -1,7 +1,7 @@
 import { queryOptions } from "@tanstack/react-query";
-import { api } from "../client";
+import type { ApiClient } from "./types";
 
-export function searchGoalsQueryOptions(query: string) {
+export function searchGoalsQueryOptions(api: ApiClient, query: string) {
   return queryOptions({
     queryKey: ["search", "goals", query],
     enabled: !!query,
@@ -15,7 +15,7 @@ export function searchGoalsQueryOptions(query: string) {
   });
 }
 
-export function searchHabitsQueryOptions(query: string) {
+export function searchHabitsQueryOptions(api: ApiClient, query: string) {
   return queryOptions({
     queryKey: ["search", "habits", query],
     enabled: !!query,
@@ -29,7 +29,7 @@ export function searchHabitsQueryOptions(query: string) {
   });
 }
 
-export function searchJournalsQueryOptions(query: string) {
+export function searchJournalsQueryOptions(api: ApiClient, query: string) {
   return queryOptions({
     queryKey: ["search", "journals", query],
     enabled: !!query,
