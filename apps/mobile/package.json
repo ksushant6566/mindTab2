@@ -1,0 +1,49 @@
+{
+  "name": "@mindtab/mobile",
+  "version": "0.0.1",
+  "private": true,
+  "main": "expo-router/entry",
+  "scripts": {
+    "dev": "expo start --dev-client",
+    "build:ios": "eas build --platform ios",
+    "build:android": "eas build --platform android",
+    "prebuild": "expo prebuild",
+    "lint": "tsc --noEmit",
+    "clean": "rm -rf node_modules .expo dist"
+  },
+  "dependencies": {
+    "@mindtab/api-spec": "workspace:*",
+    "@mindtab/shared": "workspace:*",
+    "@mindtab/core": "workspace:*",
+    "expo": "~52.0.0",
+    "expo-router": "~4.0.0",
+    "expo-status-bar": "~2.0.0",
+    "expo-secure-store": "~14.0.0",
+    "expo-haptics": "~14.0.0",
+    "expo-dev-client": "~5.0.0",
+    "expo-linking": "~7.0.0",
+    "expo-constants": "~17.0.0",
+    "react": "18.3.1",
+    "react-native": "0.76.9",
+    "react-native-screens": "~4.4.0",
+    "react-native-safe-area-context": "~4.14.0",
+    "react-native-gesture-handler": "~2.20.0",
+    "react-native-reanimated": "~3.16.0",
+    "react-native-web": "~0.19.0",
+    "@react-native-google-signin/google-signin": "^13.0.0",
+    "@10play/tentap-editor": "^0.5.0",
+    "@tanstack/react-query": "^5.59.0",
+    "openapi-fetch": "^0.13.5",
+    "nativewind": "^4.1.0",
+    "react-native-mmkv": "^3.2.0",
+    "zustand": "^5.0.8",
+    "lucide-react-native": "^0.438.0",
+    "sonner-native": "^0.14.0",
+    "react-native-svg": "~15.8.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.3",
+    "typescript": "^5.5.3",
+    "tailwindcss": "^3.4.3"
+  }
+}
