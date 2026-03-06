@@ -77,9 +77,17 @@ func (h *AuthHandler) Google(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Upsert user in DB.
+	// Check if a user with this email already exists (handles NextAuth → Go migration
+	// where the old user ID differs from the Google sub ID).
+	userID := gUser.ID
+	existingUser, err := h.queries.GetUserByEmail(r.Context(), gUser.Email)
+	if err == nil {
+		userID = existingUser.ID
+	}
+
+	// Upsert user in DB using the resolved ID.
 	user, err := h.queries.UpsertUser(r.Context(), store.UpsertUserParams{
-		ID:    gUser.ID,
+		ID:    userID,
 		Name:  pgtype.Text{String: gUser.Name, Valid: gUser.Name != ""},
 		Email: gUser.Email,
 		Image: pgtype.Text{String: gUser.Picture, Valid: gUser.Picture != ""},
