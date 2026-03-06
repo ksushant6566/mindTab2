@@ -13,9 +13,7 @@ import {
 } from "~/components/ui/select";
 import { useQuery } from "@tanstack/react-query";
 import { projectsQueryOptions } from "~/api/hooks";
-
-const goalPriorityValues = ["priority_1", "priority_2", "priority_3", "priority_4"] as const;
-const goalImpactValues = ["low", "medium", "high"] as const;
+import { GOAL_PRIORITY, GOAL_IMPACT } from "@mindtab/shared";
 
 const priorityColors = {
     priority_1: "red",
@@ -48,8 +46,8 @@ export const CreateGoal: React.FC<CreateGoalProps> = ({
     const [formData, setFormData] = React.useState<any>({
         title: defaultValues?.title,
         description: defaultValues?.description,
-        priority: defaultValues?.priority || goalPriorityValues[0],
-        impact: defaultValues?.impact || goalImpactValues[1],
+        priority: defaultValues?.priority || GOAL_PRIORITY[0],
+        impact: defaultValues?.impact || GOAL_IMPACT[1],
         status: "pending",
         projectId: defaultValues?.projectId,
     });
@@ -140,7 +138,7 @@ export const CreateGoal: React.FC<CreateGoalProps> = ({
                     </SelectTrigger>
                     <SelectContent className="text-sm">
                         <SelectGroup>
-                            {goalPriorityValues.map((value) => (
+                            {GOAL_PRIORITY.map((value) => (
                                 <SelectItem key={value} value={value}>
                                     <span className="flex items-center gap-2 capitalize">
                                         <Flag className="h-4 w-4" color={priorityColors[value]} fill={priorityColors[value]} />
@@ -170,7 +168,7 @@ export const CreateGoal: React.FC<CreateGoalProps> = ({
                     <SelectContent className="text-sm">
                         <SelectGroup>
                             <SelectLabel>Impact</SelectLabel>
-                            {[...goalImpactValues].reverse().map((value) => (
+                            {[...GOAL_IMPACT].reverse().map((value) => (
                                 <SelectItem key={value} value={value}>
                                     <span className="flex items-center gap-0 capitalize">
                                         <span className="mr-1 text-sm">{value}</span>
@@ -221,7 +219,7 @@ export const CreateGoal: React.FC<CreateGoalProps> = ({
 
             <div className="flex items-center justify-end space-x-2">
                 <Button onClick={onCancel} variant="secondary" size="sm" className="h-8 text-xs" type="button">Cancel</Button>
-                <Button type="submit" size="sm" className="h-8 text-xs" disabled={loading || !formData.title}>Add goal</Button>
+                <Button type="submit" size="sm" className="h-8 text-xs" disabled={loading || !formData.title} loading={loading}>Add goal</Button>
             </div>
         </form>
     );

@@ -75,9 +75,10 @@ export function WelcomeStep({ userName, onNext }: WelcomeStepProps) {
                     size="sm"
                     onClick={handleContinue}
                     disabled={createJournal.isPending}
+                    loading={createJournal.isPending}
                     className="group"
                 >
-                    {createJournal.isPending ? "Saving..." : "Continue"}
+                    Continue
                     <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                 </Button>
             </motion.div>

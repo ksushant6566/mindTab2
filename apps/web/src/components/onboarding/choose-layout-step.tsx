@@ -330,8 +330,8 @@ export function ChooseLayoutStep({ onNext, onBack, isLastStep, loading }: Choose
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     Back
                 </Button>
-                <Button size="sm" onClick={onNext} disabled={loading}>
-                    {loading ? "Completing..." : isLastStep ? "Go to Dashboard" : "Continue"}
+                <Button size="sm" onClick={onNext} disabled={loading} loading={loading}>
+                    {isLastStep ? "Go to Dashboard" : "Continue"}
                     {!isLastStep && <ArrowRight className="ml-2 h-4 w-4" />}
                 </Button>
             </motion.div>

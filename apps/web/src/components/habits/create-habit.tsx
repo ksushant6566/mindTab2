@@ -29,7 +29,7 @@ export const CreateHabit: React.FC<CreateHabitProps> = ({ onSave, onCancel, load
             </div>
             <div className="flex justify-end items-center gap-2">
                 <Button size={"sm"} variant={"secondary"} className="h-8 text-xs" onClick={onCancel} type="button">Cancel</Button>
-                <Button size={"sm"} type="submit" className="h-8 text-xs" disabled={loading || !formData.title}>Add habit</Button>
+                <Button size={"sm"} type="submit" className="h-8 text-xs" disabled={loading || !formData.title} loading={loading}>Add habit</Button>
             </div>
         </form>
     );

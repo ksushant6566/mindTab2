@@ -276,8 +276,9 @@ export function CreateHabitStep({
                                     size="sm"
                                     className="h-8 text-xs"
                                     disabled={!customTitle.trim() || createHabit.isPending}
+                                    loading={createHabit.isPending}
                                 >
-                                    {createHabit.isPending ? "Creating..." : "Add habit"}
+                                    Add habit
                                 </Button>
                             </div>
                         </form>

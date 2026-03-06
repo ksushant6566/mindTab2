@@ -108,6 +108,10 @@ export const JournalPreview = ({
                             isDeletingJournal &&
                             deleteJournalVariables?.id === journal.id
                         }
+                        loading={
+                            isDeletingJournal &&
+                            deleteJournalVariables?.id === journal.id
+                        }
                     >
                         <Trash2 className="h-4 w-4" />
                     </Button>

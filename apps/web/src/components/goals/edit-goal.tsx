@@ -7,9 +7,7 @@ import {
 } from "~/components/ui/select";
 import { useQuery } from "@tanstack/react-query";
 import { projectsQueryOptions } from "~/api/hooks";
-
-const goalPriorityValues = ["priority_1", "priority_2", "priority_3", "priority_4"] as const;
-const goalImpactValues = ["low", "medium", "high"] as const;
+import { GOAL_PRIORITY, GOAL_IMPACT } from "@mindtab/shared";
 
 const priorityColors = { priority_1: "red", priority_2: "yellow", priority_3: "green", priority_4: "white" };
 const impactNumber = { low: 1, medium: 2, high: 3 };
@@ -53,7 +51,7 @@ export const EditGoal: React.FC<EditGoalProps> = ({ onSave, onCancel, goal, load
                         </SelectValue>
                     </SelectTrigger>
                     <SelectContent className="text-sm"><SelectGroup>
-                        {goalPriorityValues.map((value) => (<SelectItem key={value} value={value}><span className="flex items-center gap-2 capitalize"><Flag className="h-4 w-4" color={priorityColors[value]} fill={priorityColors[value]} />{value.replace("_", " ")}</span></SelectItem>))}
+                        {GOAL_PRIORITY.map((value) => (<SelectItem key={value} value={value}><span className="flex items-center gap-2 capitalize"><Flag className="h-4 w-4" color={priorityColors[value]} fill={priorityColors[value]} />{value.replace("_", " ")}</span></SelectItem>))}
                     </SelectGroup></SelectContent>
                 </Select>
                 <Select onValueChange={(value) => setFormData({ ...formData, impact: value })} value={formData.impact}>
@@ -65,7 +63,7 @@ export const EditGoal: React.FC<EditGoalProps> = ({ onSave, onCancel, goal, load
                         </SelectValue>
                     </SelectTrigger>
                     <SelectContent className="text-sm"><SelectGroup><SelectLabel>Impact</SelectLabel>
-                        {[...goalImpactValues].reverse().map((value) => (<SelectItem key={value} value={value}><span className="flex items-center gap-0 capitalize"><span className="mr-1 text-sm">{value}</span>{Array.from({ length: impactNumber[value] }).map((_, i) => (<Zap key={i} className="h-3 w-3" color="gold" fill="gold" />))}</span></SelectItem>))}
+                        {[...GOAL_IMPACT].reverse().map((value) => (<SelectItem key={value} value={value}><span className="flex items-center gap-0 capitalize"><span className="mr-1 text-sm">{value}</span>{Array.from({ length: impactNumber[value] }).map((_, i) => (<Zap key={i} className="h-3 w-3" color="gold" fill="gold" />))}</span></SelectItem>))}
                     </SelectGroup></SelectContent>
                 </Select>
                 <Select onValueChange={(value) => setFormData({ ...formData, projectId: value === "none" ? null : value })} value={formData.projectId || "none"}>
@@ -82,7 +80,7 @@ export const EditGoal: React.FC<EditGoalProps> = ({ onSave, onCancel, goal, load
             </div>
             <div className="flex items-center justify-end space-x-2">
                 <Button onClick={onCancel} variant="secondary" size="sm" className="h-8 text-xs" type="button">Cancel</Button>
-                <Button type="submit" size="sm" className="h-8 text-xs" disabled={loading || !formData.title}>Save changes</Button>
+                <Button type="submit" size="sm" className="h-8 text-xs" disabled={loading || !formData.title} loading={loading}>Save changes</Button>
             </div>
         </form>
     );

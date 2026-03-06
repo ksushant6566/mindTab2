@@ -17,8 +17,7 @@ import {
     SelectValue,
 } from "~/components/ui/select";
 import { handleCmdEnterSubmit } from "~/lib/utils";
-
-const projectStatusValues = ["active", "completed", "archived", "on_hold"] as const;
+import { PROJECT_STATUS } from "@mindtab/shared";
 
 type Project = {
     id: string;
@@ -142,7 +141,7 @@ export const EditProjectDialog: React.FC<EditProjectDialogProps> = ({
                                 <SelectValue placeholder="Select status" />
                             </SelectTrigger>
                             <SelectContent>
-                                {projectStatusValues.map((status) => (
+                                {PROJECT_STATUS.map((status) => (
                                     <SelectItem key={status} value={status}>
                                         {status.charAt(0).toUpperCase() +
                                             status.slice(1).replace("_", " ")}
@@ -164,8 +163,9 @@ export const EditProjectDialog: React.FC<EditProjectDialogProps> = ({
                         <Button
                             type="submit"
                             disabled={isSubmitting || !formData.name}
+                            loading={isSubmitting}
                         >
-                            {isSubmitting ? "Saving..." : "Save Changes"}
+                            Save Changes
                         </Button>
                     </div>
                 </form>

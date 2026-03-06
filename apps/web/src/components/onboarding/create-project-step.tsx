@@ -128,8 +128,9 @@ export function CreateProjectStep({
                                 size="sm"
                                 className="h-8 text-xs"
                                 disabled={!name.trim() || createProject.isPending}
+                                loading={createProject.isPending}
                             >
-                                {createProject.isPending ? "Creating..." : alreadyCreated ? "Continue" : "Create project"}
+                                {alreadyCreated ? "Continue" : "Create project"}
                             </Button>
                         </div>
                     </div>

@@ -117,8 +117,9 @@ export const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
                             type="submit"
                             size="sm"
                             disabled={isSubmitting || !formData.name}
+                            loading={isSubmitting}
                         >
-                            {isSubmitting ? "Creating..." : "Create Project"}
+                            Create Project
                         </Button>
                     </div>
                 </form>

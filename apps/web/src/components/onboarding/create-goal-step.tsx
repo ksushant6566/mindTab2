@@ -14,21 +14,16 @@ import { useCreateGoal } from "~/api/hooks";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { handleCmdEnterSubmit } from "~/lib/utils";
+import { GOAL_PRIORITY, GOAL_IMPACT, type GoalPriority, type GoalImpact } from "@mindtab/shared";
 
-const goalPriorityValues = ["priority_1", "priority_2", "priority_3", "priority_4"] as const;
-const goalImpactValues = ["low", "medium", "high"] as const;
-
-type Priority = (typeof goalPriorityValues)[number];
-type Impact = (typeof goalImpactValues)[number];
-
-const priorityColors: Record<Priority, string> = {
+const priorityColors: Record<GoalPriority, string> = {
     priority_1: "red",
     priority_2: "yellow",
     priority_3: "green",
     priority_4: "white",
 };
 
-const impactNumber: Record<Impact, number> = {
+const impactNumber: Record<GoalImpact, number> = {
     low: 1,
     medium: 2,
     high: 3,
@@ -36,8 +31,8 @@ const impactNumber: Record<Impact, number> = {
 
 export type CreatedGoalData = {
     title: string;
-    priority: Priority;
-    impact: Impact;
+    priority: GoalPriority;
+    impact: GoalImpact;
 };
 
 type CreateGoalStepProps = {
@@ -57,8 +52,8 @@ export function CreateGoalStep({
 }: CreateGoalStepProps) {
     const [title, setTitle] = useState(initialData?.title ?? "");
     const [description, setDescription] = useState("");
-    const [priority, setPriority] = useState<Priority>(initialData?.priority ?? "priority_1");
-    const [impact, setImpact] = useState<Impact>(initialData?.impact ?? "medium");
+    const [priority, setPriority] = useState<GoalPriority>(initialData?.priority ?? "priority_1");
+    const [impact, setImpact] = useState<GoalImpact>(initialData?.impact ?? "medium");
     const [selectedProjectId, setSelectedProjectId] = useState<string | null>(projectId);
     const alreadyCreated = !!initialData;
 
@@ -167,7 +162,7 @@ export function CreateGoalStep({
 
                     <div className="flex gap-2 pb-2">
                         <Select
-                            onValueChange={(value) => setPriority(value as Priority)}
+                            onValueChange={(value) => setPriority(value as GoalPriority)}
                             value={priority}
                         >
                             <SelectTrigger className="size-8 w-[90px] focus:ring-0">
@@ -184,7 +179,7 @@ export function CreateGoalStep({
                             </SelectTrigger>
                             <SelectContent className="text-sm">
                                 <SelectGroup>
-                                    {goalPriorityValues.map((value) => (
+                                    {GOAL_PRIORITY.map((value) => (
                                         <SelectItem key={value} value={value}>
                                             <span className="flex items-center gap-2 capitalize">
                                                 <Flag
@@ -201,7 +196,7 @@ export function CreateGoalStep({
                         </Select>
 
                         <Select
-                            onValueChange={(value) => setImpact(value as Impact)}
+                            onValueChange={(value) => setImpact(value as GoalImpact)}
                             value={impact}
                         >
                             <SelectTrigger className="size-8 w-fit focus:ring-0">
@@ -221,7 +216,7 @@ export function CreateGoalStep({
                             <SelectContent className="text-sm">
                                 <SelectGroup>
                                     <SelectLabel>Impact</SelectLabel>
-                                    {[...goalImpactValues]
+                                    {[...GOAL_IMPACT]
                                         .map((value) => (
                                             <SelectItem key={value} value={value}>
                                                 <span className="flex items-center gap-0 capitalize">
@@ -294,8 +289,9 @@ export function CreateGoalStep({
                             size="sm"
                             className="h-8 text-xs"
                             disabled={!title.trim() || createGoal.isPending}
+                            loading={createGoal.isPending}
                         >
-                            {createGoal.isPending ? "Creating..." : alreadyCreated ? "Continue" : "Add goal"}
+                            {alreadyCreated ? "Continue" : "Add goal"}
                         </Button>
                     </div>
                 </form>
