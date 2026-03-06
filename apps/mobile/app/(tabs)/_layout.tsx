@@ -1,16 +1,7 @@
-import { Pressable } from "react-native";
-import { Tabs, useRouter } from "expo-router";
-import { Target, CheckSquare, FileEdit, FolderOpen, Search } from "lucide-react-native";
+import { Tabs } from "expo-router";
+import { Target, CheckSquare, FileEdit, FolderOpen } from "lucide-react-native";
 import { colors } from "~/styles/colors";
-
-function SearchButton() {
-  const router = useRouter();
-  return (
-    <Pressable onPress={() => router.push("/(modals)/command-palette")} className="mr-4 p-1">
-      <Search size={20} color={colors.foreground} />
-    </Pressable>
-  );
-}
+import { HeaderRight } from "~/components/header-right";
 
 export default function TabsLayout() {
   return (
@@ -27,7 +18,7 @@ export default function TabsLayout() {
         },
         headerTintColor: colors.foreground,
         headerShadowVisible: false,
-        headerRight: () => <SearchButton />,
+        headerRight: () => <HeaderRight />,
       }}
     >
       <Tabs.Screen
