@@ -1,6 +1,7 @@
 import React from "react";
 import { QueryClient } from "@tanstack/react-query";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Toaster } from "sonner-native";
 import { queryPersister } from "~/lib/storage";
 
@@ -16,15 +17,17 @@ const queryClient = new QueryClient({
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <PersistQueryClientProvider
-      client={queryClient}
-      persistOptions={{
-        persister: queryPersister,
-        maxAge: 24 * 60 * 60 * 1000, // 24 hours
-      }}
-    >
-      {children}
-      <Toaster position="top-center" />
-    </PersistQueryClientProvider>
+    <SafeAreaProvider>
+      <PersistQueryClientProvider
+        client={queryClient}
+        persistOptions={{
+          persister: queryPersister,
+          maxAge: 24 * 60 * 60 * 1000, // 24 hours
+        }}
+      >
+        {children}
+        <Toaster position="top-center" />
+      </PersistQueryClientProvider>
+    </SafeAreaProvider>
   );
 }

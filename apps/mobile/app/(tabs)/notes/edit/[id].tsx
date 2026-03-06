@@ -1,5 +1,5 @@
 import { View, Text, Pressable } from "react-native";
-import { useState, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { journalQueryOptions, useUpdateJournal } from "@mindtab/core";
@@ -22,14 +22,18 @@ export default function EditNoteScreen() {
   const [titleLoaded, setTitleLoaded] = useState(false);
 
   const editor = useRichEditor({
-    initialContent: (note as any)?.content || "",
+    initialContent: "",
     editable: true,
   });
 
-  if (!titleLoaded && note) {
-    setTitle((note as any).title || "");
-    setTitleLoaded(true);
-  }
+  // Populate editor and title when note data arrives
+  useEffect(() => {
+    if (note && !titleLoaded) {
+      setTitle((note as any).title || "");
+      editor.setContent((note as any).content || "");
+      setTitleLoaded(true);
+    }
+  }, [note, titleLoaded]);
 
   if (isLoading || !note) return <Loading />;
 

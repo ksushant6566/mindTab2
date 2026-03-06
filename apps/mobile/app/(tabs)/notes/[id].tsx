@@ -1,4 +1,5 @@
-import { View, Text, ScrollView, Pressable, Alert } from "react-native";
+import { View, Text, Pressable, Alert } from "react-native";
+import { useEffect } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { journalQueryOptions, useDeleteJournal } from "@mindtab/core";
@@ -22,14 +23,21 @@ export default function NoteDetailScreen() {
   const { data: note, isLoading } = useQuery(journalQueryOptions(api, id));
   const deleteJournal = useDeleteJournal(api);
 
-  const n = note as any;
-
   const editor = useRichEditor({
-    initialContent: n?.content || "",
+    initialContent: "",
     editable: false,
   });
 
+  // Update editor content when note data arrives
+  useEffect(() => {
+    if (note) {
+      editor.setContent((note as any).content || "");
+    }
+  }, [note]);
+
   if (isLoading || !note) return <Loading />;
+
+  const n = note as any;
 
   const handleDelete = () => {
     Alert.alert("Delete Note", "Are you sure you want to delete this note?", [

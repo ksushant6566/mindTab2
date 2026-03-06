@@ -27,7 +27,7 @@
       "expo-secure-store",
       [
         "@react-native-google-signin/google-signin",
-        { "iosUrlScheme": "com.googleusercontent.apps.YOUR_IOS_CLIENT_ID" }
+        { "iosUrlScheme": "${EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME}" }
       ]
     ],
     "experiments": {

@@ -6,6 +6,7 @@ import {
   setAccessToken,
   setRefreshToken,
   clearTokens,
+  refreshTokens,
 } from "~/lib/auth";
 
 type User = {
@@ -42,27 +43,17 @@ const useAuthStore = create<AuthState>((set) => ({
 
   _refreshSession: async () => {
     try {
-      const refreshToken = await getRefreshToken();
-      if (!refreshToken) {
+      const hasToken = await getRefreshToken();
+      if (!hasToken) {
         set({ isLoading: false, _hasChecked: true });
         return;
       }
 
-      const res = await fetch(`${API_URL}/auth/refresh`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Platform": "mobile" },
-        body: JSON.stringify({ refreshToken }),
-      });
-
-      if (!res.ok) {
-        await clearTokens();
+      const refreshed = await refreshTokens();
+      if (!refreshed) {
         set({ user: null, isAuthenticated: false, isLoading: false, _hasChecked: true });
         return;
       }
-
-      const data = await res.json();
-      await setAccessToken(data.accessToken);
-      await setRefreshToken(data.refreshToken);
 
       // Fetch user profile
       const { data: user, error } = await api.GET("/users/me");
