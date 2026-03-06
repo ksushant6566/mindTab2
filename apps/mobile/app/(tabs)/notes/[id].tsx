@@ -1,12 +1,12 @@
-import { View, Text, ScrollView, Pressable, Alert, useWindowDimensions } from "react-native";
+import { View, Text, ScrollView, Pressable, Alert } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { journalQueryOptions, useDeleteJournal } from "@mindtab/core";
 import { api } from "~/lib/api-client";
 import { Loading } from "~/components/ui/loading";
-import { Button } from "~/components/ui/button";
 import { ChevronLeft, Pencil, Trash2 } from "lucide-react-native";
 import { colors } from "~/styles/colors";
+import { useRichEditor, RichTextEditorView } from "~/components/notes/rich-text-editor";
 
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString("en-US", {
@@ -16,31 +16,20 @@ function formatDate(dateStr: string): string {
   });
 }
 
-// Simple HTML renderer for read mode — strips tags and shows plain text.
-// A full tentap-editor read-only view can replace this later.
-function HtmlContent({ html }: { html: string }) {
-  const plain = html
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<\/p>/gi, "\n\n")
-    .replace(/<[^>]*>/g, "")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .trim();
-
-  return <Text className="text-foreground leading-6">{plain}</Text>;
-}
-
 export default function NoteDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { data: note, isLoading } = useQuery(journalQueryOptions(api, id));
   const deleteJournal = useDeleteJournal(api);
 
-  if (isLoading || !note) return <Loading />;
-
   const n = note as any;
+
+  const editor = useRichEditor({
+    initialContent: n?.content || "",
+    editable: false,
+  });
+
+  if (isLoading || !note) return <Loading />;
 
   const handleDelete = () => {
     Alert.alert("Delete Note", "Are you sure you want to delete this note?", [
@@ -70,17 +59,20 @@ export default function NoteDetailScreen() {
         </Pressable>
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: 16 }}>
+      <View className="px-4 pt-2 mb-2">
         <Text className="text-2xl font-bold text-foreground mb-1">
           {n.title || "Untitled"}
         </Text>
         {n.updatedAt && (
-          <Text className="text-muted-foreground text-sm mb-4">
+          <Text className="text-muted-foreground text-sm">
             {formatDate(n.updatedAt)}
           </Text>
         )}
-        {n.content && <HtmlContent html={n.content} />}
-      </ScrollView>
+      </View>
+
+      <View className="flex-1">
+        <RichTextEditorView editor={editor} showToolbar={false} />
+      </View>
     </View>
   );
 }

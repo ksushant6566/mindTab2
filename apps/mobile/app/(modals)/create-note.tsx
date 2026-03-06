@@ -1,5 +1,5 @@
-import { View, Text, Pressable, KeyboardAvoidingView, Platform } from "react-native";
-import { useState } from "react";
+import { View, Text, Pressable } from "react-native";
+import { useState, useCallback } from "react";
 import { useRouter } from "expo-router";
 import { useCreateJournal } from "@mindtab/core";
 import { api } from "~/lib/api-client";
@@ -8,25 +8,22 @@ import { Button } from "~/components/ui/button";
 import { X } from "lucide-react-native";
 import { colors } from "~/styles/colors";
 import { toast } from "sonner-native";
+import { useRichEditor, RichTextEditorView } from "~/components/notes/rich-text-editor";
 
 export default function CreateNoteModal() {
   const router = useRouter();
   const createJournal = useCreateJournal(api);
   const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
 
-  const handleCreate = () => {
+  const editor = useRichEditor({ initialContent: "" });
+
+  const handleCreate = useCallback(async () => {
     if (!title.trim()) {
       toast.error("Title is required");
       return;
     }
 
-    // Wrap plain text into basic HTML paragraphs
-    const htmlContent = content
-      .split("\n")
-      .filter(Boolean)
-      .map((p) => `<p>${p}</p>`)
-      .join("");
+    const htmlContent = await editor.getHTML();
 
     createJournal.mutate(
       { title: title.trim(), content: htmlContent || "<p></p>" },
@@ -38,13 +35,10 @@ export default function CreateNoteModal() {
         onError: () => toast.error("Failed to create note"),
       }
     );
-  };
+  }, [title, editor]);
 
   return (
-    <KeyboardAvoidingView
-      className="flex-1 bg-background"
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-    >
+    <View className="flex-1 bg-background">
       <View className="flex-row items-center justify-between px-4 pt-4 pb-3 border-b border-border">
         <Pressable onPress={() => router.back()} className="p-1">
           <X size={24} color={colors.foreground} />
@@ -55,7 +49,7 @@ export default function CreateNoteModal() {
         </Button>
       </View>
 
-      <View className="flex-1 px-4 pt-4">
+      <View className="px-4 pt-4">
         <Input
           value={title}
           onChangeText={setTitle}
@@ -64,15 +58,11 @@ export default function CreateNoteModal() {
           className="text-lg font-semibold mb-3"
           style={{ fontSize: 18 }}
         />
-        <Input
-          value={content}
-          onChangeText={setContent}
-          placeholder="Write your thoughts..."
-          multiline
-          className="flex-1"
-          style={{ textAlignVertical: "top", minHeight: 200 }}
-        />
       </View>
-    </KeyboardAvoidingView>
+
+      <View className="flex-1">
+        <RichTextEditorView editor={editor} />
+      </View>
+    </View>
   );
 }

@@ -1,5 +1,5 @@
-import { View, Text, Pressable, KeyboardAvoidingView, Platform } from "react-native";
-import { useState, useEffect } from "react";
+import { View, Text, Pressable } from "react-native";
+import { useState, useCallback } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { journalQueryOptions, useUpdateJournal } from "@mindtab/core";
@@ -10,6 +10,7 @@ import { Button } from "~/components/ui/button";
 import { ChevronLeft } from "lucide-react-native";
 import { colors } from "~/styles/colors";
 import { toast } from "sonner-native";
+import { useRichEditor, RichTextEditorView } from "~/components/notes/rich-text-editor";
 
 export default function EditNoteScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -18,32 +19,22 @@ export default function EditNoteScreen() {
   const updateJournal = useUpdateJournal(api);
 
   const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
+  const [titleLoaded, setTitleLoaded] = useState(false);
 
-  useEffect(() => {
-    if (note) {
-      setTitle((note as any).title || "");
-      // Strip HTML for plain text editing. Full tentap-editor integration
-      // can replace this TextInput later.
-      const plain = ((note as any).content || "")
-        .replace(/<br\s*\/?>/gi, "\n")
-        .replace(/<\/p>/gi, "\n")
-        .replace(/<[^>]*>/g, "")
-        .replace(/&nbsp;/g, " ")
-        .trim();
-      setContent(plain);
-    }
-  }, [note]);
+  const editor = useRichEditor({
+    initialContent: (note as any)?.content || "",
+    editable: true,
+  });
+
+  if (!titleLoaded && note) {
+    setTitle((note as any).title || "");
+    setTitleLoaded(true);
+  }
 
   if (isLoading || !note) return <Loading />;
 
-  const handleSave = () => {
-    // Wrap plain text back into basic HTML paragraphs
-    const htmlContent = content
-      .split("\n")
-      .filter(Boolean)
-      .map((p) => `<p>${p}</p>`)
-      .join("");
+  const handleSave = async () => {
+    const htmlContent = await editor.getHTML();
 
     updateJournal.mutate(
       { id, title: title.trim(), content: htmlContent },
@@ -58,10 +49,7 @@ export default function EditNoteScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      className="flex-1 bg-background"
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-    >
+    <View className="flex-1 bg-background">
       <View className="flex-row items-center justify-between px-4 pt-2 pb-3 border-b border-border">
         <Pressable onPress={() => router.back()} className="p-1">
           <ChevronLeft size={24} color={colors.foreground} />
@@ -72,7 +60,7 @@ export default function EditNoteScreen() {
         </Button>
       </View>
 
-      <View className="flex-1 px-4 pt-4">
+      <View className="px-4 pt-4">
         <Input
           value={title}
           onChangeText={setTitle}
@@ -80,15 +68,11 @@ export default function EditNoteScreen() {
           className="text-lg font-semibold mb-3"
           style={{ fontSize: 18 }}
         />
-        <Input
-          value={content}
-          onChangeText={setContent}
-          placeholder="Write your thoughts..."
-          multiline
-          className="flex-1"
-          style={{ textAlignVertical: "top", minHeight: 200 }}
-        />
       </View>
-    </KeyboardAvoidingView>
+
+      <View className="flex-1">
+        <RichTextEditorView editor={editor} />
+      </View>
+    </View>
   );
 }
