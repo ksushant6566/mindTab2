@@ -29,7 +29,7 @@ export const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
         name: "",
         description: "",
         status: "active",
-        startDate: new Date().toISOString(),
+        startDate: new Date().toISOString().split("T")[0],
         endDate: undefined as string | undefined,
     });
 
@@ -53,7 +53,7 @@ export const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
                 name: "",
                 description: "",
                 status: "active",
-                startDate: new Date().toISOString(),
+                startDate: new Date().toISOString().split("T")[0],
                 endDate: undefined,
             });
         } finally {
@@ -66,7 +66,7 @@ export const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
             name: "",
             description: "",
             status: "active",
-            startDate: new Date().toISOString(),
+            startDate: new Date().toISOString().split("T")[0],
             endDate: undefined,
         });
         onCancel();

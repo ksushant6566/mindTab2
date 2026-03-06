@@ -38,7 +38,7 @@ export function CreateProjectStep({
                 name,
                 description,
                 status: "active",
-                startDate: new Date().toISOString(),
+                startDate: new Date().toISOString().split("T")[0],
             },
             {
                 onSuccess: (project: any) => {
