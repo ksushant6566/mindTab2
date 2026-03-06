@@ -90,7 +90,21 @@ export function useDeleteHabit() {
       });
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["habits"] }),
+    async onMutate(id) {
+      await qc.cancelQueries({ queryKey: ["habits"] });
+      const previousHabits = qc.getQueriesData({ queryKey: ["habits"] });
+      qc.setQueriesData({ queryKey: ["habits"] }, (old: any) => {
+        if (!Array.isArray(old)) return old;
+        return old.filter((habit: any) => habit.id !== id);
+      });
+      return { previousHabits };
+    },
+    onError(_err, _id, context) {
+      context?.previousHabits?.forEach(([key, data]: any) => qc.setQueryData(key, data));
+    },
+    onSettled() {
+      qc.invalidateQueries({ queryKey: ["habits"] });
+    },
   });
 }
 
@@ -105,9 +119,33 @@ export function useTrackHabit() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    async onMutate({ id, date }) {
+      await qc.cancelQueries({ queryKey: ["habit-tracker"] });
+      const previousTracker = qc.getQueriesData({ queryKey: ["habit-tracker"] });
+      qc.setQueriesData({ queryKey: ["habit-tracker"] }, (old: any) => {
+        if (!Array.isArray(old)) return old;
+        return [
+          ...old,
+          {
+            habitId: id,
+            date,
+            status: "completed",
+            id: "optimistic-" + Date.now(),
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            userId: "optimistic",
+          },
+        ];
+      });
+      return { previousTracker };
+    },
+    onError(_err, _vars, context) {
+      context?.previousTracker?.forEach(([key, data]: any) => qc.setQueryData(key, data));
+    },
+    onSettled() {
       qc.invalidateQueries({ queryKey: ["habits"] });
       qc.invalidateQueries({ queryKey: ["habit-tracker"] });
+      qc.invalidateQueries({ queryKey: ["users"] });
     },
   });
 }
@@ -122,9 +160,24 @@ export function useUntrackHabit() {
       });
       if (error) throw error;
     },
-    onSuccess: () => {
+    async onMutate({ id, date }) {
+      await qc.cancelQueries({ queryKey: ["habit-tracker"] });
+      const previousTracker = qc.getQueriesData({ queryKey: ["habit-tracker"] });
+      qc.setQueriesData({ queryKey: ["habit-tracker"] }, (old: any) => {
+        if (!Array.isArray(old)) return old;
+        return old.filter(
+          (record: any) => !(record.habitId === id && record.date === date)
+        );
+      });
+      return { previousTracker };
+    },
+    onError(_err, _vars, context) {
+      context?.previousTracker?.forEach(([key, data]: any) => qc.setQueryData(key, data));
+    },
+    onSettled() {
       qc.invalidateQueries({ queryKey: ["habits"] });
       qc.invalidateQueries({ queryKey: ["habit-tracker"] });
+      qc.invalidateQueries({ queryKey: ["users"] });
     },
   });
 }

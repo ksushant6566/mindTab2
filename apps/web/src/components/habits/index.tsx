@@ -97,21 +97,13 @@ export const Habits: React.FC<HabitsProps> = ({ viewMode }) => {
     const untrackHabitMutation = useUntrackHabit();
 
     const trackHabit = ({ habitId, date }: { habitId: string; date: string }) => {
-        trackHabitMutation.mutate(
-            { id: habitId, date },
-            {
-                onSuccess: () => playSound("success"),
-            }
-        );
+        playSound("success");
+        trackHabitMutation.mutate({ id: habitId, date });
     };
 
     const untrackHabit = ({ habitId, date }: { habitId: string; date: string }) => {
-        untrackHabitMutation.mutate(
-            { id: habitId, date },
-            {
-                onSuccess: () => playSound("error"),
-            }
-        );
+        playSound("error");
+        untrackHabitMutation.mutate({ id: habitId, date });
     };
 
     return (
