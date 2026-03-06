@@ -5,6 +5,7 @@ import { StatusBar } from "expo-status-bar";
 import { View, ActivityIndicator } from "react-native";
 import { Providers } from "~/providers";
 import { useAuth } from "~/hooks/use-auth";
+import { OfflineBanner } from "~/components/offline-banner";
 import { colors } from "~/styles/colors";
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
@@ -48,6 +49,7 @@ export default function RootLayout() {
   return (
     <Providers>
       <StatusBar style="light" />
+      <OfflineBanner />
       <AuthGuard>
         <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
           <Stack.Screen name="(auth)" />

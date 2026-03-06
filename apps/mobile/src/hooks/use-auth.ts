@@ -2,7 +2,6 @@ import { create } from "zustand";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import { api } from "~/lib/api-client";
 import {
-  getAccessToken,
   getRefreshToken,
   setAccessToken,
   setRefreshToken,
