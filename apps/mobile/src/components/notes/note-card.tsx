@@ -26,7 +26,7 @@ export function NoteCard({ note }: NoteCardProps) {
   const preview = note.content ? stripHtml(note.content) : "";
 
   return (
-    <Pressable onPress={() => router.push(`/(tabs)/notes/${note.id}`)}>
+    <Pressable onPress={() => router.push(`/(main)/notes/${note.id}`)}>
       <Card className="mb-2">
         <Text className="text-foreground font-medium" numberOfLines={1}>
           {note.title || "Untitled"}

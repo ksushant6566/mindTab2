@@ -27,7 +27,7 @@ export default function HabitDetailScreen() {
     } else if (router.canGoBack()) {
       router.back();
     } else {
-      router.replace("/(tabs)/habits");
+      router.replace("/(main)/habits");
     }
   };
 

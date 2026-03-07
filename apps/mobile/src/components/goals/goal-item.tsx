@@ -32,7 +32,7 @@ export function GoalItem({ goal }: GoalItemProps) {
   const router = useRouter();
 
   return (
-    <Pressable onPress={() => router.push(`/(tabs)/goals/${goal.id}`)}>
+    <Pressable onPress={() => router.push(`/(main)/goals/${goal.id}`)}>
       <Card className="mb-2">
         <View className="flex-row items-center justify-between">
           <View className="flex-1 mr-3">

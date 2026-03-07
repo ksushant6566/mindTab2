@@ -28,7 +28,7 @@ export default function NoteDetailScreen() {
     } else if (router.canGoBack()) {
       router.back();
     } else {
-      router.replace("/(tabs)/notes");
+      router.replace("/(main)/notes");
     }
   };
 
@@ -36,19 +36,19 @@ export default function NoteDetailScreen() {
 
   const n = note as any;
 
-  const currentRoute = `/(tabs)/notes/${id}`;
+  const currentRoute = `/(main)/notes/${id}`;
 
   const handleMentionPress = (type: string, mentionId: string) => {
     const params = { from: currentRoute };
     switch (type) {
       case "goal":
-        router.push({ pathname: `/(tabs)/goals/[id]`, params: { id: mentionId, ...params } });
+        router.push({ pathname: `/(main)/goals/[id]`, params: { id: mentionId, ...params } });
         break;
       case "habit":
-        router.push({ pathname: `/(tabs)/habits/[id]`, params: { id: mentionId, ...params } });
+        router.push({ pathname: `/(main)/habits/[id]`, params: { id: mentionId, ...params } });
         break;
       case "journal":
-        router.push({ pathname: `/(tabs)/notes/[id]`, params: { id: mentionId, ...params } });
+        router.push({ pathname: `/(main)/notes/[id]`, params: { id: mentionId, ...params } });
         break;
     }
   };
@@ -73,7 +73,7 @@ export default function NoteDetailScreen() {
           <ChevronLeft size={24} color={colors.foreground} />
         </Pressable>
         <View className="flex-1" />
-        <Pressable onPress={() => router.push(`/(tabs)/notes/edit/${id}`)} className="p-1 mr-2">
+        <Pressable onPress={() => router.push(`/(main)/notes/edit/${id}`)} className="p-1 mr-2">
           <Pencil size={20} color={colors.foreground} />
         </Pressable>
         <Pressable onPress={handleDelete} className="p-1">

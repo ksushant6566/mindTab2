@@ -22,9 +22,9 @@ const iconMap = {
 };
 
 const routeMap = {
-  goal: "/(tabs)/goals/",
-  habit: "/(tabs)/habits/",
-  note: "/(tabs)/notes/",
+  goal: "/(main)/goals/",
+  habit: "/(main)/habits/",
+  note: "/(main)/notes/",
 };
 
 export function SearchResults({ goals, habits, notes }: SearchResultsProps) {

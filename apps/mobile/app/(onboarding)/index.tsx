@@ -76,7 +76,7 @@ export default function OnboardingScreen() {
         body: { onboardingCompleted: true },
       });
       if (error) throw error;
-      router.replace("/(tabs)/goals");
+      router.replace("/(main)/goals");
     } catch {
       toast.error("Failed to complete onboarding");
       setIsCompleting(false);

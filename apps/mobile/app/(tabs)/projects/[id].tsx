@@ -38,7 +38,7 @@ export default function ProjectDetailScreen() {
     if (router.canGoBack()) {
       router.back();
     } else {
-      router.replace("/(tabs)/projects");
+      router.replace("/(main)/projects");
     }
   };
 

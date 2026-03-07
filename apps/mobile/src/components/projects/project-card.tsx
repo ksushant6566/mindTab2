@@ -23,7 +23,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
   const router = useRouter();
 
   return (
-    <Pressable onPress={() => router.push(`/(tabs)/projects/${project.id}`)}>
+    <Pressable onPress={() => router.push(`/(main)/projects/${project.id}`)}>
       <Card className="mb-2">
         <View className="flex-row items-center justify-between">
           <Text className="text-foreground font-medium flex-1 mr-3" numberOfLines={1}>

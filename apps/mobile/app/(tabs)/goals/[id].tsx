@@ -39,7 +39,7 @@ export default function GoalDetailScreen() {
     } else if (router.canGoBack()) {
       router.back();
     } else {
-      router.replace("/(tabs)/goals");
+      router.replace("/(main)/goals");
     }
   };
   const { data: goal, isLoading } = useQuery(goalQueryOptions(api, id));
