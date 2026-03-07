@@ -37,7 +37,7 @@ export function Chip({
 
   const tap = Gesture.Tap()
     .onBegin(() => {
-      scale.value = withSpring(selected ? 0.95 : 1.08, springs.snappy);
+      scale.value = withSpring(selected ? 0.95 : 1.08, selected ? springs.snappy : springs.bouncy);
       runOnJS(haptic)();
     })
     .onFinalize((_, success) => {

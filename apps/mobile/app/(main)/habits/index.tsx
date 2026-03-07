@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import {
   View,
   Text,
@@ -10,6 +10,13 @@ import {
 import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from "react-native-reanimated";
 import {
   CheckCircle2,
   Circle,
@@ -29,7 +36,8 @@ import { SwipeableRow } from "~/components/ui/swipeable-row";
 import { PressableCard } from "~/components/ui/pressable-card";
 import { ConfettiBurst } from "~/components/ui/confetti-burst";
 import { XPFloat } from "~/components/ui/xp-float";
-import { StreakFlame } from "~/components/ui/streak-flame";
+import { FAB } from "~/components/dashboard/fab";
+import { StreakFlame, getFlameColor } from "~/components/ui/streak-flame";
 import { EmptyState } from "~/components/ui/empty-state";
 import { api } from "~/lib/api-client";
 import { colors } from "~/styles/colors";
@@ -193,17 +201,17 @@ export default function HabitsScreen() {
   }
 
   return (
-    <ScrollView
-      style={styles.screen}
-      contentContainerStyle={styles.scrollContent}
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={onRefresh}
-          tintColor={colors.accent.indigo}
-        />
-      }
-    >
+    <View style={styles.screen}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.accent.indigo}
+          />
+        }
+      >
       {/* ========== TODAY SECTION ========== */}
       <View style={styles.sectionContainer}>
         <View style={styles.sectionHeaderRow}>
@@ -305,19 +313,7 @@ export default function HabitsScreen() {
 
                 return (
                   <View key={i} style={styles.gridCell}>
-                    <View
-                      style={[
-                        styles.gridDot,
-                        isDone && styles.gridDotCompleted,
-                        !isDone &&
-                          !isFuture &&
-                          !isToday &&
-                          styles.gridDotMissed,
-                        (isToday || isFuture) &&
-                          !isDone &&
-                          styles.gridDotHollow,
-                      ]}
-                    />
+                    <WeekGridDot isDone={isDone} isToday={isToday} isFuture={isFuture} />
                   </View>
                 );
               })}
@@ -339,7 +335,13 @@ export default function HabitsScreen() {
               <PressableCard
                 key={habit.id}
                 onPress={() => router.push(`/(main)/habits/${habit.id}`)}
-                style={styles.streakCard}
+                style={[
+                  styles.streakCard,
+                  {
+                    borderColor: getFlameColor(currentStreak),
+                    borderWidth: 1.5,
+                  },
+                ]}
               >
                 <Text style={styles.streakHabitName} numberOfLines={1}>
                   {habit.title}
@@ -355,7 +357,9 @@ export default function HabitsScreen() {
           })}
         </View>
       </View>
-    </ScrollView>
+      </ScrollView>
+      <FAB visible contextFilter="habit" />
+    </View>
   );
 }
 
@@ -426,17 +430,65 @@ function TodayHabitRow({
           )}
         </Pressable>
 
-        <Text
-          style={[
-            styles.habitTitle,
-            isCompleted && styles.habitTitleCompleted,
-          ]}
-          numberOfLines={1}
-        >
-          {habit.title}
-        </Text>
+        <Pressable onPress={onEdit} style={styles.habitTitlePressable}>
+          <Text
+            style={[
+              styles.habitTitle,
+              isCompleted && styles.habitTitleCompleted,
+            ]}
+            numberOfLines={1}
+          >
+            {habit.title}
+          </Text>
+        </Pressable>
       </View>
     </SwipeableRow>
+  );
+}
+
+function WeekGridDot({
+  isDone,
+  isToday,
+  isFuture,
+}: {
+  isDone: boolean;
+  isToday: boolean;
+  isFuture: boolean;
+}) {
+  const pulseOpacity = useSharedValue(1);
+
+  useEffect(() => {
+    if (isToday && !isDone) {
+      pulseOpacity.value = withRepeat(
+        withSequence(
+          withTiming(0.5, { duration: 800 }),
+          withTiming(1, { duration: 800 }),
+        ),
+        -1,
+        true,
+      );
+    }
+  }, [isDone, isToday, pulseOpacity]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: pulseOpacity.value,
+  }));
+
+  return (
+    <Animated.View
+      style={[
+        styles.gridDot,
+        isDone && styles.gridDotCompleted,
+        !isDone &&
+          !isFuture &&
+          !isToday &&
+          styles.gridDotMissed,
+        (isToday || isFuture) &&
+          !isDone &&
+          styles.gridDotHollow,
+        animatedStyle,
+      ]}
+    />
   );
 }
 
@@ -499,10 +551,12 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   habitTitle: {
-    flex: 1,
     fontSize: 16,
     fontWeight: "500",
     color: colors.text.primary,
+  },
+  habitTitlePressable: {
+    flex: 1,
   },
   habitTitleCompleted: {
     color: colors.status.completed,

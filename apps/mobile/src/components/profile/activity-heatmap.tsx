@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
-import { View, Text, Pressable, StyleSheet, Dimensions } from "react-native";
+import { View, Text, Pressable, StyleSheet, Dimensions, ScrollView } from "react-native";
 import { colors } from "~/styles/colors";
 
 type ActivityHeatmapProps = {
@@ -15,12 +15,12 @@ const LABEL_WIDTH = 24;
 const monthLabels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 function getHeatColor(count: number): string {
-  if (count === 0) return colors.border.default;
-  if (count === 1) return "rgba(34, 197, 94, 0.25)";
-  if (count === 2) return "rgba(34, 197, 94, 0.45)";
-  if (count <= 4) return "rgba(34, 197, 94, 0.65)";
-  if (count <= 6) return "rgba(34, 197, 94, 0.85)";
-  return colors.status.completed;
+  if (count === 0) return "transparent";
+  if (count <= 1) return "rgba(129,140,248,0.2)";
+  if (count <= 2) return "rgba(129,140,248,0.4)";
+  if (count <= 4) return "rgba(34,197,94,0.4)";
+  if (count <= 6) return "rgba(34,197,94,0.6)";
+  return "rgba(34,197,94,0.9)";
 }
 
 export function ActivityHeatmap({ tracker }: ActivityHeatmapProps) {
@@ -115,66 +115,67 @@ export function ActivityHeatmap({ tracker }: ActivityHeatmapProps) {
 
       <View style={styles.gridWrapper}>
         {/* Month labels */}
-        <View style={[styles.monthLabelRow, { marginLeft: LABEL_WIDTH }]}>
-          {monthPositions.map((mp, i) => (
-            <Text
-              key={i}
-              style={[
-                styles.monthLabel,
-                { position: "absolute", left: mp.weekIndex * (CELL_SIZE + CELL_GAP) },
-              ]}
-            >
-              {monthLabels[mp.month]}
-            </Text>
-          ))}
-        </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <View>
+            <View style={[styles.monthLabelRow, { marginLeft: LABEL_WIDTH }]}>
+              {monthPositions.map((mp, i) => (
+                <Text
+                  key={i}
+                  style={[
+                    styles.monthLabel,
+                    { position: "absolute", left: mp.weekIndex * (CELL_SIZE + CELL_GAP) },
+                  ]}
+                >
+                  {monthLabels[mp.month]}
+                </Text>
+              ))}
+            </View>
 
-        <View style={styles.gridContainer}>
-          {/* Day labels (Mon, Wed, Fri) */}
-          <View style={[styles.dayLabelsCol, { width: LABEL_WIDTH }]}>
-            {["", "M", "", "W", "", "F", ""].map((label, i) => (
-              <View key={i} style={{ height: CELL_SIZE + CELL_GAP, justifyContent: "center" }}>
-                <Text style={styles.dayLabelText}>{label}</Text>
-              </View>
-            ))}
-          </View>
-
-          {/* Grid */}
-          <View style={styles.weeksRow}>
-            {grid.map((week, weekIdx) => (
-              <View key={weekIdx} style={styles.weekCol}>
-                {week.map((cell, dayIdx) => (
-                  <Pressable
-                    key={dayIdx}
-                    onPress={
-                      cell
-                        ? () => handleCellPress(cell.date, cell.count, weekIdx, dayIdx)
-                        : undefined
-                    }
-                  >
-                    <View
-                      style={[
-                        styles.heatCell,
-                        {
-                          width: CELL_SIZE,
-                          height: CELL_SIZE,
-                          backgroundColor: cell ? getHeatColor(cell.count) : "transparent",
-                        },
-                      ]}
-                    />
-                  </Pressable>
+            <View style={styles.gridContainer}>
+              <View style={[styles.dayLabelsCol, { width: LABEL_WIDTH }]}>
+                {["", "M", "", "W", "", "F", ""].map((label, i) => (
+                  <View key={i} style={{ height: CELL_SIZE + CELL_GAP, justifyContent: "center" }}>
+                    <Text style={styles.dayLabelText}>{label}</Text>
+                  </View>
                 ))}
               </View>
-            ))}
+
+              <View style={styles.weeksRow}>
+                {grid.map((week, weekIdx) => (
+                  <View key={weekIdx} style={styles.weekCol}>
+                    {week.map((cell, dayIdx) => (
+                      <Pressable
+                        key={dayIdx}
+                        onPress={
+                          cell
+                            ? () => handleCellPress(cell.date, cell.count, weekIdx, dayIdx)
+                            : undefined
+                        }
+                      >
+                        <View
+                          style={[
+                            styles.heatCell,
+                            {
+                              width: CELL_SIZE,
+                              height: CELL_SIZE,
+                              backgroundColor: cell ? getHeatColor(cell.count) : "transparent",
+                            },
+                          ]}
+                        />
+                      </Pressable>
+                    ))}
+                  </View>
+                ))}
+              </View>
+            </View>
           </View>
-        </View>
+        </ScrollView>
 
         {/* Tooltip */}
         {tooltip && (
           <View style={[styles.tooltip, { left: tooltip.x, top: tooltip.y - 28 }]}>
             <Text style={styles.tooltipText}>
-              {tooltip.count} {tooltip.count === 1 ? "completion" : "completions"} on{" "}
-              {formatTooltipDate(tooltip.date)}
+              Habits: {tooltip.count} on {formatTooltipDate(tooltip.date)}
             </Text>
           </View>
         )}

@@ -51,7 +51,7 @@ export const colors = {
     goldGlow: "rgba(250,204,21,0.3)",
   },
   streak: {
-    green: "#22c55e",
+    orange: "#f97316",
     gold: "#eab308",
     purple: "#a855f7",
     rainbow: ["#ef4444", "#f97316", "#eab308", "#22c55e", "#3b82f6", "#8b5cf6"],

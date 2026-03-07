@@ -274,6 +274,8 @@ export default function CreateGoalModal() {
           <Button
             onPress={handleCreate}
             loading={createGoal.isPending}
+            disabled={!title.trim()}
+            state={createGoal.isSuccess ? "success" : createGoal.isError ? "error" : "idle"}
             size="lg"
           >
             Create Goal

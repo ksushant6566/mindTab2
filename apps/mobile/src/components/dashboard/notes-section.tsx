@@ -1,7 +1,8 @@
-import React from "react";
-import { Pressable, StyleSheet, Text, View, Alert } from "react-native";
+import React, { useCallback } from "react";
+import { Pressable, StyleSheet, Text, View, Alert, ActionSheetIOS, Platform } from "react-native";
 import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
+import * as Haptics from "expo-haptics";
 import { ChevronRight, FileText } from "lucide-react-native";
 import { journalsQueryOptions, useDeleteJournal } from "@mindtab/core";
 
@@ -39,6 +40,35 @@ export function NotesSection({ projectId }: NotesSectionProps) {
       },
     ]);
   };
+
+  const handleNoteLongPress = useCallback(
+    (note: any) => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      const options = ["Edit", "Delete", "Move to Project", "Cancel"];
+      if (Platform.OS === "ios") {
+        ActionSheetIOS.showActionSheetWithOptions(
+          { options, destructiveButtonIndex: 1, cancelButtonIndex: 3 },
+          (index) => {
+            if (index === 0) router.push(`/(main)/notes/edit/${note.id}` as any);
+            else if (index === 1) handleDelete(note.id, note.title || "Untitled");
+          },
+        );
+        return;
+      }
+
+      Alert.alert(note.title ?? "Note", undefined, [
+        { text: "Edit", onPress: () => router.push(`/(main)/notes/edit/${note.id}` as any) },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => handleDelete(note.id, note.title || "Untitled"),
+        },
+        { text: "Move to Project" },
+        { text: "Cancel", style: "cancel" },
+      ]);
+    },
+    [router],
+  );
 
   const { data: notes } = useQuery(
     journalsQueryOptions(api, { projectId: projectId ?? undefined })
@@ -85,6 +115,7 @@ export function NotesSection({ projectId }: NotesSectionProps) {
               >
                 <PressableCard
                   onPress={() => router.push(`/(main)/notes/${note.id}`)}
+                  onLongPress={() => handleNoteLongPress(note)}
                 >
                   {/* Title */}
                   <Text style={styles.noteTitle} numberOfLines={1}>

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import {
   View,
   Text,
@@ -6,11 +6,13 @@ import {
   Pressable,
   RefreshControl,
   StyleSheet,
+  TextInput,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
-import { Target, Zap, Archive } from "lucide-react-native";
+import { Target, Zap, Archive, ChevronDown, Search, Settings } from "lucide-react-native";
+import Animated, { FadeInDown } from "react-native-reanimated";
 import {
   goalsQueryOptions,
   useUpdateGoal,
@@ -22,7 +24,13 @@ import { Chip } from "~/components/ui/chip";
 import { SwipeableRow } from "~/components/ui/swipeable-row";
 import { PressableCard } from "~/components/ui/pressable-card";
 import { EmptyState } from "~/components/ui/empty-state";
+import { ConfettiBurst } from "~/components/ui/confetti-burst";
+import { XPFloat } from "~/components/ui/xp-float";
+import { UndoToast } from "~/components/ui/undo-toast";
+import { FAB } from "~/components/dashboard/fab";
 import { api } from "~/lib/api-client";
+import { staggerDelay } from "~/lib/animations";
+import { XP_VALUES } from "~/lib/xp";
 import { colors } from "~/styles/colors";
 
 // ---------- Constants ----------
@@ -93,6 +101,15 @@ type GoalSection = {
   count: number;
 };
 
+function useDebounce(value: string, delay: number) {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(timer);
+  }, [value, delay]);
+  return debounced;
+}
+
 // ---------- Screen ----------
 
 export default function GoalsScreen() {
@@ -101,6 +118,16 @@ export default function GoalsScreen() {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showArchived, setShowArchived] = useState(false);
+  const [celebrationGoalId, setCelebrationGoalId] = useState<string | null>(null);
+  const [xpDelta, setXpDelta] = useState(0);
+  const [undoState, setUndoState] = useState<{
+    visible: boolean;
+    goalId?: string;
+    previousStatus?: string;
+  }>({ visible: false });
+  const debouncedSearch = useDebounce(searchQuery, 300);
 
   const projectId = selectedProjectId ?? undefined;
   const { data: goals, isLoading, refetch } = useQuery(
@@ -113,9 +140,24 @@ export default function GoalsScreen() {
   // Filter by status
   const filteredGoals = useMemo(() => {
     const list = goals ?? [];
-    if (statusFilter === "all") return list;
-    return list.filter((g: any) => g.status === statusFilter);
-  }, [goals, statusFilter]);
+    return list.filter((g: any) => {
+      const matchesStatus = statusFilter === "all" ? true : g.status === statusFilter;
+      const matchesArchive = showArchived || g.status !== "archived";
+      const matchesSearch = debouncedSearch
+        ? g.title?.toLowerCase().includes(debouncedSearch.toLowerCase())
+        : true;
+      return matchesStatus && matchesArchive && matchesSearch;
+    });
+  }, [goals, statusFilter, showArchived, debouncedSearch]);
+
+  useEffect(() => {
+    if (!celebrationGoalId) return;
+    const timer = setTimeout(() => {
+      setCelebrationGoalId(null);
+      setXpDelta(0);
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [celebrationGoalId]);
 
   // Group into sections by status
   const sections: GoalSection[] = useMemo(() => {
@@ -151,23 +193,41 @@ export default function GoalsScreen() {
   }, []);
 
   const handleStatusChange = useCallback(
-    (goalId: string, newStatus: string) => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    (goal: any, newStatus: string) => {
+      const isComplete = newStatus === "completed";
+      Haptics.impactAsync(
+        isComplete ? Haptics.ImpactFeedbackStyle.Heavy : Haptics.ImpactFeedbackStyle.Medium,
+      );
       updateGoal.mutate({
-        id: goalId,
+        id: goal.id,
         status: newStatus,
         ...(newStatus === "completed"
           ? { completedAt: new Date().toISOString() }
           : {}),
       });
+      if (isComplete) {
+        const awardedXP =
+          goal.priority === "priority_1"
+            ? XP_VALUES.GOAL_P1_COMPLETE
+            : goal.impact === "high"
+              ? XP_VALUES.GOAL_HIGH_IMPACT_COMPLETE
+              : XP_VALUES.GOAL_COMPLETE;
+        setXpDelta(awardedXP);
+        setCelebrationGoalId(goal.id);
+      }
     },
     [updateGoal],
   );
 
   const handleArchive = useCallback(
-    (goalId: string) => {
+    (goal: any) => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      updateGoal.mutate({ id: goalId, status: "archived" });
+      updateGoal.mutate({ id: goal.id, status: "archived" });
+      setUndoState({
+        visible: true,
+        goalId: goal.id,
+        previousStatus: goal.status,
+      });
     },
     [updateGoal],
   );
@@ -204,7 +264,13 @@ export default function GoalsScreen() {
             <Text style={styles.sectionHeaderText}>
               {section.title} ({count})
             </Text>
-            <Text style={styles.chevron}>{isCollapsed ? "+" : "-"}</Text>
+            <Animated.View
+              style={{
+                transform: [{ rotate: isCollapsed ? "-90deg" : "0deg" }],
+              }}
+            >
+              <ChevronDown size={16} color={colors.text.muted} />
+            </Animated.View>
           </Pressable>
 
           {isCompleted && count > 0 && (
@@ -223,33 +289,35 @@ export default function GoalsScreen() {
   );
 
   const renderItem = useCallback(
-    ({ item: goal }: { item: any }) => {
+    ({ item: goal, index }: { item: any; index: number }) => {
       const nextAction = getNextStatusAction(goal.status);
       const priorityKey = goal.priority as string | undefined;
       const impactKey = goal.impact as string | undefined;
 
       return (
-        <SwipeableRow
-          leftAction={
-            nextAction
-              ? {
-                  label: nextAction.label,
-                  color: nextAction.color,
-                  onAction: () =>
-                    handleStatusChange(goal.id, nextAction.nextStatus),
-                }
-              : undefined
-          }
-          rightActions={[
-            {
-              label: "Archive",
-              color: colors.feedback.warning,
-              onAction: () => handleArchive(goal.id),
-            },
-          ]}
+        <Animated.View entering={FadeInDown.delay(staggerDelay(index)).duration(200)}>
+          <SwipeableRow
+            leftAction={
+              nextAction
+                ? {
+                    label: nextAction.label,
+                    color: nextAction.color,
+                    onAction: () =>
+                      handleStatusChange(goal, nextAction.nextStatus),
+                  }
+                : undefined
+            }
+            rightActions={[
+              {
+                label: "Archive",
+                color: colors.feedback.warning,
+                onAction: () => handleArchive(goal),
+              },
+            ]}
         >
           <PressableCard
             onPress={() => router.push(`/(main)/goals/${goal.id}`)}
+            style={goal.id === celebrationGoalId ? styles.goalCelebrationCard : undefined}
           >
             {/* Title */}
             <Text style={styles.goalTitle} numberOfLines={1}>
@@ -308,11 +376,16 @@ export default function GoalsScreen() {
                 </Text>
               )}
             </View>
+            {goal.id === celebrationGoalId && <ConfettiBurst particleCount={20} />}
+            {goal.id === celebrationGoalId && xpDelta > 0 && (
+              <XPFloat amount={xpDelta} onComplete={() => setXpDelta(0)} />
+            )}
           </PressableCard>
-        </SwipeableRow>
+          </SwipeableRow>
+        </Animated.View>
       );
     },
-    [handleStatusChange, handleArchive, router],
+    [handleStatusChange, handleArchive, router, celebrationGoalId, xpDelta],
   );
 
   const renderEmpty = useCallback(() => {
@@ -341,6 +414,27 @@ export default function GoalsScreen() {
               selectedProjectId={selectedProjectId}
               onSelect={setSelectedProjectId}
             />
+            <View style={styles.toolsRow}>
+              <View style={styles.searchRow}>
+                <Search size={16} color={colors.text.muted} />
+                <TextInput
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  placeholder="Search goals..."
+                  placeholderTextColor={colors.text.muted}
+                  style={styles.searchInput}
+                />
+              </View>
+              <Pressable
+                style={styles.settingsButton}
+                onPress={() => setShowArchived((value) => !value)}
+              >
+                <Settings size={16} color={colors.text.secondary} />
+                <Text style={styles.settingsText}>
+                  {showArchived ? "Hide archived" : "Show archived"}
+                </Text>
+              </Pressable>
+            </View>
             <View style={styles.filterRow}>
               {STATUS_FILTERS.map((f) => (
                 <Chip
@@ -366,6 +460,20 @@ export default function GoalsScreen() {
           />
         }
       />
+      <UndoToast
+        message="Goal archived"
+        visible={undoState.visible}
+        onUndo={() => {
+          if (!undoState.goalId) return;
+          updateGoal.mutate({
+            id: undoState.goalId,
+            status: undoState.previousStatus ?? "pending",
+          });
+          setUndoState({ visible: false });
+        }}
+        onDismiss={() => setUndoState({ visible: false })}
+      />
+      <FAB visible contextFilter="goal" />
     </View>
   );
 }
@@ -385,6 +493,35 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 8,
     marginBottom: 16,
+  },
+  toolsRow: {
+    gap: 10,
+    marginBottom: 12,
+  },
+  searchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    borderRadius: 12,
+    backgroundColor: colors.bg.elevated,
+    paddingHorizontal: 12,
+  },
+  searchInput: {
+    flex: 1,
+    color: colors.text.primary,
+    fontSize: 15,
+    paddingVertical: 10,
+  },
+  settingsButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  settingsText: {
+    fontSize: 12,
+    color: colors.text.secondary,
   },
   listContent: {
     paddingHorizontal: 16,
@@ -410,16 +547,11 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   sectionHeaderText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "600",
     color: colors.text.secondary,
     textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  chevron: {
-    fontSize: 16,
-    color: colors.text.muted,
-    marginLeft: 4,
+    letterSpacing: 1.5,
   },
   archiveAllButton: {
     flexDirection: "row",
@@ -440,6 +572,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "500",
     color: colors.text.primary,
+  },
+  goalCelebrationCard: {
+    borderColor: colors.xp.gold,
+    shadowColor: colors.xp.gold,
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 4,
   },
   metaRow: {
     flexDirection: "row",

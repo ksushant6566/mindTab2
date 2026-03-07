@@ -131,7 +131,11 @@ export default function GoalDetailScreen() {
   // ── Status change ──
 
   const handleStatusChange = async (status: string) => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    await Haptics.impactAsync(
+      status === "completed"
+        ? Haptics.ImpactFeedbackStyle.Heavy
+        : Haptics.ImpactFeedbackStyle.Medium,
+    );
     const wasCompleted = g.status === "completed";
     updateGoal.mutate({
       id,

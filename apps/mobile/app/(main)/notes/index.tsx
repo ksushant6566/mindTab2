@@ -5,9 +5,14 @@ import {
   FlatList,
   RefreshControl,
   StyleSheet,
+  TextInput,
+  ActionSheetIOS,
+  Platform,
+  Alert,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
+import * as Haptics from "expo-haptics";
 import {
   FileText,
   BookOpen,
@@ -23,6 +28,7 @@ import { Chip } from "~/components/ui/chip";
 import { SwipeableRow } from "~/components/ui/swipeable-row";
 import { PressableCard } from "~/components/ui/pressable-card";
 import { EmptyState } from "~/components/ui/empty-state";
+import { FAB } from "~/components/dashboard/fab";
 import { api } from "~/lib/api-client";
 import { colors } from "~/styles/colors";
 
@@ -77,6 +83,32 @@ const noteTypeBadgeColors: Record<string, string> = {
   website: colors.noteType.website,
 };
 
+function useDebounce(value: string, delay: number) {
+  const [debounced, setDebounced] = useState(value);
+  React.useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(timer);
+  }, [value, delay]);
+  return debounced;
+}
+
+function renderTypeIcon(type: string, color: string) {
+  switch (type) {
+    case "article":
+      return <FileText size={11} color={color} />;
+    case "book":
+      return <BookOpen size={11} color={color} />;
+    case "video":
+      return <Video size={11} color={color} />;
+    case "podcast":
+      return <Mic size={11} color={color} />;
+    case "website":
+      return <Globe size={11} color={color} />;
+    default:
+      return null;
+  }
+}
+
 // ---------- Helpers ----------
 
 function stripHtml(html: string): string {
@@ -100,6 +132,8 @@ export default function NotesScreen() {
   );
   const [typeFilter, setTypeFilter] = useState<NoteType>("all");
   const [refreshing, setRefreshing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearch = useDebounce(searchQuery, 300);
 
   const projectId = selectedProjectId ?? undefined;
   const { data: notes, isLoading, refetch } = useQuery(
@@ -114,13 +148,20 @@ export default function NotesScreen() {
     if (typeFilter !== "all") {
       list = list.filter((n: any) => n.type === typeFilter);
     }
+    if (debouncedSearch) {
+      const query = debouncedSearch.toLowerCase();
+      list = list.filter((n: any) =>
+        n.title?.toLowerCase().includes(query) ||
+        stripHtml(n.content ?? "").toLowerCase().includes(query),
+      );
+    }
     list.sort((a, b) => {
       const aDate = a.updatedAt ?? a.createdAt ?? "";
       const bDate = b.updatedAt ?? b.createdAt ?? "";
       return new Date(bDate).getTime() - new Date(aDate).getTime();
     });
     return list;
-  }, [notes, typeFilter]);
+  }, [notes, typeFilter, debouncedSearch]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -136,6 +177,27 @@ export default function NotesScreen() {
       const badgeColor = noteType
         ? noteTypeBadgeColors[noteType] ?? colors.text.muted
         : null;
+
+      const handleLongPress = () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+        const options = ["Edit", "Move to Project", "Delete", "Cancel"];
+        if (Platform.OS === "ios") {
+          ActionSheetIOS.showActionSheetWithOptions(
+            { options, destructiveButtonIndex: 2, cancelButtonIndex: 3 },
+            (index) => {
+              if (index === 0) router.push(`/(main)/notes/edit/${note.id}` as any);
+              else if (index === 2) deleteJournal.mutate(note.id);
+            },
+          );
+          return;
+        }
+        Alert.alert(note.title ?? "Note", undefined, [
+          { text: "Edit", onPress: () => router.push(`/(main)/notes/edit/${note.id}` as any) },
+          { text: "Move to Project" },
+          { text: "Delete", style: "destructive", onPress: () => deleteJournal.mutate(note.id) },
+          { text: "Cancel", style: "cancel" },
+        ]);
+      };
 
       return (
         <SwipeableRow
@@ -155,6 +217,7 @@ export default function NotesScreen() {
         >
           <PressableCard
             onPress={() => router.push(`/(main)/notes/${note.id}`)}
+            onLongPress={handleLongPress}
           >
             {/* Title */}
             <Text style={styles.noteTitle} numberOfLines={1}>
@@ -177,6 +240,7 @@ export default function NotesScreen() {
                     { backgroundColor: badgeColor + "26" },
                   ]}
                 >
+                  {renderTypeIcon(noteType, badgeColor)}
                   <Text style={[styles.typeBadgeText, { color: badgeColor }]}>
                     {noteType.charAt(0).toUpperCase() + noteType.slice(1)}
                   </Text>
@@ -225,6 +289,16 @@ export default function NotesScreen() {
               selectedProjectId={selectedProjectId}
               onSelect={setSelectedProjectId}
             />
+            <View style={styles.searchRow}>
+              <FileText size={15} color={colors.text.muted} />
+              <TextInput
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                placeholder="Search notes..."
+                placeholderTextColor={colors.text.muted}
+                style={styles.searchInput}
+              />
+            </View>
             <View style={styles.filterRow}>
               {TYPE_FILTERS.map((f) => (
                 <Chip
@@ -250,6 +324,7 @@ export default function NotesScreen() {
           />
         }
       />
+      <FAB visible contextFilter="note" />
     </View>
   );
 }
@@ -270,6 +345,23 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: 8,
     marginBottom: 16,
+  },
+  searchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    borderRadius: 12,
+    backgroundColor: colors.bg.elevated,
+    paddingHorizontal: 12,
+    marginBottom: 12,
+  },
+  searchInput: {
+    flex: 1,
+    color: colors.text.primary,
+    fontSize: 15,
+    paddingVertical: 10,
   },
   listContent: {
     paddingHorizontal: 16,
@@ -294,6 +386,9 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   typeBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 6,

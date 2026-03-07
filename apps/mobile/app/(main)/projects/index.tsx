@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import {
   View,
   Text,
@@ -9,6 +9,13 @@ import {
 import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from "react-native-reanimated";
 import { FolderKanban } from "lucide-react-native";
 import {
   projectsQueryOptions,
@@ -27,23 +34,29 @@ import { colors } from "~/styles/colors";
 
 // ---------- Constants ----------
 
-type StatusFilter = "all" | "active" | "on_hold" | "completed" | "archived";
+type StatusFilter = "all" | "active" | "paused" | "completed" | "archived";
 
 const STATUS_FILTERS: { key: StatusFilter; label: string }[] = [
   { key: "all", label: "All" },
   { key: "active", label: "Active" },
-  { key: "on_hold", label: "Paused" },
+  { key: "paused", label: "Paused" },
   { key: "completed", label: "Completed" },
   { key: "archived", label: "Archived" },
 ];
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
-  planning: { label: "Planning", color: colors.status.pending },
   active: { label: "Active", color: colors.status.active },
+  paused: { label: "Paused", color: colors.status.paused },
   on_hold: { label: "Paused", color: colors.status.paused },
   completed: { label: "Completed", color: colors.status.completed },
   archived: { label: "Archived", color: colors.status.archived },
 };
+
+function getProgressColor(completion: number): string {
+  if (completion === 0) return colors.text.muted;
+  if (completion < 0.5) return colors.accent.indigo;
+  return colors.status.completed;
+}
 
 // ---------- Screen ----------
 
@@ -87,6 +100,9 @@ export default function ProjectsScreen() {
   const filteredProjects = useMemo(() => {
     const list = projects ?? [];
     if (statusFilter === "all") return list;
+    if (statusFilter === "paused") {
+      return list.filter((p: any) => p.status === "paused" || p.status === "on_hold");
+    }
     return list.filter((p: any) => p.status === statusFilter);
   }, [projects, statusFilter]);
 
@@ -134,14 +150,9 @@ export default function ProjectsScreen() {
         <SwipeableRow
           rightActions={[
             {
-              label: "Archive",
-              color: colors.feedback.warning,
-              onAction: () => handleArchive(project.id),
-            },
-            {
-              label: "Delete",
-              color: colors.feedback.error,
-              onAction: () => handleDelete(project.id),
+              label: "Edit",
+              color: colors.status.active,
+              onAction: () => router.push(`/(main)/projects/${project.id}` as any),
             },
           ]}
         >
@@ -159,9 +170,7 @@ export default function ProjectsScreen() {
                   { backgroundColor: config.color + "1A" },
                 ]}
               >
-                <View
-                  style={[styles.statusDot, { backgroundColor: config.color }]}
-                />
+                <StatusDot status={statusKey} color={config.color} />
                 <Text style={[styles.statusLabel, { color: config.color }]}>
                   {config.label}
                 </Text>
@@ -198,7 +207,7 @@ export default function ProjectsScreen() {
                 <View style={styles.progressBarWrapper}>
                   <ProgressBar
                     value={progressValue}
-                    color={colors.status.completed}
+                    color={getProgressColor(progressValue)}
                     height={4}
                   />
                 </View>
@@ -264,6 +273,29 @@ export default function ProjectsScreen() {
       />
     </View>
   );
+}
+
+function StatusDot({ status, color }: { status: string; color: string }) {
+  const scale = useSharedValue(1);
+
+  useEffect(() => {
+    if (status === "active") {
+      scale.value = withRepeat(
+        withSequence(
+          withTiming(1.3, { duration: 1000 }),
+          withTiming(1, { duration: 1000 }),
+        ),
+        -1,
+        true,
+      );
+    }
+  }, [status, scale]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  return <Animated.View style={[styles.statusDot, { backgroundColor: color }, animatedStyle]} />;
 }
 
 // ---------- Styles ----------

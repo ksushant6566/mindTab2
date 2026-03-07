@@ -44,12 +44,12 @@ import { toast } from "sonner-native";
 
 // ── Constants ──
 
-const EDIT_STATUSES = ["planning", "active", "on_hold", "completed"] as const;
+const EDIT_STATUSES = ["active", "paused", "completed", "archived"] as const;
 
 const statusConfig: Record<string, { label: string; color: string }> = {
-  planning: { label: "Planning", color: colors.status.pending },
   active: { label: "Active", color: colors.status.active },
-  on_hold: { label: "On Hold", color: colors.status.paused },
+  paused: { label: "Paused", color: colors.status.paused },
+  on_hold: { label: "Paused", color: colors.status.paused },
   completed: { label: "Completed", color: colors.status.completed },
   archived: { label: "Archived", color: colors.status.archived },
 };
@@ -337,7 +337,9 @@ export default function ProjectDetailScreen() {
       {/* ── Delete confirmation bar ── */}
       {showDeleteConfirm && (
         <View style={styles.deleteBar}>
-          <Text style={styles.deleteText}>Delete this project?</Text>
+          <Text style={styles.deleteText}>
+            Delete this project and affect {goalCount} goals and {noteCount} notes?
+          </Text>
           <View style={styles.deleteActions}>
             <Pressable
               onPress={() => setShowDeleteConfirm(false)}
@@ -442,20 +444,20 @@ export default function ProjectDetailScreen() {
         {/* ── Stats row ── */}
         {!isEditing && (
           <View style={styles.statsRow}>
-            <View style={styles.statCard}>
+            <Pressable style={styles.statCard} onPress={() => setActiveTab("goals")}>
               <Target size={18} color={colors.accent.indigo} />
               <Text style={styles.statNumber}>{goalCount}</Text>
               <Text style={styles.statLabel}>
                 {goalCount === 1 ? "Goal" : "Goals"}
               </Text>
-            </View>
-            <View style={styles.statCard}>
+            </Pressable>
+            <Pressable style={styles.statCard} onPress={() => setActiveTab("notes")}>
               <StickyNote size={18} color={colors.accent.indigo} />
               <Text style={styles.statNumber}>{noteCount}</Text>
               <Text style={styles.statLabel}>
                 {noteCount === 1 ? "Note" : "Notes"}
               </Text>
-            </View>
+            </Pressable>
           </View>
         )}
 

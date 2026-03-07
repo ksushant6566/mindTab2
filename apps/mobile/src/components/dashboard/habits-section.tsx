@@ -250,6 +250,7 @@ function HabitRow({
 
   return (
     <SwipeableRow
+      snapThreshold={0.4}
       leftAction={{
         label: "Done",
         color: colors.feedback.success,
@@ -258,7 +259,7 @@ function HabitRow({
       rightActions={[
         {
           label: "Skip today",
-          color: colors.feedback.warning,
+          color: colors.text.muted,
           onAction: () => {
             if (isCompleted) onUntrack();
           },
@@ -295,15 +296,17 @@ function HabitRow({
         </Pressable>
 
         {/* Title */}
-        <Text
-          style={[
-            styles.habitTitle,
-            isCompleted && styles.habitTitleCompleted,
-          ]}
-          numberOfLines={1}
-        >
-          {habit.title}
-        </Text>
+        <Pressable onPress={() => router.push(`/(main)/habits/${habit.id}` as any)} style={styles.habitTitlePressable}>
+          <Text
+            style={[
+              styles.habitTitle,
+              isCompleted && styles.habitTitleCompleted,
+            ]}
+            numberOfLines={1}
+          >
+            {habit.title}
+          </Text>
+        </Pressable>
 
         {/* Mini week dots */}
         <View style={styles.weekDots}>
@@ -377,10 +380,12 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   habitTitle: {
-    flex: 1,
     fontSize: 16,
     fontWeight: "500",
     color: colors.text.primary,
+  },
+  habitTitlePressable: {
+    flex: 1,
   },
   habitTitleCompleted: {
     color: colors.status.completed,

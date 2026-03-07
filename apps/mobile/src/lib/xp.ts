@@ -1,16 +1,28 @@
-/**
- * XP Level System
- * Formula: XP_threshold = 50 * level^1.5 (rounded)
- * Each level takes progressively more effort.
- */
+export const XP_VALUES = {
+  HABIT_COMPLETE: 10,
+  HABIT_UNCOMPLETE: -10,
+  GOAL_COMPLETE: 25,
+  GOAL_P1_COMPLETE: 40,
+  GOAL_HIGH_IMPACT_COMPLETE: 35,
+  NOTE_WRITTEN: 5,
+  STREAK_7_DAY: 50,
+  STREAK_30_DAY: 200,
+  PERFECT_DAY: 15,
+  PROJECT_COMPLETE: 100,
+} as const;
+
+const LEVEL_THRESHOLDS = [0, 100, 250, 500, 800, 1200, 1700, 2300, 3000, 4000];
 
 export function getLevelForXP(xp: number): number {
-  if (xp <= 0) return 1;
-  return Math.floor(Math.pow(xp / 50, 1 / 1.5)) + 1;
+  for (let i = LEVEL_THRESHOLDS.length - 1; i >= 0; i--) {
+    if (xp >= LEVEL_THRESHOLDS[i]!) return i + 1;
+  }
+  return 1;
 }
 
 export function getXPForLevel(level: number): number {
   if (level <= 1) return 0;
+  if (level - 1 < LEVEL_THRESHOLDS.length) return LEVEL_THRESHOLDS[level - 1]!;
   return Math.round(50 * Math.pow(level - 1, 1.5));
 }
 

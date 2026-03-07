@@ -30,7 +30,6 @@ import type { WebViewMessageEvent } from "react-native-webview";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
-  useAnimatedScrollHandler,
   withTiming,
   withSpring,
   runOnJS,
@@ -76,14 +75,15 @@ function buildReaderHtml(content: string): string {
       color: #e5e5e5;
       background-color: #0a0a0a;
       padding: 0 24px;
-      margin: 0;
-      max-width: 100%;
+      margin: 0 auto;
+      max-width: 640px;
       -webkit-font-smoothing: antialiased;
       -webkit-text-size-adjust: 100%;
     }
     h2 { font-size: 24px; font-weight: 600; line-height: 1.35; color: #fafafa; margin: 24px 0 12px; }
     h3 { font-size: 20px; font-weight: 600; line-height: 1.4; color: #fafafa; margin: 20px 0 10px; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
     p { margin: 0 0 20px; }
+    strong, b { font-weight: 600; color: #fafafa; }
     a { color: #818cf8; text-decoration: none; }
     code { font-family: 'SF Mono', 'Roboto Mono', monospace; font-size: 15px; color: #a3e635; background: #1c1c1c; padding: 2px 6px; border-radius: 4px; }
     pre { background: #1c1c1c; padding: 16px; border-radius: 8px; overflow-x: auto; }
@@ -208,6 +208,8 @@ export default function NoteDetailScreen() {
 
   const swipeTranslateX = useSharedValue(0);
   const swipeOpacity = useSharedValue(1);
+  const prevScrollY = useRef(0);
+  const currentScrollY = useRef(0);
 
   const SWIPE_THRESHOLD = 80;
 
@@ -271,20 +273,11 @@ export default function NoteDetailScreen() {
   // WebView auto-height
   const [webViewHeight, setWebViewHeight] = useState(400);
 
-  // Scroll-driven + tap-toggle header fade
-  const scrollY = useSharedValue(0);
   const headerVisible = useSharedValue(1);
-  const scrollHandler = useAnimatedScrollHandler({
-    onScroll: (event) => {
-      scrollY.value = event.contentOffset.y;
-    },
-  });
   const headerOpacity = useAnimatedStyle(() => {
-    const scrollHidden = scrollY.value > 50;
-    const visible = scrollHidden ? 0 : headerVisible.value;
     return {
-      opacity: withTiming(visible, { duration: 200 }),
-      pointerEvents: visible > 0.5 ? "auto" as const : "none" as const,
+      opacity: withTiming(headerVisible.value, { duration: 200 }),
+      pointerEvents: headerVisible.value > 0.5 ? "auto" as const : "none" as const,
     };
   });
 
@@ -387,6 +380,28 @@ export default function NoteDetailScreen() {
     setPeekEntity(null);
   }, []);
 
+  const handleScroll = useCallback((event: any) => {
+    const currentY = event.nativeEvent.contentOffset.y;
+    currentScrollY.current = currentY;
+    if (currentY > prevScrollY.current + 5) {
+      headerVisible.value = 0;
+    } else if (currentY < prevScrollY.current - 5) {
+      headerVisible.value = 1;
+    }
+    prevScrollY.current = currentY;
+  }, [headerVisible]);
+
+  const dismissPan = Gesture.Pan()
+    .activeOffsetY([10, 1000])
+    .failOffsetX([-20, 20])
+    .onEnd((event) => {
+      if (currentScrollY.current <= 0 && event.translationY > 100 && event.velocityY > 200) {
+        runOnJS(goBack)();
+      }
+    });
+
+  const composedGesture = Gesture.Simultaneous(swipeGesture, dismissPan);
+
   if (isLoading || !note) return <Loading />;
 
   const n = note as any;
@@ -448,10 +463,10 @@ export default function NoteDetailScreen() {
       )}
 
       {/* --- Scrollable reader content with swipe navigation --- */}
-      <GestureDetector gesture={swipeGesture}>
+      <GestureDetector gesture={composedGesture}>
         <Animated.View style={[{ flex: 1 }, swipeAnimatedStyle]}>
           <Animated.ScrollView
-            onScroll={scrollHandler}
+            onScroll={handleScroll}
             scrollEventThrottle={16}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.scrollContent}

@@ -34,6 +34,7 @@ import { springs } from "~/lib/animations";
 
 type FABProps = {
   visible: boolean;
+  contextFilter?: "goal" | "habit" | "note";
 };
 
 const MENU_OPTIONS = [
@@ -67,9 +68,12 @@ const STAGGER_MS = 50;
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
-export function FAB({ visible }: FABProps) {
+export function FAB({ visible, contextFilter }: FABProps) {
   const router = useRouter();
   const isOpen = useSharedValue(0);
+  const visibleOptions = contextFilter
+    ? MENU_OPTIONS.filter((option) => option.key === contextFilter)
+    : MENU_OPTIONS;
 
   // FAB visibility (hide when scrolling down)
   const fabTranslateStyle = useAnimatedStyle(() => ({
@@ -112,7 +116,7 @@ export function FAB({ visible }: FABProps) {
 
   const handleOptionPress = useCallback(
     (route: string) => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       closeMenu();
       router.push(route as never);
     },
@@ -179,7 +183,7 @@ export function FAB({ visible }: FABProps) {
       {/* FAB container (anchors radial menu items) */}
       <Animated.View style={[styles.fabContainer, fabTranslateStyle]}>
         {/* Radial menu options */}
-        {MENU_OPTIONS.map((option, index) => (
+        {visibleOptions.map((option, index) => (
           <MenuOption
             key={option.key}
             option={option}
@@ -258,7 +262,7 @@ function MenuOption({ option, index, isOpen, onPress }: MenuOptionProps) {
 const styles = StyleSheet.create({
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: colors.bg.overlay,
+    backgroundColor: "rgba(0,0,0,0.3)",
     zIndex: 90,
   },
   fabContainer: {

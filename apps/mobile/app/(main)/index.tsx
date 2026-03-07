@@ -10,6 +10,7 @@ import {
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from "react-native";
+import { useRouter } from "expo-router";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -19,6 +20,7 @@ import Animated, {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import { searchGoalsQueryOptions, searchHabitsQueryOptions, searchJournalsQueryOptions } from "@mindtab/core";
+import * as Haptics from "expo-haptics";
 import { Search } from "lucide-react-native";
 import { DashboardHeader } from "~/components/dashboard/dashboard-header";
 import { ProjectPills } from "~/components/dashboard/project-pills";
@@ -26,6 +28,7 @@ import { HabitsSection } from "~/components/dashboard/habits-section";
 import { GoalsSection } from "~/components/dashboard/goals-section";
 import { NotesSection } from "~/components/dashboard/notes-section";
 import { FAB } from "~/components/dashboard/fab";
+import { Chip } from "~/components/ui/chip";
 import { SearchResults } from "~/components/command-palette/search-results";
 import { api } from "~/lib/api-client";
 import { colors } from "~/styles/colors";
@@ -44,6 +47,7 @@ function useDebounce(value: string, delay: number) {
 }
 
 export default function Dashboard() {
+  const router = useRouter();
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [fabVisible, setFabVisible] = useState(true);
   const [searchVisible, setSearchVisible] = useState(false);
@@ -67,7 +71,7 @@ export default function Dashboard() {
 
   const showSearch = useCallback(() => {
     setSearchVisible(true);
-    searchBarProgress.value = withSpring(1, springs.smooth);
+    searchBarProgress.value = withSpring(1, springs.bouncy);
     // Focus the input after animation starts
     setTimeout(() => {
       searchInputRef.current?.focus();
@@ -96,6 +100,7 @@ export default function Dashboard() {
     if (!searchVisible) {
       if (currentY < -PULL_THRESHOLD && !hasTriggered.current) {
         hasTriggered.current = true;
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         showSearch();
       }
 
@@ -184,6 +189,11 @@ export default function Dashboard() {
           <Text style={styles.searchEmptyText}>
             Type to search across your goals, habits, and notes
           </Text>
+          <View style={styles.quickActions}>
+            <Chip label="+ Goal" size="sm" onPress={() => router.push("/(modals)/create-goal")} />
+            <Chip label="+ Habit" size="sm" onPress={() => router.push("/(modals)/create-habit")} />
+            <Chip label="+ Note" size="sm" onPress={() => router.push("/(modals)/create-note")} />
+          </View>
         </View>
       )}
 
@@ -282,5 +292,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: "center",
     lineHeight: 20,
+  },
+  quickActions: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 16,
   },
 });

@@ -4,6 +4,7 @@ import {
   Pressable,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from "react-native";
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -37,6 +38,7 @@ export default function CreateNoteModal() {
   const createJournal = useCreateJournal(api);
   const { data: projects } = useQuery(projectsQueryOptions(api));
   const didCreate = useRef(false);
+  const [didPromptDraft, setDidPromptDraft] = useState(false);
 
   // Load draft
   const savedDraft = useMemo(() => {
@@ -56,6 +58,27 @@ export default function CreateNoteModal() {
   const editor = useRichEditor({
     initialContent: savedDraft?.content ?? "",
   });
+
+  useEffect(() => {
+    if (!savedDraft || didPromptDraft) return;
+    setDidPromptDraft(true);
+    Alert.alert(
+      "Continue draft?",
+      "You have an unsaved draft. Would you like to continue?",
+      [
+        {
+          text: "Discard",
+          style: "destructive",
+          onPress: () => {
+            draftStorage.delete(DRAFT_KEY);
+            setTitle("");
+            setNoteType("article");
+          },
+        },
+        { text: "Continue" },
+      ],
+    );
+  }, [didPromptDraft, savedDraft]);
 
   // Auto-save draft on unmount (dismiss)
   useEffect(() => {
@@ -248,6 +271,16 @@ export default function CreateNoteModal() {
 
         {/* Rich text editor */}
         <View style={{ flex: 1 }}>
+          <Text
+            style={{
+              paddingHorizontal: 20,
+              paddingBottom: 8,
+              fontSize: 12,
+              color: colors.text.muted,
+            }}
+          >
+            TODO: add @mention picker search sheet when typing @ in the editor.
+          </Text>
           <RichTextEditorView editor={editor} />
         </View>
 
@@ -256,6 +289,8 @@ export default function CreateNoteModal() {
           <Button
             onPress={handleCreate}
             loading={createJournal.isPending}
+            disabled={!title.trim()}
+            state={createJournal.isSuccess ? "success" : createJournal.isError ? "error" : "idle"}
             size="lg"
           >
             Create Note

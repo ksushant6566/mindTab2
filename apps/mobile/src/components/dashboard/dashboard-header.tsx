@@ -17,16 +17,14 @@ function getAvatarBorderColor(streak: number): string {
   if (streak >= 100) return colors.streak.purple; // animated rainbow handled by component
   if (streak >= 30) return colors.streak.purple;
   if (streak >= 7) return colors.streak.gold;
-  if (streak >= 1) return colors.streak.green;
+  if (streak >= 1) return colors.streak.orange;
   return colors.border.default;
 }
 
 function interpolateColor(progress: number): string {
-  // Interpolate from indigo to gold based on progress (0-1)
-  // indigo approx (99, 102, 241) -> gold approx (234, 179, 8)
-  const r = Math.round(99 + (234 - 99) * progress);
-  const g = Math.round(102 + (179 - 102) * progress);
-  const b = Math.round(241 + (8 - 241) * progress);
+  const r = Math.round(129 + (250 - 129) * progress);
+  const g = Math.round(140 + (204 - 140) * progress);
+  const b = Math.round(248 + (21 - 248) * progress);
   return `rgb(${r}, ${g}, ${b})`;
 }
 
@@ -38,7 +36,7 @@ export function DashboardHeader() {
   const toggleXpTooltip = useCallback(() => {
     setShowXpTooltip((v) => !v);
     if (!showXpTooltip) {
-      setTimeout(() => setShowXpTooltip(false), 2500);
+      setTimeout(() => setShowXpTooltip(false), 3000);
     }
   }, [showXpTooltip]);
 
@@ -46,7 +44,7 @@ export function DashboardHeader() {
 
   const streak = tracker ? calculateStreak(tracker) : 0;
   const xp = user?.xp ?? 0;
-  const { level, progress, xpToNext } = getXPProgress(xp);
+  const { level, progress, xpToNext, nextLevelXP } = getXPProgress(xp);
 
   const hour = new Date().getHours();
   const greeting =
@@ -83,14 +81,14 @@ export function DashboardHeader() {
                 source={{ uri: user.image }}
                 style={[
                   styles.avatar,
-                  { borderColor: avatarBorderColor },
+                  { borderColor: avatarBorderColor, shadowColor: avatarBorderColor },
                 ]}
               />
             ) : (
               <View
                 style={[
                   styles.avatarFallback,
-                  { borderColor: avatarBorderColor },
+                  { borderColor: avatarBorderColor, shadowColor: avatarBorderColor },
                 ]}
               >
                 <Text style={styles.avatarFallbackText}>{initial}</Text>
@@ -110,9 +108,10 @@ export function DashboardHeader() {
           <Text style={styles.xpLabel}>Level {level} - {xp} XP</Text>
           {showXpTooltip && (
             <View style={styles.xpTooltip}>
-              <Text style={styles.xpTooltipText}>
-                {xpToNext} XP to Level {level + 1}
-              </Text>
+              <Text style={styles.xpTooltipText}>Level {level}</Text>
+              <Text style={styles.xpTooltipText}>{xp} / {nextLevelXP} XP</Text>
+              <Text style={styles.xpTooltipText}>{xpToNext} XP to Level {level + 1}</Text>
+              <Text style={styles.xpTooltipText}>{Math.round(progress * 100)}%</Text>
             </View>
           )}
         </Pressable>
@@ -149,12 +148,20 @@ const styles = StyleSheet.create({
     height: 36,
     borderRadius: 18,
     borderWidth: 2,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 6,
+    elevation: 4,
   },
   avatarFallback: {
     width: 36,
     height: 36,
     borderRadius: 18,
     borderWidth: 2,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 6,
+    elevation: 4,
     backgroundColor: colors.accent.indigo,
     alignItems: "center",
     justifyContent: "center",

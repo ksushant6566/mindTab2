@@ -14,7 +14,6 @@ import * as Haptics from "expo-haptics";
 import { springs } from "~/lib/animations";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
-const SNAP_THRESHOLD = 0.35;
 
 type SwipeAction = {
   label: string;
@@ -27,15 +26,21 @@ type SwipeableRowProps = {
   children: ReactNode;
   leftAction?: SwipeAction;
   rightActions?: SwipeAction[];
+  snapThreshold?: number;
 };
 
-export function SwipeableRow({ children, leftAction, rightActions }: SwipeableRowProps) {
+export function SwipeableRow({
+  children,
+  leftAction,
+  rightActions,
+  snapThreshold: thresholdProp = 0.35,
+}: SwipeableRowProps) {
   const translateX = useSharedValue(0);
   const hasSnapped = useSharedValue(false);
   const rowHeight = useSharedValue<number | null>(null);
   const collapseProgress = useSharedValue(1);
 
-  const snapThreshold = SCREEN_WIDTH * SNAP_THRESHOLD;
+  const snapThreshold = SCREEN_WIDTH * thresholdProp;
 
   const hapticSnap = () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   const triggerLeft = () => leftAction?.onAction();

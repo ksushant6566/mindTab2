@@ -16,7 +16,7 @@ import { Chip } from "~/components/ui/chip";
 import { colors } from "~/styles/colors";
 import { toast } from "sonner-native";
 
-const quickPicks = ["Exercise", "Read", "Water", "Meditate", "Write", "Sleep"];
+const quickPicks = ["🏃 Exercise", "📚 Read", "💧 Water", "🧘 Meditate", "✍️ Write", "😴 Sleep"];
 
 export default function CreateHabitModal() {
   const router = useRouter();
@@ -34,10 +34,10 @@ export default function CreateHabitModal() {
       i++;
       setTitle(text.slice(0, i));
       if (i < text.length) {
-        typingTimer.current = setTimeout(tick, 40);
+        typingTimer.current = setTimeout(tick, 30);
       }
     };
-    typingTimer.current = setTimeout(tick, 40);
+    typingTimer.current = setTimeout(tick, 30);
   }, []);
 
   const handleCreate = () => {
@@ -138,7 +138,7 @@ export default function CreateHabitModal() {
           <Input
             value={title}
             onChangeText={setTitle}
-            placeholder="e.g., Read for 30 minutes"
+            placeholder="What habit to build?"
             autoFocus
             style={{ marginBottom: 20 }}
           />
@@ -201,40 +201,46 @@ export default function CreateHabitModal() {
           </View>
 
           {/* Quick picks */}
-          <Text
-            style={{
-              fontSize: 14,
-              fontWeight: "500",
-              color: colors.text.secondary,
-              marginBottom: 6,
-            }}
-          >
-            Quick picks
-          </Text>
-          <View
-            style={{
-              flexDirection: "row",
-              flexWrap: "wrap",
-              gap: 8,
-              marginBottom: 28,
-            }}
-          >
-            {quickPicks.map((pick) => (
-              <Chip
-                key={pick}
-                label={pick}
-                selected={title === pick}
-                color={colors.accent.indigo}
-                size="sm"
-                onPress={() => typeTitle(pick)}
-              />
-            ))}
-          </View>
+          {!title && (
+            <>
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontWeight: "500",
+                  color: colors.text.secondary,
+                  marginBottom: 6,
+                }}
+              >
+                Quick picks
+              </Text>
+              <View
+                style={{
+                  flexDirection: "row",
+                  flexWrap: "wrap",
+                  gap: 8,
+                  marginBottom: 28,
+                }}
+              >
+                {quickPicks.map((pick) => (
+                  <Chip
+                    key={pick}
+                    label={pick}
+                    selected={title === pick}
+                    color={colors.accent.indigo}
+                    size="sm"
+                    onPress={() => typeTitle(pick)}
+                  />
+                ))}
+              </View>
+            </>
+          )}
 
           {/* Create button */}
           <Button
             onPress={handleCreate}
             loading={createHabit.isPending}
+            disabled={!title.trim()}
+            state={createHabit.isSuccess ? "success" : createHabit.isError ? "error" : "idle"}
             size="lg"
           >
             Create Habit

@@ -18,6 +18,7 @@ import Animated, {
 } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { Check, X } from "lucide-react-native";
+import { springs } from "~/lib/animations";
 import { colors } from "~/styles/colors";
 
 type ButtonVariant = "default" | "secondary" | "destructive" | "ghost" | "outline";
@@ -67,6 +68,8 @@ export function Button({
   children,
   className,
   style,
+  onPressIn,
+  onPressOut,
   ...props
 }: ButtonProps) {
   const isEnabled = !loading && !props.disabled && state !== "loading";
@@ -74,6 +77,7 @@ export function Button({
 
   // Item 18: Subtle pulse 1.0→1.01 when enabled (2s loop)
   const pulse = useSharedValue(1);
+  const scaleVal = useSharedValue(1);
   useEffect(() => {
     if (isEnabled && effectiveState === "idle") {
       pulse.value = withRepeat(
@@ -123,7 +127,7 @@ export function Button({
           : "transparent";
 
     return {
-      transform: [{ scale: pulse.value }],
+      transform: [{ scale: pulse.value * scaleVal.value }],
       shadowColor: bgColor,
     };
   });
@@ -162,6 +166,17 @@ export function Button({
         animatedStyle,
       ]}
       disabled={!isEnabled}
+      onPressIn={(event) => {
+        if (isEnabled) {
+          scaleVal.value = withSpring(0.97, springs.snappy);
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        }
+        onPressIn?.(event);
+      }}
+      onPressOut={(event) => {
+        scaleVal.value = withSpring(1, springs.snappy);
+        onPressOut?.(event);
+      }}
       {...props}
     >
       {content}
@@ -181,6 +196,7 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   disabled: {
-    opacity: 0.5,
+    backgroundColor: "#262626",
+    opacity: 1,
   },
 });

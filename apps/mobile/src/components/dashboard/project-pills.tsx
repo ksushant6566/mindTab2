@@ -1,5 +1,12 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { ScrollView, StyleSheet, View, ActionSheetIOS, Platform, Alert } from "react-native";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from "react-native-reanimated";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
@@ -21,7 +28,7 @@ export function ProjectPills({ selectedProjectId, onSelect }: ProjectPillsProps)
   const deleteProject = useDeleteProject(api);
 
   const handleLongPress = (project: { id: string; name?: string | null }) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     const options = ["Edit", "Archive", "Delete", "Cancel"];
     const destructiveIndex = 2;
     const cancelIndex = 3;
@@ -86,23 +93,27 @@ export function ProjectPills({ selectedProjectId, onSelect }: ProjectPillsProps)
       >
         <Chip
           label="All"
+          icon={<CyclingDot />}
           selected={selectedProjectId === null}
           onPress={() => onSelect(null)}
           color={colors.accent.indigo}
           size="sm"
         />
 
-        {projects?.map((project) => (
-          <Chip
-            key={project.id}
-            label={project.name ?? ""}
-            selected={selectedProjectId === project.id}
-            onPress={() => onSelect(project.id)}
-            onLongPress={() => handleLongPress(project)}
-            color={colors.accent.indigo}
-            size="sm"
-          />
-        ))}
+        {projects?.map((project: any) => {
+          const goalCount = project._count?.goals ?? 0;
+          return (
+            <Chip
+              key={project.id}
+              label={`${project.name ?? ""}${selectedProjectId === project.id ? ` ${goalCount}` : ""}`}
+              selected={selectedProjectId === project.id}
+              onPress={() => onSelect(project.id)}
+              onLongPress={() => handleLongPress(project)}
+              color={colors.accent.indigo}
+              size="sm"
+            />
+          );
+        })}
 
         <Chip
           label=""
@@ -126,3 +137,36 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
 });
+
+function CyclingDot() {
+  const opacity = useSharedValue(1);
+
+  useEffect(() => {
+    opacity.value = withRepeat(
+      withSequence(
+        withTiming(0.4, { duration: 600 }),
+        withTiming(1, { duration: 600 }),
+      ),
+      -1,
+      true,
+    );
+  }, [opacity]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+  }));
+
+  return (
+    <Animated.View
+      style={[
+        {
+          width: 8,
+          height: 8,
+          borderRadius: 999,
+          backgroundColor: colors.accent.indigo,
+        },
+        animatedStyle,
+      ]}
+    />
+  );
+}

@@ -4,6 +4,8 @@
  * (matching the /habit-tracker API response shape).
  * A streak day = at least one habit completed that day.
  */
+export const STREAK_MILESTONES = [7, 14, 30, 60, 90, 100] as const;
+
 export function calculateStreak(tracker: any[]): number {
   if (!tracker || tracker.length === 0) return 0;
 
@@ -38,4 +40,8 @@ export function calculateStreak(tracker: any[]): number {
   }
 
   return streak;
+}
+
+export function checkStreakMilestone(streak: number): number | null {
+  return STREAK_MILESTONES.includes(streak as any) ? streak : null;
 }

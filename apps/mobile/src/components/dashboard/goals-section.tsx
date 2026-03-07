@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
@@ -8,6 +8,10 @@ import { goalsQueryOptions, useUpdateGoal } from "@mindtab/core";
 
 import { PressableCard } from "~/components/ui/pressable-card";
 import { SwipeableRow } from "~/components/ui/swipeable-row";
+import { ConfettiBurst } from "~/components/ui/confetti-burst";
+import { XPFloat } from "~/components/ui/xp-float";
+import { UndoToast } from "~/components/ui/undo-toast";
+import { XP_VALUES } from "~/lib/xp";
 import { colors } from "~/styles/colors";
 import { api } from "~/lib/api-client";
 
@@ -56,6 +60,12 @@ function getStatusDots(status: string) {
   ];
 }
 
+function getGoalXP(goal: any) {
+  if (goal.priority === "priority_1") return XP_VALUES.GOAL_P1_COMPLETE;
+  if (goal.impact === "high") return XP_VALUES.GOAL_HIGH_IMPACT_COMPLETE;
+  return XP_VALUES.GOAL_COMPLETE;
+}
+
 function getNextStatusAction(status: string): {
   label: string;
   color: string;
@@ -73,6 +83,13 @@ function getNextStatusAction(status: string): {
 export function GoalsSection({ projectId }: GoalsSectionProps) {
   const router = useRouter();
   const updateGoal = useUpdateGoal(api);
+  const [celebrationGoalId, setCelebrationGoalId] = useState<string | null>(null);
+  const [xpDelta, setXpDelta] = useState(0);
+  const [undoState, setUndoState] = useState<{
+    visible: boolean;
+    goalId?: string;
+    previousStatus?: string;
+  }>({ visible: false });
 
   const { data: goals } = useQuery(
     goalsQueryOptions(api, { projectId: projectId ?? undefined })
@@ -87,18 +104,39 @@ export function GoalsSection({ projectId }: GoalsSectionProps) {
 
   const remainingPendingCount = pendingGoals.length - displayedPending.length;
 
-  const handleStatusChange = (goalId: string, newStatus: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  useEffect(() => {
+    if (!celebrationGoalId) return;
+    const timer = setTimeout(() => {
+      setCelebrationGoalId(null);
+      setXpDelta(0);
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [celebrationGoalId]);
+
+  const handleStatusChange = (goal: any, newStatus: string) => {
+    const isComplete = newStatus === "completed";
+    Haptics.impactAsync(
+      isComplete ? Haptics.ImpactFeedbackStyle.Heavy : Haptics.ImpactFeedbackStyle.Medium,
+    );
     updateGoal.mutate({
-      id: goalId,
+      id: goal.id,
       status: newStatus,
       ...(newStatus === "completed" ? { completedAt: new Date().toISOString() } : {}),
     });
+    if (isComplete) {
+      setXpDelta(getGoalXP(goal));
+      setCelebrationGoalId(goal.id);
+    }
   };
 
-  const handleArchive = (goalId: string) => {
+  const handleArchive = (goal: any) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    updateGoal.mutate({ id: goalId, status: "archived" });
+    updateGoal.mutate({ id: goal.id, status: "archived" });
+    setUndoState({
+      visible: true,
+      goalId: goal.id,
+      previousStatus: goal.status,
+    });
   };
 
   return (
@@ -136,8 +174,7 @@ export function GoalsSection({ projectId }: GoalsSectionProps) {
                     ? {
                         label: nextAction.label,
                         color: nextAction.color,
-                        onAction: () =>
-                          handleStatusChange(goal.id, nextAction.nextStatus),
+                        onAction: () => handleStatusChange(goal, nextAction.nextStatus),
                       }
                     : undefined
                 }
@@ -145,12 +182,13 @@ export function GoalsSection({ projectId }: GoalsSectionProps) {
                   {
                     label: "Archive",
                     color: colors.feedback.warning,
-                    onAction: () => handleArchive(goal.id),
+                    onAction: () => handleArchive(goal),
                   },
                 ]}
               >
                 <PressableCard
                   onPress={() => router.push(`/(main)/goals/${goal.id}`)}
+                  style={goal.id === celebrationGoalId ? styles.goalCardCelebration : undefined}
                 >
                   {/* Title */}
                   <Text style={styles.goalTitle} numberOfLines={1}>
@@ -212,20 +250,33 @@ export function GoalsSection({ projectId }: GoalsSectionProps) {
 
                   {/* Status dots */}
                   <View style={styles.dotsRow}>
-                    {dots.map((dot, i) => (
-                      <View
-                        key={i}
-                        style={[
-                          styles.statusDot,
-                          {
-                            backgroundColor: dot.filled
-                              ? dot.color
-                              : colors.border.default,
-                          },
-                        ]}
-                      />
-                    ))}
+                    {dots.map((dot, i) => {
+                      const statuses = ["pending", "in_progress", "completed"];
+                      const targetStatus = statuses[i]!;
+                      return (
+                        <Pressable
+                          key={targetStatus}
+                          onPress={() => handleStatusChange(goal, targetStatus)}
+                          hitSlop={8}
+                        >
+                          <View
+                            style={[
+                              styles.statusDot,
+                              {
+                                backgroundColor: dot.filled
+                                  ? dot.color
+                                  : colors.border.default,
+                              },
+                            ]}
+                          />
+                        </Pressable>
+                      );
+                    })}
                   </View>
+                  {goal.id === celebrationGoalId && <ConfettiBurst particleCount={20} />}
+                  {goal.id === celebrationGoalId && xpDelta > 0 && (
+                    <XPFloat amount={xpDelta} onComplete={() => setXpDelta(0)} />
+                  )}
                 </PressableCard>
               </SwipeableRow>
             );
@@ -245,6 +296,19 @@ export function GoalsSection({ projectId }: GoalsSectionProps) {
           )}
         </>
       )}
+      <UndoToast
+        message="Goal archived"
+        visible={undoState.visible}
+        onUndo={() => {
+          if (!undoState.goalId) return;
+          updateGoal.mutate({
+            id: undoState.goalId,
+            status: undoState.previousStatus ?? "pending",
+          });
+          setUndoState({ visible: false });
+        }}
+        onDismiss={() => setUndoState({ visible: false })}
+      />
     </View>
   );
 }
@@ -274,6 +338,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "500",
     color: colors.text.primary,
+  },
+  goalCardCelebration: {
+    borderColor: colors.xp.gold,
+    shadowColor: colors.xp.gold,
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 4,
   },
   metaRow: {
     flexDirection: "row",

@@ -57,12 +57,12 @@ export function LevelUpOverlay({
     backdropOpacity.value = withTiming(1, { duration: 200 });
 
     // 2. "LEVEL UP" bounces in
-    titleOpacity.value = withDelay(100, withTiming(1, { duration: 100 }));
-    titleScale.value = withDelay(100, withSpring(1, springs.bouncy));
+    titleOpacity.value = withDelay(200, withTiming(1, { duration: 100 }));
+    titleScale.value = withDelay(200, withSpring(1, springs.bouncy));
 
     // 3. Level number scales 2 -> 1
-    levelOpacity.value = withDelay(300, withTiming(1, { duration: 100 }));
-    levelScale.value = withDelay(300, withSpring(1, springs.bouncy));
+    levelOpacity.value = withDelay(400, withTiming(1, { duration: 100 }));
+    levelScale.value = withDelay(400, withSpring(1, springs.bouncy));
 
     // 4. Gold shimmer loop on title
     shimmer.value = withRepeat(withTiming(1, { duration: 1200 }), -1, true);
@@ -117,7 +117,7 @@ export function LevelUpOverlay({
       </Animated.Text>
 
       {/* Confetti */}
-      <ConfettiBurst particleCount={24} />
+      <ConfettiBurst particleCount={24} colors={["#facc15", "#818cf8", "#ffffff"]} />
     </Animated.View>
   );
 }

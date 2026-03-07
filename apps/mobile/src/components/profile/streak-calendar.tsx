@@ -29,17 +29,20 @@ function getFirstDayOfWeek(year: number, month: number): number {
   return new Date(year, month, 1).getDay();
 }
 
-function getIntensity(count: number): string {
-  if (count === 0) return colors.border.default;
-  if (count === 1) return "rgba(34, 197, 94, 0.3)";
-  if (count === 2) return "rgba(34, 197, 94, 0.5)";
-  if (count <= 4) return "rgba(34, 197, 94, 0.7)";
-  return colors.status.completed;
+function getDayColor(completed: number, total: number): string {
+  if (completed === 0) return colors.border.default;
+  if (total > 0 && completed >= total) return colors.xp.gold;
+  return colors.streak.orange;
 }
 
 export function StreakCalendar({ tracker }: StreakCalendarProps) {
   const today = new Date();
   const [monthOffset, setMonthOffset] = useState(0);
+  const [selectedDay, setSelectedDay] = useState<{
+    date: string;
+    count: number;
+    total: number;
+  } | null>(null);
 
   const targetDate = useMemo(() => {
     const d = new Date(today.getFullYear(), today.getMonth() + monthOffset, 1);
@@ -61,6 +64,10 @@ export function StreakCalendar({ tracker }: StreakCalendarProps) {
 
   const daysInMonth = getDaysInMonth(year, month);
   const firstDay = getFirstDayOfWeek(year, month);
+  const totalHabits = useMemo(
+    () => new Set(tracker.map((entry) => entry.habitId)).size,
+    [tracker],
+  );
 
   const monthLabel = targetDate.toLocaleDateString("en-US", {
     month: "long",
@@ -167,8 +174,9 @@ export function StreakCalendar({ tracker }: StreakCalendarProps) {
                   const isToday = dateStr === todayStr;
 
                   cells.push(
-                    <View
+                    <Pressable
                       key={dateStr}
+                      onPress={() => setSelectedDay({ date: dateStr, count, total: totalHabits })}
                       style={[styles.cell, { width: cellSize, height: cellSize }]}
                     >
                       <View
@@ -178,7 +186,7 @@ export function StreakCalendar({ tracker }: StreakCalendarProps) {
                             width: cellSize - CELL_GAP,
                             height: cellSize - CELL_GAP,
                             borderRadius: 6,
-                            backgroundColor: getIntensity(count),
+                            backgroundColor: getDayColor(count, totalHabits),
                           },
                           isToday && styles.todayOutline,
                         ]}
@@ -192,7 +200,7 @@ export function StreakCalendar({ tracker }: StreakCalendarProps) {
                           {dayIndex}
                         </Text>
                       </View>
-                    </View>
+                    </Pressable>
                   );
                   dayIndex++;
                 }
@@ -207,6 +215,13 @@ export function StreakCalendar({ tracker }: StreakCalendarProps) {
           })()}
         </Animated.View>
       </GestureDetector>
+      {selectedDay && (
+        <View style={styles.dayTooltip}>
+          <Text style={styles.dayTooltipText}>
+            {selectedDay.count}/{selectedDay.total} habits completed
+          </Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -271,5 +286,18 @@ const styles = StyleSheet.create({
   dayNumberActive: {
     color: "#ffffff",
     fontWeight: "600",
+  },
+  dayTooltip: {
+    marginTop: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: colors.bg.surface,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+  },
+  dayTooltipText: {
+    fontSize: 12,
+    color: colors.text.secondary,
   },
 });

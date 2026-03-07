@@ -32,6 +32,8 @@ import { ProgressBar } from "~/components/ui/progress-bar";
 import { StreakFlame } from "~/components/ui/streak-flame";
 import { colors } from "~/styles/colors";
 import { toast } from "sonner-native";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import { runOnJS } from "react-native-reanimated";
 
 // ── Constants ──
 
@@ -303,6 +305,16 @@ export default function HabitDetailScreen() {
   today.setHours(0, 0, 0, 0);
   const todayStr = today.toISOString().split("T")[0]!;
 
+  const monthPan = Gesture.Pan()
+    .activeOffsetX([-20, 20])
+    .onEnd((event) => {
+      if (event.translationX < -60) {
+        runOnJS(goToNextMonth)();
+      } else if (event.translationX > 60) {
+        runOnJS(goToPrevMonth)();
+      }
+    });
+
   return (
     <View style={styles.screen}>
       {/* ── Header ── */}
@@ -511,69 +523,78 @@ export default function HabitDetailScreen() {
         {/* ── Monthly calendar grid ── */}
         <View style={styles.sectionContainer}>
           {/* Calendar header with month navigation */}
-          <View style={styles.calendarHeader}>
-            <Pressable onPress={goToPrevMonth} hitSlop={8}>
-              <ChevronLeft size={20} color={colors.text.secondary} />
-            </Pressable>
-            <Text style={styles.calendarMonthText}>
-              {MONTH_NAMES[calendarMonth.month]} {calendarMonth.year}
-            </Text>
-            <Pressable onPress={goToNextMonth} hitSlop={8}>
-              <ChevronRight size={20} color={colors.text.secondary} />
-            </Pressable>
-          </View>
+          <GestureDetector gesture={monthPan}>
+            <View>
+              <View style={styles.calendarHeader}>
+                <Pressable onPress={goToPrevMonth} hitSlop={8}>
+                  <ChevronLeft size={20} color={colors.text.secondary} />
+                </Pressable>
+                <Text style={styles.calendarMonthText}>
+                  {MONTH_NAMES[calendarMonth.month]} {calendarMonth.year}
+                </Text>
+                <Pressable onPress={goToNextMonth} hitSlop={8}>
+                  <ChevronRight size={20} color={colors.text.secondary} />
+                </Pressable>
+              </View>
 
-          {/* Weekday labels */}
-          <View style={styles.weekdayRow}>
-            {WEEKDAY_LABELS.map((label) => (
-              <Text key={label} style={styles.weekdayLabel}>
-                {label}
-              </Text>
-            ))}
-          </View>
+              <View style={styles.weekdayRow}>
+                {WEEKDAY_LABELS.map((label) => (
+                  <Text key={label} style={styles.weekdayLabel}>
+                    {label}
+                  </Text>
+                ))}
+              </View>
 
-          {/* Day grid */}
-          {calendarWeeks.map((week, wi) => (
-            <View key={wi} style={styles.calendarWeekRow}>
-              {week.map((dateStr, di) => {
-                if (!dateStr) {
-                  return <View key={`empty-${di}`} style={styles.calendarDayCell} />;
-                }
+              {calendarWeeks.map((week, wi) => (
+                <View key={wi} style={styles.calendarWeekRow}>
+                  {week.map((dateStr, di) => {
+                    if (!dateStr) {
+                      return <View key={`empty-${di}`} style={styles.calendarDayCell} />;
+                    }
 
-                const dayNum = parseInt(dateStr.split("-")[2]!, 10);
-                const isDone = completedDatesSet.has(dateStr);
-                const isToday = dateStr === todayStr;
-                const isFuture = new Date(dateStr) > today;
+                    const dayNum = parseInt(dateStr.split("-")[2]!, 10);
+                    const isDone = completedDatesSet.has(dateStr);
+                    const isToday = dateStr === todayStr;
+                    const isFuture = new Date(dateStr) > today;
 
-                return (
-                  <View key={dateStr} style={styles.calendarDayCell}>
-                    <View
-                      style={[
-                        styles.calendarDayCircle,
-                        isDone && styles.calendarDayDone,
-                        isToday && !isDone && styles.calendarDayToday,
-                        isFuture && styles.calendarDayFuture,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.calendarDayNum,
-                          isDone && styles.calendarDayNumDone,
-                          isFuture && styles.calendarDayNumFuture,
-                          !isDone &&
-                            !isFuture &&
-                            !isToday &&
-                            styles.calendarDayNumMissed,
-                        ]}
-                      >
-                        {dayNum}
-                      </Text>
-                    </View>
-                  </View>
-                );
-              })}
+                    return (
+                      <View key={dateStr} style={styles.calendarDayCell}>
+                        <View
+                          style={[
+                            styles.calendarDayCircle,
+                            isDone && styles.calendarDayDone,
+                            isToday && !isDone && styles.calendarDayToday,
+                            isFuture && styles.calendarDayFuture,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.calendarDayNum,
+                              isDone && styles.calendarDayNumDone,
+                              isFuture && styles.calendarDayNumFuture,
+                              !isDone &&
+                                !isFuture &&
+                                !isToday &&
+                                styles.calendarDayNumMissed,
+                            ]}
+                          >
+                            {dayNum}
+                          </Text>
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+              ))}
             </View>
-          ))}
+          </GestureDetector>
+        </View>
+
+        <View style={styles.sectionContainer}>
+          <Text style={styles.sectionTitle}>CONNECTED NOTES</Text>
+          <Text style={styles.connectedNotesText}>
+            Note-to-habit mention queries still require API support. Connected notes will appear here once available.
+          </Text>
         </View>
       </ScrollView>
     </View>
@@ -847,6 +868,11 @@ const styles = StyleSheet.create({
   legendText: {
     fontSize: 11,
     color: colors.text.muted,
+  },
+  connectedNotesText: {
+    fontSize: 13,
+    color: colors.text.secondary,
+    lineHeight: 20,
   },
 
   // ── Monthly calendar ──

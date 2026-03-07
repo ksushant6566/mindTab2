@@ -34,7 +34,7 @@ function getStreakRingColor(streak: number): string {
   if (streak >= 100) return colors.streak.purple; // rainbow animated separately
   if (streak >= 30) return colors.streak.purple;
   if (streak >= 7) return colors.streak.gold;
-  if (streak >= 1) return colors.streak.green;
+  if (streak >= 1) return colors.streak.orange;
   return colors.border.default;
 }
 

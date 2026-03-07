@@ -16,17 +16,23 @@ type StreakFlameProps = {
   count: number;
   size?: number;
   showCount?: boolean;
+  burst?: boolean;
 };
 
-function getFlameColor(count: number): string {
+export function getFlameColor(count: number): string {
   if (count >= 100) return colors.streak.purple; // rainbow animation handled separately
   if (count >= 30) return colors.streak.purple;
   if (count >= 7) return colors.streak.gold;
-  if (count >= 1) return colors.streak.green;
+  if (count >= 1) return colors.streak.orange;
   return colors.text.muted;
 }
 
-export function StreakFlame({ count, size = 16, showCount = true }: StreakFlameProps) {
+export function StreakFlame({
+  count,
+  size = 16,
+  showCount = true,
+  burst = false,
+}: StreakFlameProps) {
   const scale = useSharedValue(1);
   const flameColor = getFlameColor(count);
 
@@ -34,15 +40,24 @@ export function StreakFlame({ count, size = 16, showCount = true }: StreakFlameP
     if (count > 0) {
       scale.value = withRepeat(
         withSequence(
-          withTiming(1.05, { duration: 600 }),
-          withTiming(0.98, { duration: 400 }),
-          withTiming(1.0, { duration: 500 }),
+          withTiming(1.05, { duration: 700 }),
+          withTiming(0.98, { duration: 500 }),
+          withTiming(1.0, { duration: 800 }),
         ),
         -1,
         true,
       );
     }
   }, [count]);
+
+  useEffect(() => {
+    if (burst) {
+      scale.value = withSequence(
+        withSpring(1.4, springs.bouncy),
+        withSpring(1.0, springs.snappy),
+      );
+    }
+  }, [burst, scale]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],

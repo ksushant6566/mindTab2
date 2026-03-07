@@ -48,18 +48,18 @@ export function ProgressBar({
   }));
 
   return (
-    <View style={[styles.track, { height, backgroundColor: trackColor, borderRadius: height }]}>
+    <View style={[styles.track, { height, backgroundColor: trackColor, borderRadius: 999 }]}>
       <Animated.View
         style={[
           styles.fill,
-          { height, backgroundColor: color, borderRadius: height },
+          { height, backgroundColor: color, borderRadius: 999 },
           fillStyle,
         ]}
       />
       <Animated.View
         style={[
           styles.shimmerOverlay,
-          { height, borderRadius: height },
+          { height, borderRadius: 999 },
           shimmerStyle,
         ]}
       />

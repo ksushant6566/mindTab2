@@ -18,9 +18,9 @@ import { toast } from "sonner-native";
 
 const statuses = [
   { value: "active", label: "Active", color: colors.status.active },
-  { value: "planning", label: "Planning", color: colors.status.pending },
-  { value: "on_hold", label: "Paused", color: colors.status.paused },
+  { value: "paused", label: "Paused", color: colors.status.paused },
   { value: "completed", label: "Completed", color: colors.status.completed },
+  { value: "archived", label: "Archived", color: colors.status.archived },
 ] as const;
 
 export default function CreateProjectModal() {
@@ -192,6 +192,8 @@ export default function CreateProjectModal() {
           <Button
             onPress={handleCreate}
             loading={createProject.isPending}
+            disabled={!name.trim()}
+            state={createProject.isSuccess ? "success" : createProject.isError ? "error" : "idle"}
             size="lg"
           >
             Create Project

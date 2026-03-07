@@ -5,6 +5,7 @@ import BottomSheet, {
   BottomSheetView,
   type BottomSheetBackdropProps,
 } from "@gorhom/bottom-sheet";
+import { useUpdateGoal } from "@mindtab/core";
 import {
   ChevronRight,
   Target,
@@ -16,6 +17,8 @@ import {
 import * as Haptics from "expo-haptics";
 import { colors } from "~/styles/colors";
 import { ProgressBar } from "~/components/ui/progress-bar";
+import { Chip } from "~/components/ui/chip";
+import { api } from "~/lib/api-client";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -100,6 +103,7 @@ function typeColor(type: "goal" | "habit" | "note"): string {
 // ---------------------------------------------------------------------------
 
 function GoalDetails({ entity }: { entity: MentionEntity }) {
+  const updateGoal = useUpdateGoal(api);
   const status = entity.status ?? "pending";
   const pri = entity.priority ? priorityLabels[entity.priority] : null;
   const imp = entity.impact ? impactLabels[entity.impact] : null;
@@ -111,34 +115,20 @@ function GoalDetails({ entity }: { entity: MentionEntity }) {
       {/* Status row */}
       <View style={styles.row}>
         <Text style={styles.label}>Status</Text>
-        <View
-          style={[
-            styles.statusPill,
-            {
-              backgroundColor:
-                (statusColors[status] ?? colors.status.pending) + "20",
-              borderColor:
-                (statusColors[status] ?? colors.status.pending) + "40",
-            },
-          ]}
-        >
-          <View
-            style={[
-              styles.statusDot,
-              {
-                backgroundColor:
-                  statusColors[status] ?? colors.status.pending,
-              },
-            ]}
-          />
-          <Text
-            style={[
-              styles.statusText,
-              { color: statusColors[status] ?? colors.status.pending },
-            ]}
-          >
-            {capitalize(status)}
-          </Text>
+        <View style={styles.statusChipRow}>
+          {["pending", "in_progress", "completed"].map((goalStatus) => (
+            <Chip
+              key={goalStatus}
+              label={goalStatus === "in_progress" ? "In Prog" : capitalize(goalStatus)}
+              selected={status === goalStatus}
+              color={statusColors[goalStatus] ?? colors.status.pending}
+              size="sm"
+              onPress={() => {
+                updateGoal.mutate({ id: entity.id, status: goalStatus });
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              }}
+            />
+          ))}
         </View>
       </View>
 
@@ -174,6 +164,13 @@ function GoalDetails({ entity }: { entity: MentionEntity }) {
           <Text style={styles.value}>{entity.projectName}</Text>
         </View>
       )}
+
+      <View style={styles.connectedSection}>
+        <Text style={styles.connectedTitle}>Connected Notes</Text>
+        <Text style={styles.connectedText}>
+          API support for mention-based note lookup is still required.
+        </Text>
+      </View>
     </View>
   );
 }
@@ -194,11 +191,25 @@ function HabitDetails({ entity }: { entity: MentionEntity }) {
       <View style={styles.row}>
         <Text style={styles.label}>Current Streak</Text>
         <View style={styles.streakRow}>
-          <Flame size={16} color={colors.streak.green} />
-          <Text style={[styles.value, { color: colors.streak.green }]}>
+          <Flame size={16} color={colors.streak.orange} />
+          <Text style={[styles.value, { color: colors.streak.orange }]}>
             {streak} {streak === 1 ? "day" : "days"}
           </Text>
         </View>
+      </View>
+
+      <View style={styles.connectedSection}>
+        <Text style={styles.connectedTitle}>Connected Notes</Text>
+        <Text style={styles.connectedText}>
+          API support for mention-based note lookup is still required.
+        </Text>
+      </View>
+
+      <View style={styles.connectedSection}>
+        <Text style={styles.connectedTitle}>Connected Habits</Text>
+        <Text style={styles.connectedText}>
+          Mention relationship queries will surface here once the API is available.
+        </Text>
       </View>
     </View>
   );
@@ -407,6 +418,28 @@ const styles = StyleSheet.create({
   },
   progressRow: {
     paddingVertical: 4,
+  },
+  statusChipRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    justifyContent: "flex-end",
+  },
+  connectedSection: {
+    paddingTop: 4,
+    gap: 4,
+  },
+  connectedTitle: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: colors.text.muted,
+    letterSpacing: 1,
+    textTransform: "uppercase",
+  },
+  connectedText: {
+    fontSize: 13,
+    color: colors.text.secondary,
+    lineHeight: 18,
   },
   previewText: {
     fontSize: 14,
