@@ -1,5 +1,5 @@
 import { View, Text, Pressable } from "react-native";
-import { useState, useEffect } from "react";
+import { useState, useRef } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { journalQueryOptions, useUpdateJournal } from "@mindtab/core";
@@ -11,37 +11,43 @@ import { ChevronLeft } from "lucide-react-native";
 import { colors } from "~/styles/colors";
 import { toast } from "sonner-native";
 import { useRichEditor, RichTextEditorView } from "~/components/notes/rich-text-editor";
+import type { useEditorBridge } from "@10play/tentap-editor";
+
+function NoteEditor({
+  content,
+  editorRef,
+}: {
+  content: string;
+  editorRef: React.MutableRefObject<ReturnType<typeof useEditorBridge> | null>;
+}) {
+  const editor = useRichEditor({ initialContent: content, editable: true });
+  editorRef.current = editor;
+  return <RichTextEditorView editor={editor} />;
+}
 
 export default function EditNoteScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { data: note, isLoading } = useQuery(journalQueryOptions(api, id));
   const updateJournal = useUpdateJournal(api);
+  const editorRef = useRef<ReturnType<typeof useEditorBridge> | null>(null);
 
   const [title, setTitle] = useState("");
-  const [titleLoaded, setTitleLoaded] = useState(false);
-
-  const editor = useRichEditor({
-    initialContent: "",
-    editable: true,
-  });
-
-  // Populate editor and title when note data arrives
-  useEffect(() => {
-    if (note && !titleLoaded) {
-      setTitle((note as any).title || "");
-      editor.setContent((note as any).content || "");
-      setTitleLoaded(true);
-    }
-  }, [note, titleLoaded]);
+  const [loaded, setLoaded] = useState(false);
 
   if (isLoading || !note) return <Loading />;
 
+  const n = note as any;
+  if (!loaded) {
+    setTitle(n.title || "");
+    setLoaded(true);
+  }
+
   const handleSave = async () => {
-    const htmlContent = await editor.getHTML();
+    const htmlContent = await editorRef.current?.getHTML();
 
     updateJournal.mutate(
-      { id, title: title.trim(), content: htmlContent },
+      { id, title: title.trim(), content: htmlContent || "" },
       {
         onSuccess: () => {
           toast.success("Note saved");
@@ -75,7 +81,7 @@ export default function EditNoteScreen() {
       </View>
 
       <View className="flex-1">
-        <RichTextEditorView editor={editor} />
+        <NoteEditor content={n.content || ""} editorRef={editorRef} />
       </View>
     </View>
   );

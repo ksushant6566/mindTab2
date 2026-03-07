@@ -34,6 +34,14 @@ export default function ProjectDetailScreen() {
   const deleteProject = useDeleteProject(api);
   const archiveProject = useArchiveProject(api);
 
+  const goBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace("/(tabs)/projects");
+    }
+  };
+
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState("");
   const [editDescription, setEditDescription] = useState("");
@@ -79,7 +87,7 @@ export default function ProjectDetailScreen() {
         text: "Delete",
         style: "destructive",
         onPress: () => {
-          deleteProject.mutate(id, { onSuccess: () => router.back() });
+          deleteProject.mutate(id, { onSuccess: () => goBack() });
         },
       },
     ]);
@@ -89,7 +97,7 @@ export default function ProjectDetailScreen() {
     archiveProject.mutate(id, {
       onSuccess: () => {
         toast.success("Project archived");
-        router.back();
+        goBack();
       },
     });
   };
@@ -150,7 +158,7 @@ export default function ProjectDetailScreen() {
   return (
     <View className="flex-1 bg-background">
       <View className="flex-row items-center px-4 pt-2 pb-3">
-        <Pressable onPress={() => router.back()} className="mr-3 p-1">
+        <Pressable onPress={goBack} className="mr-3 p-1">
           <ChevronLeft size={24} color={colors.foreground} />
         </Pressable>
         <Text className="text-foreground font-semibold text-lg flex-1" numberOfLines={1}>

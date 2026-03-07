@@ -1,5 +1,4 @@
 import { View, Text, Pressable, Alert } from "react-native";
-import { useEffect } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { journalQueryOptions, useDeleteJournal } from "@mindtab/core";
@@ -7,7 +6,7 @@ import { api } from "~/lib/api-client";
 import { Loading } from "~/components/ui/loading";
 import { ChevronLeft, Pencil, Trash2 } from "lucide-react-native";
 import { colors } from "~/styles/colors";
-import { useRichEditor, RichTextEditorView } from "~/components/notes/rich-text-editor";
+import { NoteContentView } from "~/components/notes/note-content-view";
 
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString("en-US", {
@@ -18,26 +17,41 @@ function formatDate(dateStr: string): string {
 }
 
 export default function NoteDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, from } = useLocalSearchParams<{ id: string; from?: string }>();
   const router = useRouter();
   const { data: note, isLoading } = useQuery(journalQueryOptions(api, id));
   const deleteJournal = useDeleteJournal(api);
 
-  const editor = useRichEditor({
-    initialContent: "",
-    editable: false,
-  });
-
-  // Update editor content when note data arrives
-  useEffect(() => {
-    if (note) {
-      editor.setContent((note as any).content || "");
+  const goBack = () => {
+    if (from) {
+      router.replace(from as any);
+    } else if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace("/(tabs)/notes");
     }
-  }, [note]);
+  };
 
   if (isLoading || !note) return <Loading />;
 
   const n = note as any;
+
+  const currentRoute = `/(tabs)/notes/${id}`;
+
+  const handleMentionPress = (type: string, mentionId: string) => {
+    const params = { from: currentRoute };
+    switch (type) {
+      case "goal":
+        router.push({ pathname: `/(tabs)/goals/[id]`, params: { id: mentionId, ...params } });
+        break;
+      case "habit":
+        router.push({ pathname: `/(tabs)/habits/[id]`, params: { id: mentionId, ...params } });
+        break;
+      case "journal":
+        router.push({ pathname: `/(tabs)/notes/[id]`, params: { id: mentionId, ...params } });
+        break;
+    }
+  };
 
   const handleDelete = () => {
     Alert.alert("Delete Note", "Are you sure you want to delete this note?", [
@@ -46,7 +60,7 @@ export default function NoteDetailScreen() {
         text: "Delete",
         style: "destructive",
         onPress: () => {
-          deleteJournal.mutate(id, { onSuccess: () => router.back() });
+          deleteJournal.mutate(id, { onSuccess: () => goBack() });
         },
       },
     ]);
@@ -55,7 +69,7 @@ export default function NoteDetailScreen() {
   return (
     <View className="flex-1 bg-background">
       <View className="flex-row items-center px-4 pt-2 pb-3">
-        <Pressable onPress={() => router.back()} className="mr-3 p-1">
+        <Pressable onPress={goBack} className="mr-3 p-1">
           <ChevronLeft size={24} color={colors.foreground} />
         </Pressable>
         <View className="flex-1" />
@@ -78,8 +92,11 @@ export default function NoteDetailScreen() {
         )}
       </View>
 
-      <View className="flex-1">
-        <RichTextEditorView editor={editor} showToolbar={false} />
+      <View className="flex-1 px-4">
+        <NoteContentView
+          content={n.content || ""}
+          onMentionPress={handleMentionPress}
+        />
       </View>
     </View>
   );

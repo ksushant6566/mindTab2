@@ -1,15 +1,73 @@
-import { SafeAreaView } from "react-native-safe-area-context";
 import { KeyboardAvoidingView, Platform } from "react-native";
-import { useEditorBridge, RichText, Toolbar } from "@10play/tentap-editor";
-import { useEffect } from "react";
+import {
+  useEditorBridge,
+  RichText,
+  Toolbar,
+  TenTapStartKit,
+} from "@10play/tentap-editor";
+import BridgeExtension from "@10play/tentap-editor/lib/module/bridges/base";
 import { colors } from "~/styles/colors";
 
-type RichTextEditorProps = {
-  initialContent?: string;
-  editable?: boolean;
-  onReady?: (editor: ReturnType<typeof useEditorBridge>) => void;
-  showToolbar?: boolean;
-};
+const darkThemeCSS = `
+  * { box-sizing: border-box; }
+  body {
+    background-color: ${colors.background} !important;
+    color: ${colors.foreground} !important;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+    padding: 0 16px;
+    margin: 0;
+  }
+  .ProseMirror {
+    background-color: ${colors.background} !important;
+    color: ${colors.foreground} !important;
+    min-height: 100%;
+    outline: none;
+  }
+  .ProseMirror p { margin: 0.5em 0; }
+  .ProseMirror h1, .ProseMirror h2, .ProseMirror h3 {
+    color: ${colors.foreground} !important;
+    margin: 0.8em 0 0.4em;
+  }
+  .ProseMirror a { color: #60a5fa; }
+  .ProseMirror blockquote {
+    border-left: 3px solid ${colors.border};
+    padding-left: 12px;
+    color: ${colors.mutedForeground};
+    margin: 0.5em 0;
+  }
+  .ProseMirror code {
+    background-color: ${colors.secondary};
+    color: ${colors.foreground};
+    padding: 2px 4px;
+    border-radius: 4px;
+    font-size: 14px;
+  }
+  .ProseMirror pre {
+    background-color: ${colors.secondary};
+    color: ${colors.foreground};
+    padding: 12px;
+    border-radius: 6px;
+    overflow-x: auto;
+  }
+  .ProseMirror ul, .ProseMirror ol { padding-left: 24px; }
+  .ProseMirror li { margin: 0.25em 0; }
+  .ProseMirror hr { border: none; border-top: 1px solid ${colors.border}; margin: 1em 0; }
+  .ProseMirror span[data-type="mention"],
+  .ProseMirror .mention {
+    background-color: #1e3a5f;
+    color: #60a5fa;
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-weight: 500;
+  }
+`;
+
+const DarkThemeBridge = new BridgeExtension({
+  forceName: "dark-theme",
+  extendCSS: darkThemeCSS,
+});
 
 export function useRichEditor(opts?: {
   initialContent?: string;
@@ -20,6 +78,7 @@ export function useRichEditor(opts?: {
     avoidIosKeyboard: true,
     initialContent: opts?.initialContent || "",
     editable: opts?.editable !== false,
+    bridgeExtensions: [...TenTapStartKit, DarkThemeBridge],
     theme: {
       toolbar: {
         toolbarBody: {

@@ -16,4 +16,10 @@ config.resolver.nodeModulesPaths = [
   path.resolve(monorepoRoot, "node_modules"),
 ];
 
+// pnpm hoists to node_modules/.pnpm — tell Metro not to stop at the first node_modules
+config.resolver.disableHierarchicalLookup = false;
+
+// Ensure symlinks are followed (needed for pnpm)
+config.resolver.unstable_enableSymlinks = true;
+
 module.exports = withNativeWind(config, { input: "./src/styles/globals.css" });

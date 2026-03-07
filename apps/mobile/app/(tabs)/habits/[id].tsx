@@ -15,11 +15,21 @@ import { toast } from "sonner-native";
 const frequencies = ["daily", "weekdays", "weekends", "weekly"] as const;
 
 export default function HabitDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, from } = useLocalSearchParams<{ id: string; from?: string }>();
   const router = useRouter();
   const { data: habit, isLoading } = useQuery(habitQueryOptions(api, id));
   const updateHabit = useUpdateHabit(api);
   const deleteHabit = useDeleteHabit(api);
+
+  const goBack = () => {
+    if (from) {
+      router.replace(from as any);
+    } else if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace("/(tabs)/habits");
+    }
+  };
 
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState("");
@@ -66,7 +76,7 @@ export default function HabitDetailScreen() {
         text: "Delete",
         style: "destructive",
         onPress: () => {
-          deleteHabit.mutate(id, { onSuccess: () => router.back() });
+          deleteHabit.mutate(id, { onSuccess: () => goBack() });
         },
       },
     ]);
@@ -128,7 +138,7 @@ export default function HabitDetailScreen() {
   return (
     <View className="flex-1 bg-background">
       <View className="flex-row items-center px-4 pt-2 pb-3">
-        <Pressable onPress={() => router.back()} className="mr-3 p-1">
+        <Pressable onPress={goBack} className="mr-3 p-1">
           <ChevronLeft size={24} color={colors.foreground} />
         </Pressable>
         <Text className="text-foreground font-semibold text-lg flex-1" numberOfLines={1}>

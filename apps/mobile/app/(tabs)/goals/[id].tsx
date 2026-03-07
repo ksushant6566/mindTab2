@@ -30,8 +30,18 @@ const priorities = [
 const impacts = ["low", "medium", "high"] as const;
 
 export default function GoalDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, from } = useLocalSearchParams<{ id: string; from?: string }>();
   const router = useRouter();
+
+  const goBack = () => {
+    if (from) {
+      router.replace(from as any);
+    } else if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace("/(tabs)/goals");
+    }
+  };
   const { data: goal, isLoading } = useQuery(goalQueryOptions(api, id));
   const updateGoal = useUpdateGoal(api);
   const deleteGoal = useDeleteGoal(api);
@@ -92,7 +102,7 @@ export default function GoalDetailScreen() {
         text: "Delete",
         style: "destructive",
         onPress: () => {
-          deleteGoal.mutate(id, { onSuccess: () => router.back() });
+          deleteGoal.mutate(id, { onSuccess: () => goBack() });
         },
       },
     ]);
@@ -169,7 +179,7 @@ export default function GoalDetailScreen() {
   return (
     <View className="flex-1 bg-background">
       <View className="flex-row items-center px-4 pt-2 pb-3">
-        <Pressable onPress={() => router.back()} className="mr-3 p-1">
+        <Pressable onPress={goBack} className="mr-3 p-1">
           <ChevronLeft size={24} color={colors.foreground} />
         </Pressable>
         <Text className="text-foreground font-semibold text-lg flex-1" numberOfLines={1}>
