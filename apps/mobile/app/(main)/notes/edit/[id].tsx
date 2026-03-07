@@ -1,4 +1,4 @@
-import { View, Text, Pressable } from "react-native";
+import { View, Text, Pressable, StyleSheet } from "react-native";
 import { useState, useRef } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
@@ -59,30 +59,61 @@ export default function EditNoteScreen() {
   };
 
   return (
-    <View className="flex-1 bg-background">
-      <View className="flex-row items-center justify-between px-4 pt-2 pb-3 border-b border-border">
-        <Pressable onPress={() => router.back()} className="p-1">
-          <ChevronLeft size={24} color={colors.foreground} />
+    <View style={styles.screen}>
+      <View style={styles.header}>
+        <Pressable onPress={() => router.back()} style={styles.backBtn}>
+          <ChevronLeft size={24} color={colors.text.primary} />
         </Pressable>
-        <Text className="text-foreground font-semibold text-lg">Edit Note</Text>
+        <Text style={styles.headerTitle}>Edit Note</Text>
         <Button size="sm" onPress={handleSave} loading={updateJournal.isPending}>
           Save
         </Button>
       </View>
 
-      <View className="px-4 pt-4">
+      <View style={styles.titleContainer}>
         <Input
           value={title}
           onChangeText={setTitle}
           placeholder="Title"
-          className="text-lg font-semibold mb-3"
           style={{ fontSize: 18 }}
         />
       </View>
 
-      <View className="flex-1">
+      <View style={styles.editorContainer}>
         <NoteEditor content={n.content || ""} editorRef={editorRef} />
       </View>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: colors.bg.primary,
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border.default,
+  },
+  backBtn: {
+    padding: 4,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: colors.text.primary,
+  },
+  titleContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+  },
+  editorContainer: {
+    flex: 1,
+  },
+});

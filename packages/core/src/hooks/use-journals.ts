@@ -48,6 +48,7 @@ export function useCreateJournal(api: ApiClient) {
     mutationFn: async (body: {
       title: string;
       content: string;
+      type?: string;
       projectId?: string | null;
     }) => {
       const { data, error } = await api.POST("/journals", {

@@ -1,22 +1,34 @@
-import { View, Text, ScrollView, Pressable } from "react-native";
+import {
+  View,
+  Text,
+  ScrollView,
+  Pressable,
+  KeyboardAvoidingView,
+  Platform,
+} from "react-native";
 import { useState } from "react";
 import { useRouter } from "expo-router";
 import { useCreateProject } from "@mindtab/core";
 import { api } from "~/lib/api-client";
 import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
-import { X } from "lucide-react-native";
+import { Chip } from "~/components/ui/chip";
 import { colors } from "~/styles/colors";
 import { toast } from "sonner-native";
 
-const statuses = ["planning", "active", "on_hold", "completed"] as const;
+const statuses = [
+  { value: "active", label: "Active", color: colors.status.active },
+  { value: "planning", label: "Planning", color: colors.status.pending },
+  { value: "on_hold", label: "Paused", color: colors.status.paused },
+  { value: "completed", label: "Completed", color: colors.status.completed },
+] as const;
 
 export default function CreateProjectModal() {
   const router = useRouter();
   const createProject = useCreateProject(api);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [status, setStatus] = useState<string>("active");
+  const [status, setStatus] = useState("active");
 
   const handleCreate = () => {
     if (!name.trim()) {
@@ -41,53 +53,151 @@ export default function CreateProjectModal() {
   };
 
   return (
-    <View className="flex-1 bg-background">
-      <View className="flex-row items-center justify-between px-4 pt-4 pb-3 border-b border-border">
-        <Pressable onPress={() => router.back()} className="p-1">
-          <X size={24} color={colors.foreground} />
-        </Pressable>
-        <Text className="text-foreground font-semibold text-lg">New Project</Text>
-        <Button size="sm" onPress={handleCreate} loading={createProject.isPending}>
-          Create
-        </Button>
-      </View>
-
-      <ScrollView contentContainerStyle={{ padding: 16 }} keyboardShouldPersistTaps="handled">
-        <Text className="text-xs text-muted-foreground uppercase tracking-wider mb-1.5">Name</Text>
-        <Input
-          value={name}
-          onChangeText={setName}
-          placeholder="Project name"
-          autoFocus
-          className="mb-4"
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: colors.bg.elevated,
+          borderTopLeftRadius: 20,
+          borderTopRightRadius: 20,
+        }}
+      >
+        {/* Handle indicator */}
+        <View
+          style={{
+            alignSelf: "center",
+            width: 36,
+            height: 4,
+            borderRadius: 2,
+            backgroundColor: "#404040",
+            marginTop: 10,
+            marginBottom: 6,
+          }}
         />
 
-        <Text className="text-xs text-muted-foreground uppercase tracking-wider mb-1.5">Description</Text>
-        <Input
-          value={description}
-          onChangeText={setDescription}
-          placeholder="Optional description..."
-          multiline
-          numberOfLines={3}
-          className="mb-4"
-          style={{ textAlignVertical: "top", minHeight: 80 }}
-        />
-
-        <Text className="text-xs text-muted-foreground uppercase tracking-wider mb-1.5">Status</Text>
-        <View className="flex-row flex-wrap gap-2">
-          {statuses.map((s) => (
-            <Pressable
-              key={s}
-              onPress={() => setStatus(s)}
-              className={`rounded-md px-4 py-2 ${status === s ? "bg-secondary" : "border border-border"}`}
+        {/* Header */}
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            paddingHorizontal: 20,
+            paddingBottom: 16,
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 18,
+              fontWeight: "700",
+              color: colors.text.primary,
+            }}
+          >
+            New Project
+          </Text>
+          <Pressable onPress={() => router.back()}>
+            <Text
+              style={{
+                fontSize: 16,
+                fontWeight: "600",
+                color: colors.accent.indigo,
+              }}
             >
-              <Text className={`text-sm font-medium capitalize ${status === s ? "text-foreground" : "text-muted-foreground"}`}>
-                {s.replace("_", " ")}
-              </Text>
-            </Pressable>
-          ))}
+              Done
+            </Text>
+          </Pressable>
         </View>
-      </ScrollView>
-    </View>
+
+        <ScrollView
+          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Name */}
+          <Text
+            style={{
+              fontSize: 14,
+              fontWeight: "500",
+              color: colors.text.secondary,
+              marginBottom: 6,
+            }}
+          >
+            Name
+          </Text>
+          <Input
+            value={name}
+            onChangeText={setName}
+            placeholder="Project name"
+            autoFocus
+            style={{ marginBottom: 20 }}
+          />
+
+          {/* Description */}
+          <Text
+            style={{
+              fontSize: 14,
+              fontWeight: "500",
+              color: colors.text.secondary,
+              marginBottom: 6,
+            }}
+          >
+            Description
+          </Text>
+          <Input
+            value={description}
+            onChangeText={setDescription}
+            placeholder="Optional description..."
+            multiline
+            numberOfLines={3}
+            style={{
+              textAlignVertical: "top",
+              minHeight: 80,
+              marginBottom: 20,
+            }}
+          />
+
+          {/* Status */}
+          <Text
+            style={{
+              fontSize: 14,
+              fontWeight: "500",
+              color: colors.text.secondary,
+              marginBottom: 6,
+            }}
+          >
+            Status
+          </Text>
+          <View
+            style={{
+              flexDirection: "row",
+              flexWrap: "wrap",
+              gap: 8,
+              marginBottom: 28,
+            }}
+          >
+            {statuses.map((s) => (
+              <Chip
+                key={s.value}
+                label={s.label}
+                selected={status === s.value}
+                color={s.color}
+                onPress={() => setStatus(s.value)}
+              />
+            ))}
+          </View>
+
+          {/* Create button */}
+          <Button
+            onPress={handleCreate}
+            loading={createProject.isPending}
+            size="lg"
+          >
+            Create Project
+          </Button>
+        </ScrollView>
+      </View>
+    </KeyboardAvoidingView>
   );
 }

@@ -35,7 +35,7 @@ export function ProjectPills({ selectedProjectId, onSelect }: ProjectPillsProps)
         {projects?.map((project) => (
           <Chip
             key={project.id}
-            label={project.name}
+            label={project.name ?? ""}
             selected={selectedProjectId === project.id}
             onPress={() => onSelect(project.id)}
             color={colors.accent.indigo}

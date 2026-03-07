@@ -36,8 +36,8 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 
   if (isLoading || !hasChecked) {
     return (
-      <View className="flex-1 items-center justify-center bg-background">
-        <ActivityIndicator size="large" color={colors.foreground} />
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.bg.primary }}>
+        <ActivityIndicator size="large" color={colors.text.primary} />
       </View>
     );
   }
@@ -55,7 +55,6 @@ export default function RootLayout() {
           <Stack.Screen name="(auth)" />
           <Stack.Screen name="(onboarding)" />
           <Stack.Screen name="(main)" />
-          <Stack.Screen name="(tabs)" />
           <Stack.Screen name="(modals)" options={{ presentation: "modal" }} />
         </Stack>
       </AuthGuard>

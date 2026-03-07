@@ -1,4 +1,4 @@
-import { View, Text, Pressable } from "react-native";
+import { View, Text, Pressable, StyleSheet } from "react-native";
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
@@ -33,45 +33,43 @@ export default function CommandPaletteModal() {
   }, [router]);
 
   return (
-    <View className="flex-1 bg-background">
-      <View className="flex-row items-center px-4 pt-4 pb-3 border-b border-border">
+    <View style={styles.screen}>
+      <View style={styles.header}>
         <Input
           value={query}
           onChangeText={setQuery}
           placeholder="Search goals, habits, notes..."
           autoFocus
-          className="flex-1 mr-3"
+          style={styles.searchInput}
         />
-        <Pressable onPress={() => router.back()} className="p-1">
-          <X size={24} color={colors.foreground} />
+        <Pressable onPress={() => router.back()} style={styles.closeBtn}>
+          <X size={24} color={colors.text.primary} />
         </Pressable>
       </View>
 
       {!debouncedQuery ? (
-        <View className="p-4">
-          <Text className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-            Quick Actions
-          </Text>
+        <View style={styles.quickActions}>
+          <Text style={styles.quickActionsTitle}>Quick Actions</Text>
           <Pressable
             onPress={() => handleQuickAction("/(modals)/create-goal")}
-            className="flex-row items-center py-3"
+            style={styles.quickActionRow}
           >
-            <Target size={18} color={colors.mutedForeground} />
-            <Text className="text-foreground ml-3">Create Goal</Text>
+            <Target size={18} color={colors.text.muted} />
+            <Text style={styles.quickActionText}>Create Goal</Text>
           </Pressable>
           <Pressable
             onPress={() => handleQuickAction("/(modals)/create-habit")}
-            className="flex-row items-center py-3"
+            style={styles.quickActionRow}
           >
-            <CheckSquare size={18} color={colors.mutedForeground} />
-            <Text className="text-foreground ml-3">Create Habit</Text>
+            <CheckSquare size={18} color={colors.text.muted} />
+            <Text style={styles.quickActionText}>Create Habit</Text>
           </Pressable>
           <Pressable
             onPress={() => handleQuickAction("/(modals)/create-note")}
-            className="flex-row items-center py-3"
+            style={styles.quickActionRow}
           >
-            <FileEdit size={18} color={colors.mutedForeground} />
-            <Text className="text-foreground ml-3">Create Note</Text>
+            <FileEdit size={18} color={colors.text.muted} />
+            <Text style={styles.quickActionText}>Create Note</Text>
           </Pressable>
         </View>
       ) : (
@@ -84,3 +82,47 @@ export default function CommandPaletteModal() {
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: colors.bg.primary,
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border.default,
+  },
+  searchInput: {
+    flex: 1,
+    marginRight: 12,
+  },
+  closeBtn: {
+    padding: 4,
+  },
+  quickActions: {
+    padding: 16,
+  },
+  quickActionsTitle: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: colors.text.muted,
+    textTransform: "uppercase",
+    letterSpacing: 1.2,
+    marginBottom: 12,
+  },
+  quickActionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+  },
+  quickActionText: {
+    fontSize: 16,
+    color: colors.text.primary,
+    marginLeft: 12,
+  },
+});

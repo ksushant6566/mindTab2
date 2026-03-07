@@ -1,13 +1,7 @@
-import { View, Text, Pressable, SectionList } from "react-native";
+import { View, Text, Pressable, SectionList, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
 import { Target, CheckSquare, FileEdit } from "lucide-react-native";
 import { colors } from "~/styles/colors";
-
-type SearchResult = {
-  id: string;
-  title: string;
-  type: "goal" | "habit" | "note";
-};
 
 type SearchResultsProps = {
   goals: Array<{ id: string; title: string }>;
@@ -30,7 +24,9 @@ const routeMap = {
 export function SearchResults({ goals, habits, notes }: SearchResultsProps) {
   const router = useRouter();
 
-  const sections = [
+  type SearchItem = { id: string; title: string; type: "goal" | "habit" | "note" };
+
+  const sections: Array<{ title: string; data: SearchItem[] }> = [
     { title: "Goals", data: goals.map((g) => ({ ...g, type: "goal" as const })) },
     { title: "Habits", data: habits.map((h) => ({ ...h, type: "habit" as const })) },
     { title: "Notes", data: notes.map((n) => ({ ...n, type: "note" as const })) },
@@ -38,8 +34,8 @@ export function SearchResults({ goals, habits, notes }: SearchResultsProps) {
 
   if (sections.length === 0) {
     return (
-      <View className="items-center py-12">
-        <Text className="text-muted-foreground">No results found</Text>
+      <View style={styles.emptyContainer}>
+        <Text style={styles.emptyText}>No results found</Text>
       </View>
     );
   }
@@ -49,10 +45,8 @@ export function SearchResults({ goals, habits, notes }: SearchResultsProps) {
       sections={sections}
       keyExtractor={(item) => `${item.type}-${item.id}`}
       renderSectionHeader={({ section }) => (
-        <View className="px-4 pt-3 pb-1">
-          <Text className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-            {section.title}
-          </Text>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>{section.title}</Text>
         </View>
       )}
       renderItem={({ item }) => {
@@ -63,10 +57,10 @@ export function SearchResults({ goals, habits, notes }: SearchResultsProps) {
               router.back();
               setTimeout(() => router.push(`${routeMap[item.type]}${item.id}` as any), 100);
             }}
-            className="flex-row items-center px-4 py-3"
+            style={styles.resultRow}
           >
-            <Icon size={18} color={colors.mutedForeground} />
-            <Text className="text-foreground ml-3 flex-1" numberOfLines={1}>
+            <Icon size={18} color={colors.text.muted} />
+            <Text style={styles.resultText} numberOfLines={1}>
               {item.title}
             </Text>
           </Pressable>
@@ -77,3 +71,38 @@ export function SearchResults({ goals, habits, notes }: SearchResultsProps) {
     />
   );
 }
+
+const styles = StyleSheet.create({
+  emptyContainer: {
+    alignItems: "center",
+    paddingVertical: 48,
+  },
+  emptyText: {
+    color: colors.text.muted,
+    fontSize: 14,
+  },
+  sectionHeader: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 4,
+  },
+  sectionTitle: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: colors.text.muted,
+    textTransform: "uppercase",
+    letterSpacing: 1.2,
+  },
+  resultRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  resultText: {
+    color: colors.text.primary,
+    fontSize: 16,
+    marginLeft: 12,
+    flex: 1,
+  },
+});

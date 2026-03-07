@@ -1,21 +1,47 @@
-import { View, Text, Pressable, Image, Alert } from "react-native";
+import {
+  View,
+  Text,
+  Pressable,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Alert,
+} from "react-native";
 import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { habitTrackerQueryOptions } from "@mindtab/core";
 import { api } from "~/lib/api-client";
 import { useAuth } from "~/hooks/use-auth";
 import { calculateStreak } from "~/lib/streak";
-import { X, LogOut, Flame, Zap } from "lucide-react-native";
+import { getXPProgress } from "~/lib/xp";
+import { ProgressBar } from "~/components/ui/progress-bar";
+import { StreakFlame } from "~/components/ui/streak-flame";
+import { X, LogOut, Zap } from "lucide-react-native";
 import { colors } from "~/styles/colors";
 import Constants from "expo-constants";
+
+// -- Streak tier ring color --
+
+function getStreakRingColor(streak: number): string {
+  if (streak >= 30) return colors.streak.purple;
+  if (streak >= 7) return colors.streak.gold;
+  return colors.streak.orange;
+}
+
+// -- Screen --
 
 export default function ProfileModal() {
   const router = useRouter();
   const { user, logout } = useAuth();
   const { data: tracker = [] } = useQuery(habitTrackerQueryOptions(api));
-  const streak = calculateStreak(tracker as any[]);
 
-  const handleLogout = () => {
+  const streak = calculateStreak(tracker as any[]);
+  const xp = user?.xp ?? 0;
+  const { level, currentLevelXP, nextLevelXP, progress, xpToNext } =
+    getXPProgress(xp);
+  const appVersion = Constants.expoConfig?.version ?? "1.0.0";
+
+  const handleSignOut = () => {
     Alert.alert("Sign Out", "Are you sure you want to sign out?", [
       { text: "Cancel", style: "cancel" },
       {
@@ -29,69 +55,258 @@ export default function ProfileModal() {
     ]);
   };
 
-  const appVersion = Constants.expoConfig?.version ?? "1.0.0";
-
   return (
-    <View className="flex-1 bg-background">
+    <View style={styles.screen}>
+      {/* Handle indicator */}
+      <View style={styles.handleRow}>
+        <View style={styles.handle} />
+      </View>
+
       {/* Header */}
-      <View className="flex-row items-center justify-between px-4 pt-4 pb-3 border-b border-border">
-        <Text className="text-foreground font-semibold text-lg">Profile</Text>
-        <Pressable onPress={() => router.back()} className="p-1">
-          <X size={24} color={colors.foreground} />
-        </Pressable>
-      </View>
-
-      {/* User info */}
-      <View className="items-center pt-8 pb-6">
-        {user?.image ? (
-          <Image
-            source={{ uri: user.image }}
-            className="w-20 h-20 rounded-full mb-4"
-          />
-        ) : (
-          <View className="w-20 h-20 rounded-full bg-secondary items-center justify-center mb-4">
-            <Text className="text-foreground text-2xl font-bold">
-              {user?.name?.charAt(0) ?? "?"}
-            </Text>
-          </View>
-        )}
-        <Text className="text-foreground font-semibold text-xl">{user?.name}</Text>
-        <Text className="text-muted-foreground text-sm mt-1">{user?.email}</Text>
-      </View>
-
-      {/* Stats */}
-      <View className="flex-row mx-4 mb-6 rounded-lg border border-border overflow-hidden">
-        <View className="flex-1 items-center py-4 border-r border-border">
-          <View className="flex-row items-center mb-1">
-            <Zap size={16} color="#facc15" />
-            <Text className="text-foreground font-bold text-lg ml-1">{user?.xp ?? 0}</Text>
-          </View>
-          <Text className="text-muted-foreground text-xs">XP Earned</Text>
-        </View>
-        <View className="flex-1 items-center py-4">
-          <View className="flex-row items-center mb-1">
-            <Flame size={16} color="#f97316" />
-            <Text className="text-foreground font-bold text-lg ml-1">{streak}</Text>
-          </View>
-          <Text className="text-muted-foreground text-xs">Day Streak</Text>
-        </View>
-      </View>
-
-      {/* Actions */}
-      <View className="mx-4">
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Profile</Text>
         <Pressable
-          onPress={handleLogout}
-          className="flex-row items-center py-4 border-t border-border"
+          onPress={() => router.back()}
+          hitSlop={12}
+          style={styles.closeButton}
         >
-          <LogOut size={20} color="#ef4444" />
-          <Text className="ml-3 font-medium" style={{ color: "#ef4444" }}>Sign Out</Text>
+          <X size={22} color={colors.text.secondary} />
         </Pressable>
       </View>
 
-      {/* Version */}
-      <View className="absolute bottom-8 left-0 right-0 items-center">
-        <Text className="text-muted-foreground text-xs">MindTab v{appVersion}</Text>
-      </View>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Avatar section */}
+        <View style={styles.avatarSection}>
+          <View
+            style={[
+              styles.avatarRing,
+              { borderColor: getStreakRingColor(streak) },
+            ]}
+          >
+            {user?.image ? (
+              <Image source={{ uri: user.image }} style={styles.avatar} />
+            ) : (
+              <View style={styles.avatarFallback}>
+                <Text style={styles.avatarInitial}>
+                  {user?.name?.charAt(0)?.toUpperCase() ?? "?"}
+                </Text>
+              </View>
+            )}
+          </View>
+          <Text style={styles.userName}>{user?.name}</Text>
+          <Text style={styles.userEmail}>{user?.email}</Text>
+        </View>
+
+        {/* XP Level card */}
+        <View style={styles.card}>
+          <View style={styles.xpHeader}>
+            <Zap size={20} color={colors.xp.gold} />
+            <Text style={styles.xpLevelTitle}>Level {level}</Text>
+          </View>
+          <View style={styles.xpProgressRow}>
+            <ProgressBar
+              value={progress}
+              color={colors.xp.gold}
+              height={6}
+            />
+          </View>
+          <Text style={styles.xpLabel}>
+            {xp - currentLevelXP} / {nextLevelXP - currentLevelXP} XP
+          </Text>
+          <Text style={styles.xpSubtitle}>{xpToNext} XP to next level</Text>
+        </View>
+
+        {/* Streak stat card */}
+        <View style={styles.card}>
+          <View style={styles.streakRow}>
+            <StreakFlame count={streak} size={28} showCount={false} />
+            <Text style={styles.streakCount}>{streak}</Text>
+            <Text style={styles.streakLabel}>Day Streak</Text>
+          </View>
+        </View>
+
+        {/* Sign out button */}
+        <Pressable onPress={handleSignOut} style={styles.signOutRow}>
+          <LogOut size={20} color={colors.feedback.error} />
+          <Text style={styles.signOutText}>Sign Out</Text>
+        </Pressable>
+
+        {/* App version */}
+        <Text style={styles.version}>MindTab v{appVersion}</Text>
+      </ScrollView>
     </View>
   );
 }
+
+// -- Styles --
+
+const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: colors.bg.primary,
+  },
+
+  // Handle
+  handleRow: {
+    alignItems: "center",
+    paddingTop: 10,
+    paddingBottom: 4,
+  },
+  handle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.text.muted,
+  },
+
+  // Header
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 16,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: colors.text.primary,
+  },
+  closeButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.bg.surface,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  // Scroll
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 48,
+  },
+
+  // Avatar
+  avatarSection: {
+    alignItems: "center",
+    paddingTop: 16,
+    paddingBottom: 28,
+  },
+  avatarRing: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    borderWidth: 3,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
+  avatar: {
+    width: 86,
+    height: 86,
+    borderRadius: 43,
+  },
+  avatarFallback: {
+    width: 86,
+    height: 86,
+    borderRadius: 43,
+    backgroundColor: colors.bg.surface,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarInitial: {
+    fontSize: 32,
+    fontWeight: "700",
+    color: colors.text.primary,
+  },
+  userName: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: colors.text.primary,
+    marginBottom: 4,
+  },
+  userEmail: {
+    fontSize: 14,
+    color: colors.text.muted,
+  },
+
+  // Card
+  card: {
+    backgroundColor: colors.bg.elevated,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    padding: 16,
+    marginBottom: 14,
+  },
+
+  // XP Level
+  xpHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 14,
+  },
+  xpLevelTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: colors.text.primary,
+  },
+  xpProgressRow: {
+    marginBottom: 10,
+  },
+  xpLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.text.secondary,
+    marginBottom: 2,
+  },
+  xpSubtitle: {
+    fontSize: 13,
+    color: colors.text.muted,
+  },
+
+  // Streak
+  streakRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  streakCount: {
+    fontSize: 28,
+    fontWeight: "800",
+    color: colors.text.primary,
+  },
+  streakLabel: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: colors.text.secondary,
+  },
+
+  // Sign out
+  signOutRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 16,
+    marginTop: 12,
+  },
+  signOutText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: colors.feedback.error,
+  },
+
+  // Version
+  version: {
+    fontSize: 12,
+    color: colors.text.muted,
+    textAlign: "center",
+    marginTop: 24,
+  },
+});

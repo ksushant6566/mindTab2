@@ -1,16 +1,29 @@
-import { TextInput, type TextInputProps } from "react-native";
+import { TextInput, StyleSheet, type TextInputProps } from "react-native";
 import { colors } from "~/styles/colors";
 
 type InputProps = TextInputProps & {
   className?: string;
 };
 
-export function Input({ className = "", ...props }: InputProps) {
+export function Input({ className, style, ...props }: InputProps) {
   return (
     <TextInput
-      className={`rounded-md border border-input bg-background px-3 py-2.5 text-sm text-foreground ${className}`}
-      placeholderTextColor={colors.mutedForeground}
+      style={[styles.input, style]}
+      placeholderTextColor={colors.text.muted}
       {...props}
     />
   );
 }
+
+const styles = StyleSheet.create({
+  input: {
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    backgroundColor: colors.bg.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: colors.text.primary,
+  },
+});

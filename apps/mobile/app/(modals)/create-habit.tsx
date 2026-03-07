@@ -1,22 +1,29 @@
-import { View, Text, ScrollView, Pressable } from "react-native";
+import {
+  View,
+  Text,
+  ScrollView,
+  Pressable,
+  KeyboardAvoidingView,
+  Platform,
+} from "react-native";
 import { useState } from "react";
 import { useRouter } from "expo-router";
 import { useCreateHabit } from "@mindtab/core";
 import { api } from "~/lib/api-client";
 import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
-import { X } from "lucide-react-native";
+import { Chip } from "~/components/ui/chip";
 import { colors } from "~/styles/colors";
 import { toast } from "sonner-native";
 
-const frequencies = ["daily", "weekdays", "weekends", "weekly"] as const;
+const quickPicks = ["Exercise", "Read", "Water", "Meditate", "Write", "Sleep"];
 
 export default function CreateHabitModal() {
   const router = useRouter();
   const createHabit = useCreateHabit(api);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [frequency, setFrequency] = useState<string>("daily");
+  const [frequency, setFrequency] = useState("daily");
 
   const handleCreate = () => {
     if (!title.trim()) {
@@ -24,7 +31,11 @@ export default function CreateHabitModal() {
       return;
     }
     createHabit.mutate(
-      { title: title.trim(), description: description.trim() || undefined, frequency },
+      {
+        title: title.trim(),
+        description: description.trim() || undefined,
+        frequency,
+      },
       {
         onSuccess: () => {
           toast.success("Habit created");
@@ -36,53 +47,195 @@ export default function CreateHabitModal() {
   };
 
   return (
-    <View className="flex-1 bg-background">
-      <View className="flex-row items-center justify-between px-4 pt-4 pb-3 border-b border-border">
-        <Pressable onPress={() => router.back()} className="p-1">
-          <X size={24} color={colors.foreground} />
-        </Pressable>
-        <Text className="text-foreground font-semibold text-lg">New Habit</Text>
-        <Button size="sm" onPress={handleCreate} loading={createHabit.isPending}>
-          Create
-        </Button>
-      </View>
-
-      <ScrollView contentContainerStyle={{ padding: 16 }} keyboardShouldPersistTaps="handled">
-        <Text className="text-xs text-muted-foreground uppercase tracking-wider mb-1.5">Title</Text>
-        <Input
-          value={title}
-          onChangeText={setTitle}
-          placeholder="e.g., Read for 30 minutes"
-          autoFocus
-          className="mb-4"
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: colors.bg.elevated,
+          borderTopLeftRadius: 20,
+          borderTopRightRadius: 20,
+        }}
+      >
+        {/* Handle indicator */}
+        <View
+          style={{
+            alignSelf: "center",
+            width: 36,
+            height: 4,
+            borderRadius: 2,
+            backgroundColor: "#404040",
+            marginTop: 10,
+            marginBottom: 6,
+          }}
         />
 
-        <Text className="text-xs text-muted-foreground uppercase tracking-wider mb-1.5">Description</Text>
-        <Input
-          value={description}
-          onChangeText={setDescription}
-          placeholder="Optional details..."
-          multiline
-          numberOfLines={2}
-          className="mb-4"
-          style={{ textAlignVertical: "top", minHeight: 60 }}
-        />
-
-        <Text className="text-xs text-muted-foreground uppercase tracking-wider mb-1.5">Frequency</Text>
-        <View className="flex-row flex-wrap gap-2">
-          {frequencies.map((f) => (
-            <Pressable
-              key={f}
-              onPress={() => setFrequency(f)}
-              className={`rounded-md px-4 py-2 ${frequency === f ? "bg-secondary" : "border border-border"}`}
+        {/* Header */}
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            paddingHorizontal: 20,
+            paddingBottom: 16,
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 18,
+              fontWeight: "700",
+              color: colors.text.primary,
+            }}
+          >
+            New Habit
+          </Text>
+          <Pressable onPress={() => router.back()}>
+            <Text
+              style={{
+                fontSize: 16,
+                fontWeight: "600",
+                color: colors.accent.indigo,
+              }}
             >
-              <Text className={`text-sm font-medium capitalize ${frequency === f ? "text-foreground" : "text-muted-foreground"}`}>
-                {f}
-              </Text>
-            </Pressable>
-          ))}
+              Done
+            </Text>
+          </Pressable>
         </View>
-      </ScrollView>
-    </View>
+
+        <ScrollView
+          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Title */}
+          <Text
+            style={{
+              fontSize: 14,
+              fontWeight: "500",
+              color: colors.text.secondary,
+              marginBottom: 6,
+            }}
+          >
+            Title
+          </Text>
+          <Input
+            value={title}
+            onChangeText={setTitle}
+            placeholder="e.g., Read for 30 minutes"
+            autoFocus
+            style={{ marginBottom: 20 }}
+          />
+
+          {/* Description */}
+          <Text
+            style={{
+              fontSize: 14,
+              fontWeight: "500",
+              color: colors.text.secondary,
+              marginBottom: 6,
+            }}
+          >
+            Description
+          </Text>
+          <Input
+            value={description}
+            onChangeText={setDescription}
+            placeholder="Optional details..."
+            multiline
+            numberOfLines={2}
+            style={{
+              textAlignVertical: "top",
+              minHeight: 60,
+              marginBottom: 20,
+            }}
+          />
+
+          {/* Frequency */}
+          <Text
+            style={{
+              fontSize: 14,
+              fontWeight: "500",
+              color: colors.text.secondary,
+              marginBottom: 6,
+            }}
+          >
+            Frequency
+          </Text>
+          <View
+            style={{
+              flexDirection: "row",
+              flexWrap: "wrap",
+              gap: 8,
+              marginBottom: 20,
+            }}
+          >
+            <Chip
+              label="Daily"
+              selected={frequency === "daily"}
+              color={colors.accent.indigo}
+              onPress={() => setFrequency("daily")}
+            />
+            <Chip
+              label="Weekly"
+              selected={frequency === "weekly"}
+              color={colors.accent.indigo}
+              onPress={() => setFrequency("weekly")}
+            />
+          </View>
+
+          {/* Quick picks */}
+          <Text
+            style={{
+              fontSize: 14,
+              fontWeight: "500",
+              color: colors.text.secondary,
+              marginBottom: 6,
+            }}
+          >
+            Quick picks
+          </Text>
+          <View
+            style={{
+              flexDirection: "row",
+              flexWrap: "wrap",
+              gap: 8,
+              marginBottom: 28,
+            }}
+          >
+            {quickPicks.map((pick) => (
+              <Chip
+                key={pick}
+                label={pick}
+                selected={title === pick}
+                color={colors.accent.indigo}
+                size="sm"
+                onPress={() => setTitle(pick)}
+              />
+            ))}
+          </View>
+
+          {/* Create button */}
+          <Button
+            onPress={handleCreate}
+            loading={createHabit.isPending}
+            size="lg"
+          >
+            Create Habit
+          </Button>
+          <Text
+            style={{
+              fontSize: 12,
+              color: colors.xp.gold,
+              textAlign: "center",
+              marginTop: 8,
+            }}
+          >
+            +10 XP per day
+          </Text>
+        </ScrollView>
+      </View>
+    </KeyboardAvoidingView>
   );
 }

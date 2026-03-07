@@ -1,45 +1,50 @@
-import { View, Text } from "react-native";
-import { cva, type VariantProps } from "class-variance-authority";
+import { View, Text, StyleSheet, type ViewStyle, type TextStyle } from "react-native";
+import { colors } from "~/styles/colors";
 
-const badgeVariants = cva(
-  "rounded-full px-2.5 py-0.5",
-  {
-    variants: {
-      variant: {
-        default: "bg-primary",
-        secondary: "bg-secondary",
-        destructive: "bg-destructive",
-        outline: "border border-border",
-        success: "bg-emerald-900",
-        warning: "bg-amber-900",
-      },
-    },
-    defaultVariants: {
-      variant: "secondary",
-    },
-  }
-);
+type BadgeVariant = "default" | "secondary" | "destructive" | "outline" | "success" | "warning";
 
-const textVariants: Record<string, string> = {
-  default: "text-primary-foreground",
-  secondary: "text-secondary-foreground",
-  destructive: "text-destructive-foreground",
-  outline: "text-foreground",
-  success: "text-emerald-200",
-  warning: "text-amber-200",
-};
-
-type BadgeProps = VariantProps<typeof badgeVariants> & {
+type BadgeProps = {
+  variant?: BadgeVariant;
   children: string;
   className?: string;
 };
 
-export function Badge({ variant = "secondary", children, className = "" }: BadgeProps) {
+const variantBg: Record<BadgeVariant, ViewStyle> = {
+  default: { backgroundColor: colors.text.primary },
+  secondary: { backgroundColor: colors.bg.surface },
+  destructive: { backgroundColor: colors.feedback.error },
+  outline: { borderWidth: 1, borderColor: colors.border.default, backgroundColor: "transparent" },
+  success: { backgroundColor: "rgba(34,197,94,0.2)" },
+  warning: { backgroundColor: "rgba(251,191,36,0.2)" },
+};
+
+const variantText: Record<BadgeVariant, string> = {
+  default: colors.bg.primary,
+  secondary: colors.text.primary,
+  destructive: "#ffffff",
+  outline: colors.text.primary,
+  success: colors.feedback.success,
+  warning: colors.feedback.warning,
+};
+
+export function Badge({ variant = "secondary", children }: BadgeProps) {
   return (
-    <View className={badgeVariants({ variant, className })}>
-      <Text className={`text-xs font-medium ${textVariants[variant ?? "secondary"]}`}>
+    <View style={[styles.badge, variantBg[variant]]}>
+      <Text style={[styles.text, { color: variantText[variant] }]}>
         {children}
       </Text>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  badge: {
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 2,
+  },
+  text: {
+    fontSize: 12,
+    fontWeight: "500",
+  },
+});

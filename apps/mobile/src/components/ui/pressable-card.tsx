@@ -1,5 +1,5 @@
 import { type ReactNode } from "react";
-import { type ViewStyle, type StyleProp } from "react-native";
+import { StyleSheet, type ViewStyle, type StyleProp } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   useSharedValue,
@@ -18,7 +18,6 @@ type PressableCardProps = {
   onLongPress?: () => void;
   disabled?: boolean;
   style?: StyleProp<ViewStyle>;
-  className?: string;
 };
 
 export function PressableCard({
@@ -27,7 +26,6 @@ export function PressableCard({
   onLongPress,
   disabled,
   style,
-  className = "",
 }: PressableCardProps) {
   const scale = useSharedValue(1);
   const opacity = useSharedValue(1);
@@ -67,20 +65,20 @@ export function PressableCard({
 
   return (
     <GestureDetector gesture={composed}>
-      <Animated.View
-        className={`rounded-2xl border p-4 ${className}`}
-        style={[
-          {
-            backgroundColor: colors.bg.elevated,
-            borderColor: colors.border.default,
-            borderRadius: 16,
-          },
-          style,
-          animatedStyle,
-        ]}
-      >
+      <Animated.View style={[styles.card, style, animatedStyle]}>
         {children}
       </Animated.View>
     </GestureDetector>
   );
 }
+
+const styles = StyleSheet.create({
+  card: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    backgroundColor: colors.bg.elevated,
+    padding: 16,
+    marginBottom: 8,
+  },
+});

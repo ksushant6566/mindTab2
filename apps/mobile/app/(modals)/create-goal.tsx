@@ -1,22 +1,33 @@
-import { View, Text, ScrollView, Pressable } from "react-native";
+import {
+  View,
+  Text,
+  ScrollView,
+  Pressable,
+  KeyboardAvoidingView,
+  Platform,
+} from "react-native";
 import { useState } from "react";
 import { useRouter } from "expo-router";
 import { useCreateGoal } from "@mindtab/core";
 import { api } from "~/lib/api-client";
 import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
-import { X } from "lucide-react-native";
+import { Chip } from "~/components/ui/chip";
 import { colors } from "~/styles/colors";
 import { toast } from "sonner-native";
 
 const priorities = [
-  { value: "priority_1", label: "P1", color: "bg-red-500/30" },
-  { value: "priority_2", label: "P2", color: "bg-yellow-500/30" },
-  { value: "priority_3", label: "P3", color: "bg-green-500/30" },
-  { value: "priority_4", label: "P4", color: "bg-secondary" },
-];
+  { value: "priority_1", label: "P1", color: colors.priority.p1 },
+  { value: "priority_2", label: "P2", color: colors.priority.p2 },
+  { value: "priority_3", label: "P3", color: colors.priority.p3 },
+  { value: "priority_4", label: "P4", color: colors.priority.p4 },
+] as const;
 
-const impacts = ["low", "medium", "high"] as const;
+const impacts = [
+  { value: "low", label: "Low", color: colors.impact.low },
+  { value: "medium", label: "Medium", color: colors.impact.medium },
+  { value: "high", label: "High", color: colors.impact.high },
+] as const;
 
 export default function CreateGoalModal() {
   const router = useRouter();
@@ -24,7 +35,7 @@ export default function CreateGoalModal() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState("priority_2");
-  const [impact, setImpact] = useState<string>("medium");
+  const [impact, setImpact] = useState("medium");
 
   const handleCreate = () => {
     if (!title.trim()) {
@@ -32,7 +43,12 @@ export default function CreateGoalModal() {
       return;
     }
     createGoal.mutate(
-      { title: title.trim(), description: description.trim() || undefined, priority, impact },
+      {
+        title: title.trim(),
+        description: description.trim() || undefined,
+        priority,
+        impact,
+      },
       {
         onSuccess: () => {
           toast.success("Goal created");
@@ -44,68 +60,191 @@ export default function CreateGoalModal() {
   };
 
   return (
-    <View className="flex-1 bg-background">
-      <View className="flex-row items-center justify-between px-4 pt-4 pb-3 border-b border-border">
-        <Pressable onPress={() => router.back()} className="p-1">
-          <X size={24} color={colors.foreground} />
-        </Pressable>
-        <Text className="text-foreground font-semibold text-lg">New Goal</Text>
-        <Button size="sm" onPress={handleCreate} loading={createGoal.isPending}>
-          Create
-        </Button>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: colors.bg.elevated,
+          borderTopLeftRadius: 20,
+          borderTopRightRadius: 20,
+        }}
+      >
+        {/* Handle indicator */}
+        <View
+          style={{
+            alignSelf: "center",
+            width: 36,
+            height: 4,
+            borderRadius: 2,
+            backgroundColor: "#404040",
+            marginTop: 10,
+            marginBottom: 6,
+          }}
+        />
+
+        {/* Header */}
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            paddingHorizontal: 20,
+            paddingBottom: 16,
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 18,
+              fontWeight: "700",
+              color: colors.text.primary,
+            }}
+          >
+            New Goal
+          </Text>
+          <Pressable onPress={() => router.back()}>
+            <Text
+              style={{
+                fontSize: 16,
+                fontWeight: "600",
+                color: colors.accent.indigo,
+              }}
+            >
+              Done
+            </Text>
+          </Pressable>
+        </View>
+
+        <ScrollView
+          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Title */}
+          <Text
+            style={{
+              fontSize: 14,
+              fontWeight: "500",
+              color: colors.text.secondary,
+              marginBottom: 6,
+            }}
+          >
+            Title
+          </Text>
+          <Input
+            value={title}
+            onChangeText={setTitle}
+            placeholder="What do you want to achieve?"
+            autoFocus
+            style={{ marginBottom: 20 }}
+          />
+
+          {/* Description */}
+          <Text
+            style={{
+              fontSize: 14,
+              fontWeight: "500",
+              color: colors.text.secondary,
+              marginBottom: 6,
+            }}
+          >
+            Description
+          </Text>
+          <Input
+            value={description}
+            onChangeText={setDescription}
+            placeholder="Optional details..."
+            multiline
+            numberOfLines={3}
+            style={{
+              textAlignVertical: "top",
+              minHeight: 80,
+              marginBottom: 20,
+            }}
+          />
+
+          {/* Priority */}
+          <Text
+            style={{
+              fontSize: 14,
+              fontWeight: "500",
+              color: colors.text.secondary,
+              marginBottom: 6,
+            }}
+          >
+            Priority
+          </Text>
+          <View
+            style={{
+              flexDirection: "row",
+              flexWrap: "wrap",
+              gap: 8,
+              marginBottom: 20,
+            }}
+          >
+            {priorities.map((p) => (
+              <Chip
+                key={p.value}
+                label={p.label}
+                selected={priority === p.value}
+                color={p.color}
+                onPress={() => setPriority(p.value)}
+              />
+            ))}
+          </View>
+
+          {/* Impact */}
+          <Text
+            style={{
+              fontSize: 14,
+              fontWeight: "500",
+              color: colors.text.secondary,
+              marginBottom: 6,
+            }}
+          >
+            Impact
+          </Text>
+          <View
+            style={{
+              flexDirection: "row",
+              flexWrap: "wrap",
+              gap: 8,
+              marginBottom: 28,
+            }}
+          >
+            {impacts.map((i) => (
+              <Chip
+                key={i.value}
+                label={i.label}
+                selected={impact === i.value}
+                color={i.color}
+                onPress={() => setImpact(i.value)}
+              />
+            ))}
+          </View>
+
+          {/* Create button */}
+          <Button
+            onPress={handleCreate}
+            loading={createGoal.isPending}
+            size="lg"
+          >
+            Create Goal
+          </Button>
+          <Text
+            style={{
+              fontSize: 12,
+              color: colors.xp.gold,
+              textAlign: "center",
+              marginTop: 8,
+            }}
+          >
+            +25 XP
+          </Text>
+        </ScrollView>
       </View>
-
-      <ScrollView contentContainerStyle={{ padding: 16 }} keyboardShouldPersistTaps="handled">
-        <Text className="text-xs text-muted-foreground uppercase tracking-wider mb-1.5">Title</Text>
-        <Input
-          value={title}
-          onChangeText={setTitle}
-          placeholder="What do you want to achieve?"
-          autoFocus
-          className="mb-4"
-        />
-
-        <Text className="text-xs text-muted-foreground uppercase tracking-wider mb-1.5">Description</Text>
-        <Input
-          value={description}
-          onChangeText={setDescription}
-          placeholder="Optional details..."
-          multiline
-          numberOfLines={3}
-          className="mb-4"
-          style={{ textAlignVertical: "top", minHeight: 80 }}
-        />
-
-        <Text className="text-xs text-muted-foreground uppercase tracking-wider mb-1.5">Priority</Text>
-        <View className="flex-row gap-2 mb-4">
-          {priorities.map((p) => (
-            <Pressable
-              key={p.value}
-              onPress={() => setPriority(p.value)}
-              className={`flex-1 rounded-md py-2 items-center ${priority === p.value ? p.color : "border border-border"}`}
-            >
-              <Text className={`text-sm font-semibold ${priority === p.value ? "text-foreground" : "text-muted-foreground"}`}>
-                {p.label}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-
-        <Text className="text-xs text-muted-foreground uppercase tracking-wider mb-1.5">Impact</Text>
-        <View className="flex-row gap-2 mb-4">
-          {impacts.map((i) => (
-            <Pressable
-              key={i}
-              onPress={() => setImpact(i)}
-              className={`flex-1 rounded-md py-2 items-center ${impact === i ? "bg-secondary" : "border border-border"}`}
-            >
-              <Text className={`text-sm font-medium capitalize ${impact === i ? "text-foreground" : "text-muted-foreground"}`}>
-                {i}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-      </ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
