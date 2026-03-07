@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -11,7 +11,11 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
-import { journalQueryOptions, useDeleteJournal } from "@mindtab/core";
+import {
+  journalQueryOptions,
+  journalsQueryOptions,
+  useDeleteJournal,
+} from "@mindtab/core";
 import { api } from "~/lib/api-client";
 import { Loading } from "~/components/ui/loading";
 import {
@@ -28,9 +32,13 @@ import Animated, {
   useAnimatedStyle,
   useAnimatedScrollHandler,
   withTiming,
+  withSpring,
+  runOnJS,
 } from "react-native-reanimated";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import BottomSheet from "@gorhom/bottom-sheet";
 import { MentionPeekSheet } from "~/components/reader/mention-peek-sheet";
+import { springs } from "~/lib/animations";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -164,6 +172,81 @@ export default function NoteDetailScreen() {
   const { width: screenWidth } = useWindowDimensions();
   const { data: note, isLoading } = useQuery(journalQueryOptions(api, id));
   const deleteJournal = useDeleteJournal(api);
+
+  // ---------------------------------------------------------------------------
+  // Swipe-between-notes navigation
+  // ---------------------------------------------------------------------------
+  const { data: allNotes } = useQuery(journalsQueryOptions(api));
+
+  const noteIds = useMemo(() => {
+    if (!allNotes) return [];
+    const sorted = [...allNotes].sort((a, b) => {
+      const aDate = a.updatedAt ?? a.createdAt ?? "";
+      const bDate = b.updatedAt ?? b.createdAt ?? "";
+      return new Date(bDate).getTime() - new Date(aDate).getTime();
+    });
+    return sorted.map((n: any) => n.id as string);
+  }, [allNotes]);
+
+  const currentIndex = noteIds.indexOf(id);
+
+  const swipeTranslateX = useSharedValue(0);
+  const swipeOpacity = useSharedValue(1);
+
+  const SWIPE_THRESHOLD = 80;
+
+  const navigateToNote = useCallback(
+    (noteId: string) => {
+      router.replace({
+        pathname: "/(main)/notes/[id]",
+        params: { id: noteId, from: from ?? "" },
+      });
+    },
+    [router, from],
+  );
+
+  const swipeGesture = Gesture.Pan()
+    .activeOffsetX([-20, 20])
+    .failOffsetY([-5, 5])
+    .onUpdate((event) => {
+      // Provide parallax feedback during swipe
+      swipeTranslateX.value = event.translationX * 0.3;
+    })
+    .onEnd((event) => {
+      if (
+        event.translationX < -SWIPE_THRESHOLD &&
+        currentIndex >= 0 &&
+        currentIndex < noteIds.length - 1
+      ) {
+        // Swipe left -> next note
+        swipeOpacity.value = withTiming(0, { duration: 150 });
+        swipeTranslateX.value = withTiming(-40, { duration: 150 }, () => {
+          runOnJS(navigateToNote)(noteIds[currentIndex + 1]!);
+        });
+        return;
+      }
+
+      if (
+        event.translationX > SWIPE_THRESHOLD &&
+        currentIndex > 0
+      ) {
+        // Swipe right -> previous note
+        swipeOpacity.value = withTiming(0, { duration: 150 });
+        swipeTranslateX.value = withTiming(40, { duration: 150 }, () => {
+          runOnJS(navigateToNote)(noteIds[currentIndex - 1]!);
+        });
+        return;
+      }
+
+      // Snap back – didn't pass threshold
+      swipeTranslateX.value = withSpring(0, springs.snappy);
+      swipeOpacity.value = withTiming(1, { duration: 100 });
+    });
+
+  const swipeAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: swipeTranslateX.value }],
+    opacity: swipeOpacity.value,
+  }));
 
   // WebView auto-height
   const [webViewHeight, setWebViewHeight] = useState(400);
@@ -335,62 +418,66 @@ export default function NoteDetailScreen() {
         </Pressable>
       )}
 
-      {/* --- Scrollable reader content --- */}
-      <Animated.ScrollView
-        onScroll={scrollHandler}
-        scrollEventThrottle={16}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
-        {/* Title */}
-        <Text style={styles.title}>{n.title || "Untitled"}</Text>
+      {/* --- Scrollable reader content with swipe navigation --- */}
+      <GestureDetector gesture={swipeGesture}>
+        <Animated.View style={[{ flex: 1 }, swipeAnimatedStyle]}>
+          <Animated.ScrollView
+            onScroll={scrollHandler}
+            scrollEventThrottle={16}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.scrollContent}
+          >
+            {/* Title */}
+            <Text style={styles.title}>{n.title || "Untitled"}</Text>
 
-        {/* Meta row */}
-        <View style={styles.metaRow}>
-          {n.updatedAt && (
-            <Text style={styles.metaText}>{formatDate(n.updatedAt)}</Text>
-          )}
-          {projectName && (
-            <Text style={styles.metaText}>
-              {"  \u00B7  "}
-              {projectName}
-            </Text>
-          )}
-          {noteType && (
-            <View
-              style={[
-                styles.typeBadge,
-                {
-                  backgroundColor:
-                    (colors.noteType as Record<string, string>)[noteType] ??
-                    colors.accent.indigo,
-                },
-              ]}
-            >
-              <Text style={styles.typeBadgeText}>
-                {capitalize(noteType)}
-              </Text>
+            {/* Meta row */}
+            <View style={styles.metaRow}>
+              {n.updatedAt && (
+                <Text style={styles.metaText}>{formatDate(n.updatedAt)}</Text>
+              )}
+              {projectName && (
+                <Text style={styles.metaText}>
+                  {"  \u00B7  "}
+                  {projectName}
+                </Text>
+              )}
+              {noteType && (
+                <View
+                  style={[
+                    styles.typeBadge,
+                    {
+                      backgroundColor:
+                        (colors.noteType as Record<string, string>)[noteType] ??
+                        colors.accent.indigo,
+                    },
+                  ]}
+                >
+                  <Text style={styles.typeBadgeText}>
+                    {capitalize(noteType)}
+                  </Text>
+                </View>
+              )}
             </View>
-          )}
-        </View>
 
-        {/* Divider */}
-        <View style={styles.divider} />
+            {/* Divider */}
+            <View style={styles.divider} />
 
-        {/* Note body via WebView */}
-        <WebView
-          source={{ html: buildReaderHtml(n.content || "") }}
-          style={{
-            width: screenWidth - 48,
-            height: webViewHeight,
-            backgroundColor: colors.bg.primary,
-          }}
-          scrollEnabled={false}
-          onMessage={handleWebViewMessage}
-          showsVerticalScrollIndicator={false}
-          showsHorizontalScrollIndicator={false}
-        />
-      </Animated.ScrollView>
+            {/* Note body via WebView */}
+            <WebView
+              source={{ html: buildReaderHtml(n.content || "") }}
+              style={{
+                width: screenWidth - 48,
+                height: webViewHeight,
+                backgroundColor: colors.bg.primary,
+              }}
+              scrollEnabled={false}
+              onMessage={handleWebViewMessage}
+              showsVerticalScrollIndicator={false}
+              showsHorizontalScrollIndicator={false}
+            />
+          </Animated.ScrollView>
+        </Animated.View>
+      </GestureDetector>
 
       {/* --- Mention peek bottom sheet --- */}
       <MentionPeekSheet

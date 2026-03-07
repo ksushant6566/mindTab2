@@ -11,8 +11,8 @@ import { colors } from "~/styles/colors";
 const darkThemeCSS = `
   * { box-sizing: border-box; }
   body {
-    background-color: ${colors.background} !important;
-    color: ${colors.foreground} !important;
+    background-color: ${colors.bg.primary} !important;
+    color: ${colors.text.primary} !important;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     font-size: 16px;
     line-height: 1.6;
@@ -20,33 +20,33 @@ const darkThemeCSS = `
     margin: 0;
   }
   .ProseMirror {
-    background-color: ${colors.background} !important;
-    color: ${colors.foreground} !important;
+    background-color: ${colors.bg.primary} !important;
+    color: ${colors.text.primary} !important;
     min-height: 100%;
     outline: none;
   }
   .ProseMirror p { margin: 0.5em 0; }
   .ProseMirror h1, .ProseMirror h2, .ProseMirror h3 {
-    color: ${colors.foreground} !important;
+    color: ${colors.text.primary} !important;
     margin: 0.8em 0 0.4em;
   }
   .ProseMirror a { color: #60a5fa; }
   .ProseMirror blockquote {
     border-left: 3px solid ${colors.border.default};
     padding-left: 12px;
-    color: ${colors.mutedForeground};
+    color: ${colors.text.muted};
     margin: 0.5em 0;
   }
   .ProseMirror code {
-    background-color: ${colors.secondary};
-    color: ${colors.foreground};
+    background-color: ${colors.bg.surface};
+    color: ${colors.text.primary};
     padding: 2px 4px;
     border-radius: 4px;
     font-size: 14px;
   }
   .ProseMirror pre {
-    background-color: ${colors.secondary};
-    color: ${colors.foreground};
+    background-color: ${colors.bg.surface};
+    color: ${colors.text.primary};
     padding: 12px;
     border-radius: 6px;
     overflow-x: auto;
@@ -82,28 +82,28 @@ export function useRichEditor(opts?: {
     theme: {
       toolbar: {
         toolbarBody: {
-          backgroundColor: colors.card,
-          borderTopColor: colors.borderFlat,
+          backgroundColor: colors.bg.elevated,
+          borderTopColor: colors.border.default,
           borderTopWidth: 1,
         },
         icon: {
-          tintColor: colors.foreground,
+          tintColor: colors.text.primary,
         },
         iconActive: {
-          tintColor: colors.primary,
+          tintColor: colors.text.primary,
         },
         iconDisabled: {
-          tintColor: colors.mutedForeground,
+          tintColor: colors.text.muted,
         },
       },
       webview: {
-        backgroundColor: colors.background,
+        backgroundColor: colors.bg.primary,
       },
       webviewContainer: {
-        backgroundColor: colors.background,
+        backgroundColor: colors.bg.primary,
       },
       colorKeyboard: {
-        keyboardRootColor: colors.card,
+        keyboardRootColor: colors.bg.elevated,
       },
     },
   });
@@ -122,7 +122,7 @@ export function RichTextEditorView({
     <>
       <RichText
         editor={editor}
-        style={{ flex: 1, backgroundColor: colors.background }}
+        style={{ flex: 1, backgroundColor: colors.bg.primary }}
       />
       {showToolbar && (
         <KeyboardAvoidingView
