@@ -16,6 +16,7 @@
   "dependencies": {
     "@10play/tentap-editor": "^0.5.0",
     "@babel/runtime": "^7.28.6",
+    "@gorhom/bottom-sheet": "^5",
     "@mindtab/api-spec": "workspace:*",
     "@mindtab/core": "workspace:*",
     "@mindtab/shared": "workspace:*",

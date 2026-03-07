@@ -32,7 +32,7 @@ const darkThemeCSS = `
   }
   .ProseMirror a { color: #60a5fa; }
   .ProseMirror blockquote {
-    border-left: 3px solid ${colors.border};
+    border-left: 3px solid ${colors.border.default};
     padding-left: 12px;
     color: ${colors.mutedForeground};
     margin: 0.5em 0;
@@ -53,7 +53,7 @@ const darkThemeCSS = `
   }
   .ProseMirror ul, .ProseMirror ol { padding-left: 24px; }
   .ProseMirror li { margin: 0.25em 0; }
-  .ProseMirror hr { border: none; border-top: 1px solid ${colors.border}; margin: 1em 0; }
+  .ProseMirror hr { border: none; border-top: 1px solid ${colors.border.default}; margin: 1em 0; }
   .ProseMirror span[data-type="mention"],
   .ProseMirror .mention {
     background-color: #1e3a5f;
@@ -83,7 +83,7 @@ export function useRichEditor(opts?: {
       toolbar: {
         toolbarBody: {
           backgroundColor: colors.card,
-          borderTopColor: colors.border,
+          borderTopColor: colors.borderFlat,
           borderTopWidth: 1,
         },
         icon: {

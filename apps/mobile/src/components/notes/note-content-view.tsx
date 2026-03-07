@@ -31,7 +31,7 @@ function buildHtml(content: string) {
     h3 { font-size: 1.1em; }
     a { color: #60a5fa; text-decoration: underline; }
     blockquote {
-      border-left: 3px solid ${colors.border};
+      border-left: 3px solid ${colors.border.default};
       padding-left: 12px;
       color: ${colors.mutedForeground};
       margin: 0.5em 0;
@@ -54,7 +54,7 @@ function buildHtml(content: string) {
     pre code { background: none; padding: 0; }
     ul, ol { padding-left: 24px; }
     li { margin: 0.25em 0; }
-    hr { border: none; border-top: 1px solid ${colors.border}; margin: 1em 0; }
+    hr { border: none; border-top: 1px solid ${colors.border.default}; margin: 1em 0; }
 
     /* Mention styling */
     span[data-type="mention"],
