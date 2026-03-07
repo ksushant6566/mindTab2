@@ -21,7 +21,7 @@ export default function MainLayout() {
       />
       <Stack.Screen
         name="goals/[id]"
-        options={{ headerShown: true, title: "Goal" }}
+        options={{ headerShown: true, title: "Goal", animation: "fade_from_bottom" }}
       />
       <Stack.Screen
         name="habits/index"
@@ -37,7 +37,7 @@ export default function MainLayout() {
       />
       <Stack.Screen
         name="notes/[id]"
-        options={{ headerShown: false }}
+        options={{ headerShown: false, animation: "fade" }}
       />
       <Stack.Screen
         name="notes/edit/[id]"

@@ -19,10 +19,10 @@ type StreakFlameProps = {
 };
 
 function getFlameColor(count: number): string {
-  if (count >= 100) return colors.streak.purple;
+  if (count >= 100) return colors.streak.purple; // rainbow animation handled separately
   if (count >= 30) return colors.streak.purple;
   if (count >= 7) return colors.streak.gold;
-  if (count >= 1) return colors.streak.orange;
+  if (count >= 1) return colors.streak.green;
   return colors.text.muted;
 }
 

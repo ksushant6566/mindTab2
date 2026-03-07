@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useCallback } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
@@ -14,9 +14,10 @@ import { useAuth } from "~/hooks/use-auth";
 import { api } from "~/lib/api-client";
 
 function getAvatarBorderColor(streak: number): string {
+  if (streak >= 100) return colors.streak.purple; // animated rainbow handled by component
   if (streak >= 30) return colors.streak.purple;
   if (streak >= 7) return colors.streak.gold;
-  if (streak >= 1) return colors.streak.orange;
+  if (streak >= 1) return colors.streak.green;
   return colors.border.default;
 }
 
@@ -32,6 +33,14 @@ function interpolateColor(progress: number): string {
 export function DashboardHeader() {
   const router = useRouter();
   const { user } = useAuth();
+  const [showXpTooltip, setShowXpTooltip] = useState(false);
+
+  const toggleXpTooltip = useCallback(() => {
+    setShowXpTooltip((v) => !v);
+    if (!showXpTooltip) {
+      setTimeout(() => setShowXpTooltip(false), 2500);
+    }
+  }, [showXpTooltip]);
 
   const { data: tracker } = useQuery(habitTrackerQueryOptions(api));
 
@@ -96,13 +105,17 @@ export function DashboardHeader() {
 
       {/* Row 3: XP progress bar with level/xp labels and streak flame */}
       <View style={styles.xpRow}>
-        <View style={styles.xpBarContainer}>
+        <Pressable style={styles.xpBarContainer} onPress={toggleXpTooltip}>
           <ProgressBar value={progress} color={xpBarColor} height={3} />
-          <View style={styles.xpLabels}>
-            <Text style={styles.xpAmount}>{xp} XP</Text>
-            <Text style={styles.levelLabel}>Level {level}</Text>
-          </View>
-        </View>
+          <Text style={styles.xpLabel}>Level {level} - {xp} XP</Text>
+          {showXpTooltip && (
+            <View style={styles.xpTooltip}>
+              <Text style={styles.xpTooltipText}>
+                {xpToNext} XP to Level {level + 1}
+              </Text>
+            </View>
+          )}
+        </Pressable>
         <StreakFlame count={streak} size={28} showCount />
       </View>
     </View>
@@ -165,18 +178,25 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: 12,
   },
-  xpLabels: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 4,
-    gap: 8,
-  },
-  xpAmount: {
+  xpLabel: {
     fontSize: 12,
     color: colors.xp.gold,
+    marginTop: 4,
   },
-  levelLabel: {
+  xpTooltip: {
+    position: "absolute",
+    top: -28,
+    left: 0,
+    backgroundColor: colors.bg.elevated,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  xpTooltipText: {
     fontSize: 12,
-    color: colors.text.muted,
+    color: colors.text.secondary,
+    fontWeight: "500",
   },
 });

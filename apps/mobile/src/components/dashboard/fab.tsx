@@ -1,16 +1,33 @@
-import React, { useCallback } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import React, { useCallback, useState } from "react";
+import {
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  ActionSheetIOS,
+  Platform,
+  Alert,
+} from "react-native";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
   withTiming,
   interpolate,
+  runOnJS,
 } from "react-native-reanimated";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
-import { Plus, Target, CheckSquare, FileText } from "lucide-react-native";
+import {
+  Plus,
+  Target,
+  CheckSquare,
+  FileText,
+  FolderPlus,
+  Search,
+  Settings,
+} from "lucide-react-native";
 
 import { colors } from "~/styles/colors";
 import { springs } from "~/lib/animations";
@@ -85,7 +102,7 @@ export function FAB({ visible }: FABProps) {
     const nextValue = isOpen.value > 0.5 ? 0 : 1;
     isOpen.value = withSpring(nextValue, springs.snappy);
     if (nextValue === 1) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
   }, [isOpen]);
 
@@ -95,16 +112,62 @@ export function FAB({ visible }: FABProps) {
 
   const handleOptionPress = useCallback(
     (route: string) => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       closeMenu();
       router.push(route as never);
     },
     [closeMenu, router],
   );
 
+  const showLongPressMenu = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const options = ["Create Project", "Search", "Manage Projects", "Cancel"];
+    const cancelIndex = 3;
+
+    if (Platform.OS === "ios") {
+      ActionSheetIOS.showActionSheetWithOptions(
+        { options, cancelButtonIndex: cancelIndex },
+        (index) => {
+          if (index === 0)
+            router.push("/(modals)/create-project" as never);
+          else if (index === 1)
+            router.push("/(modals)/command-palette" as never);
+          else if (index === 2)
+            router.push("/(main)/projects" as never);
+        },
+      );
+    } else {
+      Alert.alert("Quick Actions", undefined, [
+        {
+          text: "Create Project",
+          onPress: () =>
+            router.push("/(modals)/create-project" as never),
+        },
+        {
+          text: "Search",
+          onPress: () =>
+            router.push("/(modals)/command-palette" as never),
+        },
+        {
+          text: "Manage Projects",
+          onPress: () => router.push("/(main)/projects" as never),
+        },
+        { text: "Cancel", style: "cancel" },
+      ]);
+    }
+  }, [router]);
+
   const fabTapGesture = Gesture.Tap().onEnd(() => {
-    toggleMenu();
+    runOnJS(toggleMenu)();
   });
+
+  const fabLongPress = Gesture.LongPress()
+    .minDuration(500)
+    .onStart(() => {
+      runOnJS(showLongPressMenu)();
+    });
+
+  const fabGesture = Gesture.Race(fabTapGesture, fabLongPress);
 
   return (
     <>
@@ -127,7 +190,7 @@ export function FAB({ visible }: FABProps) {
         ))}
 
         {/* FAB button */}
-        <GestureDetector gesture={fabTapGesture}>
+        <GestureDetector gesture={fabGesture}>
           <Animated.View style={styles.fab}>
             <Animated.View style={plusRotationStyle}>
               <Plus size={28} color="#ffffff" strokeWidth={2.5} />

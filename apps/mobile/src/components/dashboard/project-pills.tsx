@@ -1,9 +1,10 @@
 import React from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { ScrollView, StyleSheet, View, ActionSheetIOS, Platform, Alert } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
+import * as Haptics from "expo-haptics";
 import { Plus } from "lucide-react-native";
-import { projectsQueryOptions } from "@mindtab/core";
+import { projectsQueryOptions, useUpdateProject, useDeleteProject } from "@mindtab/core";
 import { Chip } from "~/components/ui/chip";
 import { api } from "~/lib/api-client";
 import { colors } from "~/styles/colors";
@@ -16,6 +17,65 @@ type ProjectPillsProps = {
 export function ProjectPills({ selectedProjectId, onSelect }: ProjectPillsProps) {
   const router = useRouter();
   const { data: projects } = useQuery(projectsQueryOptions(api));
+  const updateProject = useUpdateProject(api);
+  const deleteProject = useDeleteProject(api);
+
+  const handleLongPress = (project: { id: string; name?: string | null }) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const options = ["Edit", "Archive", "Delete", "Cancel"];
+    const destructiveIndex = 2;
+    const cancelIndex = 3;
+
+    if (Platform.OS === "ios") {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options,
+          destructiveButtonIndex: destructiveIndex,
+          cancelButtonIndex: cancelIndex,
+          title: project.name ?? "Project",
+        },
+        (index) => handleAction(index, project),
+      );
+    } else {
+      Alert.alert(project.name ?? "Project", undefined, [
+        {
+          text: "Edit",
+          onPress: () => handleAction(0, project),
+        },
+        {
+          text: "Archive",
+          onPress: () => handleAction(1, project),
+        },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => handleAction(2, project),
+        },
+        { text: "Cancel", style: "cancel" },
+      ]);
+    }
+  };
+
+  const handleAction = (index: number, project: { id: string }) => {
+    switch (index) {
+      case 0: // Edit
+        router.push(`/(main)/projects/${project.id}` as any);
+        break;
+      case 1: // Archive
+        updateProject.mutate({ id: project.id, status: "archived" });
+        break;
+      case 2: // Delete
+        Alert.alert("Delete Project", "This cannot be undone.", [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Delete",
+            style: "destructive",
+            onPress: () => deleteProject.mutate(project.id),
+          },
+        ]);
+        break;
+    }
+  };
 
   return (
     <View style={styles.wrapper}>
@@ -38,6 +98,7 @@ export function ProjectPills({ selectedProjectId, onSelect }: ProjectPillsProps)
             label={project.name ?? ""}
             selected={selectedProjectId === project.id}
             onPress={() => onSelect(project.id)}
+            onLongPress={() => handleLongPress(project)}
             color={colors.accent.indigo}
             size="sm"
           />

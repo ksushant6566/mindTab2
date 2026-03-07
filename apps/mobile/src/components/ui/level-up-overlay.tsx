@@ -6,6 +6,8 @@ import Animated, {
   withSpring,
   withTiming,
   withDelay,
+  withRepeat,
+  interpolateColor,
   runOnJS,
 } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
@@ -34,6 +36,8 @@ export function LevelUpOverlay({
   // Level number
   const levelScale = useSharedValue(2);
   const levelOpacity = useSharedValue(0);
+  // Gold shimmer
+  const shimmer = useSharedValue(0);
 
   useEffect(() => {
     if (!visible) {
@@ -42,6 +46,7 @@ export function LevelUpOverlay({
       titleOpacity.value = 0;
       levelScale.value = 2;
       levelOpacity.value = 0;
+      shimmer.value = 0;
       return;
     }
 
@@ -59,7 +64,10 @@ export function LevelUpOverlay({
     levelOpacity.value = withDelay(300, withTiming(1, { duration: 100 }));
     levelScale.value = withDelay(300, withSpring(1, springs.bouncy));
 
-    // 4. Auto-dismiss after 2 seconds
+    // 4. Gold shimmer loop on title
+    shimmer.value = withRepeat(withTiming(1, { duration: 1200 }), -1, true);
+
+    // 4. Auto-dismiss after 1.5 seconds
     const timer = setTimeout(() => {
       backdropOpacity.value = withTiming(0, { duration: 300 });
       titleOpacity.value = withDelay(0, withTiming(0, { duration: 200 }));
@@ -70,7 +78,7 @@ export function LevelUpOverlay({
       }, 350);
 
       return () => clearTimeout(exitTimer);
-    }, 2000);
+    }, 1500);
 
     return () => clearTimeout(timer);
   }, [visible]);
@@ -82,6 +90,11 @@ export function LevelUpOverlay({
   const titleStyle = useAnimatedStyle(() => ({
     transform: [{ scale: titleScale.value }],
     opacity: titleOpacity.value,
+    color: interpolateColor(
+      shimmer.value,
+      [0, 0.5, 1],
+      ["#facc15", "#fef08a", "#facc15"],
+    ),
   }));
 
   const levelStyle = useAnimatedStyle(() => ({

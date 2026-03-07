@@ -1,5 +1,12 @@
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSequence,
+  withSpring,
+  withTiming,
+} from "react-native-reanimated";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
@@ -51,6 +58,22 @@ export function HabitsSection({ projectId: _projectId }: HabitsSectionProps) {
     return habits.filter((h: any) => completedSet.has(h.id)).length;
   }, [habits, completedSet]);
 
+  // Item 17: Counter spring bump 1.0→1.3→1.0
+  const counterScale = useSharedValue(1);
+  const prevCompletedCount = useRef(completedCount);
+  useEffect(() => {
+    if (completedCount !== prevCompletedCount.current) {
+      counterScale.value = withSequence(
+        withSpring(1.3, { damping: 8, stiffness: 400 }),
+        withSpring(1.0, { damping: 12, stiffness: 300 }),
+      );
+      prevCompletedCount.current = completedCount;
+    }
+  }, [completedCount]);
+  const counterAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: counterScale.value }],
+  }));
+
   // Build a map of the last 5 days' completion status per habit
   const last5Days = useMemo(() => {
     const days: string[] = [];
@@ -96,14 +119,15 @@ export function HabitsSection({ projectId: _projectId }: HabitsSectionProps) {
       {/* Section header */}
       <View style={styles.headerRow}>
         <Text style={styles.sectionTitle}>TODAY'S HABITS</Text>
-        <Text
+        <Animated.Text
           style={[
             styles.counter,
             completedCount > 0 && { color: colors.accent.indigo },
+            counterAnimStyle,
           ]}
         >
           {completedCount}/{totalCount}
-        </Text>
+        </Animated.Text>
       </View>
 
       {/* Habit rows */}
@@ -165,7 +189,29 @@ function HabitRow({
   const [showConfetti, setShowConfetti] = useState(false);
   const [xpDelta, setXpDelta] = useState<number | null>(null);
 
+  // Item 15: Checkbox scale animation 1.0→0.8→1.2→1.0
+  const checkboxScale = useSharedValue(1);
+  const checkboxAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: checkboxScale.value }],
+  }));
+
+  // Item 16: Row flash green on complete
+  const rowFlash = useSharedValue(0);
+  const rowFlashStyle = useAnimatedStyle(() => ({
+    backgroundColor:
+      rowFlash.value > 0
+        ? `rgba(34, 197, 94, ${rowFlash.value * 0.15})`
+        : "transparent",
+  }));
+
   const handleToggle = useCallback(async () => {
+    // Item 15: scale morph 1.0→0.8→1.2→1.0
+    checkboxScale.value = withSequence(
+      withTiming(0.8, { duration: 80 }),
+      withSpring(1.2, { damping: 10, stiffness: 400 }),
+      withSpring(1.0, { damping: 15, stiffness: 300 }),
+    );
+
     if (isCompleted) {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       setXpDelta(-10);
@@ -174,6 +220,11 @@ function HabitRow({
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       setShowConfetti(true);
       setXpDelta(10);
+      // Item 16: Row flash green
+      rowFlash.value = withSequence(
+        withTiming(1, { duration: 150 }),
+        withTiming(0, { duration: 400 }),
+      );
       onTrack();
     }
   }, [isCompleted, onTrack, onUntrack]);
@@ -195,6 +246,8 @@ function HabitRow({
     setXpDelta(null);
   }, []);
 
+  const router = useRouter();
+
   return (
     <SwipeableRow
       leftAction={{
@@ -202,7 +255,24 @@ function HabitRow({
         color: colors.feedback.success,
         onAction: handleSwipeComplete,
       }}
+      rightActions={[
+        {
+          label: "Skip today",
+          color: colors.feedback.warning,
+          onAction: () => {
+            if (isCompleted) onUntrack();
+          },
+        },
+        {
+          label: "Detail",
+          color: colors.accent.indigo,
+          onAction: () => {
+            router.push(`/(main)/habits/${habit.id}` as any);
+          },
+        },
+      ]}
     >
+      <Animated.View style={rowFlashStyle}>
       <View
         style={[
           styles.row,
@@ -211,11 +281,13 @@ function HabitRow({
       >
         {/* Checkbox area */}
         <Pressable onPress={handleToggle} style={styles.checkboxArea}>
-          {isCompleted ? (
-            <CheckCircle2 size={22} color={colors.status.completed} />
-          ) : (
-            <Circle size={22} color={colors.text.muted} />
-          )}
+          <Animated.View style={checkboxAnimStyle}>
+            {isCompleted ? (
+              <CheckCircle2 size={22} color={colors.status.completed} />
+            ) : (
+              <Circle size={22} color={colors.text.muted} />
+            )}
+          </Animated.View>
           {showConfetti && <ConfettiBurst onComplete={handleConfettiDone} />}
           {xpDelta !== null && (
             <XPFloat amount={xpDelta} onComplete={handleXpDone} />
@@ -252,6 +324,7 @@ function HabitRow({
           })}
         </View>
       </View>
+      </Animated.View>
     </SwipeableRow>
   );
 }

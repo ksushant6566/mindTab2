@@ -83,7 +83,7 @@ function buildReaderHtml(content: string): string {
     }
     h2 { font-size: 24px; font-weight: 600; line-height: 1.35; color: #fafafa; margin: 24px 0 12px; }
     h3 { font-size: 20px; font-weight: 600; line-height: 1.4; color: #fafafa; margin: 20px 0 10px; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
-    p { margin: 0 0 16px; }
+    p { margin: 0 0 20px; }
     a { color: #818cf8; text-decoration: none; }
     code { font-family: 'SF Mono', 'Roboto Mono', monospace; font-size: 15px; color: #a3e635; background: #1c1c1c; padding: 2px 6px; border-radius: 4px; }
     pre { background: #1c1c1c; padding: 16px; border-radius: 8px; overflow-x: auto; }
@@ -130,6 +130,14 @@ function buildReaderHtml(content: string): string {
     new MutationObserver(sendHeight).observe(document.body, { childList: true, subtree: true });
     window.addEventListener('resize', sendHeight);
 
+    // Tap to toggle header
+    document.addEventListener('click', function(e) {
+      // Only fire on body/text taps, not on mentions or links
+      if (e.target === document.body || e.target.tagName === 'P' || e.target.tagName === 'DIV') {
+        window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'toggle-header' }));
+      }
+    });
+
     // Mention click handler
     document.addEventListener('click', function(e) {
       var el = e.target;
@@ -167,7 +175,11 @@ type MentionEntity = {
 };
 
 export default function NoteDetailScreen() {
-  const { id, from } = useLocalSearchParams<{ id: string; from?: string }>();
+  const { id, from, projectId: filterProjectId } = useLocalSearchParams<{
+    id: string;
+    from?: string;
+    projectId?: string;
+  }>();
   const router = useRouter();
   const { width: screenWidth } = useWindowDimensions();
   const { data: note, isLoading } = useQuery(journalQueryOptions(api, id));
@@ -176,7 +188,11 @@ export default function NoteDetailScreen() {
   // ---------------------------------------------------------------------------
   // Swipe-between-notes navigation
   // ---------------------------------------------------------------------------
-  const { data: allNotes } = useQuery(journalsQueryOptions(api));
+  const { data: allNotes } = useQuery(
+    journalsQueryOptions(api, {
+      projectId: filterProjectId || undefined,
+    }),
+  );
 
   const noteIds = useMemo(() => {
     if (!allNotes) return [];
@@ -199,10 +215,14 @@ export default function NoteDetailScreen() {
     (noteId: string) => {
       router.replace({
         pathname: "/(main)/notes/[id]",
-        params: { id: noteId, from: from ?? "" },
+        params: {
+          id: noteId,
+          from: from ?? "",
+          ...(filterProjectId ? { projectId: filterProjectId } : {}),
+        },
       });
     },
-    [router, from],
+    [router, from, filterProjectId],
   );
 
   const swipeGesture = Gesture.Pan()
@@ -251,19 +271,26 @@ export default function NoteDetailScreen() {
   // WebView auto-height
   const [webViewHeight, setWebViewHeight] = useState(400);
 
-  // Scroll-driven header fade
+  // Scroll-driven + tap-toggle header fade
   const scrollY = useSharedValue(0);
+  const headerVisible = useSharedValue(1);
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
       scrollY.value = event.contentOffset.y;
     },
   });
-  const headerOpacity = useAnimatedStyle(() => ({
-    opacity:
-      scrollY.value > 50
-        ? withTiming(0, { duration: 200 })
-        : withTiming(1, { duration: 150 }),
-  }));
+  const headerOpacity = useAnimatedStyle(() => {
+    const scrollHidden = scrollY.value > 50;
+    const visible = scrollHidden ? 0 : headerVisible.value;
+    return {
+      opacity: withTiming(visible, { duration: 200 }),
+      pointerEvents: visible > 0.5 ? "auto" as const : "none" as const,
+    };
+  });
+
+  const toggleHeader = useCallback(() => {
+    headerVisible.value = headerVisible.value > 0.5 ? 0 : 1;
+  }, [headerVisible]);
 
   // Overflow menu state
   const [showOverflow, setShowOverflow] = useState(false);
@@ -343,6 +370,8 @@ export default function NoteDetailScreen() {
         const data = JSON.parse(event.nativeEvent.data);
         if (data.type === "resize" && typeof data.height === "number") {
           setWebViewHeight(data.height);
+        } else if (data.type === "toggle-header") {
+          toggleHeader();
         } else if (data.type === "mention-click") {
           handleMentionPress(data.resourceType, data.id, data.label ?? "");
         }

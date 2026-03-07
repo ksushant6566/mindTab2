@@ -7,8 +7,9 @@ import {
   Platform,
 } from "react-native";
 import { useState } from "react";
-import { useRouter } from "expo-router";
-import { useCreateGoal } from "@mindtab/core";
+import { useRouter, useLocalSearchParams } from "expo-router";
+import { useQuery } from "@tanstack/react-query";
+import { useCreateGoal, projectsQueryOptions } from "@mindtab/core";
 import { api } from "~/lib/api-client";
 import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
@@ -31,11 +32,18 @@ const impacts = [
 
 export default function CreateGoalModal() {
   const router = useRouter();
+  const { projectId: activeProjectId } = useLocalSearchParams<{
+    projectId?: string;
+  }>();
   const createGoal = useCreateGoal(api);
+  const { data: projects } = useQuery(projectsQueryOptions(api));
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState("priority_2");
   const [impact, setImpact] = useState("medium");
+  const [projectId, setProjectId] = useState<string | null>(
+    activeProjectId ?? null,
+  );
 
   const handleCreate = () => {
     if (!title.trim()) {
@@ -48,6 +56,7 @@ export default function CreateGoalModal() {
         description: description.trim() || undefined,
         priority,
         impact,
+        ...(projectId ? { projectId } : {}),
       },
       {
         onSuccess: () => {
@@ -221,6 +230,42 @@ export default function CreateGoalModal() {
                 selected={impact === i.value}
                 color={i.color}
                 onPress={() => setImpact(i.value)}
+              />
+            ))}
+          </View>
+
+          {/* Project */}
+          <Text
+            style={{
+              fontSize: 14,
+              fontWeight: "500",
+              color: colors.text.secondary,
+              marginBottom: 6,
+            }}
+          >
+            Project
+          </Text>
+          <View
+            style={{
+              flexDirection: "row",
+              flexWrap: "wrap",
+              gap: 8,
+              marginBottom: 28,
+            }}
+          >
+            <Chip
+              label="None"
+              selected={projectId === null}
+              color={colors.text.muted}
+              onPress={() => setProjectId(null)}
+            />
+            {projects?.map((p) => (
+              <Chip
+                key={p.id}
+                label={p.name ?? ""}
+                selected={projectId === p.id}
+                color={colors.accent.indigo}
+                onPress={() => setProjectId(p.id)}
               />
             ))}
           </View>

@@ -59,7 +59,7 @@ export function UndoToast({
   }, [onDismiss]);
 
   const handleUndo = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onUndo();
     dismiss();
   }, [onUndo, dismiss]);

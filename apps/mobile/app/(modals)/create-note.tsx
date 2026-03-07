@@ -5,9 +5,14 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import { useState, useCallback } from "react";
-import { useRouter } from "expo-router";
-import { useCreateJournal } from "@mindtab/core";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
+import { useRouter, useLocalSearchParams } from "expo-router";
+import { useQuery } from "@tanstack/react-query";
+import { useCreateJournal, projectsQueryOptions } from "@mindtab/core";
+import { MMKV } from "react-native-mmkv";
+
+const draftStorage = new MMKV({ id: "mindtab-drafts" });
+const DRAFT_KEY = "create-note-draft";
 import { api } from "~/lib/api-client";
 import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
@@ -26,11 +31,47 @@ const noteTypes = [
 
 export default function CreateNoteModal() {
   const router = useRouter();
+  const { projectId: activeProjectId } = useLocalSearchParams<{
+    projectId?: string;
+  }>();
   const createJournal = useCreateJournal(api);
-  const [title, setTitle] = useState("");
-  const [noteType, setNoteType] = useState("article");
+  const { data: projects } = useQuery(projectsQueryOptions(api));
+  const didCreate = useRef(false);
 
-  const editor = useRichEditor({ initialContent: "" });
+  // Load draft
+  const savedDraft = useMemo(() => {
+    try {
+      const raw = draftStorage.getString(DRAFT_KEY);
+      if (raw) return JSON.parse(raw) as { title: string; noteType: string; content: string };
+    } catch { /* ignore */ }
+    return null;
+  }, []);
+
+  const [title, setTitle] = useState(savedDraft?.title ?? "");
+  const [noteType, setNoteType] = useState(savedDraft?.noteType ?? "article");
+  const [projectId, setProjectId] = useState<string | null>(
+    activeProjectId ?? null,
+  );
+
+  const editor = useRichEditor({
+    initialContent: savedDraft?.content ?? "",
+  });
+
+  // Auto-save draft on unmount (dismiss)
+  useEffect(() => {
+    return () => {
+      if (didCreate.current) {
+        // Successfully created, clear draft
+        draftStorage.delete(DRAFT_KEY);
+        return;
+      }
+      // Save draft if there's any content
+      if (title.trim()) {
+        const draft = { title, noteType, content: "" };
+        draftStorage.set(DRAFT_KEY, JSON.stringify(draft));
+      }
+    };
+  }, [title, noteType]);
 
   const handleCreate = useCallback(async () => {
     if (!title.trim()) {
@@ -45,9 +86,12 @@ export default function CreateNoteModal() {
         title: title.trim(),
         content: htmlContent || "<p></p>",
         type: noteType,
+        ...(projectId ? { projectId } : {}),
       },
       {
         onSuccess: () => {
+          didCreate.current = true;
+          draftStorage.delete(DRAFT_KEY);
           toast.success("Note created");
           router.back();
         },
@@ -161,6 +205,42 @@ export default function CreateNoteModal() {
                 color={t.color}
                 size="sm"
                 onPress={() => setNoteType(t.value)}
+              />
+            ))}
+          </View>
+
+          {/* Project */}
+          <Text
+            style={{
+              fontSize: 14,
+              fontWeight: "500",
+              color: colors.text.secondary,
+              marginBottom: 6,
+            }}
+          >
+            Project
+          </Text>
+          <View
+            style={{
+              flexDirection: "row",
+              flexWrap: "wrap",
+              gap: 8,
+              marginBottom: 16,
+            }}
+          >
+            <Chip
+              label="None"
+              selected={projectId === null}
+              color={colors.text.muted}
+              onPress={() => setProjectId(null)}
+            />
+            {projects?.map((p) => (
+              <Chip
+                key={p.id}
+                label={p.name ?? ""}
+                selected={projectId === p.id}
+                color={colors.accent.indigo}
+                onPress={() => setProjectId(p.id)}
               />
             ))}
           </View>

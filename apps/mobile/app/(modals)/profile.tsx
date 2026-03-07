@@ -9,13 +9,21 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
-import { habitTrackerQueryOptions } from "@mindtab/core";
+import {
+  habitTrackerQueryOptions,
+  habitsQueryOptions,
+  goalsQueryOptions,
+  journalsQueryOptions,
+} from "@mindtab/core";
 import { api } from "~/lib/api-client";
 import { useAuth } from "~/hooks/use-auth";
 import { calculateStreak } from "~/lib/streak";
 import { getXPProgress } from "~/lib/xp";
 import { ProgressBar } from "~/components/ui/progress-bar";
 import { StreakFlame } from "~/components/ui/streak-flame";
+import { StreakCalendar } from "~/components/profile/streak-calendar";
+import { ActivityHeatmap } from "~/components/profile/activity-heatmap";
+import { StatsCards } from "~/components/profile/stats-cards";
 import { X, LogOut, Zap } from "lucide-react-native";
 import { colors } from "~/styles/colors";
 import Constants from "expo-constants";
@@ -23,9 +31,11 @@ import Constants from "expo-constants";
 // -- Streak tier ring color --
 
 function getStreakRingColor(streak: number): string {
+  if (streak >= 100) return colors.streak.purple; // rainbow animated separately
   if (streak >= 30) return colors.streak.purple;
   if (streak >= 7) return colors.streak.gold;
-  return colors.streak.orange;
+  if (streak >= 1) return colors.streak.green;
+  return colors.border.default;
 }
 
 // -- Screen --
@@ -34,6 +44,9 @@ export default function ProfileModal() {
   const router = useRouter();
   const { user, logout } = useAuth();
   const { data: tracker = [] } = useQuery(habitTrackerQueryOptions(api));
+  const { data: habits = [] } = useQuery(habitsQueryOptions(api));
+  const { data: goals = [] } = useQuery(goalsQueryOptions(api));
+  const { data: notes = [] } = useQuery(journalsQueryOptions(api));
 
   const streak = calculateStreak(tracker as any[]);
   const xp = user?.xp ?? 0;
@@ -127,6 +140,20 @@ export default function ProfileModal() {
             <Text style={styles.streakLabel}>Day Streak</Text>
           </View>
         </View>
+
+        {/* Streak calendar (item 1) */}
+        <StreakCalendar tracker={tracker as any[]} />
+
+        {/* Activity heatmap (item 2) */}
+        <ActivityHeatmap tracker={tracker as any[]} />
+
+        {/* Stats cards (item 3) */}
+        <StatsCards
+          goals={goals as any[]}
+          habits={habits as any[]}
+          tracker={tracker as any[]}
+          notesCount={(notes as any[]).length}
+        />
 
         {/* Sign out button */}
         <Pressable onPress={handleSignOut} style={styles.signOutRow}>

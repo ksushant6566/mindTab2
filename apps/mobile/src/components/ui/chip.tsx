@@ -17,6 +17,7 @@ type ChipProps = {
   selected?: boolean;
   color?: string;
   onPress?: () => void;
+  onLongPress?: () => void;
   size?: "sm" | "md";
 };
 
@@ -26,11 +27,13 @@ export function Chip({
   selected = false,
   color = colors.accent.indigo,
   onPress,
+  onLongPress,
   size = "md",
 }: ChipProps) {
   const scale = useSharedValue(1);
 
   const haptic = () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  const fireLongPress = () => onLongPress?.();
 
   const tap = Gesture.Tap()
     .onBegin(() => {
@@ -42,6 +45,19 @@ export function Chip({
       if (success && onPress) runOnJS(onPress)();
     });
 
+  const longPress = Gesture.LongPress()
+    .minDuration(500)
+    .onStart(() => {
+      if (onLongPress) {
+        runOnJS(haptic)();
+        runOnJS(fireLongPress)();
+      }
+    });
+
+  const composed = onLongPress
+    ? Gesture.Race(tap, longPress)
+    : tap;
+
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
   }));
@@ -51,7 +67,7 @@ export function Chip({
   const fontSize = size === "sm" ? 12 : 14;
 
   return (
-    <GestureDetector gesture={tap}>
+    <GestureDetector gesture={composed}>
       <Animated.View
         style={[
           {

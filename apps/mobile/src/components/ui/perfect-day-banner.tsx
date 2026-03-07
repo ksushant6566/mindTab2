@@ -8,16 +8,17 @@ import Animated, {
 } from "react-native-reanimated";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import * as Haptics from "expo-haptics";
-import { Star } from "lucide-react-native";
+import { Flame } from "lucide-react-native";
 import { springs } from "~/lib/animations";
 import { colors } from "~/styles/colors";
 
 type PerfectDayBannerProps = {
   visible: boolean;
+  habitCount?: number;
   onDismiss: () => void;
 };
 
-export function PerfectDayBanner({ visible, onDismiss }: PerfectDayBannerProps) {
+export function PerfectDayBanner({ visible, habitCount, onDismiss }: PerfectDayBannerProps) {
   const translateY = useSharedValue(-100);
   const opacity = useSharedValue(0);
   const dismissTimer = useRef<ReturnType<typeof setTimeout>>();
@@ -74,7 +75,7 @@ export function PerfectDayBanner({ visible, onDismiss }: PerfectDayBannerProps) 
     <GestureDetector gesture={pan}>
       <Animated.View style={[styles.banner, bannerStyle]}>
         <Animated.View style={styles.content}>
-          <Star
+          <Flame
             size={20}
             color={colors.xp.gold}
             fill={colors.xp.gold}
@@ -84,7 +85,9 @@ export function PerfectDayBanner({ visible, onDismiss }: PerfectDayBannerProps) 
               <Text style={styles.title}>PERFECT DAY</Text>
               <Text style={styles.xpText}>+15 XP bonus</Text>
             </Animated.View>
-            <Text style={styles.subtitle}>All habits completed!</Text>
+            <Text style={styles.subtitle}>
+              All {habitCount ?? ""} habits completed!
+            </Text>
           </Animated.View>
         </Animated.View>
       </Animated.View>

@@ -6,7 +6,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useRouter } from "expo-router";
 import { useCreateHabit } from "@mindtab/core";
 import { api } from "~/lib/api-client";
@@ -24,6 +24,21 @@ export default function CreateHabitModal() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [frequency, setFrequency] = useState("daily");
+  const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const typeTitle = useCallback((text: string) => {
+    if (typingTimer.current) clearTimeout(typingTimer.current);
+    setTitle("");
+    let i = 0;
+    const tick = () => {
+      i++;
+      setTitle(text.slice(0, i));
+      if (i < text.length) {
+        typingTimer.current = setTimeout(tick, 40);
+      }
+    };
+    typingTimer.current = setTimeout(tick, 40);
+  }, []);
 
   const handleCreate = () => {
     if (!title.trim()) {
@@ -211,7 +226,7 @@ export default function CreateHabitModal() {
                 selected={title === pick}
                 color={colors.accent.indigo}
                 size="sm"
-                onPress={() => setTitle(pick)}
+                onPress={() => typeTitle(pick)}
               />
             ))}
           </View>

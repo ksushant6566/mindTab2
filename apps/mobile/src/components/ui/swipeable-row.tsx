@@ -1,10 +1,11 @@
-import { type ReactNode } from "react";
+import { type ReactNode, useCallback } from "react";
 import { View, Text, StyleSheet, Dimensions } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
+  withTiming,
   runOnJS,
   interpolate,
   clamp,
@@ -31,12 +32,18 @@ type SwipeableRowProps = {
 export function SwipeableRow({ children, leftAction, rightActions }: SwipeableRowProps) {
   const translateX = useSharedValue(0);
   const hasSnapped = useSharedValue(false);
+  const rowHeight = useSharedValue<number | null>(null);
+  const collapseProgress = useSharedValue(1);
 
   const snapThreshold = SCREEN_WIDTH * SNAP_THRESHOLD;
 
   const hapticSnap = () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   const triggerLeft = () => leftAction?.onAction();
   const triggerRight = (index: number) => rightActions?.[index]?.onAction();
+
+  const collapseRow = useCallback(() => {
+    collapseProgress.value = withSpring(0, { damping: 18, stiffness: 350 });
+  }, []);
 
   const pan = Gesture.Pan()
     .activeOffsetX([-10, 10])
@@ -57,6 +64,8 @@ export function SwipeableRow({ children, leftAction, rightActions }: SwipeableRo
       if (translateX.value >= snapThreshold && leftAction) {
         runOnJS(triggerLeft)();
       } else if (translateX.value <= -snapThreshold && rightActions?.length) {
+        // Collapse the row then trigger the action
+        runOnJS(collapseRow)();
         runOnJS(triggerRight)(0);
       }
       translateX.value = withSpring(0, springs.snappy);
@@ -75,8 +84,24 @@ export function SwipeableRow({ children, leftAction, rightActions }: SwipeableRo
     opacity: interpolate(translateX.value, [0, -snapThreshold], [0, 1]),
   }));
 
+  const collapseStyle = useAnimatedStyle(() => {
+    if (collapseProgress.value >= 1) return {};
+    return {
+      height: rowHeight.value != null ? rowHeight.value * collapseProgress.value : undefined,
+      opacity: collapseProgress.value,
+      overflow: "hidden" as const,
+      marginBottom: 8 * collapseProgress.value,
+    };
+  });
+
+  const handleLayout = useCallback((e: any) => {
+    if (rowHeight.value == null) {
+      rowHeight.value = e.nativeEvent.layout.height;
+    }
+  }, []);
+
   return (
-    <View style={styles.container}>
+    <Animated.View style={[styles.container, collapseStyle]} onLayout={handleLayout}>
       {leftAction && (
         <Animated.View
           style={[
@@ -108,7 +133,7 @@ export function SwipeableRow({ children, leftAction, rightActions }: SwipeableRo
       <GestureDetector gesture={pan}>
         <Animated.View style={rowStyle}>{children}</Animated.View>
       </GestureDetector>
-    </View>
+    </Animated.View>
   );
 }
 

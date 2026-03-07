@@ -1,11 +1,12 @@
 import React from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View, Alert } from "react-native";
 import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronRight, FileText } from "lucide-react-native";
-import { journalsQueryOptions } from "@mindtab/core";
+import { journalsQueryOptions, useDeleteJournal } from "@mindtab/core";
 
 import { PressableCard } from "~/components/ui/pressable-card";
+import { SwipeableRow } from "~/components/ui/swipeable-row";
 import { colors } from "~/styles/colors";
 import { api } from "~/lib/api-client";
 
@@ -26,6 +27,18 @@ function formatDate(dateStr: string): string {
 
 export function NotesSection({ projectId }: NotesSectionProps) {
   const router = useRouter();
+  const deleteJournal = useDeleteJournal(api);
+
+  const handleDelete = (noteId: string, noteTitle: string) => {
+    Alert.alert("Delete Note", `Delete "${noteTitle || "Untitled"}"?`, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: () => deleteJournal.mutate(noteId),
+      },
+    ]);
+  };
 
   const { data: notes } = useQuery(
     journalsQueryOptions(api, { projectId: projectId ?? undefined })
@@ -59,7 +72,17 @@ export function NotesSection({ projectId }: NotesSectionProps) {
             const dateStr = note.updatedAt ?? note.createdAt;
 
             return (
-              <View key={note.id} style={styles.cardWrapper}>
+              <SwipeableRow
+                key={note.id}
+                rightActions={[
+                  {
+                    label: "Delete",
+                    color: colors.feedback.error,
+                    onAction: () =>
+                      handleDelete(note.id, note.title || "Untitled"),
+                  },
+                ]}
+              >
                 <PressableCard
                   onPress={() => router.push(`/(main)/notes/${note.id}`)}
                 >
@@ -89,7 +112,7 @@ export function NotesSection({ projectId }: NotesSectionProps) {
                     )}
                   </View>
                 </PressableCard>
-              </View>
+              </SwipeableRow>
             );
           })}
 
@@ -127,8 +150,8 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   noteTitle: {
-    fontSize: 17,
-    fontWeight: "600",
+    fontSize: 18,
+    fontWeight: "bold",
     color: colors.text.primary,
   },
   notePreview: {

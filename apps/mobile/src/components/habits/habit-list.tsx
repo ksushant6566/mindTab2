@@ -84,7 +84,17 @@ export function HabitList() {
           />
         )}
         ListFooterComponent={
-          <WeekGrid habits={typedHabits} tracker={tracker as any[]} />
+          <WeekGrid
+            habits={typedHabits}
+            tracker={tracker as any[]}
+            onToggleDay={(habitId, date, currentlyDone) => {
+              if (currentlyDone) {
+                untrackHabit.mutate({ id: habitId, date });
+              } else {
+                trackHabit.mutate({ id: habitId, date });
+              }
+            }}
+          />
         }
         contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 100 }}
         refreshControl={

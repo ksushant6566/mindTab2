@@ -194,8 +194,8 @@ function HabitDetails({ entity }: { entity: MentionEntity }) {
       <View style={styles.row}>
         <Text style={styles.label}>Current Streak</Text>
         <View style={styles.streakRow}>
-          <Flame size={16} color={colors.streak.orange} />
-          <Text style={[styles.value, { color: colors.streak.orange }]}>
+          <Flame size={16} color={colors.streak.green} />
+          <Text style={[styles.value, { color: colors.streak.green }]}>
             {streak} {streak === 1 ? "day" : "days"}
           </Text>
         </View>
