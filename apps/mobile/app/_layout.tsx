@@ -30,7 +30,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     } else if (isAuthenticated && !user?.onboardingCompleted && !inOnboarding) {
       router.replace("/(onboarding)");
     } else if (isAuthenticated && user?.onboardingCompleted && (inAuthGroup || inOnboarding)) {
-      router.replace("/(tabs)/goals");
+      router.replace("/(main)");
     }
   }, [isAuthenticated, isLoading, hasChecked, user, segments]);
 
@@ -54,6 +54,7 @@ export default function RootLayout() {
         <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
           <Stack.Screen name="(auth)" />
           <Stack.Screen name="(onboarding)" />
+          <Stack.Screen name="(main)" />
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="(modals)" options={{ presentation: "modal" }} />
         </Stack>
