@@ -3,7 +3,6 @@ import {
   View,
   Text,
   Pressable,
-  Platform,
   StyleSheet,
   useWindowDimensions,
 } from "react-native";
@@ -427,7 +426,7 @@ export function ReaderPage({
 const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 24,
-    paddingTop: Platform.OS === "ios" ? 110 : 70,
+    paddingTop: 56,
     paddingBottom: 80,
   },
   title: {

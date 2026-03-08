@@ -5,11 +5,10 @@ import {
   TextInput,
   Pressable,
   Alert,
-  Platform,
   StyleSheet,
   Keyboard,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -133,6 +132,7 @@ export default function NoteDetailScreen() {
   }>();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const insets = useSafeAreaInsets();
   const { data: note, isLoading } = useQuery(
     journalQueryOptions(api, id),
   );
@@ -454,7 +454,7 @@ export default function NoteDetailScreen() {
     <Animated.View style={[styles.container, entryAnimatedStyle]}>
       <SafeAreaView style={styles.container}>
       {/* --- Floating minimal header --- */}
-      <Animated.View style={[styles.header, headerOpacity]}>
+      <Animated.View style={[styles.header, headerOpacity, { paddingTop: insets.top + 8 }]}>
         <Pressable
           onPress={handleBack}
           style={styles.headerBtn}
@@ -505,7 +505,7 @@ export default function NoteDetailScreen() {
           style={styles.overflowBackdrop}
           onPress={() => setShowOverflow(false)}
         >
-          <View style={styles.overflowMenu}>
+          <View style={[styles.overflowMenu, { top: insets.top + 50 }]}>
             <Pressable
               style={styles.overflowItem}
               onPress={() => {
@@ -531,7 +531,7 @@ export default function NoteDetailScreen() {
           style={{ flex: 1 }}
         >
           {/* Editable title */}
-          <View style={styles.editTitleContainer}>
+          <View style={[styles.editTitleContainer, { paddingTop: insets.top + 52 }]}>
             <TextInput
               value={editTitle}
               onChangeText={setEditTitle}
@@ -606,7 +606,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingTop: Platform.OS === "ios" ? 56 : 16,
     paddingBottom: 12,
     backgroundColor: "transparent",
   },
@@ -623,7 +622,6 @@ const styles = StyleSheet.create({
   },
   overflowMenu: {
     position: "absolute",
-    top: Platform.OS === "ios" ? 100 : 60,
     right: 16,
     backgroundColor: colors.bg.elevated,
     borderRadius: 12,
@@ -658,7 +656,6 @@ const styles = StyleSheet.create({
   // In-place edit mode
   editTitleContainer: {
     paddingHorizontal: 24,
-    paddingTop: Platform.OS === "ios" ? 110 : 70,
   },
   editableTitle: {
     ...readerTypography.title,
