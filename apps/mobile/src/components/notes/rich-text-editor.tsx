@@ -1,4 +1,11 @@
-import { KeyboardAvoidingView, Platform } from "react-native";
+import {
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  Text,
+  View,
+  StyleSheet as RNStyleSheet,
+} from "react-native";
 import {
   useEditorBridge,
   RichText,
@@ -6,7 +13,9 @@ import {
   TenTapStartKit,
 } from "@10play/tentap-editor";
 import BridgeExtension from "@10play/tentap-editor/lib/module/bridges/base";
+import Animated, { SlideInDown } from "react-native-reanimated";
 import { colors } from "~/styles/colors";
+import { springs } from "~/lib/animations";
 
 const darkThemeCSS = `
   * { box-sizing: border-box; }
@@ -72,12 +81,14 @@ const DarkThemeBridge = new BridgeExtension({
 export function useRichEditor(opts?: {
   initialContent?: string;
   editable?: boolean;
+  onChange?: () => void;
 }) {
   const editor = useEditorBridge({
     autofocus: opts?.editable !== false,
     avoidIosKeyboard: true,
     initialContent: opts?.initialContent || "",
     editable: opts?.editable !== false,
+    onChange: opts?.onChange,
     bridgeExtensions: [...TenTapStartKit, DarkThemeBridge],
     theme: {
       toolbar: {
@@ -114,9 +125,11 @@ export function useRichEditor(opts?: {
 export function RichTextEditorView({
   editor,
   showToolbar = true,
+  onMentionPress,
 }: {
   editor: ReturnType<typeof useEditorBridge>;
   showToolbar?: boolean;
+  onMentionPress?: () => void;
 }) {
   return (
     <>
@@ -129,9 +142,50 @@ export function RichTextEditorView({
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           style={{ position: "absolute", bottom: 0, left: 0, right: 0 }}
         >
-          <Toolbar editor={editor} />
+          <Animated.View
+            entering={SlideInDown.springify()
+              .damping(springs.snappy.damping)
+              .stiffness(springs.snappy.stiffness)
+              .mass(springs.snappy.mass)}
+          >
+            <View style={toolbarStyles.toolbarRow}>
+              {onMentionPress && (
+                <Pressable
+                  onPress={onMentionPress}
+                  style={toolbarStyles.mentionBtn}
+                >
+                  <Text style={toolbarStyles.mentionBtnText}>@</Text>
+                </Pressable>
+              )}
+              <View style={{ flex: 1 }}>
+                <Toolbar editor={editor} />
+              </View>
+            </View>
+          </Animated.View>
         </KeyboardAvoidingView>
       )}
     </>
   );
 }
+
+const toolbarStyles = RNStyleSheet.create({
+  toolbarRow: {
+    flexDirection: "row",
+    alignItems: "stretch",
+  },
+  mentionBtn: {
+    paddingHorizontal: 14,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: colors.bg.elevated,
+    borderTopWidth: 1,
+    borderTopColor: colors.border.default,
+    borderRightWidth: 1,
+    borderRightColor: colors.border.default,
+  },
+  mentionBtnText: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: colors.accent.indigo,
+  },
+});

@@ -185,14 +185,14 @@ export default function NotesScreen() {
           ActionSheetIOS.showActionSheetWithOptions(
             { options, destructiveButtonIndex: 2, cancelButtonIndex: 3 },
             (index) => {
-              if (index === 0) router.push(`/(main)/notes/edit/${note.id}` as any);
+              if (index === 0) router.push({ pathname: `/(main)/notes/[id]`, params: { id: note.id, editing: "true" } } as any);
               else if (index === 2) deleteJournal.mutate(note.id);
             },
           );
           return;
         }
         Alert.alert(note.title ?? "Note", undefined, [
-          { text: "Edit", onPress: () => router.push(`/(main)/notes/edit/${note.id}` as any) },
+          { text: "Edit", onPress: () => router.push({ pathname: `/(main)/notes/[id]`, params: { id: note.id, editing: "true" } } as any) },
           { text: "Move to Project" },
           { text: "Delete", style: "destructive", onPress: () => deleteJournal.mutate(note.id) },
           { text: "Cancel", style: "cancel" },
@@ -206,7 +206,7 @@ export default function NotesScreen() {
               label: "Edit",
               color: colors.status.active,
               onAction: () =>
-                router.push(`/(main)/notes/edit/${note.id}`),
+                router.push({ pathname: `/(main)/notes/[id]`, params: { id: note.id, editing: "true" } } as any),
             },
             {
               label: "Delete",

@@ -707,7 +707,7 @@ function NotesTab({
                 label: "Edit",
                 color: colors.status.active,
                 onAction: () =>
-                  router.push(`/(main)/notes/edit/${note.id}`),
+                  router.push({ pathname: `/(main)/notes/[id]`, params: { id: note.id, editing: "true" } } as any),
               },
             ]}
           >

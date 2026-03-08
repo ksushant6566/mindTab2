@@ -1,20 +1,25 @@
-import { useState, useRef, useCallback, useMemo } from "react";
+import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import {
   View,
   Text,
+  TextInput,
   Pressable,
   Alert,
   Platform,
   StyleSheet,
   useWindowDimensions,
+  Keyboard,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   journalQueryOptions,
   journalsQueryOptions,
+  goalQueryOptions,
+  habitQueryOptions,
   useDeleteJournal,
+  useUpdateJournal,
 } from "@mindtab/core";
 import * as Haptics from "expo-haptics";
 import { api } from "~/lib/api-client";
@@ -29,6 +34,8 @@ import { colors } from "~/styles/colors";
 import { WebView } from "react-native-webview";
 import type { WebViewMessageEvent } from "react-native-webview";
 import Animated, {
+  FadeIn,
+  FadeOut,
   useSharedValue,
   useAnimatedStyle,
   withTiming,
@@ -39,6 +46,15 @@ import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import BottomSheet from "@gorhom/bottom-sheet";
 import { MentionPeekSheet } from "~/components/reader/mention-peek-sheet";
 import { springs } from "~/lib/animations";
+import {
+  useRichEditor,
+  RichTextEditorView,
+} from "~/components/notes/rich-text-editor";
+import type { useEditorBridge } from "@10play/tentap-editor";
+import {
+  MentionSearchSheet,
+  type MentionResult,
+} from "~/components/notes/mention-search-sheet";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -70,7 +86,7 @@ function buildReaderHtml(content: string): string {
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: Georgia, 'Times New Roman', serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       font-size: 18px;
       line-height: 1.75;
       color: #e5e5e5;
@@ -82,7 +98,7 @@ function buildReaderHtml(content: string): string {
       -webkit-text-size-adjust: 100%;
     }
     h2 { font-size: 24px; font-weight: 600; line-height: 1.35; color: #fafafa; margin: 24px 0 12px; }
-    h3 { font-size: 20px; font-weight: 600; line-height: 1.4; color: #fafafa; margin: 20px 0 10px; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
+    h3 { font-size: 20px; font-weight: 600; line-height: 1.4; color: #fafafa; margin: 20px 0 10px; }
     p { margin: 0 0 20px; }
     strong, b { font-weight: 600; color: #fafafa; }
     a { color: #818cf8; text-decoration: none; }
@@ -100,8 +116,9 @@ function buildReaderHtml(content: string): string {
     span[data-type="mention"],
     .mention {
       display: inline-flex;
-      align-items: center;
-      gap: 6px;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 4px;
       background: #141414;
       border: 1px solid #262626;
       border-radius: 8px;
@@ -116,6 +133,9 @@ function buildReaderHtml(content: string): string {
     .mention-card:active,
     span[data-type="mention"]:active,
     .mention:active { opacity: 0.7; }
+    .mention-top { display: flex; align-items: center; gap: 6px; }
+    .mention-icon { font-size: 14px; }
+    .mention-meta { font-size: 12px; color: #a3a3a3; line-height: 1.3; }
   </style>
 </head>
 <body>
@@ -127,7 +147,66 @@ function buildReaderHtml(content: string): string {
       var h = document.documentElement.scrollHeight || document.body.scrollHeight;
       window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'resize', height: h }));
     }
-    window.addEventListener('load', function() { setTimeout(sendHeight, 100); });
+    // Step 3.3: Inject type icons into mention cards
+    function addMentionIcons() {
+      document.querySelectorAll('[data-type="mention"], .mention, .mention-card').forEach(function(el) {
+        if (el.querySelector('.mention-icon')) return;
+        var rawId = el.getAttribute('data-id') || '';
+        var type = rawId.split(':')[0];
+        var icon = type === 'goal' ? '🎯' : type === 'habit' ? '🔄' : type === 'note' ? '📝' : '';
+        var labelText = el.textContent;
+        el.textContent = '';
+        var topRow = document.createElement('span');
+        topRow.className = 'mention-top';
+        if (icon) {
+          var iconSpan = document.createElement('span');
+          iconSpan.className = 'mention-icon';
+          iconSpan.textContent = icon;
+          topRow.appendChild(iconSpan);
+        }
+        var labelSpan = document.createElement('span');
+        labelSpan.textContent = labelText;
+        topRow.appendChild(labelSpan);
+        el.appendChild(topRow);
+      });
+    }
+
+    // Step 3.4/3.5: Request entity metadata from React Native
+    function requestMentionData() {
+      var ids = [];
+      document.querySelectorAll('[data-type="mention"], .mention, .mention-card').forEach(function(el) {
+        var rawId = el.getAttribute('data-id') || '';
+        if (rawId) ids.push(rawId);
+      });
+      if (ids.length > 0) {
+        window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'request-mention-data', ids: ids }));
+      }
+    }
+
+    // Called from React Native with enriched entity data
+    window.updateMentionCards = function(data) {
+      document.querySelectorAll('[data-type="mention"], .mention, .mention-card').forEach(function(el) {
+        var rawId = el.getAttribute('data-id') || '';
+        var d = data[rawId];
+        if (!d || el.querySelector('.mention-meta')) return;
+        var parts = [];
+        if (d.status) parts.push(d.status.replace(/_/g, ' '));
+        if (d.priority) parts.push(d.priority.toUpperCase());
+        if (d.streak !== undefined) parts.push('🔥 ' + d.streak + 'd');
+        if (d.projectName) parts.push('📁 ' + d.projectName);
+        if (parts.length > 0) {
+          var meta = document.createElement('div');
+          meta.className = 'mention-meta';
+          meta.textContent = parts.join(' · ');
+          el.appendChild(meta);
+        }
+      });
+      sendHeight();
+    };
+
+    window.addEventListener('load', function() {
+      setTimeout(function() { sendHeight(); addMentionIcons(); requestMentionData(); }, 100);
+    });
     new MutationObserver(sendHeight).observe(document.body, { childList: true, subtree: true });
     window.addEventListener('resize', sendHeight);
 
@@ -173,16 +252,64 @@ type MentionEntity = {
   type: "goal" | "habit" | "note";
   id: string;
   title: string;
+  status?: string;
+  priority?: string;
+  impact?: string;
+  projectName?: string;
+  streak?: number;
+  frequency?: string;
 };
 
+// ---------------------------------------------------------------------------
+// In-place editor sub-component (hooks must be called unconditionally)
+// ---------------------------------------------------------------------------
+
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function InPlaceEditor({
+  content,
+  editorRef,
+  onContentChange,
+  onMentionPress,
+}: {
+  content: string;
+  editorRef: React.MutableRefObject<ReturnType<typeof useEditorBridge> | null>;
+  onContentChange?: () => void;
+  onMentionPress?: () => void;
+}) {
+  const editor = useRichEditor({
+    initialContent: content,
+    editable: true,
+    onChange: onContentChange,
+  });
+  useEffect(() => {
+    editorRef.current = editor;
+    return () => {
+      editorRef.current = null;
+    };
+  }, [editor, editorRef]);
+  return (
+    <RichTextEditorView editor={editor} onMentionPress={onMentionPress} />
+  );
+}
+
 export default function NoteDetailScreen() {
-  const { id, from, projectId: filterProjectId } = useLocalSearchParams<{
+  const { id, from, projectId: filterProjectId, editing } = useLocalSearchParams<{
     id: string;
     from?: string;
     projectId?: string;
+    editing?: string;
   }>();
   const router = useRouter();
   const { width: screenWidth } = useWindowDimensions();
+  const queryClient = useQueryClient();
   const { data: note, isLoading } = useQuery(journalQueryOptions(api, id));
   const deleteJournal = useDeleteJournal(api);
 
@@ -271,8 +398,9 @@ export default function NoteDetailScreen() {
     opacity: swipeOpacity.value,
   }));
 
-  // WebView auto-height
+  // WebView auto-height & ref for metadata injection
   const [webViewHeight, setWebViewHeight] = useState(400);
+  const readerWebViewRef = useRef<WebView>(null);
 
   const headerVisible = useSharedValue(1);
   const headerOpacity = useAnimatedStyle(() => {
@@ -289,6 +417,98 @@ export default function NoteDetailScreen() {
   // Overflow menu state
   const [showOverflow, setShowOverflow] = useState(false);
 
+  // In-place edit mode
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const editorRef = useRef<ReturnType<typeof useEditorBridge> | null>(null);
+  const updateJournal = useUpdateJournal(api);
+
+  // Auto-save tracking
+  const editTitleRef = useRef("");
+  editTitleRef.current = editTitle;
+  const lastSavedRef = useRef({ title: "", content: "" });
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [contentVersion, setContentVersion] = useState(0);
+
+  const handleContentChange = useCallback(() => {
+    setContentVersion((v) => v + 1);
+  }, []);
+
+  // Auto-save with 2-second debounce on title or content change
+  useEffect(() => {
+    if (!isEditing) return;
+
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+
+    saveTimerRef.current = setTimeout(async () => {
+      if (!editorRef.current) return;
+      const html = (await editorRef.current.getHTML()) ?? "";
+      const title = editTitleRef.current.trim();
+
+      if (
+        title !== lastSavedRef.current.title ||
+        html !== lastSavedRef.current.content
+      ) {
+        updateJournal.mutate(
+          { id, title, content: html },
+          {
+            onSuccess: () => {
+              lastSavedRef.current = { title, content: html };
+            },
+          },
+        );
+      }
+    }, 2000);
+
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, [editTitle, contentVersion, isEditing, id, updateJournal]);
+
+  // "Done" button handler — final save + exit edit mode
+  const handleDone = useCallback(async () => {
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    const html = (await editorRef.current?.getHTML()) ?? "";
+    const title = editTitleRef.current.trim();
+
+    updateJournal.mutate(
+      { id, title, content: html },
+      {
+        onSuccess: () => {
+          lastSavedRef.current = { title, content: html };
+          Keyboard.dismiss();
+          setIsEditing(false);
+        },
+      },
+    );
+  }, [id, updateJournal]);
+
+  // Mention search sheet (Step 1.6)
+  const mentionSheetRef = useRef<BottomSheet>(null);
+
+  const handleMentionBtnPress = useCallback(() => {
+    mentionSheetRef.current?.snapToIndex(0);
+  }, []);
+
+  const handleMentionSelect = useCallback(
+    (mention: MentionResult) => {
+      mentionSheetRef.current?.close();
+      // Insert mention span into editor via injectJS (HTML-escaped to prevent XSS)
+      const safeTitle = escapeHtml(mention.title);
+      const safeId = escapeHtml(`${mention.type}:${mention.id}`);
+      const mentionHtml = `<span data-type="mention" data-id="${safeId}" class="mention">${safeTitle}</span>&nbsp;`;
+      editorRef.current?.injectJS(
+        `document.querySelector('.ProseMirror').focus();
+         document.execCommand('insertHTML', false, ${JSON.stringify(mentionHtml)});`,
+      );
+    },
+    [],
+  );
+
+  const handleMentionSearchDismiss = useCallback(() => {
+    mentionSheetRef.current?.close();
+  }, []);
+
   // Mention peek sheet
   const peekSheetRef = useRef<BottomSheet>(null);
   const [peekEntity, setPeekEntity] = useState<MentionEntity | null>(null);
@@ -302,6 +522,39 @@ export default function NoteDetailScreen() {
       router.replace("/(main)/notes");
     }
   }, [from, router]);
+
+  // Step 1.5: Unsaved changes prompt on back/dismiss
+  const handleBack = useCallback(async () => {
+    if (isEditing) {
+      const html = (await editorRef.current?.getHTML()) ?? "";
+      const title = editTitle.trim();
+      const isDirty =
+        title !== lastSavedRef.current.title ||
+        html !== lastSavedRef.current.content;
+
+      if (isDirty) {
+        Alert.alert(
+          "Unsaved Changes",
+          "You have unsaved changes. Do you want to discard them?",
+          [
+            { text: "Keep Editing", style: "cancel" },
+            {
+              text: "Discard",
+              style: "destructive",
+              onPress: () => {
+                setIsEditing(false);
+                goBack();
+              },
+            },
+          ],
+        );
+        return;
+      }
+      setIsEditing(false);
+      return;
+    }
+    goBack();
+  }, [isEditing, editTitle, goBack]);
 
   const handleDelete = () => {
     Alert.alert("Delete Note", "Are you sure you want to delete this note?", [
@@ -319,16 +572,50 @@ export default function NoteDetailScreen() {
   const currentRoute = `/(main)/notes/${id}`;
 
   const handleMentionPress = useCallback(
-    (type: string, mentionId: string, label: string) => {
-      // Open the peek sheet with entity info
-      setPeekEntity({
+    async (type: string, mentionId: string, label: string) => {
+      // Build base entity, then enrich with full data
+      let entity: MentionEntity = {
         type: type as "goal" | "habit" | "note",
         id: mentionId,
         title: label || capitalize(type),
-      });
+      };
+
+      try {
+        if (type === "goal") {
+          const goal = (await queryClient.fetchQuery(
+            goalQueryOptions(api, mentionId),
+          )) as any;
+          if (goal) {
+            entity = {
+              ...entity,
+              title: goal.title || label,
+              status: goal.status,
+              priority: goal.priority,
+              impact: goal.impact,
+              projectName: goal.project?.name,
+            };
+          }
+        } else if (type === "habit") {
+          const habit = (await queryClient.fetchQuery(
+            habitQueryOptions(api, mentionId),
+          )) as any;
+          if (habit) {
+            entity = {
+              ...entity,
+              title: habit.name || habit.title || label,
+              frequency: habit.frequency,
+              streak: habit.currentStreak ?? habit.streak ?? 0,
+            };
+          }
+        }
+      } catch {
+        // Use fallback label data if fetch fails
+      }
+
+      setPeekEntity(entity);
       peekSheetRef.current?.snapToIndex(0);
     },
-    [],
+    [queryClient],
   );
 
   const handleMentionNavigate = useCallback(
@@ -347,7 +634,7 @@ export default function NoteDetailScreen() {
             params: { id: mentionId, ...params },
           });
           break;
-        case "journal":
+        case "note":
           router.push({
             pathname: "/(main)/notes/[id]",
             params: { id: mentionId, ...params },
@@ -356,6 +643,63 @@ export default function NoteDetailScreen() {
       }
     },
     [currentRoute, router],
+  );
+
+  // Step 3.4/3.5: Fetch mention metadata and inject into reader WebView
+  const handleMentionDataRequest = useCallback(
+    async (ids: string[]) => {
+      const result: Record<string, any> = {};
+
+      await Promise.all(
+        ids.map(async (rawId) => {
+          const colonIdx = rawId.indexOf(":");
+          if (colonIdx <= 0) return;
+          const type = rawId.substring(0, colonIdx);
+          const entityId = rawId.substring(colonIdx + 1);
+          try {
+            if (type === "goal") {
+              const goal = (await queryClient.fetchQuery(
+                goalQueryOptions(api, entityId),
+              )) as any;
+              if (goal) {
+                result[rawId] = {
+                  status: goal.status,
+                  priority: goal.priority,
+                  projectName: goal.project?.name,
+                };
+              }
+            } else if (type === "habit") {
+              const habit = (await queryClient.fetchQuery(
+                habitQueryOptions(api, entityId),
+              )) as any;
+              if (habit) {
+                result[rawId] = {
+                  streak: habit.currentStreak ?? habit.streak ?? 0,
+                  frequency: habit.frequency,
+                };
+              }
+            } else if (type === "note") {
+              const journal = (await queryClient.fetchQuery(
+                journalQueryOptions(api, entityId),
+              )) as any;
+              if (journal) {
+                result[rawId] = {
+                  projectName: journal.project?.name,
+                };
+              }
+            }
+          } catch {
+            // skip failed fetches
+          }
+        }),
+      );
+
+      // Inject enriched data into the reader WebView
+      readerWebViewRef.current?.injectJavaScript(
+        `window.updateMentionCards(${JSON.stringify(result)}); true;`,
+      );
+    },
+    [queryClient],
   );
 
   const handleWebViewMessage = useCallback(
@@ -368,12 +712,14 @@ export default function NoteDetailScreen() {
           toggleHeader();
         } else if (data.type === "mention-click") {
           handleMentionPress(data.resourceType, data.id, data.label ?? "");
+        } else if (data.type === "request-mention-data") {
+          handleMentionDataRequest(data.ids);
         }
       } catch {
         // ignore non-JSON messages
       }
     },
-    [handleMentionPress],
+    [handleMentionPress, handleMentionDataRequest],
   );
 
   const handleDismissPeek = useCallback(() => {
@@ -405,7 +751,7 @@ export default function NoteDetailScreen() {
     .failOffsetX([-20, 20])
     .onEnd((event) => {
       if (currentScrollY.current <= 0 && event.translationY > 100 && event.velocityY > 200) {
-        runOnJS(goBack)();
+        runOnJS(handleBack)();
       }
     });
 
@@ -420,6 +766,16 @@ export default function NoteDetailScreen() {
 
   const composedGesture = Gesture.Simultaneous(swipeGesture, dismissGesture);
 
+  // Auto-enter edit mode when navigated with editing=true
+  useEffect(() => {
+    if (editing === "true" && note && !isEditing) {
+      const n = note as any;
+      setEditTitle(n.title || "");
+      lastSavedRef.current = { title: n.title || "", content: n.content || "" };
+      setIsEditing(true);
+    }
+  }, [editing, note]);
+
   if (isLoading || !note) return <Loading />;
 
   const n = note as any;
@@ -431,7 +787,7 @@ export default function NoteDetailScreen() {
       {/* --- Floating minimal header --- */}
       <Animated.View style={[styles.header, headerOpacity]}>
         <Pressable
-          onPress={goBack}
+          onPress={handleBack}
           style={styles.headerBtn}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
@@ -440,13 +796,31 @@ export default function NoteDetailScreen() {
 
         <View style={styles.headerSpacer} />
 
-        <Pressable
-          onPress={() => router.push(`/(main)/notes/edit/${id}`)}
-          style={styles.headerBtn}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Edit3 size={22} color={colors.text.primary} />
-        </Pressable>
+        {isEditing ? (
+          <Pressable
+            onPress={handleDone}
+            style={styles.headerBtn}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Text style={styles.doneText}>Done</Text>
+          </Pressable>
+        ) : (
+          <Pressable
+            onPress={() => {
+              const n = note as any;
+              setEditTitle(n.title || "");
+              lastSavedRef.current = {
+                title: n.title || "",
+                content: n.content || "",
+              };
+              setIsEditing(true);
+            }}
+            style={styles.headerBtn}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Edit3 size={22} color={colors.text.primary} />
+          </Pressable>
+        )}
 
         <Pressable
           onPress={() => setShowOverflow(!showOverflow)}
@@ -480,81 +854,113 @@ export default function NoteDetailScreen() {
         </Pressable>
       )}
 
-      {/* --- Scrollable reader content with swipe navigation --- */}
-      <GestureDetector gesture={composedGesture}>
-        <Animated.View style={[{ flex: 1 }, swipeAnimatedStyle]}>
-          <Animated.ScrollView
-            onScroll={handleScroll}
-            scrollEventThrottle={16}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.scrollContent}
-          >
-            {/* Title */}
-            <Text style={styles.title}>{n.title || "Untitled"}</Text>
-
-            {/* Meta row */}
-            <View style={styles.metaRow}>
-              {n.updatedAt && (
-                <Text style={styles.metaText}>{formatDate(n.updatedAt)}</Text>
-              )}
-              {projectName && (
-                <Text style={styles.metaText}>
-                  {"  \u00B7  "}
-                  {projectName}
-                </Text>
-              )}
-              {noteType && (
-                <View
-                  style={[
-                    styles.typeBadge,
-                    {
-                      backgroundColor:
-                        (colors.noteType as Record<string, string>)[noteType] ??
-                        colors.accent.indigo,
-                    },
-                  ]}
-                >
-                  <Text style={styles.typeBadgeText}>
-                    {capitalize(noteType)}
-                  </Text>
-                </View>
-              )}
-            </View>
-
-            {/* Divider */}
-            <View style={styles.divider} />
-
-            {/* Note body via WebView */}
-            <WebView
-              source={{ html: buildReaderHtml(n.content || "") }}
-              style={{
-                width: screenWidth - 48,
-                height: webViewHeight,
-                backgroundColor: colors.bg.primary,
-              }}
-              scrollEnabled={false}
-              onMessage={handleWebViewMessage}
-              showsVerticalScrollIndicator={false}
-              showsHorizontalScrollIndicator={false}
+      {/* --- Content area: reader or in-place editor --- */}
+      {isEditing ? (
+        <Animated.View
+          key="editor"
+          entering={FadeIn.duration(150)}
+          exiting={FadeOut.duration(150)}
+          style={{ flex: 1 }}
+        >
+          {/* Editable title */}
+          <View style={styles.editTitleContainer}>
+            <TextInput
+              value={editTitle}
+              onChangeText={setEditTitle}
+              style={styles.editableTitle}
+              placeholder="Untitled"
+              placeholderTextColor={colors.text.muted}
+              multiline
+              autoFocus
             />
-          </Animated.ScrollView>
+          </View>
+
+          {/* Rich text editor */}
+          <View style={{ flex: 1 }}>
+            <InPlaceEditor
+              content={n.content || ""}
+              editorRef={editorRef}
+              onContentChange={handleContentChange}
+              onMentionPress={handleMentionBtnPress}
+            />
+          </View>
         </Animated.View>
-      </GestureDetector>
+      ) : (
+        <GestureDetector gesture={composedGesture}>
+          <Animated.View style={[{ flex: 1 }, swipeAnimatedStyle]}>
+            <Animated.ScrollView
+              onScroll={handleScroll}
+              scrollEventThrottle={16}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.scrollContent}
+            >
+              {/* Title */}
+              <Text style={styles.title}>{n.title || "Untitled"}</Text>
+
+              {/* Meta row */}
+              <View style={styles.metaRow}>
+                {n.updatedAt && (
+                  <Text style={styles.metaText}>{formatDate(n.updatedAt)}</Text>
+                )}
+                {projectName && (
+                  <Text style={styles.metaText}>
+                    {"  \u00B7  "}
+                    {projectName}
+                  </Text>
+                )}
+                {noteType && (
+                  <View
+                    style={[
+                      styles.typeBadge,
+                      {
+                        backgroundColor:
+                          (colors.noteType as Record<string, string>)[noteType] ??
+                          colors.accent.indigo,
+                      },
+                    ]}
+                  >
+                    <Text style={styles.typeBadgeText}>
+                      {capitalize(noteType)}
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              {/* Divider */}
+              <View style={styles.divider} />
+
+              {/* Note body via WebView */}
+              <WebView
+                ref={readerWebViewRef}
+                source={{ html: buildReaderHtml(n.content || "") }}
+                style={{
+                  width: screenWidth - 48,
+                  height: webViewHeight,
+                  backgroundColor: colors.bg.primary,
+                }}
+                scrollEnabled={false}
+                onMessage={handleWebViewMessage}
+                showsVerticalScrollIndicator={false}
+                showsHorizontalScrollIndicator={false}
+              />
+            </Animated.ScrollView>
+          </Animated.View>
+        </GestureDetector>
+      )}
 
       {/* --- Mention peek bottom sheet --- */}
       <MentionPeekSheet
         ref={peekSheetRef}
-        entity={
-          peekEntity
-            ? {
-                type: peekEntity.type,
-                id: peekEntity.id,
-                title: peekEntity.title,
-              }
-            : null
-        }
+        entity={peekEntity}
         onDismiss={handleDismissPeek}
         onNavigate={handleMentionNavigate}
+      />
+
+      {/* --- Mention search sheet (edit mode) --- */}
+      <MentionSearchSheet
+        ref={mentionSheetRef}
+        onSelect={handleMentionSelect}
+        onDismiss={handleMentionSearchDismiss}
       />
     </SafeAreaView>
   );
@@ -632,7 +1038,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: "bold",
-    fontFamily: Platform.select({ ios: "Georgia", default: "serif" }),
     color: colors.text.primary,
     lineHeight: 36,
     marginBottom: 12,
@@ -666,5 +1071,24 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: colors.border.subtle,
     marginVertical: 20,
+  },
+  // Done button
+  doneText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: colors.accent.indigo,
+  },
+  // In-place edit mode
+  editTitleContainer: {
+    paddingHorizontal: 24,
+    paddingTop: Platform.OS === "ios" ? 110 : 70,
+  },
+  editableTitle: {
+    fontSize: 28,
+    fontWeight: "bold",
+    color: colors.text.primary,
+    lineHeight: 36,
+    marginBottom: 12,
+    padding: 0,
   },
 });

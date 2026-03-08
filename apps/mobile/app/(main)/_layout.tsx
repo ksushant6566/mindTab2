@@ -40,10 +40,6 @@ export default function MainLayout() {
         options={{ headerShown: false, animation: "fade" }}
       />
       <Stack.Screen
-        name="notes/edit/[id]"
-        options={{ headerShown: true, title: "Edit Note" }}
-      />
-      <Stack.Screen
         name="projects/index"
         options={{ headerShown: true, title: "Projects", headerRight: () => <HeaderRight /> }}
       />

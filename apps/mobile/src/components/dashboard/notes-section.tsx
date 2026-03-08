@@ -50,7 +50,7 @@ export function NotesSection({ projectId }: NotesSectionProps) {
         ActionSheetIOS.showActionSheetWithOptions(
           { options, destructiveButtonIndex: 1, cancelButtonIndex: 3 },
           (index) => {
-            if (index === 0) router.push(`/(main)/notes/edit/${note.id}` as any);
+            if (index === 0) router.push({ pathname: `/(main)/notes/[id]`, params: { id: note.id, editing: "true" } } as any);
             else if (index === 1) handleDelete(note.id, note.title || "Untitled");
           },
         );
@@ -58,7 +58,7 @@ export function NotesSection({ projectId }: NotesSectionProps) {
       }
 
       Alert.alert(note.title ?? "Note", undefined, [
-        { text: "Edit", onPress: () => router.push(`/(main)/notes/edit/${note.id}` as any) },
+        { text: "Edit", onPress: () => router.push({ pathname: `/(main)/notes/[id]`, params: { id: note.id, editing: "true" } } as any) },
         {
           text: "Delete",
           style: "destructive",
