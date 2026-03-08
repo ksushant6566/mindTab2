@@ -31,6 +31,7 @@ import { FAB } from "~/components/dashboard/fab";
 import { Chip } from "~/components/ui/chip";
 import { SearchResults } from "~/components/command-palette/search-results";
 import { api } from "~/lib/api-client";
+import { useShakeDetector } from "~/hooks/use-shake-detector";
 import { colors } from "~/styles/colors";
 import { springs } from "~/lib/animations";
 
@@ -55,6 +56,12 @@ export default function Dashboard() {
   const lastScrollY = useRef(0);
   const searchInputRef = useRef<TextInput>(null);
   const hasTriggered = useRef(false);
+
+  const handleShake = useCallback(() => {
+    router.push("/(modals)/command-palette");
+  }, [router]);
+
+  useShakeDetector(handleShake);
 
   const debouncedQuery = useDebounce(searchQuery, 300);
 

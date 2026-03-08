@@ -45,20 +45,7 @@ const impactColors: Record<string, string> = {
   high: colors.impact.high,
 };
 
-const statusOrder: Record<string, number> = {
-  pending: 0,
-  in_progress: 1,
-  completed: 2,
-};
 
-function getStatusDots(status: string) {
-  const level = statusOrder[status] ?? 0;
-  return [
-    { filled: level >= 0, color: colors.status.pending },
-    { filled: level >= 1, color: colors.status.active },
-    { filled: level >= 2, color: colors.status.completed },
-  ];
-}
 
 function getGoalXP(goal: any) {
   if (goal.priority === "priority_1") return XP_VALUES.GOAL_P1_COMPLETE;
@@ -162,7 +149,6 @@ export function GoalsSection({ projectId }: GoalsSectionProps) {
         <>
           {displayedGoals.map((goal) => {
             const nextAction = getNextStatusAction(goal.status);
-            const dots = getStatusDots(goal.status);
             const priorityKey = goal.priority as string | undefined;
             const impactKey = goal.impact as string | undefined;
 
@@ -248,30 +234,21 @@ export function GoalsSection({ projectId }: GoalsSectionProps) {
                     )}
                   </View>
 
-                  {/* Status dots */}
-                  <View style={styles.dotsRow}>
-                    {dots.map((dot, i) => {
-                      const statuses = ["pending", "in_progress", "completed"];
-                      const targetStatus = statuses[i]!;
-                      return (
-                        <Pressable
-                          key={targetStatus}
-                          onPress={() => handleStatusChange(goal, targetStatus)}
-                          hitSlop={8}
-                        >
-                          <View
-                            style={[
-                              styles.statusDot,
-                              {
-                                backgroundColor: dot.filled
-                                  ? dot.color
-                                  : colors.border.default,
-                              },
-                            ]}
-                          />
-                        </Pressable>
-                      );
-                    })}
+                  {/* Status progress bar */}
+                  <View style={styles.statusBarContainer}>
+                    <View
+                      style={[
+                        styles.statusBarFill,
+                        {
+                          width: goal.status === "completed" ? "100%" : goal.status === "in_progress" ? "50%" : "0%",
+                          backgroundColor: goal.status === "completed"
+                            ? colors.status.completed
+                            : goal.status === "in_progress"
+                              ? colors.status.active
+                              : colors.status.pending,
+                        },
+                      ]}
+                    />
                   </View>
                   {goal.id === celebrationGoalId && <ConfettiBurst particleCount={20} />}
                   {goal.id === celebrationGoalId && xpDelta > 0 && (
@@ -370,16 +347,16 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.text.muted,
   },
-  dotsRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    marginTop: 10,
+  statusBarContainer: {
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: colors.border.default,
+    marginTop: 12,
+    overflow: "hidden",
   },
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+  statusBarFill: {
+    height: "100%",
+    borderRadius: 1,
   },
   emptyState: {
     alignItems: "center",

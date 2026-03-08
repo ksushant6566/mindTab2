@@ -4,9 +4,6 @@ import {
   StyleSheet,
   Text,
   View,
-  ActionSheetIOS,
-  Platform,
-  Alert,
 } from "react-native";
 import Animated, {
   useSharedValue,
@@ -25,8 +22,6 @@ import {
   CheckSquare,
   FileText,
   FolderPlus,
-  Search,
-  Settings,
 } from "lucide-react-native";
 
 import { colors } from "~/styles/colors";
@@ -43,15 +38,15 @@ const MENU_OPTIONS = [
     label: "Goal",
     Icon: Target,
     route: "/(modals)/create-goal" as const,
-    translateX: -60,
-    translateY: -110,
+    translateX: -75,
+    translateY: -80,
   },
   {
     key: "habit" as const,
     label: "Habit",
     Icon: CheckSquare,
     route: "/(modals)/create-habit" as const,
-    translateX: 0,
+    translateX: -25,
     translateY: -120,
   },
   {
@@ -59,8 +54,16 @@ const MENU_OPTIONS = [
     label: "Note",
     Icon: FileText,
     route: "/(modals)/create-note" as const,
-    translateX: 60,
-    translateY: -110,
+    translateX: 25,
+    translateY: -120,
+  },
+  {
+    key: "project" as const,
+    label: "Project",
+    Icon: FolderPlus,
+    route: "/(modals)/create-project" as const,
+    translateX: 75,
+    translateY: -80,
   },
 ];
 
@@ -125,40 +128,7 @@ export function FAB({ visible, contextFilter }: FABProps) {
 
   const showLongPressMenu = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    const options = ["Create Project", "Search", "Manage Projects", "Cancel"];
-    const cancelIndex = 3;
-
-    if (Platform.OS === "ios") {
-      ActionSheetIOS.showActionSheetWithOptions(
-        { options, cancelButtonIndex: cancelIndex },
-        (index) => {
-          if (index === 0)
-            router.push("/(modals)/create-project" as never);
-          else if (index === 1)
-            router.push("/(modals)/command-palette" as never);
-          else if (index === 2)
-            router.push("/(main)/projects" as never);
-        },
-      );
-    } else {
-      Alert.alert("Quick Actions", undefined, [
-        {
-          text: "Create Project",
-          onPress: () =>
-            router.push("/(modals)/create-project" as never),
-        },
-        {
-          text: "Search",
-          onPress: () =>
-            router.push("/(modals)/command-palette" as never),
-        },
-        {
-          text: "Manage Projects",
-          onPress: () => router.push("/(main)/projects" as never),
-        },
-        { text: "Cancel", style: "cancel" },
-      ]);
-    }
+    router.push("/(main)/goals" as never);
   }, [router]);
 
   const fabTapGesture = Gesture.Tap().onEnd(() => {
