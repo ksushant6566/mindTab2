@@ -1,30 +1,26 @@
-import { forwardRef, useCallback, useMemo, useState } from "react";
-import { View, Text, Pressable, StyleSheet, ActivityIndicator } from "react-native";
+import { forwardRef, useCallback, Fragment } from "react";
+import {
+  View,
+  Text,
+  Pressable,
+  StyleSheet,
+  ActivityIndicator,
+} from "react-native";
 import BottomSheet, {
   BottomSheetBackdrop,
   BottomSheetView,
   type BottomSheetBackdropProps,
 } from "@gorhom/bottom-sheet";
 import { useQuery } from "@tanstack/react-query";
-import { useUpdateGoal } from "@mindtab/core";
 import {
   ChevronRight,
   Target,
   Repeat,
   FileText,
-  Flame,
-  ArrowUpRight,
-  Calendar,
 } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { colors } from "~/styles/colors";
-import { ProgressBar } from "~/components/ui/progress-bar";
-import { Chip } from "~/components/ui/chip";
-import { ConfettiBurst } from "~/components/ui/confetti-burst";
-import { XPFloat } from "~/components/ui/xp-float";
-import { XP_VALUES } from "~/lib/xp";
-import { api } from "~/lib/api-client";
-import { getAccessToken } from "~/lib/auth";
+import { getAccessToken, refreshTokens } from "~/lib/auth";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -49,12 +45,6 @@ type MentionPeekSheetProps = {
   onNavigate?: (type: string, id: string) => void;
 };
 
-// ---------------------------------------------------------------------------
-// Connected Knowledge API
-// ---------------------------------------------------------------------------
-
-const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:8080";
-
 type ConnectedNote = {
   id: string;
   title: string;
@@ -70,53 +60,60 @@ type ConnectedHabit = {
   createdAt: string | null;
 };
 
+type ConnectedItem =
+  | (ConnectedNote & { kind: "note" })
+  | (ConnectedHabit & { kind: "habit" });
+
+// ---------------------------------------------------------------------------
+// Connected Knowledge API
+// ---------------------------------------------------------------------------
+
+const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:8080";
+
+async function authedFetch(url: string): Promise<Response> {
+  const token = await getAccessToken();
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}`, "X-Platform": "mobile" },
+  });
+  if (res.status === 401) {
+    const refreshed = await refreshTokens();
+    if (!refreshed) return res;
+    const newToken = await getAccessToken();
+    return fetch(url, {
+      headers: {
+        Authorization: `Bearer ${newToken}`,
+        "X-Platform": "mobile",
+      },
+    });
+  }
+  return res;
+}
+
 async function fetchConnectedNotes(
   entityType: string,
   entityId: string,
 ): Promise<ConnectedNote[]> {
-  const token = await getAccessToken();
-  const res = await fetch(
-    `${API_URL}/mentions/connected-notes?entityType=${entityType}&entityId=${entityId}`,
-    { headers: { Authorization: `Bearer ${token}`, "X-Platform": "mobile" } },
+  const params = new URLSearchParams({ entityType, entityId });
+  const res = await authedFetch(
+    `${API_URL}/mentions/connected-notes?${params}`,
   );
   if (!res.ok) return [];
   return res.json();
 }
 
-async function fetchConnectedHabits(goalId: string): Promise<ConnectedHabit[]> {
-  const token = await getAccessToken();
-  const res = await fetch(`${API_URL}/goals/${goalId}/connected-habits`, {
-    headers: { Authorization: `Bearer ${token}`, "X-Platform": "mobile" },
-  });
+async function fetchConnectedHabits(
+  goalId: string,
+): Promise<ConnectedHabit[]> {
+  const res = await authedFetch(
+    `${API_URL}/goals/${goalId}/connected-habits`,
+  );
   if (!res.ok) return [];
   return res.json();
 }
 
 // ---------------------------------------------------------------------------
-// Status / Priority helpers
+// Helpers
 // ---------------------------------------------------------------------------
-
-const statusColors: Record<string, string> = {
-  pending: colors.status.pending,
-  in_progress: colors.status.active,
-  active: colors.status.active,
-  completed: colors.status.completed,
-  archived: colors.status.archived,
-  paused: colors.status.paused,
-};
-
-const priorityLabels: Record<string, { label: string; color: string }> = {
-  p1: { label: "P1 Critical", color: colors.priority.p1 },
-  p2: { label: "P2 High", color: colors.priority.p2 },
-  p3: { label: "P3 Medium", color: colors.priority.p3 },
-  p4: { label: "P4 Low", color: colors.priority.p4 },
-};
-
-const impactLabels: Record<string, { label: string; color: string }> = {
-  low: { label: "Low Impact", color: colors.impact.low },
-  medium: { label: "Medium Impact", color: colors.impact.medium },
-  high: { label: "High Impact", color: colors.impact.high },
-};
 
 function capitalize(s: string | undefined | null): string {
   if (!s) return "";
@@ -126,14 +123,13 @@ function capitalize(s: string | undefined | null): string {
 }
 
 function typeIcon(type: "goal" | "habit" | "note") {
-  const size = 18;
   switch (type) {
     case "goal":
-      return <Target size={size} color={colors.accent.indigo} />;
+      return <Target size={20} color={colors.accent.indigo} />;
     case "habit":
-      return <Repeat size={size} color={colors.feedback.success} />;
+      return <Repeat size={20} color={colors.feedback.success} />;
     case "note":
-      return <FileText size={size} color={colors.status.active} />;
+      return <FileText size={20} color={colors.status.active} />;
   }
 }
 
@@ -148,300 +144,47 @@ function typeColor(type: "goal" | "habit" | "note"): string {
   }
 }
 
-function createdAgoLabel(iso: string | undefined): string | null {
+function timeAgo(iso: string | undefined): string | null {
   if (!iso) return null;
   const diff = Date.now() - new Date(iso).getTime();
   const days = Math.floor(diff / 86_400_000);
-  if (days < 1) return "Created today";
-  if (days === 1) return "Created 1 day ago";
-  if (days < 30) return `Created ${days} days ago`;
+  if (days < 1) return "Today";
+  if (days === 1) return "1d ago";
+  if (days < 30) return `${days}d ago`;
   const months = Math.floor(days / 30);
-  if (months === 1) return "Created 1 month ago";
-  return `Created ${months} months ago`;
+  if (months < 12) return `${months}mo ago`;
+  const years = Math.floor(months / 12);
+  return `${years}y ago`;
 }
 
-function getGoalXP(entity: MentionEntity): number {
-  if (entity.priority === "p1") return XP_VALUES.GOAL_P1_COMPLETE;
-  if (entity.impact === "high") return XP_VALUES.GOAL_HIGH_IMPACT_COMPLETE;
-  return XP_VALUES.GOAL_COMPLETE;
-}
+const statusDisplay: Record<string, { label: string; color: string }> = {
+  pending: { label: "Pending", color: colors.status.pending },
+  in_progress: { label: "In Progress", color: colors.status.active },
+  active: { label: "Active", color: colors.status.active },
+  completed: { label: "Completed", color: colors.status.completed },
+  archived: { label: "Archived", color: colors.status.archived },
+  paused: { label: "Paused", color: colors.status.paused },
+};
 
-// ---------------------------------------------------------------------------
-// Shared connected-notes section
-// ---------------------------------------------------------------------------
+const impactDisplay: Record<string, { label: string; color: string }> = {
+  low: { label: "Low", color: colors.impact.low },
+  medium: { label: "Medium", color: colors.impact.medium },
+  high: { label: "High", color: colors.impact.high },
+};
 
-function ConnectedNotesSection({
-  notes,
-  loading,
-  onNavigate,
-}: {
-  notes: ConnectedNote[] | undefined;
-  loading: boolean;
-  onNavigate?: (type: string, id: string) => void;
-}) {
-  return (
-    <View style={styles.connectedSection}>
-      <Text style={styles.connectedTitle}>Connected Notes</Text>
-      {loading ? (
-        <ActivityIndicator size="small" color={colors.text.muted} style={styles.loader} />
-      ) : notes && notes.length > 0 ? (
-        <View style={styles.connectedList}>
-          {notes.map((note) => (
-            <Pressable
-              key={note.id}
-              style={({ pressed }) => [
-                styles.connectedNoteItem,
-                pressed && { opacity: 0.7 },
-              ]}
-              onPress={() => onNavigate?.("note", note.id)}
-            >
-              <FileText size={14} color={colors.status.active} />
-              <View style={styles.connectedNoteText}>
-                <Text style={styles.connectedItemTitle} numberOfLines={1}>
-                  {note.title}
-                </Text>
-                {note.preview ? (
-                  <Text style={styles.connectedItemPreview} numberOfLines={1}>
-                    {note.preview}
-                  </Text>
-                ) : null}
-              </View>
-              <ChevronRight size={14} color={colors.text.muted} />
-            </Pressable>
-          ))}
-        </View>
-      ) : (
-        <Text style={styles.connectedEmpty}>No connected notes yet</Text>
-      )}
-    </View>
-  );
+function pillTint(color: string) {
+  return {
+    backgroundColor: color + "18",
+    borderColor: color + "35",
+  };
 }
 
 // ---------------------------------------------------------------------------
-// Sub-components for each entity type
-// ---------------------------------------------------------------------------
-
-function GoalDetails({
-  entity,
-  onNavigate,
-}: {
-  entity: MentionEntity;
-  onNavigate?: (type: string, id: string) => void;
-}) {
-  const updateGoal = useUpdateGoal(api);
-  const status = entity.status ?? "pending";
-  const pri = entity.priority ? priorityLabels[entity.priority] : null;
-  const imp = entity.impact ? impactLabels[entity.impact] : null;
-  const progress =
-    status === "completed" ? 1 : status === "in_progress" ? 0.5 : 0;
-  const created = createdAgoLabel(entity.createdAt);
-
-  const [showConfetti, setShowConfetti] = useState(false);
-  const [xpDelta, setXpDelta] = useState<number | null>(null);
-
-  const { data: connectedNotes, isLoading: notesLoading } = useQuery({
-    queryKey: ["connected-notes", "goal", entity.id],
-    queryFn: () => fetchConnectedNotes("goal", entity.id),
-    staleTime: 60_000,
-  });
-
-  const { data: connectedHabits, isLoading: habitsLoading } = useQuery({
-    queryKey: ["connected-habits", entity.id],
-    queryFn: () => fetchConnectedHabits(entity.id),
-    staleTime: 60_000,
-  });
-
-  return (
-    <View style={styles.detailsContainer}>
-      {/* XP burst overlay */}
-      {showConfetti && (
-        <ConfettiBurst
-          particleCount={20}
-          onComplete={() => setShowConfetti(false)}
-        />
-      )}
-      {xpDelta !== null && (
-        <XPFloat amount={xpDelta} onComplete={() => setXpDelta(null)} />
-      )}
-
-      {/* Status row */}
-      <View style={styles.row}>
-        <Text style={styles.label}>Status</Text>
-        <View style={styles.statusChipRow}>
-          {["pending", "in_progress", "completed"].map((goalStatus) => (
-            <Chip
-              key={goalStatus}
-              label={goalStatus === "in_progress" ? "In Prog" : capitalize(goalStatus)}
-              selected={status === goalStatus}
-              color={statusColors[goalStatus] ?? colors.status.pending}
-              size="sm"
-              onPress={() => {
-                updateGoal.mutate({ id: entity.id, status: goalStatus });
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                // XP burst when completing
-                if (goalStatus === "completed" && status !== "completed") {
-                  setShowConfetti(true);
-                  setXpDelta(getGoalXP(entity));
-                }
-              }}
-            />
-          ))}
-        </View>
-      </View>
-
-      {/* Priority */}
-      {pri && (
-        <View style={styles.row}>
-          <Text style={styles.label}>Priority</Text>
-          <Text style={[styles.value, { color: pri.color }]}>
-            {pri.label}
-          </Text>
-        </View>
-      )}
-
-      {/* Impact */}
-      {imp && (
-        <View style={styles.row}>
-          <Text style={styles.label}>Impact</Text>
-          <Text style={[styles.value, { color: imp.color }]}>
-            {imp.label}
-          </Text>
-        </View>
-      )}
-
-      {/* Progress bar */}
-      <View style={styles.progressRow}>
-        <ProgressBar value={progress} color={colors.accent.indigo} height={4} />
-      </View>
-
-      {/* Project */}
-      {entity.projectName && (
-        <View style={styles.row}>
-          <Text style={styles.label}>Project</Text>
-          <Text style={styles.value}>{entity.projectName}</Text>
-        </View>
-      )}
-
-      {/* Created date */}
-      {created && (
-        <View style={styles.row}>
-          <Text style={styles.label}>Created</Text>
-          <View style={styles.createdRow}>
-            <Calendar size={14} color={colors.text.muted} />
-            <Text style={styles.value}>{created}</Text>
-          </View>
-        </View>
-      )}
-
-      {/* Connected Notes */}
-      <ConnectedNotesSection
-        notes={connectedNotes}
-        loading={notesLoading}
-        onNavigate={onNavigate}
-      />
-
-      {/* Connected Habits */}
-      <View style={styles.connectedSection}>
-        <Text style={styles.connectedTitle}>Connected Habits</Text>
-        {habitsLoading ? (
-          <ActivityIndicator size="small" color={colors.text.muted} style={styles.loader} />
-        ) : connectedHabits && connectedHabits.length > 0 ? (
-          <View style={styles.connectedList}>
-            {connectedHabits.map((habit) => (
-              <View key={habit.id} style={styles.connectedHabitItem}>
-                <Repeat size={14} color={colors.feedback.success} />
-                <Text style={styles.connectedItemTitle} numberOfLines={1}>
-                  {habit.title}
-                </Text>
-                <Text style={styles.connectedItemMeta}>
-                  {capitalize(habit.frequency)}
-                </Text>
-              </View>
-            ))}
-          </View>
-        ) : (
-          <Text style={styles.connectedEmpty}>No connected habits yet</Text>
-        )}
-      </View>
-    </View>
-  );
-}
-
-function HabitDetails({
-  entity,
-  onNavigate,
-}: {
-  entity: MentionEntity;
-  onNavigate?: (type: string, id: string) => void;
-}) {
-  const streak = entity.streak ?? 0;
-  const frequency = entity.frequency ?? "daily";
-  const created = createdAgoLabel(entity.createdAt);
-
-  const { data: connectedNotes, isLoading: notesLoading } = useQuery({
-    queryKey: ["connected-notes", "habit", entity.id],
-    queryFn: () => fetchConnectedNotes("habit", entity.id),
-    staleTime: 60_000,
-  });
-
-  return (
-    <View style={styles.detailsContainer}>
-      {/* Frequency */}
-      <View style={styles.row}>
-        <Text style={styles.label}>Frequency</Text>
-        <Text style={styles.value}>{capitalize(frequency)}</Text>
-      </View>
-
-      {/* Streak */}
-      <View style={styles.row}>
-        <Text style={styles.label}>Current Streak</Text>
-        <View style={styles.streakRow}>
-          <Flame size={16} color={colors.streak.orange} />
-          <Text style={[styles.value, { color: colors.streak.orange }]}>
-            {streak} {streak === 1 ? "day" : "days"}
-          </Text>
-        </View>
-      </View>
-
-      {/* Created date */}
-      {created && (
-        <View style={styles.row}>
-          <Text style={styles.label}>Created</Text>
-          <View style={styles.createdRow}>
-            <Calendar size={14} color={colors.text.muted} />
-            <Text style={styles.value}>{created}</Text>
-          </View>
-        </View>
-      )}
-
-      {/* Connected Notes */}
-      <ConnectedNotesSection
-        notes={connectedNotes}
-        loading={notesLoading}
-        onNavigate={onNavigate}
-      />
-    </View>
-  );
-}
-
-function NoteDetails({ entity }: { entity: MentionEntity }) {
-  return (
-    <View style={styles.detailsContainer}>
-      <Text style={styles.previewText}>
-        Tap below to read the full note.
-      </Text>
-    </View>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Main Component
+// Component
 // ---------------------------------------------------------------------------
 
 export const MentionPeekSheet = forwardRef<BottomSheet, MentionPeekSheetProps>(
   ({ entity, onDismiss, onNavigate }, ref) => {
-    const snapPoints = useMemo(() => ["50%"], []);
-
     const renderBackdrop = useCallback(
       (props: BottomSheetBackdropProps) => (
         <BottomSheetBackdrop
@@ -460,68 +203,222 @@ export const MentionPeekSheet = forwardRef<BottomSheet, MentionPeekSheetProps>(
       onNavigate(entity.type, entity.id);
     }, [entity, onDismiss, onNavigate]);
 
-    if (!entity) return null;
+    // --- Connected knowledge queries (hooks called unconditionally) ---
+    const { data: connectedNotes, isLoading: notesLoading } = useQuery({
+      queryKey: ["connected-notes", entity?.type, entity?.id],
+      queryFn: () => fetchConnectedNotes(entity!.type, entity!.id),
+      enabled: !!entity && entity.type !== "note",
+      staleTime: 60_000,
+    });
+
+    const { data: connectedHabits } = useQuery({
+      queryKey: ["connected-habits", entity?.id],
+      queryFn: () => fetchConnectedHabits(entity!.id),
+      enabled: !!entity && entity.type === "goal",
+      staleTime: 60_000,
+    });
+
+    // --- Derived display data ---
+    const status = entity?.status ? statusDisplay[entity.status] : null;
+    const impact = entity?.impact ? impactDisplay[entity.impact] : null;
+    const time = timeAgo(entity?.createdAt);
+
+    const metaParts: string[] = [];
+    if (entity?.projectName) metaParts.push(entity.projectName);
+    if (time) metaParts.push(time);
+    const metaLine = metaParts.join("  ·  ");
+
+    const allConnected: ConnectedItem[] = [
+      ...(connectedNotes ?? []).map(
+        (n) => ({ ...n, kind: "note" as const }),
+      ),
+      ...(connectedHabits ?? []).map(
+        (h) => ({ ...h, kind: "habit" as const }),
+      ),
+    ];
+    const hasConnections = allConnected.length > 0;
 
     return (
       <BottomSheet
         ref={ref}
         index={-1}
-        snapPoints={snapPoints}
+        enableDynamicSizing
         enablePanDownToClose
         backgroundStyle={styles.sheetBg}
-        handleIndicatorStyle={styles.handleIndicator}
+        handleIndicatorStyle={styles.handle}
         backdropComponent={renderBackdrop}
         onChange={(index) => {
-          if (index >= 0) {
+          if (index >= 0)
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          }
-          if (index === -1) {
-            onDismiss();
-          }
+          if (index === -1) onDismiss();
         }}
       >
-        <BottomSheetView style={styles.sheetContent}>
-          {/* Header: icon + title */}
-          <View style={styles.sheetHeader}>
-            <View
-              style={[
-                styles.typeIconContainer,
-                { backgroundColor: typeColor(entity.type) + "18" },
-              ]}
-            >
-              {typeIcon(entity.type)}
-            </View>
-            <View style={styles.sheetTitleWrap}>
-              <Text style={styles.sheetTitle} numberOfLines={2}>
-                {entity.title}
-              </Text>
-              <Text style={styles.sheetSubtitle}>
-                {capitalize(entity.type)}
-              </Text>
-            </View>
-          </View>
+        <BottomSheetView style={styles.content}>
+          {entity && (
+            <>
+              {/* ── Hero ── */}
+              <View style={styles.hero}>
+                <View style={styles.heroRow}>
+                  <View
+                    style={[
+                      styles.iconBox,
+                      { backgroundColor: typeColor(entity.type) + "14" },
+                    ]}
+                  >
+                    {typeIcon(entity.type)}
+                  </View>
+                  <Text style={styles.title} numberOfLines={2}>
+                    {entity.title}
+                  </Text>
+                </View>
 
-          {/* Divider */}
-          <View style={styles.sheetDivider} />
+                {/* Pills — type-specific */}
+                <View style={styles.pills}>
+                  {entity.type === "goal" && status && (
+                    <View style={[styles.pill, pillTint(status.color)]}>
+                      <View
+                        style={[
+                          styles.dot,
+                          { backgroundColor: status.color },
+                        ]}
+                      />
+                      <Text
+                        style={[styles.pillLabel, { color: status.color }]}
+                      >
+                        {status.label}
+                      </Text>
+                    </View>
+                  )}
+                  {entity.type === "goal" && impact && (
+                    <View style={[styles.pill, pillTint(impact.color)]}>
+                      <Text
+                        style={[styles.pillLabel, { color: impact.color }]}
+                      >
+                        {impact.label}
+                      </Text>
+                    </View>
+                  )}
+                  {entity.type === "habit" && (
+                    <View style={[styles.pill, pillTint(colors.text.muted)]}>
+                      <Text
+                        style={[
+                          styles.pillLabel,
+                          { color: colors.text.secondary },
+                        ]}
+                      >
+                        {capitalize(entity.frequency ?? "daily")}
+                      </Text>
+                    </View>
+                  )}
+                  {entity.type === "habit" && (entity.streak ?? 0) > 0 && (
+                    <View
+                      style={[styles.pill, pillTint(colors.streak.orange)]}
+                    >
+                      <Text
+                        style={[
+                          styles.pillLabel,
+                          { color: colors.streak.orange },
+                        ]}
+                      >
+                        🔥 {entity.streak}d
+                      </Text>
+                    </View>
+                  )}
+                </View>
 
-          {/* Type-specific details */}
-          {entity.type === "goal" && <GoalDetails entity={entity} onNavigate={onNavigate} />}
-          {entity.type === "habit" && <HabitDetails entity={entity} onNavigate={onNavigate} />}
-          {entity.type === "note" && <NoteDetails entity={entity} />}
+                {/* Meta line */}
+                {metaLine.length > 0 && (
+                  <Text style={styles.meta}>{metaLine}</Text>
+                )}
+              </View>
 
-          {/* Open full detail link */}
-          <Pressable
-            style={({ pressed }) => [
-              styles.openFullBtn,
-              pressed && styles.openFullBtnPressed,
-            ]}
-            onPress={handleNavigate}
-          >
-            <ArrowUpRight size={18} color={colors.accent.indigo} />
-            <Text style={styles.openFullText}>Open Full Detail</Text>
-            <View style={styles.headerSpacer} />
-            <ChevronRight size={18} color={colors.text.muted} />
-          </Pressable>
+              {/* ── Connected ── */}
+              {(hasConnections || notesLoading) && (
+                <>
+                  <View style={styles.divider} />
+                  <View style={styles.section}>
+                    <Text style={styles.sectionLabel}>Connected</Text>
+                    {notesLoading ? (
+                      <ActivityIndicator
+                        size="small"
+                        color={colors.text.muted}
+                        style={{ alignSelf: "flex-start", marginTop: 4 }}
+                      />
+                    ) : (
+                      <View style={styles.listCard}>
+                        {allConnected.map((item, i) => (
+                          <Fragment key={item.id}>
+                            {i > 0 && <View style={styles.listDivider} />}
+                            <Pressable
+                              onPress={() =>
+                                onNavigate?.(item.kind, item.id)
+                              }
+                              style={({ pressed }) =>
+                                pressed ? { opacity: 0.6 } : undefined
+                              }
+                            >
+                              <View style={styles.listItem}>
+                                {item.kind === "note" ? (
+                                  <FileText
+                                    size={15}
+                                    color={colors.status.active}
+                                  />
+                                ) : (
+                                  <Repeat
+                                    size={15}
+                                    color={colors.feedback.success}
+                                  />
+                                )}
+                                <View style={styles.listItemText}>
+                                  <Text
+                                    style={styles.listItemTitle}
+                                    numberOfLines={1}
+                                  >
+                                    {item.title}
+                                  </Text>
+                                  {item.kind === "note" && item.preview ? (
+                                    <Text
+                                      style={styles.listItemSub}
+                                      numberOfLines={1}
+                                    >
+                                      {item.preview}
+                                    </Text>
+                                  ) : item.kind === "habit" ? (
+                                    <Text style={styles.listItemSub}>
+                                      {capitalize(item.frequency)}
+                                    </Text>
+                                  ) : null}
+                                </View>
+                                <ChevronRight
+                                  size={14}
+                                  color={colors.text.muted}
+                                />
+                              </View>
+                            </Pressable>
+                          </Fragment>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                </>
+              )}
+
+              {/* ── CTA ── */}
+              <Pressable
+                onPress={handleNavigate}
+                style={({ pressed }) =>
+                  pressed ? { opacity: 0.7 } : undefined
+                }
+              >
+                <View style={styles.cta}>
+                  <Text style={styles.ctaText}>
+                    Open {capitalize(entity.type)}
+                  </Text>
+                  <ChevronRight size={16} color={colors.accent.indigo} />
+                </View>
+              </Pressable>
+            </>
+          )}
         </BottomSheetView>
       </BottomSheet>
     );
@@ -540,195 +437,136 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
   },
-  handleIndicator: {
+  handle: {
     backgroundColor: "#404040",
     width: 36,
     height: 4,
   },
-  sheetContent: {
-    flex: 1,
-    paddingHorizontal: 20,
-    paddingBottom: 40,
+  content: {
+    paddingHorizontal: 24,
+    paddingBottom: 44,
   },
-  // Header
-  sheetHeader: {
-    flexDirection: "row",
-    alignItems: "center",
+
+  // Hero
+  hero: {
     gap: 14,
     paddingTop: 8,
   },
-  typeIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+  heroRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 14,
+  },
+  iconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
   },
-  sheetTitleWrap: {
+  title: {
     flex: 1,
-  },
-  sheetTitle: {
     fontSize: 20,
     fontWeight: "700",
     color: colors.text.primary,
     lineHeight: 26,
+    paddingTop: 2,
   },
-  sheetSubtitle: {
-    fontSize: 13,
-    color: colors.text.muted,
-    marginTop: 2,
-  },
-  sheetDivider: {
-    height: 1,
-    backgroundColor: colors.border.default,
-    marginVertical: 16,
-  },
-  // Details
-  detailsContainer: {
-    gap: 14,
-  },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  label: {
-    fontSize: 14,
-    color: colors.text.muted,
-    fontWeight: "500",
-  },
-  value: {
-    fontSize: 14,
-    color: colors.text.secondary,
-    fontWeight: "500",
-  },
-  statusPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderWidth: 1,
-  },
-  statusDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-  },
-  statusText: {
-    fontSize: 13,
-    fontWeight: "600",
-  },
-  streakRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  createdRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  progressRow: {
-    paddingVertical: 4,
-  },
-  statusChipRow: {
+
+  // Pills
+  pills: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8,
-    justifyContent: "flex-end",
   },
-  connectedSection: {
-    paddingTop: 4,
-    gap: 4,
-  },
-  connectedTitle: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: colors.text.muted,
-    letterSpacing: 1,
-    textTransform: "uppercase",
-  },
-  connectedList: {
+  pill: {
+    flexDirection: "row",
+    alignItems: "center",
     gap: 6,
-  },
-  connectedNoteItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingVertical: 8,
     paddingHorizontal: 10,
-    backgroundColor: colors.bg.surface,
+    paddingVertical: 5,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: colors.border.default,
   },
-  connectedNoteText: {
-    flex: 1,
-    gap: 2,
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
-  connectedHabitItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    backgroundColor: colors.bg.surface,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border.default,
-  },
-  connectedItemTitle: {
+  pillLabel: {
     fontSize: 13,
     fontWeight: "600",
-    color: colors.text.primary,
   },
-  connectedItemPreview: {
-    fontSize: 12,
-    color: colors.text.muted,
-  },
-  connectedItemMeta: {
-    fontSize: 12,
-    color: colors.text.muted,
-    marginLeft: "auto",
-  },
-  connectedEmpty: {
+
+  // Meta
+  meta: {
     fontSize: 13,
     color: colors.text.muted,
-    fontStyle: "italic",
   },
-  loader: {
-    alignSelf: "flex-start",
-    marginVertical: 4,
+
+  // Divider
+  divider: {
+    height: 1,
+    backgroundColor: colors.border.default,
+    marginVertical: 20,
   },
-  previewText: {
-    fontSize: 14,
-    color: colors.text.secondary,
-    lineHeight: 20,
+
+  // Connected section
+  section: {
+    gap: 12,
   },
-  // Open full detail button
-  openFullBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    marginTop: 20,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+  sectionLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.text.muted,
+  },
+  listCard: {
     backgroundColor: colors.bg.surface,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: colors.border.default,
+    overflow: "hidden",
   },
-  openFullBtnPressed: {
-    opacity: 0.7,
+  listDivider: {
+    height: 1,
+    backgroundColor: colors.border.default,
+    marginLeft: 42,
   },
-  openFullText: {
+  listItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+  },
+  listItemText: {
+    flex: 1,
+    gap: 2,
+  },
+  listItemTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.text.primary,
+  },
+  listItemSub: {
+    fontSize: 12,
+    color: colors.text.muted,
+  },
+
+  // CTA
+  cta: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginTop: 24,
+    paddingVertical: 16,
+    backgroundColor: colors.accent.indigoMuted,
+    borderRadius: 14,
+  },
+  ctaText: {
     fontSize: 15,
     fontWeight: "600",
     color: colors.accent.indigo,
-  },
-  headerSpacer: {
-    flex: 1,
   },
 });
