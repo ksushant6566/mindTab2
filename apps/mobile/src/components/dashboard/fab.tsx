@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback } from "react";
 import {
   Pressable,
   StyleSheet,
@@ -29,7 +29,7 @@ import { springs } from "~/lib/animations";
 
 type FABProps = {
   visible: boolean;
-  contextFilter?: "goal" | "habit" | "note";
+  contextFilter?: "goal" | "habit" | "note" | "project";
 };
 
 const MENU_OPTIONS = [

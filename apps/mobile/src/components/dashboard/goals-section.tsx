@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
@@ -89,7 +89,6 @@ export function GoalsSection({ projectId }: GoalsSectionProps) {
   const displayedPending = pendingGoals.slice(0, 3);
   const displayedGoals = [...displayedInProgress, ...displayedPending];
 
-  const remainingPendingCount = pendingGoals.length - displayedPending.length;
 
   useEffect(() => {
     if (!celebrationGoalId) return;
