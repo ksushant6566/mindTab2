@@ -17,6 +17,8 @@ type StreakFlameProps = {
   size?: number;
   showCount?: boolean;
   burst?: boolean;
+  /** Render the count overlaid on top of the flame icon */
+  overlay?: boolean;
 };
 
 export function getFlameColor(count: number): string {
@@ -32,6 +34,7 @@ export function StreakFlame({
   size = 16,
   showCount = true,
   burst = false,
+  overlay = false,
 }: StreakFlameProps) {
   const scale = useSharedValue(1);
   const flameColor = getFlameColor(count);
@@ -63,6 +66,33 @@ export function StreakFlame({
     transform: [{ scale: scale.value }],
   }));
 
+  if (overlay) {
+    const overlayFontSize = size * 0.38;
+    return (
+      <View style={styles.overlayContainer}>
+        <Animated.View style={animatedStyle}>
+          <Flame
+            size={size}
+            color={flameColor}
+            fill={count > 0 ? flameColor : "transparent"}
+          />
+          {showCount && count > 0 && (
+            <View style={styles.overlayTextWrap}>
+              <Text
+                style={[
+                  styles.overlayCount,
+                  { fontSize: overlayFontSize, lineHeight: overlayFontSize * 1.2 },
+                ]}
+              >
+                {count}
+              </Text>
+            </View>
+          )}
+        </Animated.View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <Animated.View style={animatedStyle}>
@@ -84,5 +114,20 @@ const styles = StyleSheet.create({
   count: {
     fontSize: 13,
     fontWeight: "600",
+  },
+  overlayContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  overlayTextWrap: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingTop: 4,
+  },
+  overlayCount: {
+    fontWeight: "800",
+    color: "#0a0a0a",
+    textAlign: "center",
   },
 });

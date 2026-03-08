@@ -13,14 +13,6 @@ import { StreakFlame } from "~/components/ui/streak-flame";
 import { useAuth } from "~/hooks/use-auth";
 import { api } from "~/lib/api-client";
 
-function getAvatarBorderColor(streak: number): string {
-  if (streak >= 100) return colors.streak.purple;
-  if (streak >= 30) return colors.streak.purple;
-  if (streak >= 7) return colors.streak.gold;
-  if (streak >= 1) return colors.streak.orange;
-  return colors.border.default;
-}
-
 function interpolateColor(progress: number): string {
   const r = Math.round(129 + (250 - 129) * progress);
   const g = Math.round(140 + (204 - 140) * progress);
@@ -50,68 +42,59 @@ export function DashboardHeader({ xpBarGlowing = false }: DashboardHeaderProps) 
   const xp = user?.xp ?? 0;
   const { level, progress, xpToNext, nextLevelXP } = getXPProgress(xp);
 
-  const dateStr = new Date().toLocaleDateString("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-  });
-
-  const avatarBorderColor = getAvatarBorderColor(streak);
   const xpBarColor = interpolateColor(progress);
   const initial = (user?.name?.[0] ?? "").toUpperCase();
 
   return (
     <View style={styles.container}>
-      {/* Row 1: Date (left), Search + Avatar (right) */}
-      <View style={styles.topRow}>
-        <Text style={styles.date}>{dateStr}</Text>
-        <View style={styles.actions}>
-          <Pressable
-            onPress={() => router.push("/(modals)/command-palette")}
-            style={styles.searchButton}
-          >
-            <Search size={20} color={colors.text.secondary} />
-          </Pressable>
-          <Pressable onPress={() => router.push("/(modals)/profile")}>
-            {user?.image ? (
-              <Image
-                source={{ uri: user.image }}
-                style={[
-                  styles.avatar,
-                  { borderColor: avatarBorderColor, shadowColor: avatarBorderColor },
-                ]}
-              />
-            ) : (
-              <View
-                style={[
-                  styles.avatarFallback,
-                  { borderColor: avatarBorderColor, shadowColor: avatarBorderColor },
-                ]}
-              >
-                <Text style={styles.avatarFallbackText}>{initial}</Text>
-              </View>
-            )}
-          </Pressable>
-        </View>
+      <View style={styles.row}>
+        {/* Avatar */}
+        <Pressable onPress={() => router.push("/(modals)/profile")}>
+          {user?.image ? (
+            <Image source={{ uri: user.image }} style={styles.avatar} />
+          ) : (
+            <View style={styles.avatarFallback}>
+              <Text style={styles.avatarFallbackText}>{initial}</Text>
+            </View>
+          )}
+        </Pressable>
+
+        {/* XP section: label on top, bar below */}
+        <Pressable style={styles.xpSection} onPress={toggleXpTooltip}>
+          <View style={styles.xpLabelRow}>
+            <Text style={styles.levelText}>Lv.{level}</Text>
+            <Text style={styles.xpDot}>·</Text>
+            <Text style={styles.xpLabel}>{xp} XP</Text>
+          </View>
+          <ProgressBar
+            value={progress}
+            color={xpBarColor}
+            height={4}
+            glowing={xpBarGlowing}
+          />
+        </Pressable>
+
+        {/* Streak flame with overlaid count */}
+        <StreakFlame count={streak} size={28} showCount overlay />
+
+        {/* Search */}
+        <Pressable
+          onPress={() => router.push("/(modals)/command-palette")}
+          style={styles.searchButton}
+        >
+          <Search size={18} color={colors.text.secondary} />
+        </Pressable>
       </View>
 
-      {/* Row 2: XP bar + level + streak */}
-      <Pressable style={styles.xpRow} onPress={toggleXpTooltip}>
-        <View style={styles.xpBarSection}>
-          <ProgressBar value={progress} color={xpBarColor} height={3} glowing={xpBarGlowing} />
-          <View style={styles.xpMeta}>
-            <Text style={styles.xpLabel}>Lv.{level}</Text>
-            <Text style={styles.xpValue}>{xp} XP</Text>
-          </View>
+      {/* XP tooltip */}
+      {showXpTooltip && (
+        <View style={styles.xpTooltip}>
+          <Text style={styles.xpTooltipText}>
+            {xp} / {nextLevelXP} XP
+          </Text>
+          <Text style={styles.xpTooltipText}>{xpToNext} to next level</Text>
         </View>
-        <StreakFlame count={streak} size={24} showCount />
-        {showXpTooltip && (
-          <View style={styles.xpTooltip}>
-            <Text style={styles.xpTooltipText}>{xp} / {nextLevelXP} XP</Text>
-            <Text style={styles.xpTooltipText}>{xpToNext} to next level</Text>
-          </View>
-        )}
-      </Pressable>
+      )}
     </View>
   );
 }
@@ -120,80 +103,57 @@ const styles = StyleSheet.create({
   container: {
     marginBottom: 16,
   },
-  topRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  date: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: colors.text.primary,
-  },
-  actions: {
+  row: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
   },
-  searchButton: {
-    padding: 4,
-  },
   avatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    borderWidth: 2,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 4,
-    elevation: 4,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
   },
   avatarFallback: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    borderWidth: 2,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 4,
-    elevation: 4,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: colors.accent.indigo,
     alignItems: "center",
     justifyContent: "center",
   },
   avatarFallbackText: {
     color: "#FFFFFF",
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: "bold",
   },
-  xpRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 10,
-  },
-  xpBarSection: {
+  xpSection: {
     flex: 1,
-    marginRight: 12,
+    gap: 4,
   },
-  xpMeta: {
+  xpLabelRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    marginTop: 3,
+    gap: 4,
   },
-  xpLabel: {
-    fontSize: 11,
-    fontWeight: "600",
+  levelText: {
+    fontSize: 12,
+    fontWeight: "700",
     color: colors.text.muted,
   },
-  xpValue: {
-    fontSize: 11,
+  xpDot: {
+    fontSize: 12,
+    color: colors.text.muted,
+  },
+  xpLabel: {
+    fontSize: 12,
+    fontWeight: "600",
     color: colors.xp.gold,
   },
+  searchButton: {
+    padding: 6,
+  },
   xpTooltip: {
-    position: "absolute",
-    top: -24,
-    left: 0,
+    marginTop: 8,
     backgroundColor: colors.bg.elevated,
     borderWidth: 1,
     borderColor: colors.border.default,
@@ -202,6 +162,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     flexDirection: "row",
     gap: 8,
+    alignSelf: "flex-start",
   },
   xpTooltipText: {
     fontSize: 11,
