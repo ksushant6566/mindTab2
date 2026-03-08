@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useMemo, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import {
   View,
   Text,
@@ -7,7 +7,6 @@ import {
   Alert,
   Platform,
   StyleSheet,
-  useWindowDimensions,
   Keyboard,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -15,7 +14,6 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   journalQueryOptions,
-  journalsQueryOptions,
   goalQueryOptions,
   habitQueryOptions,
   useDeleteJournal,
@@ -31,8 +29,6 @@ import {
   Trash2,
 } from "lucide-react-native";
 import { colors } from "~/styles/colors";
-import { WebView } from "react-native-webview";
-import type { WebViewMessageEvent } from "react-native-webview";
 import Animated, {
   FadeIn,
   FadeOut,
@@ -41,11 +37,11 @@ import Animated, {
   withTiming,
   withSpring,
   withDelay,
-  runOnJS,
+  withSequence,
 } from "react-native-reanimated";
-import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import BottomSheet from "@gorhom/bottom-sheet";
 import { MentionPeekSheet } from "~/components/reader/mention-peek-sheet";
+import { NotePager } from "~/components/reader/note-pager";
 import { springs } from "~/lib/animations";
 import { readerTypography } from "~/styles/tokens";
 import {
@@ -62,193 +58,22 @@ import {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
-}
-
 function capitalize(s: string | undefined | null): string {
   if (!s) return "";
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-// ---------------------------------------------------------------------------
-// WebView HTML builder with immersive reader CSS
-// ---------------------------------------------------------------------------
-
-function buildReaderHtml(content: string): string {
-  return `<!DOCTYPE html>
-<html>
-<head>
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      font-size: 18px;
-      line-height: 1.75;
-      color: #e5e5e5;
-      background-color: #0a0a0a;
-      padding: 0 24px;
-      margin: 0 auto;
-      max-width: 640px;
-      -webkit-font-smoothing: antialiased;
-      -webkit-text-size-adjust: 100%;
-    }
-    h2 { font-size: 24px; font-weight: 600; line-height: 1.3; color: #fafafa; margin: 24px 0 12px; }
-    h3 { font-size: 20px; font-weight: 600; line-height: 1.4; color: #fafafa; margin: 20px 0 10px; }
-    p { margin: 0 0 20px; }
-    strong, b { font-weight: 600; color: #fafafa; }
-    a { color: #818cf8; text-decoration: none; }
-    code { font-family: 'SF Mono', 'Roboto Mono', monospace; font-size: 15px; line-height: 1.5; color: #a3e635; background: #1c1c1c; padding: 2px 6px; border-radius: 4px; }
-    pre { background: #1c1c1c; padding: 16px; border-radius: 8px; overflow-x: auto; }
-    pre code { padding: 0; background: none; }
-    blockquote { border-left: 3px solid #262626; padding-left: 16px; margin: 16px 0; color: #a3a3a3; font-style: italic; }
-    img { max-width: 100%; border-radius: 8px; }
-    hr { border: none; border-top: 1px solid #1a1a1a; margin: 24px 0; }
-    ul, ol { padding-left: 24px; }
-    li { margin: 4px 0; }
-
-    /* @mention inline cards */
-    .mention-card,
-    span[data-type="mention"],
-    .mention {
-      display: inline-flex;
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 4px;
-      background: #141414;
-      border: 1px solid #262626;
-      border-radius: 8px;
-      padding: 8px 12px;
-      margin: 4px 0;
-      cursor: pointer;
-      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-      font-size: 15px;
-      font-weight: 500;
-      line-height: 1.4;
-      color: #fafafa;
-    }
-    .mention-card:active,
-    span[data-type="mention"]:active,
-    .mention:active { opacity: 0.7; }
-    .mention-top { display: flex; align-items: center; gap: 6px; }
-    .mention-icon { font-size: 14px; }
-    .mention-meta { font-size: 12px; color: #a3a3a3; line-height: 1.3; }
-  </style>
-</head>
-<body>
-  ${content}
-  <div style="height: 40px;"></div>
-  <script>
-    // Communicate content height to React Native for auto-sizing
-    function sendHeight() {
-      var h = document.documentElement.scrollHeight || document.body.scrollHeight;
-      window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'resize', height: h }));
-    }
-    // Step 3.3: Inject type icons into mention cards
-    function addMentionIcons() {
-      document.querySelectorAll('[data-type="mention"], .mention, .mention-card').forEach(function(el) {
-        if (el.querySelector('.mention-icon')) return;
-        var rawId = el.getAttribute('data-id') || '';
-        var type = rawId.split(':')[0];
-        var icon = type === 'goal' ? '🎯' : type === 'habit' ? '🔄' : type === 'note' ? '📝' : '';
-        var labelText = el.textContent;
-        el.textContent = '';
-        var topRow = document.createElement('span');
-        topRow.className = 'mention-top';
-        if (icon) {
-          var iconSpan = document.createElement('span');
-          iconSpan.className = 'mention-icon';
-          iconSpan.textContent = icon;
-          topRow.appendChild(iconSpan);
-        }
-        var labelSpan = document.createElement('span');
-        labelSpan.textContent = labelText;
-        topRow.appendChild(labelSpan);
-        el.appendChild(topRow);
-      });
-    }
-
-    // Step 3.4/3.5: Request entity metadata from React Native
-    function requestMentionData() {
-      var ids = [];
-      document.querySelectorAll('[data-type="mention"], .mention, .mention-card').forEach(function(el) {
-        var rawId = el.getAttribute('data-id') || '';
-        if (rawId) ids.push(rawId);
-      });
-      if (ids.length > 0) {
-        window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'request-mention-data', ids: ids }));
-      }
-    }
-
-    // Called from React Native with enriched entity data
-    window.updateMentionCards = function(data) {
-      document.querySelectorAll('[data-type="mention"], .mention, .mention-card').forEach(function(el) {
-        var rawId = el.getAttribute('data-id') || '';
-        var d = data[rawId];
-        if (!d || el.querySelector('.mention-meta')) return;
-        var parts = [];
-        if (d.status) parts.push(d.status.replace(/_/g, ' '));
-        if (d.priority) parts.push(d.priority.toUpperCase());
-        if (d.streak !== undefined) parts.push('🔥 ' + d.streak + 'd');
-        if (d.projectName) parts.push('📁 ' + d.projectName);
-        if (parts.length > 0) {
-          var meta = document.createElement('div');
-          meta.className = 'mention-meta';
-          meta.textContent = parts.join(' · ');
-          el.appendChild(meta);
-        }
-      });
-      sendHeight();
-    };
-
-    window.addEventListener('load', function() {
-      setTimeout(function() { sendHeight(); addMentionIcons(); requestMentionData(); }, 100);
-    });
-    new MutationObserver(sendHeight).observe(document.body, { childList: true, subtree: true });
-    window.addEventListener('resize', sendHeight);
-
-    // Tap to toggle header
-    document.addEventListener('click', function(e) {
-      // Only fire on body/text taps, not on mentions or links
-      if (e.target === document.body || e.target.tagName === 'P' || e.target.tagName === 'DIV') {
-        window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'toggle-header' }));
-      }
-    });
-
-    // Mention click handler
-    document.addEventListener('click', function(e) {
-      var el = e.target;
-      while (el && el !== document.body) {
-        if (el.getAttribute('data-type') === 'mention' || el.classList.contains('mention') || el.classList.contains('mention-card')) {
-          e.preventDefault();
-          var rawId = el.getAttribute('data-id') || '';
-          var idColonIdx = rawId.indexOf(':');
-          var type = idColonIdx > 0 ? rawId.substring(0, idColonIdx) : 'unknown';
-          var id = idColonIdx > 0 ? rawId.substring(idColonIdx + 1) : rawId;
-          window.ReactNativeWebView.postMessage(JSON.stringify({
-            type: 'mention-click',
-            resourceType: type,
-            id: id,
-            label: el.textContent || ''
-          }));
-          return;
-        }
-        el = el.parentElement;
-      }
-    });
-  </script>
-</body>
-</html>`;
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
 // ---------------------------------------------------------------------------
-// Component
+// Types
 // ---------------------------------------------------------------------------
 
 type MentionEntity = {
@@ -267,15 +92,6 @@ type MentionEntity = {
 // ---------------------------------------------------------------------------
 // In-place editor sub-component (hooks must be called unconditionally)
 // ---------------------------------------------------------------------------
-
-function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
 
 function InPlaceEditor({
   content,
@@ -304,6 +120,10 @@ function InPlaceEditor({
   );
 }
 
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
+
 export default function NoteDetailScreen() {
   const { id, from, projectId: filterProjectId, editing } = useLocalSearchParams<{
     id: string;
@@ -312,127 +132,15 @@ export default function NoteDetailScreen() {
     editing?: string;
   }>();
   const router = useRouter();
-  const { width: screenWidth } = useWindowDimensions();
   const queryClient = useQueryClient();
-  const { data: note, isLoading } = useQuery(journalQueryOptions(api, id));
+  const { data: note, isLoading } = useQuery(
+    journalQueryOptions(api, id),
+  );
   const deleteJournal = useDeleteJournal(api);
 
   // ---------------------------------------------------------------------------
-  // Swipe-between-notes navigation
+  // Header visibility — starts hidden, fades in after entry animation
   // ---------------------------------------------------------------------------
-  const { data: allNotes } = useQuery(
-    journalsQueryOptions(api, {
-      projectId: filterProjectId || undefined,
-    }),
-  );
-
-  const sortedNotes = useMemo(() => {
-    if (!allNotes) return [];
-    return [...allNotes].sort((a, b) => {
-      const aDate = a.updatedAt ?? a.createdAt ?? "";
-      const bDate = b.updatedAt ?? b.createdAt ?? "";
-      return new Date(bDate).getTime() - new Date(aDate).getTime();
-    });
-  }, [allNotes]);
-
-  const noteIds = useMemo(() => sortedNotes.map((n: any) => n.id as string), [sortedNotes]);
-  const currentIndex = noteIds.indexOf(id);
-  const prevNoteTitle = currentIndex > 0 ? (sortedNotes[currentIndex - 1] as any)?.title : null;
-  const nextNoteTitle = currentIndex >= 0 && currentIndex < noteIds.length - 1
-    ? (sortedNotes[currentIndex + 1] as any)?.title : null;
-
-  const swipeTranslateX = useSharedValue(0);
-  const swipeOpacity = useSharedValue(1);
-  const prevScrollY = useRef(0);
-  const currentScrollY = useRef(0);
-
-  const SWIPE_THRESHOLD = 80;
-
-  const navigateToNote = useCallback(
-    (noteId: string) => {
-      router.replace({
-        pathname: "/(main)/notes/[id]",
-        params: {
-          id: noteId,
-          from: from ?? "",
-          ...(filterProjectId ? { projectId: filterProjectId } : {}),
-        },
-      });
-    },
-    [router, from, filterProjectId],
-  );
-
-  const swipeGesture = Gesture.Pan()
-    .activeOffsetX([-20, 20])
-    .failOffsetY([-5, 5])
-    .hitSlop({ left: -20 }) // Guard left edge for native iOS back gesture
-    .onUpdate((event) => {
-      // Provide parallax feedback during swipe
-      swipeTranslateX.value = event.translationX * 0.3;
-    })
-    .onEnd((event) => {
-      if (
-        event.translationX < -SWIPE_THRESHOLD &&
-        currentIndex >= 0 &&
-        currentIndex < noteIds.length - 1
-      ) {
-        // Swipe left -> next note
-        swipeOpacity.value = withTiming(0, { duration: 150 });
-        swipeTranslateX.value = withTiming(-40, { duration: 150 }, () => {
-          runOnJS(navigateToNote)(noteIds[currentIndex + 1]!);
-        });
-        return;
-      }
-
-      if (
-        event.translationX > SWIPE_THRESHOLD &&
-        currentIndex > 0
-      ) {
-        // Swipe right -> previous note
-        swipeOpacity.value = withTiming(0, { duration: 150 });
-        swipeTranslateX.value = withTiming(40, { duration: 150 }, () => {
-          runOnJS(navigateToNote)(noteIds[currentIndex - 1]!);
-        });
-        return;
-      }
-
-      // Snap back – didn't pass threshold
-      swipeTranslateX.value = withSpring(0, springs.snappy);
-      swipeOpacity.value = withTiming(1, { duration: 100 });
-    });
-
-  // Step 5.1: Edge preview opacity tied to swipe translation
-  const prevEdgeOpacity = useAnimatedStyle(() => ({
-    opacity: swipeTranslateX.value > 0
-      ? Math.min(swipeTranslateX.value / 30, 1)
-      : 0,
-  }));
-  const nextEdgeOpacity = useAnimatedStyle(() => ({
-    opacity: swipeTranslateX.value < 0
-      ? Math.min(Math.abs(swipeTranslateX.value) / 30, 1)
-      : 0,
-  }));
-
-  // Step 5.4: Dismiss gesture — scale + opacity feedback
-  const dismissTranslateY = useSharedValue(0);
-  const dismissAnimatedStyle = useAnimatedStyle(() => {
-    const progress = Math.min(dismissTranslateY.value / 200, 1);
-    return {
-      transform: [{ scale: 1 - progress * 0.15 }],
-      opacity: 1 - progress * 0.4,
-    };
-  });
-
-  const swipeAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: swipeTranslateX.value }],
-    opacity: swipeOpacity.value,
-  }));
-
-  // WebView auto-height & ref for metadata injection
-  const [webViewHeight, setWebViewHeight] = useState(400);
-  const readerWebViewRef = useRef<WebView>(null);
-
-  // Step 2.4: Header starts hidden, fades in after entry animation settles
   const headerVisible = useSharedValue(0);
   const headerOpacity = useAnimatedStyle(() => {
     const isShowing = headerVisible.value > 0.5;
@@ -442,7 +150,9 @@ export default function NoteDetailScreen() {
     };
   });
 
-  // Step 2.3: Card-to-reader morph — content scales up from 0.95
+  // ---------------------------------------------------------------------------
+  // Entry animation — card-to-reader morph on initial open
+  // ---------------------------------------------------------------------------
   const entryScale = useSharedValue(0.95);
   const entryOpacity = useSharedValue(0);
   const entryAnimatedStyle = useAnimatedStyle(() => ({
@@ -450,22 +160,46 @@ export default function NoteDetailScreen() {
     opacity: entryOpacity.value,
   }));
 
-  // Steps 2.3 + 2.4: Entry animation — content scales up, then header fades in
   useEffect(() => {
-    entryScale.value = withSpring(1, springs.smooth);
-    entryOpacity.value = withTiming(1, { duration: 300 });
-    // Header fades in after content settles (300ms morph + 100ms delay)
-    headerVisible.value = withDelay(400, withTiming(1, { duration: 150 }));
+    entryScale.value = withSequence(
+      withTiming(0.95, { duration: 0 }),
+      withSpring(1, springs.smooth),
+    );
+    entryOpacity.value = withSequence(
+      withTiming(0, { duration: 0 }),
+      withTiming(1, { duration: 300 }),
+    );
+    headerVisible.value = withSequence(
+      withTiming(0, { duration: 0 }),
+      withDelay(400, withTiming(1, { duration: 150 })),
+    );
   }, []);
 
   const toggleHeader = useCallback(() => {
     headerVisible.value = headerVisible.value > 0.5 ? 0 : 1;
   }, [headerVisible]);
 
+  // ---------------------------------------------------------------------------
+  // Dismiss gesture — vertical swipe down + pinch to close
+  // ---------------------------------------------------------------------------
+  const dismissTranslateY = useSharedValue(0);
+
+  const dismissAnimatedStyle = useAnimatedStyle(() => {
+    const progress = Math.min(dismissTranslateY.value / 200, 1);
+    return {
+      transform: [{ scale: 1 - progress * 0.15 }],
+      opacity: 1 - progress * 0.4,
+    };
+  });
+
+  // ---------------------------------------------------------------------------
   // Overflow menu state
+  // ---------------------------------------------------------------------------
   const [showOverflow, setShowOverflow] = useState(false);
 
+  // ---------------------------------------------------------------------------
   // In-place edit mode
+  // ---------------------------------------------------------------------------
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState("");
   const editorRef = useRef<ReturnType<typeof useEditorBridge> | null>(null);
@@ -531,7 +265,9 @@ export default function NoteDetailScreen() {
     );
   }, [id, updateJournal]);
 
-  // Mention search sheet (Step 1.6)
+  // ---------------------------------------------------------------------------
+  // Mention search sheet (edit mode)
+  // ---------------------------------------------------------------------------
   const mentionSheetRef = useRef<BottomSheet>(null);
 
   const handleMentionBtnPress = useCallback(() => {
@@ -541,7 +277,6 @@ export default function NoteDetailScreen() {
   const handleMentionSelect = useCallback(
     (mention: MentionResult) => {
       mentionSheetRef.current?.close();
-      // Insert mention span into editor via injectJS (HTML-escaped to prevent XSS)
       const safeTitle = escapeHtml(mention.title);
       const safeId = escapeHtml(`${mention.type}:${mention.id}`);
       const mentionHtml = `<span data-type="mention" data-id="${safeId}" class="mention">${safeTitle}</span>&nbsp;`;
@@ -557,7 +292,9 @@ export default function NoteDetailScreen() {
     mentionSheetRef.current?.close();
   }, []);
 
+  // ---------------------------------------------------------------------------
   // Mention peek sheet
+  // ---------------------------------------------------------------------------
   const peekSheetRef = useRef<BottomSheet>(null);
   const [peekEntity, setPeekEntity] = useState<MentionEntity | null>(null);
 
@@ -571,7 +308,7 @@ export default function NoteDetailScreen() {
     }
   }, [from, router]);
 
-  // Step 1.5: Unsaved changes prompt on back/dismiss
+  // Unsaved changes prompt on back/dismiss
   const handleBack = useCallback(async () => {
     if (isEditing) {
       const html = (await editorRef.current?.getHTML()) ?? "";
@@ -621,7 +358,6 @@ export default function NoteDetailScreen() {
 
   const handleMentionPress = useCallback(
     async (type: string, mentionId: string, label: string) => {
-      // Build base entity, then enrich with full data
       let entity: MentionEntity = {
         type: type as "goal" | "habit" | "note",
         id: mentionId,
@@ -695,142 +431,10 @@ export default function NoteDetailScreen() {
     [currentRoute, router],
   );
 
-  // Step 3.4/3.5: Fetch mention metadata and inject into reader WebView
-  const handleMentionDataRequest = useCallback(
-    async (ids: string[]) => {
-      const result: Record<string, any> = {};
-
-      await Promise.all(
-        ids.map(async (rawId) => {
-          const colonIdx = rawId.indexOf(":");
-          if (colonIdx <= 0) return;
-          const type = rawId.substring(0, colonIdx);
-          const entityId = rawId.substring(colonIdx + 1);
-          try {
-            if (type === "goal") {
-              const goal = (await queryClient.fetchQuery(
-                goalQueryOptions(api, entityId),
-              )) as any;
-              if (goal) {
-                result[rawId] = {
-                  status: goal.status,
-                  priority: goal.priority,
-                  projectName: goal.project?.name,
-                };
-              }
-            } else if (type === "habit") {
-              const habit = (await queryClient.fetchQuery(
-                habitQueryOptions(api, entityId),
-              )) as any;
-              if (habit) {
-                result[rawId] = {
-                  streak: habit.currentStreak ?? habit.streak ?? 0,
-                  frequency: habit.frequency,
-                };
-              }
-            } else if (type === "note") {
-              const journal = (await queryClient.fetchQuery(
-                journalQueryOptions(api, entityId),
-              )) as any;
-              if (journal) {
-                result[rawId] = {
-                  projectName: journal.project?.name,
-                };
-              }
-            }
-          } catch {
-            // skip failed fetches
-          }
-        }),
-      );
-
-      // Inject enriched data into the reader WebView
-      readerWebViewRef.current?.injectJavaScript(
-        `window.updateMentionCards(${JSON.stringify(result)}); true;`,
-      );
-    },
-    [queryClient],
-  );
-
-  const handleWebViewMessage = useCallback(
-    (event: WebViewMessageEvent) => {
-      try {
-        const data = JSON.parse(event.nativeEvent.data);
-        if (data.type === "resize" && typeof data.height === "number") {
-          setWebViewHeight(data.height);
-        } else if (data.type === "toggle-header") {
-          toggleHeader();
-        } else if (data.type === "mention-click") {
-          handleMentionPress(data.resourceType, data.id, data.label ?? "");
-        } else if (data.type === "request-mention-data") {
-          handleMentionDataRequest(data.ids);
-        }
-      } catch {
-        // ignore non-JSON messages
-      }
-    },
-    [handleMentionPress, handleMentionDataRequest, toggleHeader],
-  );
-
   const handleDismissPeek = useCallback(() => {
     peekSheetRef.current?.close();
     setPeekEntity(null);
   }, []);
-
-  const handleScroll = useCallback((event: any) => {
-    const currentY = event.nativeEvent.contentOffset.y;
-    currentScrollY.current = currentY;
-    const delta = currentY - prevScrollY.current;
-    // Only hide header once scrolled past 50px AND scrolling downward
-    if (currentY > 50 && delta > 5) {
-      headerVisible.value = 0;
-    } else if (delta < -5) {
-      headerVisible.value = 1;
-    }
-    prevScrollY.current = currentY;
-  }, [headerVisible]);
-
-  const pinchDismissed = useRef(false);
-  const handlePinchDismiss = useCallback(() => {
-    if (pinchDismissed.current) return;
-    pinchDismissed.current = true;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    goBack();
-  }, [goBack]);
-
-  const dismissPan = Gesture.Pan()
-    .activeOffsetY([10, 1000])
-    .failOffsetX([-20, 20])
-    .hitSlop({ left: -20 }) // Step 5.5: Guard left 20px for native iOS back gesture
-    .onUpdate((event) => {
-      // Step 5.4: Visual feedback — only at scroll top to avoid conflict with normal scrolling
-      if (event.translationY > 0 && currentScrollY.current <= 0) {
-        dismissTranslateY.value = event.translationY;
-      }
-    })
-    .onEnd((event) => {
-      // Step 5.3: Velocity-based dismiss at scroll top
-      if (
-        currentScrollY.current <= 0 &&
-        event.translationY > 100 &&
-        event.velocityY > 300
-      ) {
-        runOnJS(handleBack)();
-      } else {
-        dismissTranslateY.value = withSpring(0, springs.snappy);
-      }
-    });
-
-  const dismissPinch = Gesture.Pinch()
-    .onUpdate((event) => {
-      if (event.scale < 0.75) {
-        runOnJS(handlePinchDismiss)();
-      }
-    });
-
-  const dismissGesture = Gesture.Race(dismissPan, dismissPinch);
-
-  const composedGesture = Gesture.Simultaneous(swipeGesture, dismissGesture);
 
   // Auto-enter edit mode when navigated with editing=true
   useEffect(() => {
@@ -845,8 +449,6 @@ export default function NoteDetailScreen() {
   if (isLoading || !note) return <Loading />;
 
   const n = note as any;
-  const noteType: string | undefined = n.type;
-  const projectName: string | undefined = n.project?.name;
 
   return (
     <Animated.View style={[styles.container, entryAnimatedStyle]}>
@@ -874,7 +476,6 @@ export default function NoteDetailScreen() {
         ) : (
           <Pressable
             onPress={() => {
-              const n = note as any;
               setEditTitle(n.title || "");
               lastSavedRef.current = {
                 title: n.title || "",
@@ -921,7 +522,7 @@ export default function NoteDetailScreen() {
         </Pressable>
       )}
 
-      {/* --- Content area: reader or in-place editor --- */}
+      {/* --- Content area: reader pager or in-place editor --- */}
       {isEditing ? (
         <Animated.View
           key="editor"
@@ -953,81 +554,18 @@ export default function NoteDetailScreen() {
           </View>
         </Animated.View>
       ) : (
-        <GestureDetector gesture={composedGesture}>
-          <Animated.View style={[{ flex: 1 }, swipeAnimatedStyle, dismissAnimatedStyle]}>
-            {/* Step 5.1: Edge preview — previous note title */}
-            {prevNoteTitle && (
-              <Animated.View style={[styles.edgePreview, styles.edgePreviewLeft, prevEdgeOpacity]} pointerEvents="none">
-                <Text style={styles.edgePreviewText} numberOfLines={1}>{prevNoteTitle}</Text>
-              </Animated.View>
-            )}
-            {/* Step 5.1: Edge preview — next note title */}
-            {nextNoteTitle && (
-              <Animated.View style={[styles.edgePreview, styles.edgePreviewRight, nextEdgeOpacity]} pointerEvents="none">
-                <Text style={styles.edgePreviewText} numberOfLines={1}>{nextNoteTitle}</Text>
-              </Animated.View>
-            )}
-
-            <Animated.ScrollView
-              onScroll={handleScroll}
-              scrollEventThrottle={16}
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.scrollContent}
-            >
-              {/* Title + meta — tap to toggle header */}
-              <Pressable onPress={toggleHeader}>
-              <Text style={styles.title}>{n.title || "Untitled"}</Text>
-
-              {/* Meta row */}
-              <View style={styles.metaRow}>
-                {n.updatedAt && (
-                  <Text style={styles.metaText}>{formatDate(n.updatedAt)}</Text>
-                )}
-                {projectName && (
-                  <Text style={styles.metaText}>
-                    {"  \u00B7  "}
-                    {projectName}
-                  </Text>
-                )}
-                {noteType && (
-                  <View
-                    style={[
-                      styles.typeBadge,
-                      {
-                        backgroundColor:
-                          (colors.noteType as Record<string, string>)[noteType] ??
-                          colors.accent.indigo,
-                      },
-                    ]}
-                  >
-                    <Text style={styles.typeBadgeText}>
-                      {capitalize(noteType)}
-                    </Text>
-                  </View>
-                )}
-              </View>
-              </Pressable>
-
-              {/* Divider */}
-              <View style={styles.divider} />
-
-              {/* Note body via WebView */}
-              <WebView
-                ref={readerWebViewRef}
-                source={{ html: buildReaderHtml(n.content || "") }}
-                style={{
-                  width: screenWidth - 48,
-                  height: webViewHeight,
-                  backgroundColor: colors.bg.primary,
-                }}
-                scrollEnabled={false}
-                onMessage={handleWebViewMessage}
-                showsVerticalScrollIndicator={false}
-                showsHorizontalScrollIndicator={false}
-              />
-            </Animated.ScrollView>
-          </Animated.View>
-        </GestureDetector>
+        <Animated.View style={[{ flex: 1 }, dismissAnimatedStyle]}>
+          <NotePager
+            currentId={id}
+            filterProjectId={filterProjectId}
+            onToggleHeader={toggleHeader}
+            onMentionPress={handleMentionPress}
+            dismissTranslateY={dismissTranslateY}
+            headerVisible={headerVisible}
+            onDismiss={goBack}
+            scrollEnabled={!isEditing}
+          />
+        </Animated.View>
       )}
 
       {/* --- Mention peek bottom sheet --- */}
@@ -1111,47 +649,6 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     color: colors.feedback.error,
   },
-  // Scroll content
-  scrollContent: {
-    paddingHorizontal: 24,
-    paddingTop: Platform.OS === "ios" ? 110 : 70,
-    paddingBottom: 80,
-  },
-  title: {
-    ...readerTypography.title,
-    color: colors.text.primary,
-    marginBottom: 12,
-  },
-  // Meta
-  metaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    flexWrap: "wrap",
-    gap: 4,
-    marginBottom: 4,
-  },
-  metaText: {
-    ...readerTypography.meta,
-    color: colors.text.muted,
-  },
-  typeBadge: {
-    marginLeft: 8,
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    opacity: 0.85,
-  },
-  typeBadgeText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: colors.text.primary,
-  },
-  // Divider
-  divider: {
-    height: 1,
-    backgroundColor: colors.border.subtle,
-    marginVertical: 20,
-  },
   // Done button
   doneText: {
     fontSize: 16,
@@ -1168,29 +665,5 @@ const styles = StyleSheet.create({
     color: colors.text.primary,
     marginBottom: 12,
     padding: 0,
-  },
-  // Edge preview for adjacent notes during swipe
-  edgePreview: {
-    position: "absolute",
-    top: "45%",
-    zIndex: 5,
-    maxWidth: 120,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: colors.bg.elevated,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border.default,
-  },
-  edgePreviewLeft: {
-    left: 8,
-  },
-  edgePreviewRight: {
-    right: 8,
-  },
-  edgePreviewText: {
-    fontSize: 13,
-    fontWeight: "500",
-    color: colors.text.muted,
   },
 });
