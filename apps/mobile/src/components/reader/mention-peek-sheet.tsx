@@ -1,10 +1,11 @@
 import { forwardRef, useCallback, useMemo, useState } from "react";
-import { View, Text, Pressable, StyleSheet } from "react-native";
+import { View, Text, Pressable, StyleSheet, ActivityIndicator } from "react-native";
 import BottomSheet, {
   BottomSheetBackdrop,
   BottomSheetView,
   type BottomSheetBackdropProps,
 } from "@gorhom/bottom-sheet";
+import { useQuery } from "@tanstack/react-query";
 import { useUpdateGoal } from "@mindtab/core";
 import {
   ChevronRight,
@@ -23,6 +24,7 @@ import { ConfettiBurst } from "~/components/ui/confetti-burst";
 import { XPFloat } from "~/components/ui/xp-float";
 import { XP_VALUES } from "~/lib/xp";
 import { api } from "~/lib/api-client";
+import { getAccessToken } from "~/lib/auth";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -46,6 +48,49 @@ type MentionPeekSheetProps = {
   onDismiss: () => void;
   onNavigate?: (type: string, id: string) => void;
 };
+
+// ---------------------------------------------------------------------------
+// Connected Knowledge API
+// ---------------------------------------------------------------------------
+
+const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:8080";
+
+type ConnectedNote = {
+  id: string;
+  title: string;
+  preview: string;
+  updatedAt: string | null;
+  createdAt: string | null;
+};
+
+type ConnectedHabit = {
+  id: string;
+  title: string;
+  frequency: string;
+  createdAt: string | null;
+};
+
+async function fetchConnectedNotes(
+  entityType: string,
+  entityId: string,
+): Promise<ConnectedNote[]> {
+  const token = await getAccessToken();
+  const res = await fetch(
+    `${API_URL}/mentions/connected-notes?entityType=${entityType}&entityId=${entityId}`,
+    { headers: { Authorization: `Bearer ${token}`, "X-Platform": "mobile" } },
+  );
+  if (!res.ok) return [];
+  return res.json();
+}
+
+async function fetchConnectedHabits(goalId: string): Promise<ConnectedHabit[]> {
+  const token = await getAccessToken();
+  const res = await fetch(`${API_URL}/goals/${goalId}/connected-habits`, {
+    headers: { Authorization: `Bearer ${token}`, "X-Platform": "mobile" },
+  });
+  if (!res.ok) return [];
+  return res.json();
+}
 
 // ---------------------------------------------------------------------------
 // Status / Priority helpers
@@ -122,10 +167,67 @@ function getGoalXP(entity: MentionEntity): number {
 }
 
 // ---------------------------------------------------------------------------
+// Shared connected-notes section
+// ---------------------------------------------------------------------------
+
+function ConnectedNotesSection({
+  notes,
+  loading,
+  onNavigate,
+}: {
+  notes: ConnectedNote[] | undefined;
+  loading: boolean;
+  onNavigate?: (type: string, id: string) => void;
+}) {
+  return (
+    <View style={styles.connectedSection}>
+      <Text style={styles.connectedTitle}>Connected Notes</Text>
+      {loading ? (
+        <ActivityIndicator size="small" color={colors.text.muted} style={styles.loader} />
+      ) : notes && notes.length > 0 ? (
+        <View style={styles.connectedList}>
+          {notes.map((note) => (
+            <Pressable
+              key={note.id}
+              style={({ pressed }) => [
+                styles.connectedNoteItem,
+                pressed && { opacity: 0.7 },
+              ]}
+              onPress={() => onNavigate?.("note", note.id)}
+            >
+              <FileText size={14} color={colors.status.active} />
+              <View style={styles.connectedNoteText}>
+                <Text style={styles.connectedItemTitle} numberOfLines={1}>
+                  {note.title}
+                </Text>
+                {note.preview ? (
+                  <Text style={styles.connectedItemPreview} numberOfLines={1}>
+                    {note.preview}
+                  </Text>
+                ) : null}
+              </View>
+              <ChevronRight size={14} color={colors.text.muted} />
+            </Pressable>
+          ))}
+        </View>
+      ) : (
+        <Text style={styles.connectedEmpty}>No connected notes yet</Text>
+      )}
+    </View>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Sub-components for each entity type
 // ---------------------------------------------------------------------------
 
-function GoalDetails({ entity }: { entity: MentionEntity }) {
+function GoalDetails({
+  entity,
+  onNavigate,
+}: {
+  entity: MentionEntity;
+  onNavigate?: (type: string, id: string) => void;
+}) {
   const updateGoal = useUpdateGoal(api);
   const status = entity.status ?? "pending";
   const pri = entity.priority ? priorityLabels[entity.priority] : null;
@@ -136,6 +238,18 @@ function GoalDetails({ entity }: { entity: MentionEntity }) {
 
   const [showConfetti, setShowConfetti] = useState(false);
   const [xpDelta, setXpDelta] = useState<number | null>(null);
+
+  const { data: connectedNotes, isLoading: notesLoading } = useQuery({
+    queryKey: ["connected-notes", "goal", entity.id],
+    queryFn: () => fetchConnectedNotes("goal", entity.id),
+    staleTime: 60_000,
+  });
+
+  const { data: connectedHabits, isLoading: habitsLoading } = useQuery({
+    queryKey: ["connected-habits", entity.id],
+    queryFn: () => fetchConnectedHabits(entity.id),
+    staleTime: 60_000,
+  });
 
   return (
     <View style={styles.detailsContainer}>
@@ -219,27 +333,56 @@ function GoalDetails({ entity }: { entity: MentionEntity }) {
         </View>
       )}
 
-      <View style={styles.connectedSection}>
-        <Text style={styles.connectedTitle}>Connected Notes</Text>
-        <Text style={styles.connectedText}>
-          API support for mention-based note lookup is still required.
-        </Text>
-      </View>
+      {/* Connected Notes */}
+      <ConnectedNotesSection
+        notes={connectedNotes}
+        loading={notesLoading}
+        onNavigate={onNavigate}
+      />
 
+      {/* Connected Habits */}
       <View style={styles.connectedSection}>
         <Text style={styles.connectedTitle}>Connected Habits</Text>
-        <Text style={styles.connectedText}>
-          Mention relationship queries will surface here once the API is available.
-        </Text>
+        {habitsLoading ? (
+          <ActivityIndicator size="small" color={colors.text.muted} style={styles.loader} />
+        ) : connectedHabits && connectedHabits.length > 0 ? (
+          <View style={styles.connectedList}>
+            {connectedHabits.map((habit) => (
+              <View key={habit.id} style={styles.connectedHabitItem}>
+                <Repeat size={14} color={colors.feedback.success} />
+                <Text style={styles.connectedItemTitle} numberOfLines={1}>
+                  {habit.title}
+                </Text>
+                <Text style={styles.connectedItemMeta}>
+                  {capitalize(habit.frequency)}
+                </Text>
+              </View>
+            ))}
+          </View>
+        ) : (
+          <Text style={styles.connectedEmpty}>No connected habits yet</Text>
+        )}
       </View>
     </View>
   );
 }
 
-function HabitDetails({ entity }: { entity: MentionEntity }) {
+function HabitDetails({
+  entity,
+  onNavigate,
+}: {
+  entity: MentionEntity;
+  onNavigate?: (type: string, id: string) => void;
+}) {
   const streak = entity.streak ?? 0;
   const frequency = entity.frequency ?? "daily";
   const created = createdAgoLabel(entity.createdAt);
+
+  const { data: connectedNotes, isLoading: notesLoading } = useQuery({
+    queryKey: ["connected-notes", "habit", entity.id],
+    queryFn: () => fetchConnectedNotes("habit", entity.id),
+    staleTime: 60_000,
+  });
 
   return (
     <View style={styles.detailsContainer}>
@@ -271,19 +414,12 @@ function HabitDetails({ entity }: { entity: MentionEntity }) {
         </View>
       )}
 
-      <View style={styles.connectedSection}>
-        <Text style={styles.connectedTitle}>Connected Notes</Text>
-        <Text style={styles.connectedText}>
-          API support for mention-based note lookup is still required.
-        </Text>
-      </View>
-
-      <View style={styles.connectedSection}>
-        <Text style={styles.connectedTitle}>Connected Habits</Text>
-        <Text style={styles.connectedText}>
-          Mention relationship queries will surface here once the API is available.
-        </Text>
-      </View>
+      {/* Connected Notes */}
+      <ConnectedNotesSection
+        notes={connectedNotes}
+        loading={notesLoading}
+        onNavigate={onNavigate}
+      />
     </View>
   );
 }
@@ -369,8 +505,8 @@ export const MentionPeekSheet = forwardRef<BottomSheet, MentionPeekSheetProps>(
           <View style={styles.sheetDivider} />
 
           {/* Type-specific details */}
-          {entity.type === "goal" && <GoalDetails entity={entity} />}
-          {entity.type === "habit" && <HabitDetails entity={entity} />}
+          {entity.type === "goal" && <GoalDetails entity={entity} onNavigate={onNavigate} />}
+          {entity.type === "habit" && <HabitDetails entity={entity} onNavigate={onNavigate} />}
           {entity.type === "note" && <NoteDetails entity={entity} />}
 
           {/* Open full detail link */}
@@ -514,10 +650,57 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     textTransform: "uppercase",
   },
-  connectedText: {
+  connectedList: {
+    gap: 6,
+  },
+  connectedNoteItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    backgroundColor: colors.bg.surface,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+  },
+  connectedNoteText: {
+    flex: 1,
+    gap: 2,
+  },
+  connectedHabitItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    backgroundColor: colors.bg.surface,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+  },
+  connectedItemTitle: {
     fontSize: 13,
-    color: colors.text.secondary,
-    lineHeight: 18,
+    fontWeight: "600",
+    color: colors.text.primary,
+  },
+  connectedItemPreview: {
+    fontSize: 12,
+    color: colors.text.muted,
+  },
+  connectedItemMeta: {
+    fontSize: 12,
+    color: colors.text.muted,
+    marginLeft: "auto",
+  },
+  connectedEmpty: {
+    fontSize: 13,
+    color: colors.text.muted,
+    fontStyle: "italic",
+  },
+  loader: {
+    alignSelf: "flex-start",
+    marginVertical: 4,
   },
   previewText: {
     fontSize: 14,
