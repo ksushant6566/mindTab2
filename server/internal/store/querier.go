@@ -31,11 +31,20 @@ type Querier interface {
 	DeleteJournal(ctx context.Context, arg DeleteJournalParams) error
 	DeleteRefreshToken(ctx context.Context, tokenHash string) error
 	DeleteUserRefreshTokens(ctx context.Context, userID string) error
+	// Find habit UUIDs mentioned in notes that also mention a given goal.
+	// goal_pattern should be like '%data-id="goal:UUID"%'.
+	// Returns distinct habit IDs extracted via regex from note content.
+	GetConnectedHabitIDs(ctx context.Context, arg GetConnectedHabitIDsParams) ([]pgtype.UUID, error)
+	// Find notes/journals whose content contains a mention of the given entity.
+	// mention_pattern should be like '%data-id="goal:UUID"%' or '%data-id="habit:UUID"%'.
+	GetConnectedNotes(ctx context.Context, arg GetConnectedNotesParams) ([]GetConnectedNotesRow, error)
 	GetGoalActivity(ctx context.Context, arg GetGoalActivityParams) ([]GetGoalActivityRow, error)
 	GetGoalByID(ctx context.Context, arg GetGoalByIDParams) (GetGoalByIDRow, error)
 	GetHabitActivity(ctx context.Context, arg GetHabitActivityParams) ([]pgtype.Timestamptz, error)
 	GetHabitByID(ctx context.Context, arg GetHabitByIDParams) (MindmapHabit, error)
 	GetHabitTrackerActivity(ctx context.Context, arg GetHabitTrackerActivityParams) ([]pgtype.Date, error)
+	// Fetch habits by a list of IDs for a given user.
+	GetHabitsByIDs(ctx context.Context, arg GetHabitsByIDsParams) ([]MindmapHabit, error)
 	GetJournalActivity(ctx context.Context, arg GetJournalActivityParams) ([]GetJournalActivityRow, error)
 	GetJournalByID(ctx context.Context, arg GetJournalByIDParams) (GetJournalByIDRow, error)
 	GetProjectByID(ctx context.Context, arg GetProjectByIDParams) (MindmapProject, error)

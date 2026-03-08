@@ -1,4 +1,4 @@
-import { forwardRef, useCallback, useMemo } from "react";
+import { forwardRef, useCallback, useMemo, useState } from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
 import BottomSheet, {
   BottomSheetBackdrop,
@@ -13,11 +13,15 @@ import {
   FileText,
   Flame,
   ArrowUpRight,
+  Calendar,
 } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { colors } from "~/styles/colors";
 import { ProgressBar } from "~/components/ui/progress-bar";
 import { Chip } from "~/components/ui/chip";
+import { ConfettiBurst } from "~/components/ui/confetti-burst";
+import { XPFloat } from "~/components/ui/xp-float";
+import { XP_VALUES } from "~/lib/xp";
 import { api } from "~/lib/api-client";
 
 // ---------------------------------------------------------------------------
@@ -34,6 +38,7 @@ type MentionEntity = {
   projectName?: string;
   streak?: number;
   frequency?: string;
+  createdAt?: string;
 };
 
 type MentionPeekSheetProps = {
@@ -98,6 +103,24 @@ function typeColor(type: "goal" | "habit" | "note"): string {
   }
 }
 
+function createdAgoLabel(iso: string | undefined): string | null {
+  if (!iso) return null;
+  const diff = Date.now() - new Date(iso).getTime();
+  const days = Math.floor(diff / 86_400_000);
+  if (days < 1) return "Created today";
+  if (days === 1) return "Created 1 day ago";
+  if (days < 30) return `Created ${days} days ago`;
+  const months = Math.floor(days / 30);
+  if (months === 1) return "Created 1 month ago";
+  return `Created ${months} months ago`;
+}
+
+function getGoalXP(entity: MentionEntity): number {
+  if (entity.priority === "p1") return XP_VALUES.GOAL_P1_COMPLETE;
+  if (entity.impact === "high") return XP_VALUES.GOAL_HIGH_IMPACT_COMPLETE;
+  return XP_VALUES.GOAL_COMPLETE;
+}
+
 // ---------------------------------------------------------------------------
 // Sub-components for each entity type
 // ---------------------------------------------------------------------------
@@ -109,9 +132,24 @@ function GoalDetails({ entity }: { entity: MentionEntity }) {
   const imp = entity.impact ? impactLabels[entity.impact] : null;
   const progress =
     status === "completed" ? 1 : status === "in_progress" ? 0.5 : 0;
+  const created = createdAgoLabel(entity.createdAt);
+
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [xpDelta, setXpDelta] = useState<number | null>(null);
 
   return (
     <View style={styles.detailsContainer}>
+      {/* XP burst overlay */}
+      {showConfetti && (
+        <ConfettiBurst
+          particleCount={20}
+          onComplete={() => setShowConfetti(false)}
+        />
+      )}
+      {xpDelta !== null && (
+        <XPFloat amount={xpDelta} onComplete={() => setXpDelta(null)} />
+      )}
+
       {/* Status row */}
       <View style={styles.row}>
         <Text style={styles.label}>Status</Text>
@@ -126,6 +164,11 @@ function GoalDetails({ entity }: { entity: MentionEntity }) {
               onPress={() => {
                 updateGoal.mutate({ id: entity.id, status: goalStatus });
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                // XP burst when completing
+                if (goalStatus === "completed" && status !== "completed") {
+                  setShowConfetti(true);
+                  setXpDelta(getGoalXP(entity));
+                }
               }}
             />
           ))}
@@ -165,10 +208,28 @@ function GoalDetails({ entity }: { entity: MentionEntity }) {
         </View>
       )}
 
+      {/* Created date */}
+      {created && (
+        <View style={styles.row}>
+          <Text style={styles.label}>Created</Text>
+          <View style={styles.createdRow}>
+            <Calendar size={14} color={colors.text.muted} />
+            <Text style={styles.value}>{created}</Text>
+          </View>
+        </View>
+      )}
+
       <View style={styles.connectedSection}>
         <Text style={styles.connectedTitle}>Connected Notes</Text>
         <Text style={styles.connectedText}>
           API support for mention-based note lookup is still required.
+        </Text>
+      </View>
+
+      <View style={styles.connectedSection}>
+        <Text style={styles.connectedTitle}>Connected Habits</Text>
+        <Text style={styles.connectedText}>
+          Mention relationship queries will surface here once the API is available.
         </Text>
       </View>
     </View>
@@ -178,6 +239,7 @@ function GoalDetails({ entity }: { entity: MentionEntity }) {
 function HabitDetails({ entity }: { entity: MentionEntity }) {
   const streak = entity.streak ?? 0;
   const frequency = entity.frequency ?? "daily";
+  const created = createdAgoLabel(entity.createdAt);
 
   return (
     <View style={styles.detailsContainer}>
@@ -197,6 +259,17 @@ function HabitDetails({ entity }: { entity: MentionEntity }) {
           </Text>
         </View>
       </View>
+
+      {/* Created date */}
+      {created && (
+        <View style={styles.row}>
+          <Text style={styles.label}>Created</Text>
+          <View style={styles.createdRow}>
+            <Calendar size={14} color={colors.text.muted} />
+            <Text style={styles.value}>{created}</Text>
+          </View>
+        </View>
+      )}
 
       <View style={styles.connectedSection}>
         <Text style={styles.connectedTitle}>Connected Notes</Text>
@@ -412,6 +485,11 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   streakRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  createdRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,

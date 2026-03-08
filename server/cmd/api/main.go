@@ -56,6 +56,7 @@ func main() {
 	bookmarksHandler := handler.NewBookmarksHandler(queries)
 	readingListsHandler := handler.NewReadingListsHandler(queries)
 	searchHandler := handler.NewSearchHandler(queries)
+	mentionsHandler := handler.NewMentionsHandler(queries)
 
 	r := chi.NewRouter()
 	r.Use(chimw.RequestID)
@@ -90,6 +91,7 @@ func main() {
 		r.Get("/goals/unassigned", goalsHandler.GetUnassigned)
 		r.Patch("/goals/positions", goalsHandler.UpdatePositions)
 		r.Post("/goals/archive-completed", goalsHandler.ArchiveCompleted)
+		r.Get("/goals/{id}/connected-habits", mentionsHandler.ConnectedHabits)
 		r.Get("/goals/{id}", goalsHandler.Get)
 		r.Patch("/goals/{id}", goalsHandler.Update)
 		r.Delete("/goals/{id}", goalsHandler.Delete)
@@ -127,6 +129,9 @@ func main() {
 		r.Get("/search/goals", searchHandler.Goals)
 		r.Get("/search/habits", searchHandler.Habits)
 		r.Get("/search/journals", searchHandler.Journals)
+
+		// Mentions / connected knowledge.
+		r.Get("/mentions/connected-notes", mentionsHandler.ConnectedNotes)
 
 		// Sync.
 		r.Post("/sync/bookmarks", bookmarksHandler.Sync)

@@ -18,6 +18,8 @@ type PressableCardProps = {
   onLongPress?: () => void;
   disabled?: boolean;
   style?: StyleProp<ViewStyle>;
+  /** Scale up on press (1.02) instead of default scale down (0.97) */
+  scaleUp?: boolean;
 };
 
 export function PressableCard({
@@ -26,6 +28,7 @@ export function PressableCard({
   onLongPress,
   disabled,
   style,
+  scaleUp,
 }: PressableCardProps) {
   const scale = useSharedValue(1);
   const opacity = useSharedValue(1);
@@ -37,8 +40,10 @@ export function PressableCard({
   const tap = Gesture.Tap()
     .enabled(!disabled)
     .onBegin(() => {
-      scale.value = withSpring(0.97, springs.snappy);
-      opacity.value = withTiming(0.8, { duration: 100 });
+      scale.value = scaleUp
+        ? withTiming(1.02, { duration: 100 })
+        : withSpring(0.97, springs.snappy);
+      opacity.value = withTiming(scaleUp ? 0.85 : 0.8, { duration: 100 });
       runOnJS(hapticFeedback)();
     })
     .onFinalize((_, success) => {

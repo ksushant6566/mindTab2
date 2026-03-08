@@ -40,12 +40,14 @@ import Animated, {
   useAnimatedStyle,
   withTiming,
   withSpring,
+  withDelay,
   runOnJS,
 } from "react-native-reanimated";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import BottomSheet from "@gorhom/bottom-sheet";
 import { MentionPeekSheet } from "~/components/reader/mention-peek-sheet";
 import { springs } from "~/lib/animations";
+import { readerTypography } from "~/styles/tokens";
 import {
   useRichEditor,
   RichTextEditorView,
@@ -97,12 +99,12 @@ function buildReaderHtml(content: string): string {
       -webkit-font-smoothing: antialiased;
       -webkit-text-size-adjust: 100%;
     }
-    h2 { font-size: 24px; font-weight: 600; line-height: 1.35; color: #fafafa; margin: 24px 0 12px; }
+    h2 { font-size: 24px; font-weight: 600; line-height: 1.3; color: #fafafa; margin: 24px 0 12px; }
     h3 { font-size: 20px; font-weight: 600; line-height: 1.4; color: #fafafa; margin: 20px 0 10px; }
     p { margin: 0 0 20px; }
     strong, b { font-weight: 600; color: #fafafa; }
     a { color: #818cf8; text-decoration: none; }
-    code { font-family: 'SF Mono', 'Roboto Mono', monospace; font-size: 15px; color: #a3e635; background: #1c1c1c; padding: 2px 6px; border-radius: 4px; }
+    code { font-family: 'SF Mono', 'Roboto Mono', monospace; font-size: 15px; line-height: 1.5; color: #a3e635; background: #1c1c1c; padding: 2px 6px; border-radius: 4px; }
     pre { background: #1c1c1c; padding: 16px; border-radius: 8px; overflow-x: auto; }
     pre code { padding: 0; background: none; }
     blockquote { border-left: 3px solid #262626; padding-left: 16px; margin: 16px 0; color: #a3a3a3; font-style: italic; }
@@ -128,6 +130,7 @@ function buildReaderHtml(content: string): string {
       font-family: -apple-system, BlinkMacSystemFont, sans-serif;
       font-size: 15px;
       font-weight: 500;
+      line-height: 1.4;
       color: #fafafa;
     }
     .mention-card:active,
@@ -258,6 +261,7 @@ type MentionEntity = {
   projectName?: string;
   streak?: number;
   frequency?: string;
+  createdAt?: string;
 };
 
 // ---------------------------------------------------------------------------
@@ -322,17 +326,20 @@ export default function NoteDetailScreen() {
     }),
   );
 
-  const noteIds = useMemo(() => {
+  const sortedNotes = useMemo(() => {
     if (!allNotes) return [];
-    const sorted = [...allNotes].sort((a, b) => {
+    return [...allNotes].sort((a, b) => {
       const aDate = a.updatedAt ?? a.createdAt ?? "";
       const bDate = b.updatedAt ?? b.createdAt ?? "";
       return new Date(bDate).getTime() - new Date(aDate).getTime();
     });
-    return sorted.map((n: any) => n.id as string);
   }, [allNotes]);
 
+  const noteIds = useMemo(() => sortedNotes.map((n: any) => n.id as string), [sortedNotes]);
   const currentIndex = noteIds.indexOf(id);
+  const prevNoteTitle = currentIndex > 0 ? (sortedNotes[currentIndex - 1] as any)?.title : null;
+  const nextNoteTitle = currentIndex >= 0 && currentIndex < noteIds.length - 1
+    ? (sortedNotes[currentIndex + 1] as any)?.title : null;
 
   const swipeTranslateX = useSharedValue(0);
   const swipeOpacity = useSharedValue(1);
@@ -358,6 +365,7 @@ export default function NoteDetailScreen() {
   const swipeGesture = Gesture.Pan()
     .activeOffsetX([-20, 20])
     .failOffsetY([-5, 5])
+    .hitSlop({ left: -20 }) // Guard left edge for native iOS back gesture
     .onUpdate((event) => {
       // Provide parallax feedback during swipe
       swipeTranslateX.value = event.translationX * 0.3;
@@ -393,6 +401,28 @@ export default function NoteDetailScreen() {
       swipeOpacity.value = withTiming(1, { duration: 100 });
     });
 
+  // Step 5.1: Edge preview opacity tied to swipe translation
+  const prevEdgeOpacity = useAnimatedStyle(() => ({
+    opacity: swipeTranslateX.value > 0
+      ? Math.min(swipeTranslateX.value / 30, 1)
+      : 0,
+  }));
+  const nextEdgeOpacity = useAnimatedStyle(() => ({
+    opacity: swipeTranslateX.value < 0
+      ? Math.min(Math.abs(swipeTranslateX.value) / 30, 1)
+      : 0,
+  }));
+
+  // Step 5.4: Dismiss gesture — scale + opacity feedback
+  const dismissTranslateY = useSharedValue(0);
+  const dismissAnimatedStyle = useAnimatedStyle(() => {
+    const progress = Math.min(dismissTranslateY.value / 200, 1);
+    return {
+      transform: [{ scale: 1 - progress * 0.15 }],
+      opacity: 1 - progress * 0.4,
+    };
+  });
+
   const swipeAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: swipeTranslateX.value }],
     opacity: swipeOpacity.value,
@@ -402,13 +432,31 @@ export default function NoteDetailScreen() {
   const [webViewHeight, setWebViewHeight] = useState(400);
   const readerWebViewRef = useRef<WebView>(null);
 
-  const headerVisible = useSharedValue(1);
+  // Step 2.4: Header starts hidden, fades in after entry animation settles
+  const headerVisible = useSharedValue(0);
   const headerOpacity = useAnimatedStyle(() => {
+    const isShowing = headerVisible.value > 0.5;
     return {
-      opacity: withTiming(headerVisible.value, { duration: 200 }),
-      pointerEvents: headerVisible.value > 0.5 ? "auto" as const : "none" as const,
+      opacity: withTiming(headerVisible.value, { duration: isShowing ? 150 : 200 }),
+      pointerEvents: isShowing ? "auto" as const : "none" as const,
     };
   });
+
+  // Step 2.3: Card-to-reader morph — content scales up from 0.95
+  const entryScale = useSharedValue(0.95);
+  const entryOpacity = useSharedValue(0);
+  const entryAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: entryScale.value }],
+    opacity: entryOpacity.value,
+  }));
+
+  // Steps 2.3 + 2.4: Entry animation — content scales up, then header fades in
+  useEffect(() => {
+    entryScale.value = withSpring(1, springs.smooth);
+    entryOpacity.value = withTiming(1, { duration: 300 });
+    // Header fades in after content settles (300ms morph + 100ms delay)
+    headerVisible.value = withDelay(400, withTiming(1, { duration: 150 }));
+  }, []);
 
   const toggleHeader = useCallback(() => {
     headerVisible.value = headerVisible.value > 0.5 ? 0 : 1;
@@ -593,6 +641,7 @@ export default function NoteDetailScreen() {
               priority: goal.priority,
               impact: goal.impact,
               projectName: goal.project?.name,
+              createdAt: goal.createdAt,
             };
           }
         } else if (type === "habit") {
@@ -605,6 +654,7 @@ export default function NoteDetailScreen() {
               title: habit.name || habit.title || label,
               frequency: habit.frequency,
               streak: habit.currentStreak ?? habit.streak ?? 0,
+              createdAt: habit.createdAt,
             };
           }
         }
@@ -719,7 +769,7 @@ export default function NoteDetailScreen() {
         // ignore non-JSON messages
       }
     },
-    [handleMentionPress, handleMentionDataRequest],
+    [handleMentionPress, handleMentionDataRequest, toggleHeader],
   );
 
   const handleDismissPeek = useCallback(() => {
@@ -730,9 +780,11 @@ export default function NoteDetailScreen() {
   const handleScroll = useCallback((event: any) => {
     const currentY = event.nativeEvent.contentOffset.y;
     currentScrollY.current = currentY;
-    if (currentY > prevScrollY.current + 5) {
+    const delta = currentY - prevScrollY.current;
+    // Only hide header once scrolled past 50px AND scrolling downward
+    if (currentY > 50 && delta > 5) {
       headerVisible.value = 0;
-    } else if (currentY < prevScrollY.current - 5) {
+    } else if (delta < -5) {
       headerVisible.value = 1;
     }
     prevScrollY.current = currentY;
@@ -749,9 +801,23 @@ export default function NoteDetailScreen() {
   const dismissPan = Gesture.Pan()
     .activeOffsetY([10, 1000])
     .failOffsetX([-20, 20])
+    .hitSlop({ left: -20 }) // Step 5.5: Guard left 20px for native iOS back gesture
+    .onUpdate((event) => {
+      // Step 5.4: Visual feedback — only at scroll top to avoid conflict with normal scrolling
+      if (event.translationY > 0 && currentScrollY.current <= 0) {
+        dismissTranslateY.value = event.translationY;
+      }
+    })
     .onEnd((event) => {
-      if (currentScrollY.current <= 0 && event.translationY > 100 && event.velocityY > 200) {
+      // Step 5.3: Velocity-based dismiss at scroll top
+      if (
+        currentScrollY.current <= 0 &&
+        event.translationY > 100 &&
+        event.velocityY > 300
+      ) {
         runOnJS(handleBack)();
+      } else {
+        dismissTranslateY.value = withSpring(0, springs.snappy);
       }
     });
 
@@ -783,7 +849,8 @@ export default function NoteDetailScreen() {
   const projectName: string | undefined = n.project?.name;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <Animated.View style={[styles.container, entryAnimatedStyle]}>
+      <SafeAreaView style={styles.container}>
       {/* --- Floating minimal header --- */}
       <Animated.View style={[styles.header, headerOpacity]}>
         <Pressable
@@ -887,14 +954,28 @@ export default function NoteDetailScreen() {
         </Animated.View>
       ) : (
         <GestureDetector gesture={composedGesture}>
-          <Animated.View style={[{ flex: 1 }, swipeAnimatedStyle]}>
+          <Animated.View style={[{ flex: 1 }, swipeAnimatedStyle, dismissAnimatedStyle]}>
+            {/* Step 5.1: Edge preview — previous note title */}
+            {prevNoteTitle && (
+              <Animated.View style={[styles.edgePreview, styles.edgePreviewLeft, prevEdgeOpacity]} pointerEvents="none">
+                <Text style={styles.edgePreviewText} numberOfLines={1}>{prevNoteTitle}</Text>
+              </Animated.View>
+            )}
+            {/* Step 5.1: Edge preview — next note title */}
+            {nextNoteTitle && (
+              <Animated.View style={[styles.edgePreview, styles.edgePreviewRight, nextEdgeOpacity]} pointerEvents="none">
+                <Text style={styles.edgePreviewText} numberOfLines={1}>{nextNoteTitle}</Text>
+              </Animated.View>
+            )}
+
             <Animated.ScrollView
               onScroll={handleScroll}
               scrollEventThrottle={16}
               showsVerticalScrollIndicator={false}
               contentContainerStyle={styles.scrollContent}
             >
-              {/* Title */}
+              {/* Title + meta — tap to toggle header */}
+              <Pressable onPress={toggleHeader}>
               <Text style={styles.title}>{n.title || "Untitled"}</Text>
 
               {/* Meta row */}
@@ -925,6 +1006,7 @@ export default function NoteDetailScreen() {
                   </View>
                 )}
               </View>
+              </Pressable>
 
               {/* Divider */}
               <View style={styles.divider} />
@@ -963,6 +1045,7 @@ export default function NoteDetailScreen() {
         onDismiss={handleMentionSearchDismiss}
       />
     </SafeAreaView>
+    </Animated.View>
   );
 }
 
@@ -1034,12 +1117,9 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === "ios" ? 110 : 70,
     paddingBottom: 80,
   },
-  // Title
   title: {
-    fontSize: 28,
-    fontWeight: "bold",
+    ...readerTypography.title,
     color: colors.text.primary,
-    lineHeight: 36,
     marginBottom: 12,
   },
   // Meta
@@ -1051,7 +1131,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   metaText: {
-    fontSize: 14,
+    ...readerTypography.meta,
     color: colors.text.muted,
   },
   typeBadge: {
@@ -1084,11 +1164,33 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === "ios" ? 110 : 70,
   },
   editableTitle: {
-    fontSize: 28,
-    fontWeight: "bold",
+    ...readerTypography.title,
     color: colors.text.primary,
-    lineHeight: 36,
     marginBottom: 12,
     padding: 0,
+  },
+  // Edge preview for adjacent notes during swipe
+  edgePreview: {
+    position: "absolute",
+    top: "45%",
+    zIndex: 5,
+    maxWidth: 120,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: colors.bg.elevated,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+  },
+  edgePreviewLeft: {
+    left: 8,
+  },
+  edgePreviewRight: {
+    right: 8,
+  },
+  edgePreviewText: {
+    fontSize: 13,
+    fontWeight: "500",
+    color: colors.text.muted,
   },
 });

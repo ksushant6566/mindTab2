@@ -2,6 +2,7 @@ import React, { useCallback } from "react";
 import { Pressable, StyleSheet, Text, View, Alert, ActionSheetIOS, Platform } from "react-native";
 import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { ChevronRight, FileText } from "lucide-react-native";
 import { journalsQueryOptions, useDeleteJournal } from "@mindtab/core";
@@ -29,6 +30,34 @@ function formatDate(dateStr: string): string {
 export function NotesSection({ projectId }: NotesSectionProps) {
   const router = useRouter();
   const deleteJournal = useDeleteJournal(api);
+  const sectionOpacity = useSharedValue(1);
+
+  const doNavigate = useCallback(
+    (path: string, params?: Record<string, string>) => {
+      sectionOpacity.value = 1;
+      if (params) {
+        router.push({ pathname: path as any, params } as any);
+      } else {
+        router.push(path as any);
+      }
+    },
+    [router, sectionOpacity],
+  );
+
+  const fadeOutAndNavigate = useCallback(
+    (path: string, params?: Record<string, string>) => {
+      sectionOpacity.value = withTiming(0, { duration: 150 }, (finished) => {
+        if (finished) {
+          runOnJS(doNavigate)(path, params);
+        }
+      });
+    },
+    [doNavigate, sectionOpacity],
+  );
+
+  const sectionAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: sectionOpacity.value,
+  }));
 
   const handleDelete = (noteId: string, noteTitle: string) => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
@@ -85,7 +114,7 @@ export function NotesSection({ projectId }: NotesSectionProps) {
   const totalCount = sortedNotes.length;
 
   return (
-    <View style={styles.container}>
+    <Animated.View style={[styles.container, sectionAnimatedStyle]}>
       {/* Section header */}
       <Text style={styles.sectionTitle}>RECENT NOTES</Text>
 
@@ -115,7 +144,8 @@ export function NotesSection({ projectId }: NotesSectionProps) {
                 ]}
               >
                 <PressableCard
-                  onPress={() => router.push(`/(main)/notes/${note.id}`)}
+                  scaleUp
+                  onPress={() => fadeOutAndNavigate(`/(main)/notes/${note.id}`)}
                   onLongPress={() => handleNoteLongPress(note)}
                 >
                   {/* Title */}
@@ -153,12 +183,12 @@ export function NotesSection({ projectId }: NotesSectionProps) {
       {/* See all link — always visible */}
       <Pressable
         style={styles.seeAllRow}
-        onPress={() => router.push("/(main)/notes")}
+        onPress={() => fadeOutAndNavigate("/(main)/notes")}
       >
         <Text style={styles.seeAllText}>See all notes</Text>
         <ChevronRight size={16} color={colors.accent.indigo} />
       </Pressable>
-    </View>
+    </Animated.View>
   );
 }
 

@@ -1,6 +1,7 @@
-import { View, Text, Pressable } from "react-native";
+import { StyleSheet, Text } from "react-native";
 import { useRouter } from "expo-router";
-import { Card } from "~/components/ui/card";
+import { PressableCard } from "~/components/ui/pressable-card";
+import { colors } from "~/styles/colors";
 
 function stripHtml(html: string): string {
   return html.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim();
@@ -26,22 +27,39 @@ export function NoteCard({ note }: NoteCardProps) {
   const preview = note.content ? stripHtml(note.content) : "";
 
   return (
-    <Pressable onPress={() => router.push(`/(main)/notes/${note.id}`)}>
-      <Card className="mb-2">
-        <Text className="text-foreground font-medium" numberOfLines={1}>
-          {note.title || "Untitled"}
+    <PressableCard scaleUp onPress={() => router.push(`/(main)/notes/${note.id}`)}>
+      <Text style={styles.noteTitle} numberOfLines={1}>
+        {note.title || "Untitled"}
+      </Text>
+      {preview ? (
+        <Text style={styles.notePreview} numberOfLines={2}>
+          {preview}
         </Text>
-        {preview ? (
-          <Text className="text-muted-foreground text-sm mt-1" numberOfLines={2}>
-            {preview}
-          </Text>
-        ) : null}
-        {note.updatedAt && (
-          <Text className="text-muted-foreground text-xs mt-2">
-            {formatDate(note.updatedAt)}
-          </Text>
-        )}
-      </Card>
-    </Pressable>
+      ) : null}
+      {note.updatedAt && (
+        <Text style={styles.dateText}>
+          {formatDate(note.updatedAt)}
+        </Text>
+      )}
+    </PressableCard>
   );
 }
+
+const styles = StyleSheet.create({
+  noteTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: colors.text.primary,
+  },
+  notePreview: {
+    fontSize: 14,
+    color: colors.text.secondary,
+    marginTop: 4,
+    lineHeight: 20,
+  },
+  dateText: {
+    fontSize: 12,
+    color: colors.text.muted,
+    marginTop: 8,
+  },
+});

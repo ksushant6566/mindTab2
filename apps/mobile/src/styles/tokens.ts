@@ -17,14 +17,15 @@ export const typography = {
 } as const;
 
 export const readerTypography = {
-  title: { fontSize: 28, fontWeight: "700", lineHeight: 36 } as TextStyle,
-  h2: { fontSize: 24, fontWeight: "600", lineHeight: 32 } as TextStyle,
+  title: { fontSize: 28, fontWeight: "700", lineHeight: 36.4 } as TextStyle, // 28 × 1.3
+  h2: { fontSize: 24, fontWeight: "600", lineHeight: 31.2 } as TextStyle,   // 24 × 1.3
   h3: { fontSize: 20, fontWeight: "600", lineHeight: 28 } as TextStyle,
   body: { fontSize: 18, fontWeight: "400", lineHeight: 32 } as TextStyle,
   bold: { fontSize: 18, fontWeight: "600", lineHeight: 32 } as TextStyle,
   quote: { fontSize: 18, fontStyle: "italic", lineHeight: 32 } as TextStyle,
-  code: { fontSize: 15, fontWeight: "400", lineHeight: 23 } as TextStyle,
-  meta: { fontSize: 14, fontWeight: "400", lineHeight: 20 } as TextStyle,
+  code: { fontSize: 15, fontWeight: "400", lineHeight: 22.5 } as TextStyle,  // 15 × 1.5
+  meta: { fontSize: 14, fontWeight: "400", lineHeight: 19.6 } as TextStyle,  // 14 × 1.4
+  mention: { fontSize: 15, fontWeight: "500", lineHeight: 21 } as TextStyle, // 15 × 1.4
 } as const;
 
 // ---------------------------------------------------------------------------
