@@ -16,6 +16,7 @@ import {
   journalsQueryOptions,
   useDeleteJournal,
 } from "@mindtab/core";
+import * as Haptics from "expo-haptics";
 import { api } from "~/lib/api-client";
 import { Loading } from "~/components/ui/loading";
 import {
@@ -391,6 +392,11 @@ export default function NoteDetailScreen() {
     prevScrollY.current = currentY;
   }, [headerVisible]);
 
+  const handlePinchDismiss = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    goBack();
+  }, [goBack]);
+
   const dismissPan = Gesture.Pan()
     .activeOffsetY([10, 1000])
     .failOffsetX([-20, 20])
@@ -400,7 +406,16 @@ export default function NoteDetailScreen() {
       }
     });
 
-  const composedGesture = Gesture.Simultaneous(swipeGesture, dismissPan);
+  const dismissPinch = Gesture.Pinch()
+    .onUpdate((event) => {
+      if (event.scale < 0.75) {
+        runOnJS(handlePinchDismiss)();
+      }
+    });
+
+  const dismissGesture = Gesture.Race(dismissPan, dismissPinch);
+
+  const composedGesture = Gesture.Simultaneous(swipeGesture, dismissGesture);
 
   if (isLoading || !note) return <Loading />;
 

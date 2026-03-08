@@ -117,7 +117,7 @@ export function GoalsSection({ projectId }: GoalsSectionProps) {
   };
 
   const handleArchive = (goal: any) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     updateGoal.mutate({ id: goal.id, status: "archived" });
     setUndoState({
       visible: true,

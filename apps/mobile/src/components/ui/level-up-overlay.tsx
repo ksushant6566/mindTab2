@@ -19,6 +19,8 @@ type LevelUpOverlayProps = {
   level: number;
   visible: boolean;
   onComplete: () => void;
+  onGlowStart?: () => void;
+  onReset?: () => void;
 };
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
@@ -27,6 +29,8 @@ export function LevelUpOverlay({
   level,
   visible,
   onComplete,
+  onGlowStart,
+  onReset,
 }: LevelUpOverlayProps) {
   // Backdrop
   const backdropOpacity = useSharedValue(0);
@@ -53,6 +57,9 @@ export function LevelUpOverlay({
     // Haptic on appear
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
+    // Fire glow callback immediately
+    onGlowStart?.();
+
     // 1. Backdrop fades in
     backdropOpacity.value = withTiming(1, { duration: 200 });
 
@@ -67,6 +74,11 @@ export function LevelUpOverlay({
     // 4. Gold shimmer loop on title
     shimmer.value = withRepeat(withTiming(1, { duration: 1200 }), -1, true);
 
+    // Fire reset callback 500ms after overlay appears
+    const resetTimer = setTimeout(() => {
+      onReset?.();
+    }, 500);
+
     // 4. Auto-dismiss after 1.5 seconds
     const timer = setTimeout(() => {
       backdropOpacity.value = withTiming(0, { duration: 300 });
@@ -80,7 +92,10 @@ export function LevelUpOverlay({
       return () => clearTimeout(exitTimer);
     }, 1500);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      clearTimeout(resetTimer);
+    };
   }, [visible]);
 
   const backdropStyle = useAnimatedStyle(() => ({

@@ -28,7 +28,11 @@ function interpolateColor(progress: number): string {
   return `rgb(${r}, ${g}, ${b})`;
 }
 
-export function DashboardHeader() {
+type DashboardHeaderProps = {
+  xpBarGlowing?: boolean;
+};
+
+export function DashboardHeader({ xpBarGlowing = false }: DashboardHeaderProps) {
   const router = useRouter();
   const { user } = useAuth();
   const [showXpTooltip, setShowXpTooltip] = useState(false);
@@ -104,7 +108,7 @@ export function DashboardHeader() {
       {/* Row 3: XP progress bar with level/xp labels and streak flame */}
       <View style={styles.xpRow}>
         <Pressable style={styles.xpBarContainer} onPress={toggleXpTooltip}>
-          <ProgressBar value={progress} color={xpBarColor} height={3} />
+          <ProgressBar value={progress} color={xpBarColor} height={3} glowing={xpBarGlowing} />
           <Text style={styles.xpLabel}>Level {level} - {xp} XP</Text>
           {showXpTooltip && (
             <View style={styles.xpTooltip}>

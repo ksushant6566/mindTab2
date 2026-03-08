@@ -31,6 +31,7 @@ export function NotesSection({ projectId }: NotesSectionProps) {
   const deleteJournal = useDeleteJournal(api);
 
   const handleDelete = (noteId: string, noteTitle: string) => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     Alert.alert("Delete Note", `Delete "${noteTitle || "Untitled"}"?`, [
       { text: "Cancel", style: "cancel" },
       {

@@ -2,8 +2,6 @@ import {
   View,
   Text,
   Pressable,
-  KeyboardAvoidingView,
-  Platform,
   Alert,
 } from "react-native";
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
@@ -18,6 +16,7 @@ import { api } from "~/lib/api-client";
 import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
 import { Chip } from "~/components/ui/chip";
+import { AppBottomSheet } from "~/components/ui/app-bottom-sheet";
 import { colors } from "~/styles/colors";
 import { toast } from "sonner-native";
 import { useRichEditor, RichTextEditorView } from "~/components/notes/rich-text-editor";
@@ -124,38 +123,21 @@ export default function CreateNoteModal() {
   }, [title, editor, noteType]);
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: colors.bg.elevated,
-          borderTopLeftRadius: 20,
-          borderTopRightRadius: 20,
-        }}
+    <View style={{ flex: 1, backgroundColor: "transparent" }}>
+      <Pressable
+        style={{ flex: 1 }}
+        onPress={() => router.back()}
+      />
+      <AppBottomSheet
+        snapPoints={["90%"]}
+        onClose={() => router.back()}
       >
-        {/* Handle indicator */}
-        <View
-          style={{
-            alignSelf: "center",
-            width: 36,
-            height: 4,
-            borderRadius: 2,
-            backgroundColor: "#404040",
-            marginTop: 10,
-            marginBottom: 6,
-          }}
-        />
-
         {/* Header */}
         <View
           style={{
             flexDirection: "row",
             alignItems: "center",
             justifyContent: "space-between",
-            paddingHorizontal: 20,
             paddingBottom: 16,
           }}
         >
@@ -182,98 +164,95 @@ export default function CreateNoteModal() {
         </View>
 
         {/* Title input */}
-        <View style={{ paddingHorizontal: 20 }}>
-          <Text
-            style={{
-              fontSize: 14,
-              fontWeight: "500",
-              color: colors.text.secondary,
-              marginBottom: 6,
-            }}
-          >
-            Title
-          </Text>
-          <Input
-            value={title}
-            onChangeText={setTitle}
-            placeholder="Title"
-            autoFocus
-            style={{ fontSize: 18, marginBottom: 16 }}
-          />
+        <Text
+          style={{
+            fontSize: 14,
+            fontWeight: "500",
+            color: colors.text.secondary,
+            marginBottom: 6,
+          }}
+        >
+          Title
+        </Text>
+        <Input
+          value={title}
+          onChangeText={setTitle}
+          placeholder="Title"
+          autoFocus
+          style={{ fontSize: 18, marginBottom: 16 }}
+        />
 
-          {/* Type chips */}
-          <Text
-            style={{
-              fontSize: 14,
-              fontWeight: "500",
-              color: colors.text.secondary,
-              marginBottom: 6,
-            }}
-          >
-            Type
-          </Text>
-          <View
-            style={{
-              flexDirection: "row",
-              flexWrap: "wrap",
-              gap: 8,
-              marginBottom: 16,
-            }}
-          >
-            {noteTypes.map((t) => (
-              <Chip
-                key={t.value}
-                label={t.label}
-                selected={noteType === t.value}
-                color={t.color}
-                size="sm"
-                onPress={() => setNoteType(t.value)}
-              />
-            ))}
-          </View>
-
-          {/* Project */}
-          <Text
-            style={{
-              fontSize: 14,
-              fontWeight: "500",
-              color: colors.text.secondary,
-              marginBottom: 6,
-            }}
-          >
-            Project
-          </Text>
-          <View
-            style={{
-              flexDirection: "row",
-              flexWrap: "wrap",
-              gap: 8,
-              marginBottom: 16,
-            }}
-          >
+        {/* Type chips */}
+        <Text
+          style={{
+            fontSize: 14,
+            fontWeight: "500",
+            color: colors.text.secondary,
+            marginBottom: 6,
+          }}
+        >
+          Type
+        </Text>
+        <View
+          style={{
+            flexDirection: "row",
+            flexWrap: "wrap",
+            gap: 8,
+            marginBottom: 16,
+          }}
+        >
+          {noteTypes.map((t) => (
             <Chip
-              label="None"
-              selected={projectId === null}
-              color={colors.text.muted}
-              onPress={() => setProjectId(null)}
+              key={t.value}
+              label={t.label}
+              selected={noteType === t.value}
+              color={t.color}
+              size="sm"
+              onPress={() => setNoteType(t.value)}
             />
-            {projects?.map((p) => (
-              <Chip
-                key={p.id}
-                label={p.name ?? ""}
-                selected={projectId === p.id}
-                color={colors.accent.indigo}
-                onPress={() => setProjectId(p.id)}
-              />
-            ))}
-          </View>
+          ))}
+        </View>
+
+        {/* Project */}
+        <Text
+          style={{
+            fontSize: 14,
+            fontWeight: "500",
+            color: colors.text.secondary,
+            marginBottom: 6,
+          }}
+        >
+          Project
+        </Text>
+        <View
+          style={{
+            flexDirection: "row",
+            flexWrap: "wrap",
+            gap: 8,
+            marginBottom: 16,
+          }}
+        >
+          <Chip
+            label="None"
+            selected={projectId === null}
+            color={colors.text.muted}
+            onPress={() => setProjectId(null)}
+          />
+          {projects?.map((p) => (
+            <Chip
+              key={p.id}
+              label={p.name ?? ""}
+              selected={projectId === p.id}
+              color={colors.accent.indigo}
+              onPress={() => setProjectId(p.id)}
+            />
+          ))}
         </View>
 
         {/* Rich text editor */}
         <View style={{ flex: 1 }}>
           <Text
             style={{
-              paddingHorizontal: 20,
               paddingBottom: 8,
               fontSize: 12,
               color: colors.text.muted,
@@ -285,7 +264,7 @@ export default function CreateNoteModal() {
         </View>
 
         {/* Create button */}
-        <View style={{ paddingHorizontal: 20, paddingBottom: 40, paddingTop: 12 }}>
+        <View style={{ paddingBottom: 40, paddingTop: 12 }}>
           <Button
             onPress={handleCreate}
             loading={createJournal.isPending}
@@ -306,7 +285,7 @@ export default function CreateNoteModal() {
             +5 XP
           </Text>
         </View>
-      </View>
-    </KeyboardAvoidingView>
+      </AppBottomSheet>
+    </View>
   );
 }

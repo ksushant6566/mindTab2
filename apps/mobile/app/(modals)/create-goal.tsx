@@ -3,8 +3,6 @@ import {
   Text,
   ScrollView,
   Pressable,
-  KeyboardAvoidingView,
-  Platform,
 } from "react-native";
 import { useState } from "react";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -14,6 +12,7 @@ import { api } from "~/lib/api-client";
 import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
 import { Chip } from "~/components/ui/chip";
+import { AppBottomSheet } from "~/components/ui/app-bottom-sheet";
 import { colors } from "~/styles/colors";
 import { toast } from "sonner-native";
 
@@ -69,38 +68,21 @@ export default function CreateGoalModal() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: colors.bg.elevated,
-          borderTopLeftRadius: 20,
-          borderTopRightRadius: 20,
-        }}
+    <View style={{ flex: 1, backgroundColor: "transparent" }}>
+      <Pressable
+        style={{ flex: 1 }}
+        onPress={() => router.back()}
+      />
+      <AppBottomSheet
+        snapPoints={["90%"]}
+        onClose={() => router.back()}
       >
-        {/* Handle indicator */}
-        <View
-          style={{
-            alignSelf: "center",
-            width: 36,
-            height: 4,
-            borderRadius: 2,
-            backgroundColor: "#404040",
-            marginTop: 10,
-            marginBottom: 6,
-          }}
-        />
-
         {/* Header */}
         <View
           style={{
             flexDirection: "row",
             alignItems: "center",
             justifyContent: "space-between",
-            paddingHorizontal: 20,
             paddingBottom: 16,
           }}
         >
@@ -127,7 +109,7 @@ export default function CreateGoalModal() {
         </View>
 
         <ScrollView
-          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}
+          contentContainerStyle={{ paddingBottom: 40 }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
@@ -291,7 +273,7 @@ export default function CreateGoalModal() {
             +25 XP
           </Text>
         </ScrollView>
-      </View>
-    </KeyboardAvoidingView>
+      </AppBottomSheet>
+    </View>
   );
 }
