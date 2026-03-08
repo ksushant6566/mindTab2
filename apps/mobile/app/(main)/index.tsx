@@ -206,11 +206,11 @@ export default function Dashboard() {
         scrollEnabled={!searchVisible || !hasResults}
       >
         <DashboardHeader />
+        <HabitsSection />
         <ProjectPills
           selectedProjectId={selectedProjectId}
           onSelect={setSelectedProjectId}
         />
-        <HabitsSection projectId={selectedProjectId} />
         <GoalsSection projectId={selectedProjectId} />
         <NotesSection projectId={selectedProjectId} />
       </ScrollView>

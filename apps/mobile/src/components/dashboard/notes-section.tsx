@@ -146,21 +146,17 @@ export function NotesSection({ projectId }: NotesSectionProps) {
               </SwipeableRow>
             );
           })}
-
-          {/* See all link */}
-          {totalCount > 3 && (
-            <Pressable
-              style={styles.seeAllRow}
-              onPress={() => router.push("/(main)/notes")}
-            >
-              <Text style={styles.seeAllText}>
-                See all {totalCount} notes
-              </Text>
-              <ChevronRight size={16} color={colors.accent.indigo} />
-            </Pressable>
-          )}
         </>
       )}
+
+      {/* See all link — always visible */}
+      <Pressable
+        style={styles.seeAllRow}
+        onPress={() => router.push("/(main)/notes")}
+      >
+        <Text style={styles.seeAllText}>See all notes</Text>
+        <ChevronRight size={16} color={colors.accent.indigo} />
+      </Pressable>
     </View>
   );
 }

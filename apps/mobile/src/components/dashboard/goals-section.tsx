@@ -281,21 +281,17 @@ export function GoalsSection({ projectId }: GoalsSectionProps) {
               </SwipeableRow>
             );
           })}
-
-          {/* Show all link */}
-          {remainingPendingCount > 0 && (
-            <Pressable
-              style={styles.showAllRow}
-              onPress={() => router.push("/(main)/goals")}
-            >
-              <Text style={styles.showAllText}>
-                Show all {pendingGoals.length} pending
-              </Text>
-              <ChevronRight size={16} color={colors.accent.indigo} />
-            </Pressable>
-          )}
         </>
       )}
+
+      {/* Show all link — always visible */}
+      <Pressable
+        style={styles.showAllRow}
+        onPress={() => router.push("/(main)/goals")}
+      >
+        <Text style={styles.showAllText}>Show all goals</Text>
+        <ChevronRight size={16} color={colors.accent.indigo} />
+      </Pressable>
       <UndoToast
         message="Goal archived"
         visible={undoState.visible}

@@ -24,11 +24,7 @@ import { XPFloat } from "~/components/ui/xp-float";
 import { api } from "~/lib/api-client";
 import { colors } from "~/styles/colors";
 
-type HabitsSectionProps = {
-  projectId: string | null;
-};
-
-export function HabitsSection({ projectId: _projectId }: HabitsSectionProps) {
+export function HabitsSection() {
   const router = useRouter();
   const { data: habits } = useQuery(habitsQueryOptions(api));
   const { data: tracker } = useQuery(habitTrackerQueryOptions(api));
@@ -119,15 +115,31 @@ export function HabitsSection({ projectId: _projectId }: HabitsSectionProps) {
       {/* Section header */}
       <View style={styles.headerRow}>
         <Text style={styles.sectionTitle}>TODAY'S HABITS</Text>
-        <Animated.Text
-          style={[
-            styles.counter,
-            completedCount > 0 && { color: colors.accent.indigo },
-            counterAnimStyle,
-          ]}
-        >
-          {completedCount}/{totalCount}
-        </Animated.Text>
+        <View style={styles.counterRow}>
+          <View style={styles.miniProgress}>
+            <Animated.View
+              style={[
+                styles.miniProgressFill,
+                {
+                  width: `${totalCount > 0 ? (completedCount / totalCount) * 100 : 0}%`,
+                  backgroundColor: completedCount === totalCount && totalCount > 0
+                    ? colors.xp.gold
+                    : colors.accent.indigo,
+                },
+              ]}
+            />
+          </View>
+          <Animated.Text
+            style={[
+              styles.counter,
+              completedCount > 0 && { color: colors.accent.indigo },
+              completedCount === totalCount && totalCount > 0 && { color: colors.xp.gold },
+              counterAnimStyle,
+            ]}
+          >
+            {completedCount}/{totalCount}
+          </Animated.Text>
+        </View>
       </View>
 
       {/* Habit rows */}
@@ -351,6 +363,22 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     color: colors.text.muted,
   },
+  counterRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  miniProgress: {
+    width: 40,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: colors.border.default,
+    overflow: "hidden",
+  },
+  miniProgressFill: {
+    height: "100%",
+    borderRadius: 1.5,
+  },
   counter: {
     fontSize: 12,
     fontWeight: "600",
@@ -362,14 +390,19 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     backgroundColor: colors.bg.elevated,
     borderWidth: 1,
     borderColor: colors.border.default,
     borderRadius: 12,
+    borderLeftWidth: 3,
+    borderLeftColor: "transparent",
   },
   rowCompleted: {
-    backgroundColor: colors.feedback.successMuted,
+    borderLeftColor: colors.status.completed,
+    backgroundColor: colors.bg.elevated,
+    opacity: 0.7,
   },
   checkboxArea: {
     position: "relative",
@@ -388,7 +421,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   habitTitleCompleted: {
-    color: colors.status.completed,
+    color: colors.text.muted,
     textDecorationLine: "line-through",
   },
 
@@ -396,13 +429,13 @@ const styles = StyleSheet.create({
   weekDots: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 3,
+    gap: 4,
     marginLeft: 12,
   },
   dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
     backgroundColor: colors.border.default,
   },
   dotCompleted: {
@@ -410,8 +443,8 @@ const styles = StyleSheet.create({
   },
   dotTodayOutline: {
     backgroundColor: "transparent",
-    borderWidth: 1,
-    borderColor: colors.border.default,
+    borderWidth: 1.5,
+    borderColor: colors.accent.indigo,
   },
 
   // Show all link
