@@ -8,6 +8,7 @@ import {
 } from "react-native";
 import { useState, useMemo } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import { goalQueryOptions, useUpdateGoal, useDeleteGoal } from "@mindtab/core";
 import * as Haptics from "expo-haptics";
@@ -56,6 +57,7 @@ const impactOptions = [
 export default function GoalDetailScreen() {
   const { id, from } = useLocalSearchParams<{ id: string; from?: string }>();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   const goBack = () => {
     if (from) {
@@ -157,7 +159,7 @@ export default function GoalDetailScreen() {
   return (
     <View style={styles.screen}>
       {/* ── Header ── */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <Pressable onPress={goBack} hitSlop={8} style={styles.headerBtn}>
           <ChevronLeft size={24} color={colors.text.primary} />
         </Pressable>

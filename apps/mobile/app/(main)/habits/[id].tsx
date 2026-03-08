@@ -8,6 +8,7 @@ import {
 } from "react-native";
 import { useState, useMemo, useCallback } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import {
   habitQueryOptions,
@@ -58,6 +59,7 @@ const MONTH_NAMES = [
 export default function HabitDetailScreen() {
   const { id, from } = useLocalSearchParams<{ id: string; from?: string }>();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   const { data: habit, isLoading } = useQuery(habitQueryOptions(api, id));
   const { data: tracker = [] } = useQuery(habitTrackerQueryOptions(api));
@@ -318,7 +320,7 @@ export default function HabitDetailScreen() {
   return (
     <View style={styles.screen}>
       {/* ── Header ── */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <Pressable onPress={goBack} hitSlop={8} style={styles.headerBtnLeft}>
           <ChevronLeft size={24} color={colors.text.primary} />
         </Pressable>

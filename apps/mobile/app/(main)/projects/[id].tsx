@@ -7,9 +7,9 @@ import {
   TextInput,
   RefreshControl,
   StyleSheet,
-  Platform,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
 import {
@@ -109,6 +109,7 @@ function getNextStatusAction(status: string) {
 export default function ProjectDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   // Data fetching
   const {
@@ -274,7 +275,7 @@ export default function ProjectDetailScreen() {
   return (
     <View style={styles.screen}>
       {/* ── Header ── */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <Pressable onPress={goBack} hitSlop={8} style={styles.backBtn}>
           <ChevronLeft size={24} color={colors.text.primary} />
         </Pressable>
@@ -318,7 +319,7 @@ export default function ProjectDetailScreen() {
           style={styles.overflowBackdrop}
           onPress={() => setShowOverflow(false)}
         >
-          <View style={styles.overflowMenu}>
+          <View style={[styles.overflowMenu, { top: insets.top + 48 }]}>
             <Pressable style={styles.overflowItem} onPress={handleArchive}>
               <Archive size={16} color={colors.status.paused} />
               <Text style={styles.overflowItemText}>Archive Project</Text>
@@ -805,7 +806,6 @@ const styles = StyleSheet.create({
   },
   overflowMenu: {
     position: "absolute",
-    top: Platform.OS === "ios" ? 56 : 52,
     right: 16,
     backgroundColor: colors.bg.elevated,
     borderRadius: 12,
