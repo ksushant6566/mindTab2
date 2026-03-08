@@ -293,7 +293,7 @@ export default function NoteDetailScreen() {
   const peekSheetRef = useRef<BottomSheet>(null);
   const [peekEntity, setPeekEntity] = useState<MentionEntity | null>(null);
 
-  const goBack = () => {
+  const goBack = useCallback(() => {
     if (from) {
       router.replace(from as any);
     } else if (router.canGoBack()) {
@@ -301,7 +301,7 @@ export default function NoteDetailScreen() {
     } else {
       router.replace("/(main)/notes");
     }
-  };
+  }, [from, router]);
 
   const handleDelete = () => {
     Alert.alert("Delete Note", "Are you sure you want to delete this note?", [
@@ -392,7 +392,10 @@ export default function NoteDetailScreen() {
     prevScrollY.current = currentY;
   }, [headerVisible]);
 
+  const pinchDismissed = useRef(false);
   const handlePinchDismiss = useCallback(() => {
+    if (pinchDismissed.current) return;
+    pinchDismissed.current = true;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     goBack();
   }, [goBack]);

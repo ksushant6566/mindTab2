@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { StyleSheet, Dimensions } from "react-native";
 import Animated, {
   useSharedValue,
@@ -42,6 +42,7 @@ export function LevelUpOverlay({
   const levelOpacity = useSharedValue(0);
   // Gold shimmer
   const shimmer = useSharedValue(0);
+  const exitTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
     if (!visible) {
@@ -85,16 +86,15 @@ export function LevelUpOverlay({
       titleOpacity.value = withDelay(0, withTiming(0, { duration: 200 }));
       levelOpacity.value = withDelay(0, withTiming(0, { duration: 200 }));
 
-      const exitTimer = setTimeout(() => {
+      exitTimerRef.current = setTimeout(() => {
         runOnJS(onComplete)();
       }, 350);
-
-      return () => clearTimeout(exitTimer);
     }, 1500);
 
     return () => {
       clearTimeout(timer);
       clearTimeout(resetTimer);
+      if (exitTimerRef.current) clearTimeout(exitTimerRef.current);
     };
   }, [visible]);
 
