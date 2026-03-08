@@ -14,7 +14,7 @@ import { useAuth } from "~/hooks/use-auth";
 import { api } from "~/lib/api-client";
 
 function getAvatarBorderColor(streak: number): string {
-  if (streak >= 100) return colors.streak.purple; // animated rainbow handled by component
+  if (streak >= 100) return colors.streak.purple;
   if (streak >= 30) return colors.streak.purple;
   if (streak >= 7) return colors.streak.gold;
   if (streak >= 1) return colors.streak.orange;
@@ -50,11 +50,6 @@ export function DashboardHeader({ xpBarGlowing = false }: DashboardHeaderProps) 
   const xp = user?.xp ?? 0;
   const { level, progress, xpToNext, nextLevelXP } = getXPProgress(xp);
 
-  const hour = new Date().getHours();
-  const greeting =
-    hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
-  const firstName = user?.name?.split(" ")[0] ?? "";
-
   const dateStr = new Date().toLocaleDateString("en-US", {
     weekday: "long",
     month: "long",
@@ -67,17 +62,15 @@ export function DashboardHeader({ xpBarGlowing = false }: DashboardHeaderProps) 
 
   return (
     <View style={styles.container}>
-      {/* Row 1: Greeting (left), Search + Avatar (right) */}
-      <View style={styles.greetingRow}>
-        <Text style={styles.greeting}>
-          {greeting}, {firstName}
-        </Text>
-        <View style={styles.greetingActions}>
+      {/* Row 1: Date (left), Search + Avatar (right) */}
+      <View style={styles.topRow}>
+        <Text style={styles.date}>{dateStr}</Text>
+        <View style={styles.actions}>
           <Pressable
             onPress={() => router.push("/(modals)/command-palette")}
             style={styles.searchButton}
           >
-            <Search size={22} color={colors.text.secondary} />
+            <Search size={20} color={colors.text.secondary} />
           </Pressable>
           <Pressable onPress={() => router.push("/(modals)/profile")}>
             {user?.image ? (
@@ -102,44 +95,42 @@ export function DashboardHeader({ xpBarGlowing = false }: DashboardHeaderProps) 
         </View>
       </View>
 
-      {/* Row 2: Date string */}
-      <Text style={styles.date}>{dateStr}</Text>
-
-      {/* Row 3: XP progress bar with level/xp labels and streak flame */}
-      <View style={styles.xpRow}>
-        <Pressable style={styles.xpBarContainer} onPress={toggleXpTooltip}>
+      {/* Row 2: XP bar + level + streak */}
+      <Pressable style={styles.xpRow} onPress={toggleXpTooltip}>
+        <View style={styles.xpBarSection}>
           <ProgressBar value={progress} color={xpBarColor} height={3} glowing={xpBarGlowing} />
-          <Text style={styles.xpLabel}>Level {level} - {xp} XP</Text>
-          {showXpTooltip && (
-            <View style={styles.xpTooltip}>
-              <Text style={styles.xpTooltipText}>Level {level}</Text>
-              <Text style={styles.xpTooltipText}>{xp} / {nextLevelXP} XP</Text>
-              <Text style={styles.xpTooltipText}>{xpToNext} XP to Level {level + 1}</Text>
-              <Text style={styles.xpTooltipText}>{Math.round(progress * 100)}%</Text>
-            </View>
-          )}
-        </Pressable>
-        <StreakFlame count={streak} size={28} showCount />
-      </View>
+          <View style={styles.xpMeta}>
+            <Text style={styles.xpLabel}>Lv.{level}</Text>
+            <Text style={styles.xpValue}>{xp} XP</Text>
+          </View>
+        </View>
+        <StreakFlame count={streak} size={24} showCount />
+        {showXpTooltip && (
+          <View style={styles.xpTooltip}>
+            <Text style={styles.xpTooltipText}>{xp} / {nextLevelXP} XP</Text>
+            <Text style={styles.xpTooltipText}>{xpToNext} to next level</Text>
+          </View>
+        )}
+      </Pressable>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
-  greetingRow: {
+  topRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
-  greeting: {
-    fontSize: 24,
-    fontWeight: "bold",
+  date: {
+    fontSize: 16,
+    fontWeight: "600",
     color: colors.text.primary,
   },
-  greetingActions: {
+  actions: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
@@ -148,23 +139,23 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     borderWidth: 2,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.5,
-    shadowRadius: 6,
+    shadowRadius: 4,
     elevation: 4,
   },
   avatarFallback: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     borderWidth: 2,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.5,
-    shadowRadius: 6,
+    shadowRadius: 4,
     elevation: 4,
     backgroundColor: colors.accent.indigo,
     alignItems: "center",
@@ -172,31 +163,36 @@ const styles = StyleSheet.create({
   },
   avatarFallbackText: {
     color: "#FFFFFF",
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: "bold",
-  },
-  date: {
-    fontSize: 14,
-    color: colors.text.secondary,
-    marginTop: 4,
   },
   xpRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 12,
+    marginTop: 10,
   },
-  xpBarContainer: {
+  xpBarSection: {
     flex: 1,
     marginRight: 12,
   },
+  xpMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 3,
+  },
   xpLabel: {
-    fontSize: 12,
+    fontSize: 11,
+    fontWeight: "600",
+    color: colors.text.muted,
+  },
+  xpValue: {
+    fontSize: 11,
     color: colors.xp.gold,
-    marginTop: 4,
   },
   xpTooltip: {
     position: "absolute",
-    top: -28,
+    top: -24,
     left: 0,
     backgroundColor: colors.bg.elevated,
     borderWidth: 1,
@@ -204,9 +200,11 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 4,
+    flexDirection: "row",
+    gap: 8,
   },
   xpTooltipText: {
-    fontSize: 12,
+    fontSize: 11,
     color: colors.text.secondary,
     fontWeight: "500",
   },

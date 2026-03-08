@@ -100,20 +100,17 @@ export function ProjectPills({ selectedProjectId, onSelect }: ProjectPillsProps)
           size="sm"
         />
 
-        {projects?.map((project: any) => {
-          const goalCount = project._count?.goals ?? 0;
-          return (
-            <Chip
-              key={project.id}
-              label={`${project.name ?? ""}${selectedProjectId === project.id ? ` ${goalCount}` : ""}`}
-              selected={selectedProjectId === project.id}
-              onPress={() => onSelect(project.id)}
-              onLongPress={() => handleLongPress(project)}
-              color={colors.accent.indigo}
-              size="sm"
-            />
-          );
-        })}
+        {projects?.map((project: any) => (
+          <Chip
+            key={project.id}
+            label={project.name ?? ""}
+            selected={selectedProjectId === project.id}
+            onPress={() => onSelect(project.id)}
+            onLongPress={() => handleLongPress(project)}
+            color={colors.accent.indigo}
+            size="sm"
+          />
+        ))}
 
         <Chip
           label=""
