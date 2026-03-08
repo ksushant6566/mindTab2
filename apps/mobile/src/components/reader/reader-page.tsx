@@ -407,7 +407,7 @@ export function ReaderPage({
         style={{
           width: screenWidth - 48,
           height: webViewHeight,
-          backgroundColor: colors.bg.primary,
+          backgroundColor: "transparent",
           opacity: webViewReady ? 1 : 0,
         }}
         scrollEnabled={false}
