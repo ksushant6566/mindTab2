@@ -89,13 +89,14 @@ export default function Dashboard() {
   const dismissSearch = useCallback(() => {
     Keyboard.dismiss();
     searchBarProgress.value = withSpring(0, springs.snappy);
+    pullHintOpacity.value = 0;
     // Wait for animation to finish before hiding
     setTimeout(() => {
       setSearchVisible(false);
       setSearchQuery("");
       hasTriggered.current = false;
     }, 250);
-  }, [searchBarProgress]);
+  }, [searchBarProgress, pullHintOpacity]);
 
   const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const currentY = e.nativeEvent.contentOffset.y;
