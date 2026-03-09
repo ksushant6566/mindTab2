@@ -5,6 +5,7 @@ import {
   Pressable,
   TextInput,
   StyleSheet,
+  ActivityIndicator,
 } from "react-native";
 import { useState, useMemo, useCallback } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -24,8 +25,10 @@ import {
   Edit3,
   Check,
   X,
+  FileText,
 } from "lucide-react-native";
 import { api } from "~/lib/api-client";
+import { getAccessToken, refreshTokens } from "~/lib/auth";
 import { Loading } from "~/components/ui/loading";
 import { Chip } from "~/components/ui/chip";
 import { PressableCard } from "~/components/ui/pressable-card";
@@ -35,6 +38,36 @@ import { colors } from "~/styles/colors";
 import { toast } from "sonner-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { runOnJS } from "react-native-reanimated";
+
+// ── Connected notes API ──
+
+const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:8080";
+
+type ConnectedNote = {
+  id: string;
+  title: string;
+  preview: string;
+  updatedAt: string | null;
+  createdAt: string | null;
+};
+
+async function fetchConnectedNotes(habitId: string): Promise<ConnectedNote[]> {
+  const token = await getAccessToken();
+  const params = new URLSearchParams({ entityType: "habit", entityId: habitId });
+  let res = await fetch(`${API_URL}/mentions/connected-notes?${params}`, {
+    headers: { Authorization: `Bearer ${token}`, "X-Platform": "mobile" },
+  });
+  if (res.status === 401) {
+    const refreshed = await refreshTokens();
+    if (!refreshed) return [];
+    const newToken = await getAccessToken();
+    res = await fetch(`${API_URL}/mentions/connected-notes?${params}`, {
+      headers: { Authorization: `Bearer ${newToken}`, "X-Platform": "mobile" },
+    });
+  }
+  if (!res.ok) return [];
+  return res.json();
+}
 
 // ── Constants ──
 
@@ -63,6 +96,11 @@ export default function HabitDetailScreen() {
 
   const { data: habit, isLoading } = useQuery(habitQueryOptions(api, id));
   const { data: tracker = [] } = useQuery(habitTrackerQueryOptions(api));
+  const { data: connectedNotes = [], isLoading: notesLoading } = useQuery({
+    queryKey: ["connected-notes", "habit", id],
+    queryFn: () => fetchConnectedNotes(id),
+    staleTime: 60_000,
+  });
   const updateHabit = useUpdateHabit(api);
   const deleteHabit = useDeleteHabit(api);
 
@@ -592,12 +630,42 @@ export default function HabitDetailScreen() {
           </GestureDetector>
         </View>
 
-        <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>CONNECTED NOTES</Text>
-          <Text style={styles.connectedNotesText}>
-            Note-to-habit mention queries still require API support. Connected notes will appear here once available.
-          </Text>
-        </View>
+        {(connectedNotes.length > 0 || notesLoading) && (
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionTitle}>CONNECTED NOTES</Text>
+            {notesLoading ? (
+              <ActivityIndicator
+                size="small"
+                color={colors.text.muted}
+                style={{ alignSelf: "flex-start", marginTop: 4 }}
+              />
+            ) : (
+              connectedNotes.map((note) => (
+                <Pressable
+                  key={note.id}
+                  onPress={() => router.push(`/(main)/notes/${note.id}`)}
+                  style={({ pressed }) => [
+                    styles.connectedNoteCard,
+                    pressed && { opacity: 0.7 },
+                  ]}
+                >
+                  <FileText size={15} color={colors.status.active} />
+                  <View style={styles.connectedNoteText}>
+                    <Text style={styles.connectedNoteTitle} numberOfLines={1}>
+                      {note.title || "Untitled"}
+                    </Text>
+                    {note.preview ? (
+                      <Text style={styles.connectedNotePreview} numberOfLines={1}>
+                        {note.preview}
+                      </Text>
+                    ) : null}
+                  </View>
+                  <ChevronRight size={14} color={colors.text.muted} />
+                </Pressable>
+              ))
+            )}
+          </View>
+        )}
       </ScrollView>
     </View>
   );
@@ -871,10 +939,30 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.text.muted,
   },
-  connectedNotesText: {
-    fontSize: 13,
-    color: colors.text.secondary,
-    lineHeight: 20,
+  connectedNoteCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginTop: 8,
+    backgroundColor: colors.bg.surface,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+  },
+  connectedNoteText: {
+    flex: 1,
+    gap: 2,
+  },
+  connectedNoteTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.text.primary,
+  },
+  connectedNotePreview: {
+    fontSize: 12,
+    color: colors.text.muted,
   },
 
   // ── Monthly calendar ──

@@ -37,7 +37,7 @@ export default function MainLayout() {
       />
       <Stack.Screen
         name="notes/[id]"
-        options={{ headerShown: false, animation: "fade" }}
+        options={{ headerShown: false, animation: "none" }}
       />
       <Stack.Screen
         name="projects/index"

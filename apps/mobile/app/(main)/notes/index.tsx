@@ -28,6 +28,7 @@ import { Chip } from "~/components/ui/chip";
 import { SwipeableRow } from "~/components/ui/swipeable-row";
 import { PressableCard } from "~/components/ui/pressable-card";
 import { EmptyState } from "~/components/ui/empty-state";
+import { ListHeader } from "~/components/list-header";
 import { FAB } from "~/components/dashboard/fab";
 import { api } from "~/lib/api-client";
 import { colors } from "~/styles/colors";
@@ -277,8 +278,12 @@ export default function NotesScreen() {
     );
   }, [isLoading]);
 
+  const noteCount = (notes ?? []).length;
+  const noteSubtitle = `${noteCount} ${noteCount === 1 ? "note" : "notes"}`;
+
   return (
     <View style={styles.screen}>
+      <ListHeader title="Notes" subtitle={noteSubtitle} />
       <FlatList
         data={filteredNotes}
         keyExtractor={(item: any) => item.id}
@@ -364,7 +369,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   listContent: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingBottom: 100,
   },
   // Note card

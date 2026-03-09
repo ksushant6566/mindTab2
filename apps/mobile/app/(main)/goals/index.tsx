@@ -27,6 +27,7 @@ import { EmptyState } from "~/components/ui/empty-state";
 import { ConfettiBurst } from "~/components/ui/confetti-burst";
 import { XPFloat } from "~/components/ui/xp-float";
 import { UndoToast } from "~/components/ui/undo-toast";
+import { ListHeader } from "~/components/list-header";
 import { FAB } from "~/components/dashboard/fab";
 import { api } from "~/lib/api-client";
 import { staggerDelay } from "~/lib/animations";
@@ -399,10 +400,21 @@ export default function GoalsScreen() {
     );
   }, [isLoading]);
 
+  // ---------- Subtitle ----------
+
+  const inProgressCount = useMemo(
+    () => (goals ?? []).filter((g: any) => g.status === "in_progress").length,
+    [goals],
+  );
+  const goalSubtitle = inProgressCount > 0
+    ? `${inProgressCount} in progress`
+    : `${(goals ?? []).length} goals`;
+
   // ---------- Layout ----------
 
   return (
     <View style={styles.screen}>
+      <ListHeader title="Goals" subtitle={goalSubtitle} />
       <SectionList
         sections={sections}
         keyExtractor={(item: any) => item.id}
@@ -486,7 +498,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg.primary,
   },
   listHeader: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingTop: 8,
   },
   filterRow: {
@@ -524,7 +536,7 @@ const styles = StyleSheet.create({
     color: colors.text.secondary,
   },
   listContent: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingBottom: 100,
   },
   // Section header

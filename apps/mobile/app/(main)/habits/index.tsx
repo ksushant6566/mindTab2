@@ -39,6 +39,7 @@ import { XPFloat } from "~/components/ui/xp-float";
 import { FAB } from "~/components/dashboard/fab";
 import { StreakFlame, getFlameColor } from "~/components/ui/streak-flame";
 import { EmptyState } from "~/components/ui/empty-state";
+import { ListHeader } from "~/components/list-header";
 import { api } from "~/lib/api-client";
 import { colors } from "~/styles/colors";
 
@@ -185,12 +186,19 @@ export default function HabitsScreen() {
     return habits.filter((h: any) => todayCompletedSet.has(h.id)).length;
   }, [habits, todayCompletedSet]);
 
+  // ---------- Subtitle ----------
+
+  const habitSubtitle = totalCount > 0
+    ? `${completedCount}/${totalCount} completed today`
+    : undefined;
+
   // ---------- Layout ----------
 
   if (!habits || habits.length === 0) {
     if (isLoading) return null;
     return (
       <View style={styles.screen}>
+        <ListHeader title="Habits" />
         <EmptyState
           icon={Repeat}
           title="No habits yet"
@@ -202,6 +210,7 @@ export default function HabitsScreen() {
 
   return (
     <View style={styles.screen}>
+      <ListHeader title="Habits" subtitle={habitSubtitle} />
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         refreshControl={
@@ -500,7 +509,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg.primary,
   },
   scrollContent: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingTop: 8,
     paddingBottom: 100,
   },

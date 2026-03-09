@@ -17,7 +17,7 @@ import Animated, {
   withSpring,
   interpolate,
 } from "react-native-reanimated";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import { searchGoalsQueryOptions, searchHabitsQueryOptions, searchJournalsQueryOptions } from "@mindtab/core";
 import * as Haptics from "expo-haptics";
@@ -49,6 +49,7 @@ function useDebounce(value: string, delay: number) {
 
 export default function Dashboard() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [fabVisible, setFabVisible] = useState(true);
   const [searchVisible, setSearchVisible] = useState(false);
@@ -146,10 +147,10 @@ export default function Dashboard() {
   }));
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg.primary }}>
+    <View style={{ flex: 1, backgroundColor: colors.bg.primary }}>
       {/* Pull hint - visible during overscroll before threshold */}
       {!searchVisible && (
-        <Animated.View style={[styles.pullHint, pullHintAnimatedStyle]}>
+        <Animated.View style={[styles.pullHint, { top: insets.top }, pullHintAnimatedStyle]}>
           <Search size={16} color={colors.text.muted} />
           <Text style={styles.pullHintText}>Pull to search</Text>
         </Animated.View>
@@ -157,7 +158,7 @@ export default function Dashboard() {
 
       {/* Search bar - springs in from above */}
       {searchVisible && (
-        <Animated.View style={[styles.searchBarContainer, searchBarAnimatedStyle]}>
+        <Animated.View style={[styles.searchBarContainer, { paddingTop: insets.top }, searchBarAnimatedStyle]}>
           <View style={styles.searchBarInner}>
             <Search size={18} color={colors.text.muted} style={styles.searchIcon} />
             <TextInput
@@ -181,7 +182,7 @@ export default function Dashboard() {
 
       {/* Search results overlay */}
       {searchVisible && hasResults && (
-        <View style={styles.searchResultsContainer}>
+        <View style={[styles.searchResultsContainer, { top: insets.top + SEARCH_BAR_HEIGHT }]}>
           <SearchResults
             goals={goals as any[]}
             habits={habits as any[]}
@@ -192,7 +193,7 @@ export default function Dashboard() {
 
       {/* Empty search state */}
       {searchVisible && !hasResults && searchQuery.length === 0 && (
-        <View style={styles.searchEmptyState}>
+        <View style={[styles.searchEmptyState, { top: insets.top + SEARCH_BAR_HEIGHT }]}>
           <Text style={styles.searchEmptyText}>
             Type to search across your goals, habits, and notes
           </Text>
@@ -207,7 +208,7 @@ export default function Dashboard() {
       <ScrollView
         onScroll={handleScroll}
         scrollEventThrottle={16}
-        contentContainerStyle={{ paddingBottom: 100, paddingHorizontal: 20 }}
+        contentContainerStyle={{ paddingTop: insets.top, paddingBottom: 100, paddingHorizontal: 20 }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         scrollEnabled={!searchVisible || !hasResults}
@@ -222,7 +223,7 @@ export default function Dashboard() {
         <NotesSection projectId={selectedProjectId} />
       </ScrollView>
       <FAB visible={fabVisible && !searchVisible} />
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -275,7 +276,6 @@ const styles = StyleSheet.create({
   },
   searchResultsContainer: {
     position: "absolute",
-    top: SEARCH_BAR_HEIGHT,
     left: 0,
     right: 0,
     bottom: 0,
@@ -284,7 +284,6 @@ const styles = StyleSheet.create({
   },
   searchEmptyState: {
     position: "absolute",
-    top: SEARCH_BAR_HEIGHT,
     left: 0,
     right: 0,
     bottom: 0,

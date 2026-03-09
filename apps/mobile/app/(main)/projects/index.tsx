@@ -29,6 +29,7 @@ import { SwipeableRow } from "~/components/ui/swipeable-row";
 import { PressableCard } from "~/components/ui/pressable-card";
 import { ProgressBar } from "~/components/ui/progress-bar";
 import { EmptyState } from "~/components/ui/empty-state";
+import { ListHeader } from "~/components/list-header";
 import { api } from "~/lib/api-client";
 import { colors } from "~/styles/colors";
 
@@ -236,10 +237,21 @@ export default function ProjectsScreen() {
 
   const keyExtractor = useCallback((item: any) => item.id, []);
 
+  // ---------- Subtitle ----------
+
+  const activeCount = useMemo(
+    () => (projects ?? []).filter((p: any) => p.status === "active").length,
+    [projects],
+  );
+  const projectSubtitle = activeCount > 0
+    ? `${activeCount} active`
+    : `${(projects ?? []).length} projects`;
+
   // ---------- Layout ----------
 
   return (
     <View style={styles.screen}>
+      <ListHeader title="Projects" subtitle={projectSubtitle} />
       <FlatList
         data={filteredProjects}
         keyExtractor={keyExtractor}
@@ -315,7 +327,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   listContent: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingBottom: 100,
   },
 
