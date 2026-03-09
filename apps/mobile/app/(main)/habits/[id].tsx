@@ -134,20 +134,23 @@ export default function HabitDetailScreen() {
     return { year: now.getFullYear(), month: now.getMonth() };
   });
 
-  if (isLoading || !habit) return <Loading />;
-
-  const h = habit as any;
-
   // ── Tracker data for THIS habit ──
 
-  const habitRecords = (tracker as any[]).filter(
-    (r: any) => r.habitId === id && r.status === "completed",
+  const habitRecords = useMemo(
+    () =>
+      (tracker as any[]).filter(
+        (r: any) => r.habitId === id && r.status === "completed",
+      ),
+    [tracker, id],
   );
 
-  const completedDatesSet = new Set<string>();
-  for (const r of habitRecords) {
-    if (r.date) completedDatesSet.add(r.date);
-  }
+  const completedDatesSet = useMemo(() => {
+    const set = new Set<string>();
+    for (const r of habitRecords) {
+      if (r.date) set.add(r.date);
+    }
+    return set;
+  }, [habitRecords]);
 
   // ── Streak calculation ──
 
@@ -195,13 +198,15 @@ export default function HabitDetailScreen() {
     if (run > best) best = run;
 
     return { currentStreak: current, bestStreak: best };
-  }, [completedDatesSet.size, tracker, id]);
+  }, [completedDatesSet]);
 
   // ── Stats ──
 
   const totalCompletions = habitRecords.length;
 
-  const createdDate = h.createdAt
+  const h = habit as any;
+
+  const createdDate = h?.createdAt
     ? new Date(h.createdAt).toLocaleDateString("en-US", {
         month: "short",
         day: "numeric",
@@ -210,7 +215,7 @@ export default function HabitDetailScreen() {
     : "Unknown";
 
   const completionRate = useMemo(() => {
-    if (!h.createdAt) return 0;
+    if (!h?.createdAt) return 0;
     const created = new Date(h.createdAt);
     created.setHours(0, 0, 0, 0);
     const now = new Date();
@@ -221,7 +226,7 @@ export default function HabitDetailScreen() {
       ) + 1;
     if (totalDays <= 0) return 0;
     return Math.round((totalCompletions / totalDays) * 100);
-  }, [h.createdAt, totalCompletions]);
+  }, [h?.createdAt, totalCompletions]);
 
   // ── Last 30 days data ──
 
@@ -242,7 +247,7 @@ export default function HabitDetailScreen() {
       }
     }
     return result;
-  }, [completedDatesSet.size, tracker, id]);
+  }, [completedDatesSet]);
 
   // ── Calendar grid data ──
 
@@ -279,6 +284,8 @@ export default function HabitDetailScreen() {
 
     return grid;
   }, [calendarMonth]);
+
+  if (isLoading || !habit) return <Loading />;
 
   // ── Edit handlers ──
 
