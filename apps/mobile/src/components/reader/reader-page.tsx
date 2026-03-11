@@ -82,7 +82,7 @@ function buildReaderHtml(content: string): string {
       line-height: 1.75;
       color: #e5e5e5;
       background-color: #0a0a0a;
-      padding: 0 24px;
+      padding: 0;
       margin: 0 auto;
       max-width: 640px;
       -webkit-font-smoothing: antialiased;
@@ -404,7 +404,7 @@ export function ReaderPage({
         ref={webViewRef}
         source={{ html: buildReaderHtml(note.content || "") }}
         style={{
-          width: screenWidth - 48,
+          width: screenWidth - 40,
           height: webViewHeight,
           backgroundColor: "transparent",
           opacity: webViewReady ? 1 : 0,
@@ -425,7 +425,7 @@ export function ReaderPage({
 
 const styles = StyleSheet.create({
   scrollContent: {
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     paddingTop: 56,
     paddingBottom: 80,
   },
