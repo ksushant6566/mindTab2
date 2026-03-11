@@ -24,7 +24,7 @@ import { XPFloat } from "~/components/ui/xp-float";
 import { api } from "~/lib/api-client";
 import { colors } from "~/styles/colors";
 
-export function HabitsSection() {
+export function HabitsSection({ embedded = false }: { embedded?: boolean }) {
   const router = useRouter();
   const { data: habits } = useQuery(habitsQueryOptions(api));
   const { data: tracker } = useQuery(habitTrackerQueryOptions(api));
@@ -97,6 +97,7 @@ export function HabitsSection() {
   }, [tracker]);
 
   if (!habits || habits.length === 0) {
+    if (embedded) return null;
     return (
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>TODAY'S HABITS</Text>
@@ -111,36 +112,38 @@ export function HabitsSection() {
   }
 
   return (
-    <View style={styles.section}>
-      {/* Section header */}
-      <View style={styles.headerRow}>
-        <Text style={styles.sectionTitle}>TODAY'S HABITS</Text>
-        <View style={styles.counterRow}>
-          <View style={styles.miniProgress}>
-            <Animated.View
+    <View style={[styles.section, embedded && { marginBottom: 0 }]}>
+      {/* Section header — hidden when rendered inside the habits bubble popup */}
+      {!embedded && (
+        <View style={styles.headerRow}>
+          <Text style={styles.sectionTitle}>TODAY'S HABITS</Text>
+          <View style={styles.counterRow}>
+            <View style={styles.miniProgress}>
+              <Animated.View
+                style={[
+                  styles.miniProgressFill,
+                  {
+                    width: `${totalCount > 0 ? (completedCount / totalCount) * 100 : 0}%`,
+                    backgroundColor: completedCount === totalCount && totalCount > 0
+                      ? colors.xp.gold
+                      : colors.accent.indigo,
+                  },
+                ]}
+              />
+            </View>
+            <Animated.Text
               style={[
-                styles.miniProgressFill,
-                {
-                  width: `${totalCount > 0 ? (completedCount / totalCount) * 100 : 0}%`,
-                  backgroundColor: completedCount === totalCount && totalCount > 0
-                    ? colors.xp.gold
-                    : colors.accent.indigo,
-                },
+                styles.counter,
+                completedCount > 0 && { color: colors.accent.indigo },
+                completedCount === totalCount && totalCount > 0 && { color: colors.xp.gold },
+                counterAnimStyle,
               ]}
-            />
+            >
+              {completedCount}/{totalCount}
+            </Animated.Text>
           </View>
-          <Animated.Text
-            style={[
-              styles.counter,
-              completedCount > 0 && { color: colors.accent.indigo },
-              completedCount === totalCount && totalCount > 0 && { color: colors.xp.gold },
-              counterAnimStyle,
-            ]}
-          >
-            {completedCount}/{totalCount}
-          </Animated.Text>
         </View>
-      </View>
+      )}
 
       {/* Habit rows */}
       {habits.map((habit: any) => {
@@ -307,8 +310,12 @@ function HabitRow({
           )}
         </Pressable>
 
-        {/* Title */}
-        <Pressable onPress={() => router.push(`/(main)/habits/${habit.id}` as any)} style={styles.habitTitlePressable}>
+        {/* Title — tap toggles status, long-press navigates to detail */}
+        <Pressable
+          onPress={handleToggle}
+          onLongPress={() => router.push(`/(main)/habits/${habit.id}` as any)}
+          style={styles.habitTitlePressable}
+        >
           <Text
             style={[
               styles.habitTitle,

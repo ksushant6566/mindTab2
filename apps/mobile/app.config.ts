@@ -23,6 +23,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     package: "in.mindtab.app",
   },
   plugins: [
+    "expo-asset",
     "expo-router",
     "expo-secure-store",
     [

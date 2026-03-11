@@ -11,7 +11,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQueryClient } from "@tanstack/react-query";
 import { DashboardHeader } from "~/components/dashboard/dashboard-header";
 import { ProjectPills } from "~/components/dashboard/project-pills";
-import { HabitsSection } from "~/components/dashboard/habits-section";
+import { HabitsBubble } from "~/components/dashboard/habits-bubble";
 import { GoalsSection } from "~/components/dashboard/goals-section";
 import { NotesSection } from "~/components/dashboard/notes-section";
 import { FAB } from "~/components/dashboard/fab";
@@ -64,7 +64,6 @@ export default function Dashboard() {
           />
         }
       >
-        <HabitsSection />
         <ProjectPills
           selectedProjectId={selectedProjectId}
           onSelect={setSelectedProjectId}
@@ -72,6 +71,7 @@ export default function Dashboard() {
         <GoalsSection projectId={selectedProjectId} />
         <NotesSection projectId={selectedProjectId} />
       </ScrollView>
+      <HabitsBubble />
       <FAB visible={fabVisible} />
     </View>
   );
