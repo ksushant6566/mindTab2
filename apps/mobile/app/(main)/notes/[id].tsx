@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import {
   View,
   Text,
@@ -29,14 +29,14 @@ import {
 } from "lucide-react-native";
 import { colors } from "~/styles/colors";
 import Animated, {
-  FadeIn,
-  FadeOut,
   useSharedValue,
   useAnimatedStyle,
+  useAnimatedReaction,
   withTiming,
   withSpring,
   withDelay,
   withSequence,
+  runOnJS,
 } from "react-native-reanimated";
 import BottomSheet from "@gorhom/bottom-sheet";
 import { MentionPeekSheet } from "~/components/reader/mention-peek-sheet";
@@ -92,16 +92,18 @@ type MentionEntity = {
 // In-place editor sub-component (hooks must be called unconditionally)
 // ---------------------------------------------------------------------------
 
-function InPlaceEditor({
+const InPlaceEditor = React.memo(function InPlaceEditor({
   content,
   editorRef,
   onContentChange,
   onMentionPress,
+  onReady,
 }: {
   content: string;
   editorRef: React.MutableRefObject<ReturnType<typeof useEditorBridge> | null>;
   onContentChange?: () => void;
   onMentionPress?: () => void;
+  onReady?: () => void;
 }) {
   const editor = useRichEditor({
     initialContent: content,
@@ -115,9 +117,9 @@ function InPlaceEditor({
     };
   }, [editor, editorRef]);
   return (
-    <RichTextEditorView editor={editor} onMentionPress={onMentionPress} />
+    <RichTextEditorView editor={editor} onMentionPress={onMentionPress} onReady={onReady} />
   );
-}
+});
 
 // ---------------------------------------------------------------------------
 // Component
@@ -142,13 +144,16 @@ export default function NoteDetailScreen() {
   // Header visibility — starts hidden, fades in after entry animation
   // ---------------------------------------------------------------------------
   const headerVisible = useSharedValue(0);
-  const headerOpacity = useAnimatedStyle(() => {
-    const isShowing = headerVisible.value > 0.5;
-    return {
-      opacity: withTiming(headerVisible.value, { duration: isShowing ? 150 : 200 }),
-      pointerEvents: isShowing ? "auto" as const : "none" as const,
-    };
-  });
+  const [headerTouchable, setHeaderTouchable] = useState(false);
+  const headerOpacity = useAnimatedStyle(() => ({
+    opacity: withTiming(headerVisible.value, {
+      duration: headerVisible.value > 0.5 ? 150 : 200,
+    }),
+  }));
+  useAnimatedReaction(
+    () => headerVisible.value > 0.5,
+    (visible) => runOnJS(setHeaderTouchable)(visible),
+  );
 
   // ---------------------------------------------------------------------------
   // Entry animation — card-to-reader morph on initial open
@@ -201,6 +206,8 @@ export default function NoteDetailScreen() {
   // In-place edit mode
   // ---------------------------------------------------------------------------
   const [isEditing, setIsEditing] = useState(false);
+  const [editorReady, setEditorReady] = useState(false);
+  const handleEditorReady = useCallback(() => setEditorReady(true), []);
   const [editTitle, setEditTitle] = useState("");
   const editorRef = useRef<ReturnType<typeof useEditorBridge> | null>(null);
   const updateJournal = useUpdateJournal(api);
@@ -210,18 +217,11 @@ export default function NoteDetailScreen() {
   editTitleRef.current = editTitle;
   const lastSavedRef = useRef({ title: "", content: "" });
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [contentVersion, setContentVersion] = useState(0);
 
-  const handleContentChange = useCallback(() => {
-    setContentVersion((v) => v + 1);
-  }, []);
-
-  // Auto-save with 2-second debounce on title or content change
-  useEffect(() => {
-    if (!isEditing) return;
-
+  // Debounced save — shared by content onChange and title onChange.
+  // Uses refs only so it never triggers a re-render of the editor WebView.
+  const scheduleAutoSave = useCallback(() => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-
     saveTimerRef.current = setTimeout(async () => {
       if (!editorRef.current) return;
       const html = (await editorRef.current.getHTML()) ?? "";
@@ -241,29 +241,44 @@ export default function NoteDetailScreen() {
         );
       }
     }, 2000);
+  }, [id, updateJournal]);
 
+  // Content changes from the WebView editor — no setState, just reschedule save
+  const handleContentChange = useCallback(() => {
+    scheduleAutoSave();
+  }, [scheduleAutoSave]);
+
+  // Title changes trigger auto-save via effect (title is already controlled state)
+  useEffect(() => {
+    if (!isEditing) return;
+    scheduleAutoSave();
     return () => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     };
-  }, [editTitle, contentVersion, isEditing, id, updateJournal]);
+  }, [editTitle, isEditing, scheduleAutoSave]);
 
   // "Done" button handler — final save + exit edit mode
   const handleDone = useCallback(async () => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    const html = (await editorRef.current?.getHTML()) ?? "";
-    const title = editTitleRef.current.trim();
+    Keyboard.dismiss();
 
-    updateJournal.mutate(
-      { id, title, content: html },
-      {
-        onSuccess: () => {
-          lastSavedRef.current = { title, content: html };
-          Keyboard.dismiss();
-          setIsEditing(false);
-        },
-      },
-    );
-  }, [id, updateJournal]);
+    try {
+      const html = (await editorRef.current?.getHTML()) ?? "";
+      const title = editTitleRef.current.trim();
+      lastSavedRef.current = { title, content: html };
+
+      // Optimistically update cache so the reader shows new content instantly
+      queryClient.setQueryData(["journals", id], (old: any) =>
+        old ? { ...old, title, content: html } : old,
+      );
+
+      updateJournal.mutate({ id, title, content: html });
+    } catch {
+      // Save best-effort; still exit edit mode
+    }
+
+    setIsEditing(false);
+  }, [id, updateJournal, queryClient]);
 
   // ---------------------------------------------------------------------------
   // Mention search sheet (edit mode)
@@ -442,6 +457,7 @@ export default function NoteDetailScreen() {
       const n = note as any;
       setEditTitle(n.title || "");
       lastSavedRef.current = { title: n.title || "", content: n.content || "" };
+      setEditorReady(false);
       setIsEditing(true);
     }
   }, [editing, note]);
@@ -454,7 +470,10 @@ export default function NoteDetailScreen() {
     <Animated.View style={[styles.container, entryAnimatedStyle]}>
       <SafeAreaView style={styles.container}>
       {/* --- Floating minimal header --- */}
-      <Animated.View style={[styles.header, headerOpacity, { paddingTop: insets.top + 8 }]}>
+      <Animated.View
+        pointerEvents={headerTouchable || isEditing ? "auto" : "none"}
+        style={[styles.header, headerOpacity, { paddingTop: insets.top + 8 }]}
+      >
         <Pressable
           onPress={handleBack}
           style={styles.headerBtn}
@@ -481,6 +500,7 @@ export default function NoteDetailScreen() {
                 title: n.title || "",
                 content: n.content || "",
               };
+              setEditorReady(false);
               setIsEditing(true);
             }}
             style={styles.headerBtn}
@@ -522,51 +542,59 @@ export default function NoteDetailScreen() {
         </Pressable>
       )}
 
-      {/* --- Content area: reader pager or in-place editor --- */}
-      {isEditing ? (
-        <Animated.View
-          key="editor"
-          entering={FadeIn.duration(150)}
-          exiting={FadeOut.duration(150)}
-          style={{ flex: 1 }}
-        >
-          {/* Editable title */}
-          <View style={[styles.editTitleContainer, { paddingTop: insets.top + 52 }]}>
-            <TextInput
-              value={editTitle}
-              onChangeText={setEditTitle}
-              style={styles.editableTitle}
-              placeholder="Untitled"
-              placeholderTextColor={colors.text.muted}
-              multiline
-              autoFocus
-            />
+      {/* --- Content area: editor overlays reader until WebView is ready --- */}
+      <View style={{ flex: 1 }}>
+        {isEditing && (
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: colors.bg.primary,
+              opacity: editorReady ? 1 : 0,
+            }}
+          >
+            <View style={[styles.editTitleContainer, { paddingTop: 56 }]}>
+              <TextInput
+                value={editTitle}
+                onChangeText={setEditTitle}
+                style={styles.editableTitle}
+                placeholder="Untitled"
+                placeholderTextColor={colors.text.muted}
+                multiline
+                autoFocus
+              />
+            </View>
+            <View style={{ flex: 1, backgroundColor: colors.bg.primary }}>
+              <InPlaceEditor
+                content={n.content || ""}
+                editorRef={editorRef}
+                onContentChange={handleContentChange}
+                onMentionPress={handleMentionBtnPress}
+                onReady={handleEditorReady}
+              />
+            </View>
           </View>
-
-          {/* Rich text editor */}
-          <View style={{ flex: 1 }}>
-            <InPlaceEditor
-              content={n.content || ""}
-              editorRef={editorRef}
-              onContentChange={handleContentChange}
-              onMentionPress={handleMentionBtnPress}
+        )}
+        {(!isEditing || !editorReady) && (
+          <Animated.View
+            style={[
+              isEditing ? StyleSheet.absoluteFill : { flex: 1 },
+              !isEditing && dismissAnimatedStyle,
+            ]}
+            pointerEvents={isEditing ? "none" : "auto"}
+          >
+            <NotePager
+              currentId={id}
+              filterProjectId={filterProjectId}
+              onToggleHeader={toggleHeader}
+              onMentionPress={handleMentionPress}
+              dismissTranslateY={dismissTranslateY}
+              headerVisible={headerVisible}
+              onDismiss={goBack}
+              scrollEnabled={!isEditing}
             />
-          </View>
-        </Animated.View>
-      ) : (
-        <Animated.View style={[{ flex: 1 }, dismissAnimatedStyle]}>
-          <NotePager
-            currentId={id}
-            filterProjectId={filterProjectId}
-            onToggleHeader={toggleHeader}
-            onMentionPress={handleMentionPress}
-            dismissTranslateY={dismissTranslateY}
-            headerVisible={headerVisible}
-            onDismiss={goBack}
-            scrollEnabled={!isEditing}
-          />
-        </Animated.View>
-      )}
+          </Animated.View>
+        )}
+      </View>
 
       {/* --- Mention peek bottom sheet --- */}
       <MentionPeekSheet
@@ -605,7 +633,7 @@ const styles = StyleSheet.create({
     zIndex: 10,
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingBottom: 12,
     backgroundColor: "transparent",
   },
@@ -655,7 +683,7 @@ const styles = StyleSheet.create({
   },
   // In-place edit mode
   editTitleContainer: {
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
   },
   editableTitle: {
     ...readerTypography.title,

@@ -1,3 +1,4 @@
+import { useState, useMemo, useRef } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
@@ -13,6 +14,8 @@ import {
   TenTapStartKit,
 } from "@10play/tentap-editor";
 import BridgeExtension from "@10play/tentap-editor/lib/module/bridges/base";
+// @ts-expect-error – internal util, no public typings
+import { getInjectedJSBeforeContentLoad } from "@10play/tentap-editor/lib/module/RichText/utils";
 import Animated, { SlideInDown } from "react-native-reanimated";
 import { colors } from "~/styles/colors";
 import { springs } from "~/lib/animations";
@@ -23,9 +26,9 @@ const darkThemeCSS = `
     background-color: ${colors.bg.primary} !important;
     color: ${colors.text.primary} !important;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    font-size: 16px;
-    line-height: 1.6;
-    padding: 0 16px;
+    font-size: 18px;
+    line-height: 1.75;
+    padding: 0 20px;
     margin: 0;
   }
   .ProseMirror {
@@ -42,7 +45,7 @@ const darkThemeCSS = `
   .ProseMirror a { color: #60a5fa; }
   .ProseMirror blockquote {
     border-left: 3px solid ${colors.border.default};
-    padding-left: 12px;
+    padding-left: 16px;
     color: ${colors.text.muted};
     margin: 0.5em 0;
   }
@@ -126,16 +129,49 @@ export function RichTextEditorView({
   editor,
   showToolbar = true,
   onMentionPress,
+  onReady,
 }: {
   editor: ReturnType<typeof useEditorBridge>;
   showToolbar?: boolean;
   onMentionPress?: () => void;
+  onReady?: () => void;
 }) {
+  const [ready, setReady] = useState(false);
+
+  // On iOS, tentap-editor remounts the WebView via a key change after the
+  // first load (RichText.tsx L140-141, workaround for react-native-webview
+  // #3578). Our onLoad fires on the FIRST WebView which is immediately
+  // destroyed — the SECOND WebView appears empty. We must wait for the
+  // second onLoad (the real one) before revealing.
+  const loadCountRef = useRef(0);
+  const loadThreshold = Platform.OS === "ios" ? 2 : 1;
+
+  // The library injects extendCSS via injectedJavaScript (post-load) — the
+  // base HTML has no dark styles. Prepend dark CSS injection to the library's
+  // before-content-loaded setup so the very first paint is already dark.
+  const beforeContentLoaded = useMemo(() => {
+    const earlyCSS =
+      `(function(){var s=document.createElement('style');` +
+      `s.setAttribute('data-tag','dark-theme');` +
+      `s.textContent=${JSON.stringify(darkThemeCSS)};` +
+      `(document.head||document.documentElement).appendChild(s);` +
+      `})();`;
+    return earlyCSS + getInjectedJSBeforeContentLoad(editor);
+  }, [editor]);
+
   return (
     <>
       <RichText
         editor={editor}
-        style={{ flex: 1, backgroundColor: colors.bg.primary }}
+        injectedJavaScriptBeforeContentLoaded={beforeContentLoaded}
+        onLoad={() => {
+          loadCountRef.current += 1;
+          if (loadCountRef.current >= loadThreshold) {
+            setReady(true);
+            onReady?.();
+          }
+        }}
+        style={{ flex: 1, backgroundColor: colors.bg.primary, opacity: ready ? 1 : 0 }}
       />
       {showToolbar && (
         <KeyboardAvoidingView
