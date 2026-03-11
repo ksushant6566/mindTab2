@@ -21,58 +21,70 @@ import { colors } from "~/styles/colors";
 import { springs } from "~/lib/animations";
 
 const darkThemeCSS = `
-  * { box-sizing: border-box; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     background-color: ${colors.bg.primary} !important;
-    color: ${colors.text.primary} !important;
+    color: #e5e5e5 !important;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     font-size: 18px;
     line-height: 1.75;
     padding: 0 20px;
     margin: 0;
+    -webkit-font-smoothing: antialiased;
+    -webkit-text-size-adjust: 100%;
   }
   .ProseMirror {
     background-color: ${colors.bg.primary} !important;
-    color: ${colors.text.primary} !important;
+    color: #e5e5e5 !important;
     min-height: 100%;
     outline: none;
   }
-  .ProseMirror p { margin: 0.5em 0; }
-  .ProseMirror h1, .ProseMirror h2, .ProseMirror h3 {
-    color: ${colors.text.primary} !important;
-    margin: 0.8em 0 0.4em;
-  }
-  .ProseMirror a { color: #60a5fa; }
+  .ProseMirror p { margin: 0 0 20px; }
+  .ProseMirror h2 { font-size: 24px; font-weight: 600; line-height: 1.3; color: #fafafa; margin: 24px 0 12px; }
+  .ProseMirror h3 { font-size: 20px; font-weight: 600; line-height: 1.4; color: #fafafa; margin: 20px 0 10px; }
+  .ProseMirror strong, .ProseMirror b { font-weight: 600; color: #fafafa; }
+  .ProseMirror a { color: ${colors.accent.indigo}; text-decoration: none; }
   .ProseMirror blockquote {
     border-left: 3px solid ${colors.border.default};
     padding-left: 16px;
-    color: ${colors.text.muted};
-    margin: 0.5em 0;
+    margin: 16px 0;
+    color: ${colors.text.secondary};
+    font-style: italic;
   }
   .ProseMirror code {
-    background-color: ${colors.bg.surface};
-    color: ${colors.text.primary};
-    padding: 2px 4px;
+    font-family: 'SF Mono', 'Roboto Mono', monospace;
+    font-size: 15px;
+    line-height: 1.5;
+    color: #a3e635;
+    background: ${colors.bg.surface};
+    padding: 2px 6px;
     border-radius: 4px;
-    font-size: 14px;
   }
   .ProseMirror pre {
-    background-color: ${colors.bg.surface};
-    color: ${colors.text.primary};
-    padding: 12px;
-    border-radius: 6px;
+    background: ${colors.bg.surface};
+    padding: 16px;
+    border-radius: 8px;
     overflow-x: auto;
   }
+  .ProseMirror pre code { padding: 0; background: none; }
+  .ProseMirror img { max-width: 100%; border-radius: 8px; }
+  .ProseMirror hr { border: none; border-top: 1px solid ${colors.border.subtle}; margin: 24px 0; }
   .ProseMirror ul, .ProseMirror ol { padding-left: 24px; }
-  .ProseMirror li { margin: 0.25em 0; }
-  .ProseMirror hr { border: none; border-top: 1px solid ${colors.border.default}; margin: 1em 0; }
+  .ProseMirror li { margin: 4px 0; }
   .ProseMirror span[data-type="mention"],
   .ProseMirror .mention {
-    background-color: #1e3a5f;
-    color: #60a5fa;
-    border-radius: 4px;
-    padding: 2px 6px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: ${colors.bg.elevated};
+    border: 1px solid ${colors.border.default};
+    border-radius: 8px;
+    padding: 4px 10px;
+    margin: 2px 0;
+    font-size: 15px;
     font-weight: 500;
+    line-height: 1.4;
+    color: #fafafa;
   }
 `;
 
