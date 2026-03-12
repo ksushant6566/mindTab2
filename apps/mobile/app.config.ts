@@ -4,6 +4,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: "MindTab",
   slug: "mindtab",
+  owner: "mindtab-org",
   version: "1.0.0",
   scheme: "mindtab",
   orientation: "portrait",
@@ -40,6 +41,11 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       },
     ],
   ],
+  extra: {
+    eas: {
+      projectId: "b208cab1-db79-45be-b2b6-9747754e907f",
+    },
+  },
   experiments: {
     typedRoutes: true,
   },
