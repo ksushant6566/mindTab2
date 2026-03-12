@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/ksushant6566/mindtab/server/internal/config"
+	"github.com/ksushant6566/mindtab/server/internal/email"
 	"github.com/ksushant6566/mindtab/server/internal/handler"
 	mw "github.com/ksushant6566/mindtab/server/internal/middleware"
 	"github.com/ksushant6566/mindtab/server/internal/store"
@@ -45,7 +46,9 @@ func main() {
 	queries := store.New(pool)
 
 	// Initialize handlers.
+	emailService := email.NewService(cfg.ResendAPIKey)
 	authHandler := handler.NewAuthHandler(queries, cfg.JWTSecret, cfg.GoogleClientID)
+	emailAuthHandler := handler.NewEmailAuthHandler(queries, pool, cfg.JWTSecret, emailService)
 	usersHandler := handler.NewUsersHandler(queries)
 	goalsHandler := handler.NewGoalsHandler(queries, pool)
 	habitsHandler := handler.NewHabitsHandler(queries, pool)
@@ -74,6 +77,11 @@ func main() {
 	r.Post("/auth/google", authHandler.Google)
 	r.Post("/auth/refresh", authHandler.Refresh)
 	r.Get("/users/{id}", usersHandler.GetByID)
+	r.Post("/auth/email/signup", emailAuthHandler.Signup)
+	r.Post("/auth/email/verify", emailAuthHandler.Verify)
+	r.Post("/auth/email/signin", emailAuthHandler.Signin)
+	r.Post("/auth/email/forgot-password", emailAuthHandler.ForgotPassword)
+	r.Post("/auth/email/reset-password", emailAuthHandler.ResetPassword)
 
 	// Protected routes.
 	r.Group(func(r chi.Router) {
