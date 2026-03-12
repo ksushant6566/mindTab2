@@ -35,6 +35,10 @@ tags:
     description: Full-text search
   - name: Sync
     description: Bookmark and reading list sync
+  - name: Saves
+    description: Saved content (articles and images) with AI processing
+  - name: Media
+    description: Authenticated media file serving
 
 paths:
   # ─── Auth ───────────────────────────────────────────────────────────────
@@ -1149,6 +1153,175 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
 
+  # ─── Saves ──────────────────────────────────────────────────────────────
+  /saves:
+    post:
+      operationId: createSave
+      tags: [Saves]
+      summary: Save an article URL or image
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url]
+              properties:
+                url:
+                  type: string
+                  format: uri
+                  description: URL of the article to save
+          multipart/form-data:
+            schema:
+              type: object
+              required: [image]
+              properties:
+                image:
+                  type: string
+                  format: binary
+                  description: Image file to save
+      responses:
+        "201":
+          description: Save created and queued for processing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SaveCreateResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "413":
+          description: File too large
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    get:
+      operationId: listSaves
+      tags: [Saves]
+      summary: List saved content items
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+          description: Maximum number of items to return
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+          description: Number of items to skip
+      responses:
+        "200":
+          description: List of saved content items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SaveListItem"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /saves/search:
+    post:
+      operationId: searchSaves
+      tags: [Saves]
+      summary: Semantic search over saved content
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [query]
+              properties:
+                query:
+                  type: string
+                  description: Natural language search query
+                limit:
+                  type: integer
+                  description: Maximum number of results to return
+      responses:
+        "200":
+          description: Search results ordered by semantic similarity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SaveSearchResult"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /saves/{id}:
+    get:
+      operationId: getSave
+      tags: [Saves]
+      summary: Get a single saved content item
+      parameters:
+        - $ref: "#/components/parameters/UuidId"
+      responses:
+        "200":
+          description: Full saved content item including extracted text and visual description
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SaveDetail"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    delete:
+      operationId: deleteSave
+      tags: [Saves]
+      summary: Delete a saved content item
+      parameters:
+        - $ref: "#/components/parameters/UuidId"
+      responses:
+        "204":
+          description: Save deleted successfully
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # ─── Media ──────────────────────────────────────────────────────────────
+  /media/{path}:
+    get:
+      operationId: getMedia
+      tags: [Media]
+      summary: Serve a stored media file behind authentication
+      parameters:
+        - name: path
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Media file path
+      responses:
+        "200":
+          description: Media file content
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+            image/*:
+              schema:
+                type: string
+                format: binary
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
 components:
   # ─── Security ─────────────────────────────────────────────────────────
   securitySchemes:
@@ -1723,3 +1896,126 @@ components:
           type: string
         itemCount:
           type: integer
+
+    # ── Saves ───────────────────────────────────────────────────────────
+    SaveSourceType:
+      type: string
+      enum: [article, image]
+      description: Type of saved content
+
+    SaveProcessingStatus:
+      type: string
+      enum: [pending, processing, completed, failed]
+      description: Current processing status of the saved content
+
+    SaveCreateResponse:
+      type: object
+      required: [id, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: ID of the newly created save
+        status:
+          type: string
+          description: Initial processing status
+
+    SaveListItem:
+      type: object
+      required: [id, source_type, processing_status, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        source_url:
+          type: string
+          format: uri
+          nullable: true
+          description: Original URL for article saves
+        source_type:
+          $ref: "#/components/schemas/SaveSourceType"
+        source_title:
+          type: string
+          nullable: true
+          description: Extracted or inferred title
+        summary:
+          type: string
+          nullable: true
+          description: AI-generated summary
+        tags:
+          type: array
+          nullable: true
+          items:
+            type: string
+          description: AI-generated tags
+        key_topics:
+          type: array
+          nullable: true
+          items:
+            type: string
+          description: Key topics extracted from content
+        media_key:
+          type: string
+          nullable: true
+          description: Storage key for associated media file
+        processing_status:
+          $ref: "#/components/schemas/SaveProcessingStatus"
+        processing_error:
+          type: string
+          nullable: true
+          description: Error message if processing failed
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    SaveDetail:
+      allOf:
+        - $ref: "#/components/schemas/SaveListItem"
+        - type: object
+          properties:
+            extracted_text:
+              type: string
+              nullable: true
+              description: Full text extracted from the content
+            visual_description:
+              type: string
+              nullable: true
+              description: AI-generated visual description for image saves
+
+    SaveSearchResult:
+      type: object
+      required: [id, source_type, similarity, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        source_url:
+          type: string
+          format: uri
+          nullable: true
+        source_type:
+          $ref: "#/components/schemas/SaveSourceType"
+        source_title:
+          type: string
+          nullable: true
+        summary:
+          type: string
+          nullable: true
+        tags:
+          type: array
+          nullable: true
+          items:
+            type: string
+        media_key:
+          type: string
+          nullable: true
+        similarity:
+          type: number
+          format: float
+          description: Cosine similarity score (0-1)
+        created_at:
+          type: string
+          format: date-time
