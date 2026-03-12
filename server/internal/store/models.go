@@ -107,4 +107,16 @@ type MindmapUser struct {
 	OnboardingCompleted bool               `json:"onboarding_completed"`
 	CreatedAt           pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt           pgtype.Timestamptz `json:"updated_at"`
+	PasswordHash        pgtype.Text        `json:"password_hash"`
+}
+
+type MindmapVerificationToken struct {
+	ID           pgtype.UUID        `json:"id"`
+	UserID       string             `json:"user_id"`
+	TokenHash    string             `json:"token_hash"`
+	Type         string             `json:"type"`
+	PasswordHash pgtype.Text        `json:"password_hash"`
+	Attempts     int32              `json:"attempts"`
+	ExpiresAt    pgtype.Timestamptz `json:"expires_at"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
 }

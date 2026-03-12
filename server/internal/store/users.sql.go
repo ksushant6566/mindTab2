@@ -20,8 +20,38 @@ func (q *Queries) CompleteOnboarding(ctx context.Context, id string) error {
 	return err
 }
 
+const createEmailUser = `-- name: CreateEmailUser :one
+INSERT INTO mindmap_user (id, name, email, email_verified)
+VALUES ($1, $2, $3, NULL)
+RETURNING id, name, email, email_verified, image, xp, onboarding_completed, created_at, updated_at, password_hash
+`
+
+type CreateEmailUserParams struct {
+	ID    string      `json:"id"`
+	Name  pgtype.Text `json:"name"`
+	Email string      `json:"email"`
+}
+
+func (q *Queries) CreateEmailUser(ctx context.Context, arg CreateEmailUserParams) (MindmapUser, error) {
+	row := q.db.QueryRow(ctx, createEmailUser, arg.ID, arg.Name, arg.Email)
+	var i MindmapUser
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Email,
+		&i.EmailVerified,
+		&i.Image,
+		&i.Xp,
+		&i.OnboardingCompleted,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.PasswordHash,
+	)
+	return i, err
+}
+
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, name, email, email_verified, image, xp, onboarding_completed, created_at, updated_at FROM mindmap_user WHERE email = $1
+SELECT id, name, email, email_verified, image, xp, onboarding_completed, created_at, updated_at, password_hash FROM mindmap_user WHERE email = $1
 `
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email string) (MindmapUser, error) {
@@ -37,12 +67,13 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (MindmapUser
 		&i.OnboardingCompleted,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.PasswordHash,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, name, email, email_verified, image, xp, onboarding_completed, created_at, updated_at FROM mindmap_user WHERE id = $1
+SELECT id, name, email, email_verified, image, xp, onboarding_completed, created_at, updated_at, password_hash FROM mindmap_user WHERE id = $1
 `
 
 func (q *Queries) GetUserByID(ctx context.Context, id string) (MindmapUser, error) {
@@ -58,12 +89,36 @@ func (q *Queries) GetUserByID(ctx context.Context, id string) (MindmapUser, erro
 		&i.OnboardingCompleted,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.PasswordHash,
 	)
 	return i, err
 }
 
+const setEmailVerified = `-- name: SetEmailVerified :exec
+UPDATE mindmap_user SET email_verified = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = $1
+`
+
+func (q *Queries) SetEmailVerified(ctx context.Context, id string) error {
+	_, err := q.db.Exec(ctx, setEmailVerified, id)
+	return err
+}
+
+const setPasswordHash = `-- name: SetPasswordHash :exec
+UPDATE mindmap_user SET password_hash = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1
+`
+
+type SetPasswordHashParams struct {
+	ID           string      `json:"id"`
+	PasswordHash pgtype.Text `json:"password_hash"`
+}
+
+func (q *Queries) SetPasswordHash(ctx context.Context, arg SetPasswordHashParams) error {
+	_, err := q.db.Exec(ctx, setPasswordHash, arg.ID, arg.PasswordHash)
+	return err
+}
+
 const updateUserXP = `-- name: UpdateUserXP :one
-UPDATE mindmap_user SET xp = xp + $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING id, name, email, email_verified, image, xp, onboarding_completed, created_at, updated_at
+UPDATE mindmap_user SET xp = xp + $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING id, name, email, email_verified, image, xp, onboarding_completed, created_at, updated_at, password_hash
 `
 
 type UpdateUserXPParams struct {
@@ -84,6 +139,7 @@ func (q *Queries) UpdateUserXP(ctx context.Context, arg UpdateUserXPParams) (Min
 		&i.OnboardingCompleted,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.PasswordHash,
 	)
 	return i, err
 }
@@ -95,7 +151,7 @@ ON CONFLICT (id) DO UPDATE SET
     name = COALESCE(EXCLUDED.name, mindmap_user.name),
     image = COALESCE(EXCLUDED.image, mindmap_user.image),
     updated_at = CURRENT_TIMESTAMP
-RETURNING id, name, email, email_verified, image, xp, onboarding_completed, created_at, updated_at
+RETURNING id, name, email, email_verified, image, xp, onboarding_completed, created_at, updated_at, password_hash
 `
 
 type UpsertUserParams struct {
@@ -123,6 +179,7 @@ func (q *Queries) UpsertUser(ctx context.Context, arg UpsertUserParams) (Mindmap
 		&i.OnboardingCompleted,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.PasswordHash,
 	)
 	return i, err
 }
