@@ -303,15 +303,16 @@ func (h *EmailAuthHandler) Signin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Verify password.
-	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash.String), []byte(req.Password)); err != nil {
-		WriteError(w, http.StatusUnauthorized, "invalid email or password")
+	// Check email is verified before checking password (prevents leaking
+	// whether the password is correct for unverified accounts).
+	if !user.EmailVerified.Valid {
+		WriteError(w, http.StatusForbidden, "please verify your email before signing in")
 		return
 	}
 
-	// Check email is verified.
-	if !user.EmailVerified.Valid {
-		WriteError(w, http.StatusForbidden, "please verify your email before signing in")
+	// Verify password.
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash.String), []byte(req.Password)); err != nil {
+		WriteError(w, http.StatusUnauthorized, "invalid email or password")
 		return
 	}
 

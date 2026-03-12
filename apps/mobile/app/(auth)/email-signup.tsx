@@ -46,7 +46,7 @@ export default function EmailSignupScreen() {
       await emailSignup(email.trim(), password, name.trim());
       router.push({
         pathname: "/(auth)/email-verify",
-        params: { email: email.trim(), password, name: name.trim() },
+        params: { email: email.trim() },
       });
     } catch (error: any) {
       toast.error(error.message || "Signup failed");

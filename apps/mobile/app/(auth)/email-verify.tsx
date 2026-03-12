@@ -14,12 +14,11 @@ import { toast } from "sonner-native";
 import { colors } from "~/styles/colors";
 
 export default function EmailVerifyScreen() {
-  const { emailVerify, emailSignup } = useAuth();
-  const { email, password, name } = useLocalSearchParams<{ email: string; password: string; name: string }>();
+  const { emailVerify } = useAuth();
+  const { email } = useLocalSearchParams<{ email: string }>();
   const router = useRouter();
   const [code, setCode] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [isResending, setIsResending] = useState(false);
 
   const handleVerify = async () => {
     if (code.length !== 6) {
@@ -35,19 +34,6 @@ export default function EmailVerifyScreen() {
       toast.error(error.message || "Verification failed");
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleResend = async () => {
-    try {
-      setIsResending(true);
-      // Re-call signup with original credentials to regenerate token.
-      await emailSignup(email!, password!, name!);
-      toast.success("New code sent");
-    } catch {
-      toast.error("Failed to resend code");
-    } finally {
-      setIsResending(false);
     }
   };
 
@@ -91,9 +77,9 @@ export default function EmailVerifyScreen() {
           )}
         </Pressable>
 
-        <Pressable onPress={handleResend} disabled={isResending} className="items-center py-2">
+        <Pressable onPress={() => router.back()} className="items-center py-2">
           <Text className="text-muted-foreground text-sm">
-            {isResending ? "Sending..." : "Didn't get a code? Resend"}
+            Didn't get a code? Go back and try again
           </Text>
         </Pressable>
       </View>
