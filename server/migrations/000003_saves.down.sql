@@ -1,0 +1,3 @@
+DROP TABLE IF EXISTS mindmap_jobs;
+DROP TABLE IF EXISTS mindmap_content;
+DROP EXTENSION IF EXISTS vector;
