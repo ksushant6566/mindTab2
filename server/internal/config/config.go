@@ -3,6 +3,8 @@ package config
 import (
 	"fmt"
 	"os"
+	"strconv"
+	"time"
 
 	"github.com/joho/godotenv"
 )
@@ -20,6 +22,20 @@ type Config struct {
 	AllowedOrigins []string
 	StaticDir      string
 	ResendAPIKey   string
+
+	// Saves feature
+	RedisURL             string
+	GeminiAPIKey         string
+	OpenAIAPIKey         string
+	JinaAPIKey           string
+	GeminiModel          string
+	OpenAIEmbeddingModel string
+	EmbeddingDimensions  int
+	StorageProvider      string
+	StorageLocalPath     string
+	WorkerConcurrency    int
+	WorkerShutdownTimeout time.Duration
+	MaxFileSizeMB        int
 }
 
 func Load() (*Config, error) {
@@ -34,6 +50,40 @@ func Load() (*Config, error) {
 		},
 		StaticDir:    getEnv("STATIC_DIR", "./static"),
 		ResendAPIKey: os.Getenv("RESEND_API_KEY"),
+	}
+
+	// Saves feature (optional — server starts without saves if not configured)
+	cfg.RedisURL = getEnv("REDIS_URL", "")
+	cfg.GeminiAPIKey = getEnv("GEMINI_API_KEY", "")
+	cfg.OpenAIAPIKey = getEnv("OPENAI_API_KEY", "")
+	cfg.JinaAPIKey = getEnv("JINA_API_KEY", "")
+	cfg.GeminiModel = getEnv("GEMINI_MODEL", "gemini-2.0-flash")
+	cfg.OpenAIEmbeddingModel = getEnv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small")
+	cfg.StorageProvider = getEnv("STORAGE_PROVIDER", "local")
+	cfg.StorageLocalPath = getEnv("STORAGE_LOCAL_PATH", "/data/mindtab/media")
+
+	dimStr := getEnv("EMBEDDING_DIMENSIONS", "1536")
+	cfg.EmbeddingDimensions, _ = strconv.Atoi(dimStr)
+	if cfg.EmbeddingDimensions == 0 {
+		cfg.EmbeddingDimensions = 1536
+	}
+
+	concStr := getEnv("WORKER_CONCURRENCY", "4")
+	cfg.WorkerConcurrency, _ = strconv.Atoi(concStr)
+	if cfg.WorkerConcurrency == 0 {
+		cfg.WorkerConcurrency = 4
+	}
+
+	shutdownStr := getEnv("WORKER_SHUTDOWN_TIMEOUT", "30s")
+	cfg.WorkerShutdownTimeout, _ = time.ParseDuration(shutdownStr)
+	if cfg.WorkerShutdownTimeout == 0 {
+		cfg.WorkerShutdownTimeout = 30 * time.Second
+	}
+
+	maxSizeStr := getEnv("MAX_FILE_SIZE_MB", "20")
+	cfg.MaxFileSizeMB, _ = strconv.Atoi(maxSizeStr)
+	if cfg.MaxFileSizeMB == 0 {
+		cfg.MaxFileSizeMB = 20
 	}
 
 	if cfg.DatabaseURL == "" {
