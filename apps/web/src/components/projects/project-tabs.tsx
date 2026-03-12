@@ -156,9 +156,9 @@ export const ProjectTabs: React.FC<ProjectTabsProps> = ({
                                     {activeTab === "Goals"
                                         ? project.goalStats?.total ?? 0
                                         : activeTab === "Notes"
-                                          ? project.journalStats?.total || 0
+                                          ? project.journalCount ?? 0
                                           : (project.goalStats?.total ?? 0) +
-                                            (project.journalStats?.total || 0)}
+                                            (project.journalCount ?? 0)}
                                     )
                                 </span>
                                 <DropdownMenu>

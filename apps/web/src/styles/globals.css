@@ -94,7 +94,7 @@ html {
 .ProseMirror.tiptap {
   outline: none;
   min-height: 200px;
-  padding: 0.5rem;
+  padding: 1rem;
 }
 .ProseMirror.tiptap code {
   background-color: hsl(var(--muted));

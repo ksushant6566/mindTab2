@@ -6,13 +6,17 @@
   "main": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./stores": "./src/stores/app-store.ts"
+    "./stores": "./src/stores/app-store.ts",
+    "./hooks": "./src/hooks/index.ts"
   },
   "scripts": {
     "lint": "tsc --noEmit",
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@mindtab/api-spec": "workspace:*",
+    "@tanstack/react-query": "^5.59.0",
+    "openapi-fetch": "^0.13.5",
     "zustand": "^5.0.8"
   },
   "devDependencies": {

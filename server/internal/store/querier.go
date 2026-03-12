@@ -21,27 +21,44 @@ type Querier interface {
 	CountGoals(ctx context.Context, arg CountGoalsParams) (int32, error)
 	CountJournals(ctx context.Context, userID string) (int32, error)
 	CountJournalsByProject(ctx context.Context, arg CountJournalsByProjectParams) (int32, error)
+	CreateEmailUser(ctx context.Context, arg CreateEmailUserParams) (MindmapUser, error)
 	CreateGoal(ctx context.Context, arg CreateGoalParams) error
 	CreateHabit(ctx context.Context, arg CreateHabitParams) error
 	CreateJournal(ctx context.Context, arg CreateJournalParams) error
 	CreateProject(ctx context.Context, arg CreateProjectParams) (MindmapProject, error)
 	CreateRefreshToken(ctx context.Context, arg CreateRefreshTokenParams) error
+	CreateVerificationToken(ctx context.Context, arg CreateVerificationTokenParams) error
 	DeleteExpiredRefreshTokens(ctx context.Context) error
+	DeleteExpiredVerificationTokens(ctx context.Context) error
 	DeleteHabit(ctx context.Context, arg DeleteHabitParams) error
 	DeleteJournal(ctx context.Context, arg DeleteJournalParams) error
 	DeleteRefreshToken(ctx context.Context, tokenHash string) error
 	DeleteUserRefreshTokens(ctx context.Context, userID string) error
+	DeleteVerificationToken(ctx context.Context, id pgtype.UUID) error
+	DeleteVerificationTokensByUserAndType(ctx context.Context, arg DeleteVerificationTokensByUserAndTypeParams) error
+	// Find habit UUIDs mentioned in notes that also mention a given goal.
+	// goal_pattern should be like '%data-id="goal:UUID"%'.
+	// Returns distinct habit IDs extracted via regex from note content.
+	GetConnectedHabitIDs(ctx context.Context, arg GetConnectedHabitIDsParams) ([]pgtype.UUID, error)
+	// Find notes/journals whose content contains a mention of the given entity.
+	// mention_pattern should be like '%data-id="goal:UUID"%' or '%data-id="habit:UUID"%'.
+	GetConnectedNotes(ctx context.Context, arg GetConnectedNotesParams) ([]GetConnectedNotesRow, error)
 	GetGoalActivity(ctx context.Context, arg GetGoalActivityParams) ([]GetGoalActivityRow, error)
 	GetGoalByID(ctx context.Context, arg GetGoalByIDParams) (GetGoalByIDRow, error)
 	GetHabitActivity(ctx context.Context, arg GetHabitActivityParams) ([]pgtype.Timestamptz, error)
 	GetHabitByID(ctx context.Context, arg GetHabitByIDParams) (MindmapHabit, error)
 	GetHabitTrackerActivity(ctx context.Context, arg GetHabitTrackerActivityParams) ([]pgtype.Date, error)
+	// Fetch habits by a list of IDs for a given user.
+	GetHabitsByIDs(ctx context.Context, arg GetHabitsByIDsParams) ([]MindmapHabit, error)
 	GetJournalActivity(ctx context.Context, arg GetJournalActivityParams) ([]GetJournalActivityRow, error)
 	GetJournalByID(ctx context.Context, arg GetJournalByIDParams) (GetJournalByIDRow, error)
 	GetProjectByID(ctx context.Context, arg GetProjectByIDParams) (MindmapProject, error)
 	GetRefreshToken(ctx context.Context, tokenHash string) (MindmapRefreshToken, error)
 	GetUserByEmail(ctx context.Context, email string) (MindmapUser, error)
 	GetUserByID(ctx context.Context, id string) (MindmapUser, error)
+	GetVerificationToken(ctx context.Context, arg GetVerificationTokenParams) (MindmapVerificationToken, error)
+	GetVerificationTokenByUserAndType(ctx context.Context, arg GetVerificationTokenByUserAndTypeParams) (MindmapVerificationToken, error)
+	IncrementVerificationAttempts(ctx context.Context, id pgtype.UUID) error
 	ListGoalStatsByProject(ctx context.Context, arg ListGoalStatsByProjectParams) ([]ListGoalStatsByProjectRow, error)
 	ListGoals(ctx context.Context, arg ListGoalsParams) ([]ListGoalsRow, error)
 	ListGoalsByProject(ctx context.Context, arg ListGoalsByProjectParams) ([]MindmapGoal, error)
@@ -53,6 +70,8 @@ type Querier interface {
 	SearchGoals(ctx context.Context, arg SearchGoalsParams) ([]MindmapGoal, error)
 	SearchHabits(ctx context.Context, arg SearchHabitsParams) ([]MindmapHabit, error)
 	SearchJournals(ctx context.Context, arg SearchJournalsParams) ([]MindmapJournal, error)
+	SetEmailVerified(ctx context.Context, id string) error
+	SetPasswordHash(ctx context.Context, arg SetPasswordHashParams) error
 	SoftDeleteGoal(ctx context.Context, arg SoftDeleteGoalParams) error
 	SoftDeleteGoalsByProject(ctx context.Context, arg SoftDeleteGoalsByProjectParams) error
 	SoftDeleteJournalsByProject(ctx context.Context, arg SoftDeleteJournalsByProjectParams) error

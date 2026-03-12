@@ -18,3 +18,14 @@ UPDATE mindmap_user SET xp = xp + $2, updated_at = CURRENT_TIMESTAMP WHERE id = 
 
 -- name: CompleteOnboarding :exec
 UPDATE mindmap_user SET onboarding_completed = true, updated_at = CURRENT_TIMESTAMP WHERE id = $1;
+
+-- name: CreateEmailUser :one
+INSERT INTO mindmap_user (id, name, email, email_verified)
+VALUES ($1, $2, $3, NULL)
+RETURNING *;
+
+-- name: SetPasswordHash :exec
+UPDATE mindmap_user SET password_hash = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1;
+
+-- name: SetEmailVerified :exec
+UPDATE mindmap_user SET email_verified = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = $1;

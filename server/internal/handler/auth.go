@@ -36,6 +36,12 @@ type authResponse struct {
 	User        userJSON `json:"user"`
 }
 
+type mobileAuthResponse struct {
+	AccessToken  string   `json:"accessToken"`
+	RefreshToken string   `json:"refreshToken"`
+	User         userJSON `json:"user"`
+}
+
 type userJSON struct {
 	ID                  string `json:"id"`
 	Name                string `json:"name"`
@@ -127,16 +133,31 @@ func (h *AuthHandler) Google(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Set refresh token as httpOnly cookie.
-	http.SetCookie(w, &http.Cookie{
-		Name:     "mindtab_refresh",
-		Value:    rawRefresh,
-		Path:     "/",
-		MaxAge:   30 * 24 * 60 * 60, // 30 days
-		HttpOnly: true,
-		Secure:   true,
-		SameSite: http.SameSiteLaxMode,
-	})
+	// Check if mobile client.
+	isMobile := r.Header.Get("X-Platform") == "mobile"
+
+	if !isMobile {
+		// Set refresh token as httpOnly cookie (web only).
+		http.SetCookie(w, &http.Cookie{
+			Name:     "mindtab_refresh",
+			Value:    rawRefresh,
+			Path:     "/",
+			MaxAge:   30 * 24 * 60 * 60, // 30 days
+			HttpOnly: true,
+			Secure:   true,
+			SameSite: http.SameSiteLaxMode,
+		})
+	}
+
+	if isMobile {
+		// Mobile clients can't use httpOnly cookies, so include refresh token in body.
+		WriteJSON(w, http.StatusOK, mobileAuthResponse{
+			AccessToken:  accessToken,
+			RefreshToken: rawRefresh,
+			User:         toUserJSON(user),
+		})
+		return
+	}
 
 	WriteJSON(w, http.StatusOK, authResponse{
 		AccessToken: accessToken,
@@ -146,14 +167,31 @@ func (h *AuthHandler) Google(w http.ResponseWriter, r *http.Request) {
 
 // Refresh handles POST /auth/refresh.
 func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
-	cookie, err := r.Cookie("mindtab_refresh")
-	if err != nil {
-		WriteError(w, http.StatusUnauthorized, "missing refresh token")
-		return
+	isMobile := r.Header.Get("X-Platform") == "mobile"
+
+	var rawToken string
+	if isMobile {
+		// Mobile sends refresh token in request body.
+		var req struct {
+			RefreshToken string `json:"refreshToken"`
+		}
+		if err := ReadJSON(r, &req); err != nil || req.RefreshToken == "" {
+			WriteError(w, http.StatusUnauthorized, "missing refresh token")
+			return
+		}
+		rawToken = req.RefreshToken
+	} else {
+		// Web sends refresh token as cookie.
+		cookie, err := r.Cookie("mindtab_refresh")
+		if err != nil {
+			WriteError(w, http.StatusUnauthorized, "missing refresh token")
+			return
+		}
+		rawToken = cookie.Value
 	}
 
 	// Hash and look up the token.
-	oldHash := auth.HashToken(cookie.Value)
+	oldHash := auth.HashToken(rawToken)
 	token, err := h.queries.GetRefreshToken(r.Context(), oldHash)
 	if err != nil {
 		WriteError(w, http.StatusUnauthorized, "invalid or expired refresh token")
@@ -202,7 +240,15 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Set new cookie.
+	if isMobile {
+		WriteJSON(w, http.StatusOK, map[string]string{
+			"accessToken":  accessToken,
+			"refreshToken": rawRefresh,
+		})
+		return
+	}
+
+	// Set new cookie (web).
 	http.SetCookie(w, &http.Cookie{
 		Name:     "mindtab_refresh",
 		Value:    rawRefresh,

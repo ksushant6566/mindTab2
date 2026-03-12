@@ -12,5 +12,5 @@ server/tmp/
 # pnpm
 .pnpm-store/
 
-# docs
-docs/
+# Worktrees
+.worktrees/

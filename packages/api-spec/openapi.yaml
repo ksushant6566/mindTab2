@@ -97,6 +97,169 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /auth/email/signup:
+    post:
+      operationId: authEmailSignup
+      tags: [Auth]
+      summary: Sign up with email and password
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, name]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 8
+                name:
+                  type: string
+      responses:
+        "200":
+          description: Verification email sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "409":
+          description: Account already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /auth/email/verify:
+    post:
+      operationId: authEmailVerify
+      tags: [Auth]
+      summary: Verify email with 6-digit code
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, code]
+              properties:
+                email:
+                  type: string
+                  format: email
+                code:
+                  type: string
+      responses:
+        "200":
+          description: Email verified, tokens issued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MobileAuthResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
+  /auth/email/signin:
+    post:
+      operationId: authEmailSignin
+      tags: [Auth]
+      summary: Sign in with email and password
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+      responses:
+        "200":
+          description: Authentication successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MobileAuthResponse"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Email not verified
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /auth/email/forgot-password:
+    post:
+      operationId: authEmailForgotPassword
+      tags: [Auth]
+      summary: Request password reset code
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  format: email
+      responses:
+        "200":
+          description: Reset email sent (if account exists)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /auth/email/reset-password:
+    post:
+      operationId: authEmailResetPassword
+      tags: [Auth]
+      summary: Reset password with code
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, code, newPassword]
+              properties:
+                email:
+                  type: string
+                  format: email
+                code:
+                  type: string
+                newPassword:
+                  type: string
+                  minLength: 8
+      responses:
+        "200":
+          description: Password reset successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
   # ─── Users ──────────────────────────────────────────────────────────────
   /users/me:
     get:
@@ -1076,6 +1239,24 @@ components:
           type: string
         user:
           $ref: "#/components/schemas/User"
+
+    MobileAuthResponse:
+      type: object
+      required: [accessToken, refreshToken, user]
+      properties:
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+        user:
+          $ref: "#/components/schemas/User"
+
+    MessageResponse:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
 
     # ── User ───────────────────────────────────────────────────────────
     User:

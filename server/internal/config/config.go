@@ -19,6 +19,7 @@ type Config struct {
 	GoogleClientID string
 	AllowedOrigins []string
 	StaticDir      string
+	ResendAPIKey   string
 }
 
 func Load() (*Config, error) {
@@ -31,7 +32,8 @@ func Load() (*Config, error) {
 			"https://app.mindtab.in",
 			"http://localhost:5173",
 		},
-		StaticDir: getEnv("STATIC_DIR", "./static"),
+		StaticDir:    getEnv("STATIC_DIR", "./static"),
+		ResendAPIKey: os.Getenv("RESEND_API_KEY"),
 	}
 
 	if cfg.DatabaseURL == "" {
@@ -42,6 +44,9 @@ func Load() (*Config, error) {
 	}
 	if cfg.GoogleClientID == "" {
 		return nil, fmt.Errorf("GOOGLE_CLIENT_ID is required")
+	}
+	if cfg.ResendAPIKey == "" {
+		return nil, fmt.Errorf("RESEND_API_KEY is required")
 	}
 
 	return cfg, nil
