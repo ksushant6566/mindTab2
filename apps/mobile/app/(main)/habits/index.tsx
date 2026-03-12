@@ -198,7 +198,7 @@ export default function HabitsScreen() {
     if (isLoading) return null;
     return (
       <View style={styles.screen}>
-        <ListHeader title="Habits" />
+        <ListHeader title="Habits" searchContext="habits" />
         <EmptyState
           icon={Repeat}
           title="No habits yet"
@@ -210,7 +210,7 @@ export default function HabitsScreen() {
 
   return (
     <View style={styles.screen}>
-      <ListHeader title="Habits" subtitle={habitSubtitle} />
+      <ListHeader title="Habits" subtitle={habitSubtitle} searchContext="habits" />
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         refreshControl={

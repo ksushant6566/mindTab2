@@ -1,11 +1,13 @@
 import { View, Text, Pressable, StyleSheet } from "react-native";
 import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { searchGoalsQueryOptions, searchHabitsQueryOptions, searchJournalsQueryOptions } from "@mindtab/core";
 import { api } from "~/lib/api-client";
 import { Input } from "~/components/ui/input";
 import { SearchResults } from "~/components/command-palette/search-results";
+import type { SearchFilter } from "~/components/command-palette/search-results";
+import { Chip } from "~/components/ui/chip";
 import { X, Target, CheckSquare, FileEdit } from "lucide-react-native";
 import { colors } from "~/styles/colors";
 
@@ -18,9 +20,20 @@ function useDebounce(value: string, delay: number) {
   return debounced;
 }
 
+const SEARCH_FILTERS: { key: SearchFilter; label: string }[] = [
+  { key: "all", label: "All" },
+  { key: "goals", label: "Goals" },
+  { key: "habits", label: "Habits" },
+  { key: "notes", label: "Notes" },
+];
+
 export default function CommandPaletteModal() {
   const router = useRouter();
+  const { context } = useLocalSearchParams<{ context?: string }>();
   const [query, setQuery] = useState("");
+  const [activeFilter, setActiveFilter] = useState<SearchFilter>(
+    (context as SearchFilter) || "all",
+  );
   const debouncedQuery = useDebounce(query, 300);
 
   const { data: goals = [] } = useQuery(searchGoalsQueryOptions(api, debouncedQuery));
@@ -45,6 +58,18 @@ export default function CommandPaletteModal() {
         <Pressable onPress={() => router.back()} style={styles.closeBtn}>
           <X size={24} color={colors.text.primary} />
         </Pressable>
+      </View>
+
+      <View style={styles.filterRow}>
+        {SEARCH_FILTERS.map((f) => (
+          <Chip
+            key={f.key}
+            label={f.label}
+            selected={activeFilter === f.key}
+            onPress={() => setActiveFilter(f.key)}
+            size="sm"
+          />
+        ))}
       </View>
 
       {!debouncedQuery ? (
@@ -77,6 +102,7 @@ export default function CommandPaletteModal() {
           goals={goals as any[]}
           habits={habits as any[]}
           notes={notes as any[]}
+          activeFilter={activeFilter}
         />
       )}
     </View>
@@ -103,6 +129,12 @@ const styles = StyleSheet.create({
   },
   closeBtn: {
     padding: 4,
+  },
+  filterRow: {
+    flexDirection: "row",
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   quickActions: {
     padding: 16,

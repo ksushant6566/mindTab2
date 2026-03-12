@@ -5,12 +5,15 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "~/hooks/use-auth";
 import { colors } from "~/styles/colors";
 
+export type SearchContext = "goals" | "habits" | "notes";
+
 type ListHeaderProps = {
   title: string;
   subtitle?: string;
+  searchContext?: SearchContext;
 };
 
-export function ListHeader({ title, subtitle }: ListHeaderProps) {
+export function ListHeader({ title, subtitle, searchContext }: ListHeaderProps) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
@@ -41,7 +44,13 @@ export function ListHeader({ title, subtitle }: ListHeaderProps) {
 
         {/* Search */}
         <Pressable
-          onPress={() => router.push("/(modals)/command-palette")}
+          onPress={() =>
+            router.push(
+              searchContext
+                ? { pathname: "/(modals)/command-palette", params: { context: searchContext } }
+                : "/(modals)/command-palette" as any,
+            )
+          }
           style={styles.searchButton}
         >
           <Search size={18} color={colors.text.secondary} />

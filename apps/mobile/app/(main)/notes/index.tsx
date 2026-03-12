@@ -5,7 +5,6 @@ import {
   FlatList,
   RefreshControl,
   StyleSheet,
-  TextInput,
   ActionSheetIOS,
   Platform,
   Alert,
@@ -84,14 +83,6 @@ const noteTypeBadgeColors: Record<string, string> = {
   website: colors.noteType.website,
 };
 
-function useDebounce(value: string, delay: number) {
-  const [debounced, setDebounced] = useState(value);
-  React.useEffect(() => {
-    const timer = setTimeout(() => setDebounced(value), delay);
-    return () => clearTimeout(timer);
-  }, [value, delay]);
-  return debounced;
-}
 
 function renderTypeIcon(type: string, color: string) {
   switch (type) {
@@ -133,8 +124,6 @@ export default function NotesScreen() {
   );
   const [typeFilter, setTypeFilter] = useState<NoteType>("all");
   const [refreshing, setRefreshing] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const debouncedSearch = useDebounce(searchQuery, 300);
 
   const projectId = selectedProjectId ?? undefined;
   const { data: notes, isLoading, refetch } = useQuery(
@@ -149,20 +138,14 @@ export default function NotesScreen() {
     if (typeFilter !== "all") {
       list = list.filter((n: any) => n.type === typeFilter);
     }
-    if (debouncedSearch) {
-      const query = debouncedSearch.toLowerCase();
-      list = list.filter((n: any) =>
-        n.title?.toLowerCase().includes(query) ||
-        stripHtml(n.content ?? "").toLowerCase().includes(query),
-      );
-    }
+
     list.sort((a, b) => {
       const aDate = a.updatedAt ?? a.createdAt ?? "";
       const bDate = b.updatedAt ?? b.createdAt ?? "";
       return new Date(bDate).getTime() - new Date(aDate).getTime();
     });
     return list;
-  }, [notes, typeFilter, debouncedSearch]);
+  }, [notes, typeFilter]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -283,7 +266,7 @@ export default function NotesScreen() {
 
   return (
     <View style={styles.screen}>
-      <ListHeader title="Notes" subtitle={noteSubtitle} />
+      <ListHeader title="Notes" subtitle={noteSubtitle} searchContext="notes" />
       <FlatList
         data={filteredNotes}
         keyExtractor={(item: any) => item.id}
@@ -294,16 +277,7 @@ export default function NotesScreen() {
               selectedProjectId={selectedProjectId}
               onSelect={setSelectedProjectId}
             />
-            <View style={styles.searchRow}>
-              <FileText size={15} color={colors.text.muted} />
-              <TextInput
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                placeholder="Search notes..."
-                placeholderTextColor={colors.text.muted}
-                style={styles.searchInput}
-              />
-            </View>
+
             <View style={styles.filterRow}>
               {TYPE_FILTERS.map((f) => (
                 <Chip
@@ -351,23 +325,8 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 16,
   },
-  searchRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    borderWidth: 1,
-    borderColor: colors.border.default,
-    borderRadius: 12,
-    backgroundColor: colors.bg.elevated,
-    paddingHorizontal: 12,
-    marginBottom: 12,
-  },
-  searchInput: {
-    flex: 1,
-    color: colors.text.primary,
-    fontSize: 15,
-    paddingVertical: 10,
-  },
+
+
   listContent: {
     paddingHorizontal: 20,
     paddingBottom: 100,

@@ -1,38 +1,108 @@
-import { View, Text, Pressable, SectionList, StyleSheet } from "react-native";
+import { useState } from "react";
+import { View, Text, Pressable, ScrollView, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
-import { Target, CheckSquare, FileEdit } from "lucide-react-native";
+import { Target, CheckSquare, FileEdit, ChevronRight, ChevronDown } from "lucide-react-native";
 import { colors } from "~/styles/colors";
+
+export type SearchFilter = "all" | "goals" | "habits" | "notes";
 
 type SearchResultsProps = {
   goals: Array<{ id: string; title: string }>;
   habits: Array<{ id: string; title: string }>;
   notes: Array<{ id: string; title: string }>;
+  activeFilter: SearchFilter;
 };
 
-const iconMap = {
-  goal: Target,
-  habit: CheckSquare,
-  note: FileEdit,
-};
+const categoryConfig = {
+  goals: { icon: Target, label: "Goals", singular: "goal", route: "/(main)/goals/" },
+  habits: { icon: CheckSquare, label: "Habits", singular: "habit", route: "/(main)/habits/" },
+  notes: { icon: FileEdit, label: "Notes", singular: "note", route: "/(main)/notes/" },
+} as const;
 
-const routeMap = {
-  goal: "/(main)/goals/",
-  habit: "/(main)/habits/",
-  note: "/(main)/notes/",
-};
+type CategoryKey = keyof typeof categoryConfig;
 
-export function SearchResults({ goals, habits, notes }: SearchResultsProps) {
+export function SearchResults({ goals, habits, notes, activeFilter }: SearchResultsProps) {
   const router = useRouter();
+  const [expandedSections, setExpandedSections] = useState<Set<CategoryKey>>(new Set());
 
-  type SearchItem = { id: string; title: string; type: "goal" | "habit" | "note" };
+  const categories: Record<CategoryKey, Array<{ id: string; title: string }>> = {
+    goals,
+    habits,
+    notes,
+  };
 
-  const sections: Array<{ title: string; data: SearchItem[] }> = [
-    { title: "Goals", data: goals.map((g) => ({ ...g, type: "goal" as const })) },
-    { title: "Habits", data: habits.map((h) => ({ ...h, type: "habit" as const })) },
-    { title: "Notes", data: notes.map((n) => ({ ...n, type: "note" as const })) },
-  ].filter((s) => s.data.length > 0);
+  const toggleSection = (key: CategoryKey) => {
+    setExpandedSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
 
-  if (sections.length === 0) {
+  const navigateToItem = (type: CategoryKey, id: string) => {
+    router.back();
+    setTimeout(() => router.push(`${categoryConfig[type].route}${id}` as any), 100);
+  };
+
+  const renderItems = (items: Array<{ id: string; title: string }>, type: CategoryKey) => {
+    const Icon = categoryConfig[type].icon;
+    return items.map((item) => (
+      <Pressable
+        key={`${type}-${item.id}`}
+        onPress={() => navigateToItem(type, item.id)}
+        style={styles.resultRow}
+      >
+        <Icon size={18} color={colors.text.muted} />
+        <Text style={styles.resultText} numberOfLines={1}>
+          {item.title}
+        </Text>
+      </Pressable>
+    ));
+  };
+
+  const renderSection = (key: CategoryKey) => {
+    const items = categories[key];
+    if (items.length === 0) return null;
+    return (
+      <View key={key}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>{categoryConfig[key].label}</Text>
+        </View>
+        {renderItems(items, key)}
+      </View>
+    );
+  };
+
+  const renderCollapsedSection = (key: CategoryKey) => {
+    const items = categories[key];
+    if (items.length === 0) return null;
+
+    const isExpanded = expandedSections.has(key);
+    const Icon = categoryConfig[key].icon;
+    const count = items.length;
+    const noun = count === 1 ? categoryConfig[key].singular : categoryConfig[key].label.toLowerCase();
+
+    return (
+      <View key={`collapsed-${key}`}>
+        <Pressable onPress={() => toggleSection(key)} style={styles.collapsedRow}>
+          <Icon size={14} color={colors.text.muted} />
+          <Text style={styles.collapsedText}>
+            {count} {noun} matched
+          </Text>
+          {isExpanded ? (
+            <ChevronDown size={14} color={colors.text.muted} />
+          ) : (
+            <ChevronRight size={14} color={colors.text.muted} />
+          )}
+        </Pressable>
+        {isExpanded && renderItems(items, key)}
+      </View>
+    );
+  };
+
+  const totalResults = goals.length + habits.length + notes.length;
+  if (totalResults === 0) {
     return (
       <View style={styles.emptyContainer}>
         <Text style={styles.emptyText}>No results found</Text>
@@ -40,35 +110,33 @@ export function SearchResults({ goals, habits, notes }: SearchResultsProps) {
     );
   }
 
+  if (activeFilter === "all") {
+    return (
+      <ScrollView keyboardShouldPersistTaps="handled">
+        {renderSection("goals")}
+        {renderSection("habits")}
+        {renderSection("notes")}
+      </ScrollView>
+    );
+  }
+
+  const otherKeys = (["goals", "habits", "notes"] as const).filter((k) => k !== activeFilter);
+
+  const activeItems = categories[activeFilter];
+
   return (
-    <SectionList
-      sections={sections}
-      keyExtractor={(item) => `${item.type}-${item.id}`}
-      renderSectionHeader={({ section }) => (
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>{section.title}</Text>
+    <ScrollView keyboardShouldPersistTaps="handled">
+      {activeItems.length > 0 ? (
+        renderSection(activeFilter)
+      ) : (
+        <View style={styles.emptyFilterContainer}>
+          <Text style={styles.emptyText}>
+            No {categoryConfig[activeFilter].label.toLowerCase()} found
+          </Text>
         </View>
       )}
-      renderItem={({ item }) => {
-        const Icon = iconMap[item.type];
-        return (
-          <Pressable
-            onPress={() => {
-              router.back();
-              setTimeout(() => router.push(`${routeMap[item.type]}${item.id}` as any), 100);
-            }}
-            style={styles.resultRow}
-          >
-            <Icon size={18} color={colors.text.muted} />
-            <Text style={styles.resultText} numberOfLines={1}>
-              {item.title}
-            </Text>
-          </Pressable>
-        );
-      }}
-      stickySectionHeadersEnabled={false}
-      keyboardShouldPersistTaps="handled"
-    />
+      {otherKeys.map((key) => renderCollapsedSection(key))}
+    </ScrollView>
   );
 }
 
@@ -76,6 +144,10 @@ const styles = StyleSheet.create({
   emptyContainer: {
     alignItems: "center",
     paddingVertical: 48,
+  },
+  emptyFilterContainer: {
+    alignItems: "center",
+    paddingVertical: 24,
   },
   emptyText: {
     color: colors.text.muted,
@@ -104,5 +176,24 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginLeft: 12,
     flex: 1,
+  },
+  collapsedRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginHorizontal: 16,
+    marginTop: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: colors.bg.surface,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+  },
+  collapsedText: {
+    flex: 1,
+    fontSize: 13,
+    color: colors.text.muted,
+    fontWeight: "500",
   },
 });

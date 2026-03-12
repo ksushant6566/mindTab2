@@ -414,7 +414,7 @@ export default function GoalsScreen() {
 
   return (
     <View style={styles.screen}>
-      <ListHeader title="Goals" subtitle={goalSubtitle} />
+      <ListHeader title="Goals" subtitle={goalSubtitle} searchContext="goals" />
       <SectionList
         sections={sections}
         keyExtractor={(item: any) => item.id}
