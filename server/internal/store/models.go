@@ -6,7 +6,32 @@ package store
 
 import (
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/pgvector/pgvector-go"
 )
+
+type MindmapContent struct {
+	ID                 pgtype.UUID        `json:"id"`
+	UserID             string             `json:"user_id"`
+	SourceUrl          pgtype.Text        `json:"source_url"`
+	SourceType         string             `json:"source_type"`
+	SourceTitle        pgtype.Text        `json:"source_title"`
+	SourceThumbnailUrl pgtype.Text        `json:"source_thumbnail_url"`
+	ExtractedText      pgtype.Text        `json:"extracted_text"`
+	VisualDescription  pgtype.Text        `json:"visual_description"`
+	Summary            pgtype.Text        `json:"summary"`
+	Tags               []string           `json:"tags"`
+	KeyTopics          []string           `json:"key_topics"`
+	Embedding          pgvector.Vector    `json:"embedding"`
+	SummaryProvider    pgtype.Text        `json:"summary_provider"`
+	EmbeddingProvider  pgtype.Text        `json:"embedding_provider"`
+	EmbeddingModel     pgtype.Text        `json:"embedding_model"`
+	MediaKey           pgtype.Text        `json:"media_key"`
+	ProcessingStatus   string             `json:"processing_status"`
+	ProcessingError    pgtype.Text        `json:"processing_error"`
+	CreatedAt          pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt          pgtype.Timestamptz `json:"deleted_at"`
+}
 
 type MindmapGoal struct {
 	ID          pgtype.UUID        `json:"id"`
@@ -43,6 +68,24 @@ type MindmapHabitTracker struct {
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
 	UserID    string             `json:"user_id"`
+}
+
+type MindmapJob struct {
+	ID           pgtype.UUID        `json:"id"`
+	ContentID    pgtype.UUID        `json:"content_id"`
+	UserID       string             `json:"user_id"`
+	ContentType  string             `json:"content_type"`
+	Status       string             `json:"status"`
+	CurrentStep  pgtype.Text        `json:"current_step"`
+	AttemptCount int32              `json:"attempt_count"`
+	MaxAttempts  int32              `json:"max_attempts"`
+	LastError    pgtype.Text        `json:"last_error"`
+	NextRetryAt  pgtype.Timestamptz `json:"next_retry_at"`
+	StepResults  []byte             `json:"step_results"`
+	StartedAt    pgtype.Timestamptz `json:"started_at"`
+	CompletedAt  pgtype.Timestamptz `json:"completed_at"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
 }
 
 type MindmapJournal struct {
