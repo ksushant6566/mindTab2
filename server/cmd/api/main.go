@@ -54,6 +54,7 @@ func main() {
 	// Redis + saves feature (optional — disabled if REDIS_URL not set)
 	var savesHandler *handler.SavesHandler
 	var dispatcher *worker.Dispatcher
+	var storage services.StorageProvider
 	if cfg.RedisURL != "" {
 		redisClient, err := queue.ConnectRedis(context.Background(), cfg.RedisURL)
 		if err != nil {
@@ -76,7 +77,7 @@ func main() {
 		}
 
 		// Storage
-		storage := services.NewLocalStorage(cfg.StorageLocalPath)
+		storage = services.NewLocalStorage(cfg.StorageLocalPath)
 
 		// Jina Reader
 		jina := services.NewJinaReader(cfg.JinaAPIKey)
@@ -211,6 +212,7 @@ func main() {
 			r.Post("/saves/search", savesHandler.Search)
 			r.Get("/saves/{id}", savesHandler.Get)
 			r.Delete("/saves/{id}", savesHandler.Delete)
+			r.Get("/media/*", savesHandler.ServeMedia(storage))
 		}
 	})
 

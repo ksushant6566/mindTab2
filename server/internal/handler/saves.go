@@ -11,11 +11,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/ksushant6566/mindtab/server/internal/middleware"
 	"github.com/ksushant6566/mindtab/server/internal/queue"
 	"github.com/ksushant6566/mindtab/server/internal/search"
+	"github.com/ksushant6566/mindtab/server/internal/services"
 	"github.com/ksushant6566/mindtab/server/internal/store"
 )
 
@@ -465,6 +467,29 @@ func (h *SavesHandler) Search(w http.ResponseWriter, r *http.Request) {
 	}
 
 	WriteJSON(w, http.StatusOK, results)
+}
+
+// ServeMedia handles GET /media/* — serves stored media files behind auth.
+func (h *SavesHandler) ServeMedia(storage services.StorageProvider) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		userID := middleware.UserIDFromContext(r.Context())
+		key := chi.URLParam(r, "*")
+
+		// Verify the key belongs to this user
+		if !strings.HasPrefix(key, userID+"/") {
+			WriteError(w, http.StatusForbidden, "access denied")
+			return
+		}
+
+		rc, err := storage.Get(r.Context(), key)
+		if err != nil {
+			WriteError(w, http.StatusNotFound, "file not found")
+			return
+		}
+		defer rc.Close()
+
+		io.Copy(w, rc)
+	}
 }
 
 // --- helpers ---
