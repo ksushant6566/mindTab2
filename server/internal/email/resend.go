@@ -6,7 +6,7 @@ import (
 	"github.com/resend/resend-go/v2"
 )
 
-const fromAddress = "MindTab <noreply@mindtab.in>"
+const fromAddress = "MindTab <noreply@communications.mindtab.in>"
 
 type Service struct {
 	client *resend.Client
