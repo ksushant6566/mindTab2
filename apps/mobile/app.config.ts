@@ -15,12 +15,17 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ios: {
     supportsTablet: true,
     bundleIdentifier: "in.mindtab.app",
+    buildNumber: "1",
+    infoPlist: {
+      ITSAppUsesNonExemptEncryption: false,
+    },
   },
   android: {
     adaptiveIcon: {
       backgroundColor: "#0a0a0a",
     },
     package: "in.mindtab.app",
+    versionCode: 1,
   },
   plugins: [
     "expo-asset",
