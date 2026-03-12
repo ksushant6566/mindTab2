@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"math"
 	"math/rand"
+	"strings"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -22,6 +23,20 @@ func NewRetryScheduler(client *redis.Client, logger *slog.Logger) *RetrySchedule
 	return &RetryScheduler{client: client, logger: logger}
 }
 
+// removeFromProcessing removes a job from the processing list by scanning for its job_id.
+func (r *RetryScheduler) removeFromProcessing(ctx context.Context, jobID string) {
+	items, err := r.client.LRange(ctx, KeyProcessing, 0, -1).Result()
+	if err != nil {
+		return
+	}
+	for _, item := range items {
+		if strings.Contains(item, jobID) {
+			r.client.LRem(ctx, KeyProcessing, 1, item)
+			return
+		}
+	}
+}
+
 // ScheduleRetry adds a job to the retry sorted set with exponential backoff.
 func (r *RetryScheduler) ScheduleRetry(ctx context.Context, payload JobPayload, baseDelay time.Duration) error {
 	delay := CalculateBackoff(payload.AttemptCount, baseDelay)
@@ -32,8 +47,8 @@ func (r *RetryScheduler) ScheduleRetry(ctx context.Context, payload JobPayload, 
 		return fmt.Errorf("marshal job: %w", err)
 	}
 
-	// Remove from processing, add to retry
-	r.client.LRem(ctx, KeyProcessing, 1, data)
+	// Remove from processing by job_id (not by exact payload bytes), add to retry
+	r.removeFromProcessing(ctx, payload.JobID.String())
 
 	return r.client.ZAdd(ctx, KeyRetry, redis.Z{
 		Score:  float64(retryAt.Unix()),

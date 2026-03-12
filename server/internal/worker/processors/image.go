@@ -77,9 +77,9 @@ func (p *ImageProcessor) save(ctx context.Context, job *worker.Job) (*worker.Ste
 		return nil, fmt.Errorf("save: no image data")
 	}
 
-	// Build a storage key from content ID and image MIME type.
+	// Build a storage key scoped to the user for access control.
 	ext := mimeToExt(job.ImageType)
-	mediaKey := fmt.Sprintf("images/%s%s", job.ContentID.String(), ext)
+	mediaKey := fmt.Sprintf("%s/%s/image%s", job.UserID, job.ContentID.String(), ext)
 
 	if err := p.storage.Save(ctx, mediaKey, bytes.NewReader(job.ImageData), job.ImageType); err != nil {
 		return nil, fmt.Errorf("save: store image: %w", err)

@@ -166,7 +166,7 @@ func (h *SavesHandler) createURL(w http.ResponseWriter, r *http.Request, userID 
 		UserID:      userID,
 		ContentType: "article",
 		SourceURL:   req.URL,
-		MaxAttempts: 3,
+		MaxAttempts: 5,
 	}
 	if err := h.producer.Enqueue(r.Context(), payload); err != nil {
 		slog.Error("failed to enqueue job", "error", err, "jobID", uuidFromPgtype(jobID).String())
@@ -260,6 +260,7 @@ func (h *SavesHandler) createImage(w http.ResponseWriter, r *http.Request, userI
 		SourceTitle: pgtextFrom(title),
 	})
 	if err != nil {
+		os.RemoveAll(dirPath)
 		slog.Error("failed to create content record for image", "error", err, "userID", userID)
 		WriteError(w, http.StatusInternalServerError, "failed to create save")
 		return
@@ -272,6 +273,7 @@ func (h *SavesHandler) createImage(w http.ResponseWriter, r *http.Request, userI
 		ContentType: "image",
 	})
 	if err != nil {
+		os.RemoveAll(dirPath)
 		slog.Error("failed to create job record for image", "error", err, "contentID", uuidToString(content.ID))
 		WriteError(w, http.StatusInternalServerError, "failed to create processing job")
 		return
@@ -285,9 +287,10 @@ func (h *SavesHandler) createImage(w http.ResponseWriter, r *http.Request, userI
 		ContentType:   "image",
 		TempImagePath: tempPath,
 		ImageMIME:     mimeType,
-		MaxAttempts:   3,
+		MaxAttempts:   5,
 	}
 	if err := h.producer.Enqueue(r.Context(), payload); err != nil {
+		os.RemoveAll(dirPath)
 		slog.Error("failed to enqueue image job", "error", err, "jobID", uuidFromPgtype(jobID).String())
 		WriteError(w, http.StatusInternalServerError, "failed to enqueue processing job")
 		return

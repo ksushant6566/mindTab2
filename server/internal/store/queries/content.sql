@@ -59,7 +59,7 @@ SET deleted_at = CURRENT_TIMESTAMP,
 WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL;
 
 -- name: IsContentDeleted :one
-SELECT deleted_at IS NOT NULL AS is_deleted
+SELECT (deleted_at IS NOT NULL)::bool AS is_deleted
 FROM mindmap_content
 WHERE id = $1;
 

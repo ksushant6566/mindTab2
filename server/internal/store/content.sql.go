@@ -132,14 +132,14 @@ func (q *Queries) GetContentByID(ctx context.Context, arg GetContentByIDParams) 
 }
 
 const isContentDeleted = `-- name: IsContentDeleted :one
-SELECT deleted_at IS NOT NULL AS is_deleted
+SELECT (deleted_at IS NOT NULL)::bool AS is_deleted
 FROM mindmap_content
 WHERE id = $1
 `
 
-func (q *Queries) IsContentDeleted(ctx context.Context, id pgtype.UUID) (interface{}, error) {
+func (q *Queries) IsContentDeleted(ctx context.Context, id pgtype.UUID) (bool, error) {
 	row := q.db.QueryRow(ctx, isContentDeleted, id)
-	var is_deleted interface{}
+	var is_deleted bool
 	err := row.Scan(&is_deleted)
 	return is_deleted, err
 }

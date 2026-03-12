@@ -20,11 +20,11 @@ func Store(
 	contentID := pgtype.UUID{Bytes: job.ContentID, Valid: true}
 
 	// Check if content was deleted during processing
-	isDeletedRaw, err := queries.IsContentDeleted(ctx, contentID)
+	isDeleted, err := queries.IsContentDeleted(ctx, contentID)
 	if err != nil {
 		return nil, fmt.Errorf("check deleted: %w", err)
 	}
-	if isDeleted, ok := isDeletedRaw.(bool); ok && isDeleted {
+	if isDeleted {
 		return nil, nil
 	}
 

@@ -17,14 +17,15 @@ import (
 
 // Dispatcher orchestrates job processing using registered Processors.
 type Dispatcher struct {
-	consumer  *queue.Consumer
-	retry     *queue.RetryScheduler
-	queries   store.Querier
-	logger    *slog.Logger
+	consumer   *queue.Consumer
+	retry      *queue.RetryScheduler
+	queries    store.Querier
+	logger     *slog.Logger
 	processors map[string]Processor
-	workers   int
-	wg        sync.WaitGroup
-	quit      chan struct{}
+	workers    int
+	wg         sync.WaitGroup
+	quit       chan struct{}
+	cancel     context.CancelFunc
 }
 
 // NewDispatcher creates a Dispatcher with the given dependencies.
@@ -53,6 +54,9 @@ func (d *Dispatcher) Register(p Processor) {
 
 // Start launches N worker goroutines and the retry poller.
 func (d *Dispatcher) Start(ctx context.Context) {
+	ctx, cancel := context.WithCancel(ctx)
+	d.cancel = cancel
+
 	for i := 0; i < d.workers; i++ {
 		d.wg.Add(1)
 		go d.runWorker(ctx, i)
@@ -64,6 +68,9 @@ func (d *Dispatcher) Start(ctx context.Context) {
 
 // Stop signals all goroutines and waits up to 30 seconds for them to finish.
 func (d *Dispatcher) Stop() {
+	if d.cancel != nil {
+		d.cancel()
+	}
 	close(d.quit)
 	done := make(chan struct{})
 	go func() {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -36,14 +37,24 @@ func (c *Consumer) Dequeue(ctx context.Context, timeout time.Duration) (*JobPayl
 	return &payload, nil
 }
 
+// RemoveFromProcessing removes a job from the processing list by scanning for its job_id.
+func (c *Consumer) RemoveFromProcessing(ctx context.Context, jobID string) error {
+	items, err := c.client.LRange(ctx, KeyProcessing, 0, -1).Result()
+	if err != nil {
+		return err
+	}
+	for _, item := range items {
+		if strings.Contains(item, jobID) {
+			c.client.LRem(ctx, KeyProcessing, 1, item)
+			return nil
+		}
+	}
+	return nil
+}
+
 // Complete removes a job from the processing list.
 func (c *Consumer) Complete(ctx context.Context, payload JobPayload) error {
-	data, err := json.Marshal(payload)
-	if err != nil {
-		return fmt.Errorf("marshal job: %w", err)
-	}
-
-	return c.client.LRem(ctx, KeyProcessing, 1, data).Err()
+	return c.RemoveFromProcessing(ctx, payload.JobID.String())
 }
 
 // AcquireLock sets a lock for a job with TTL. Returns false if lock already held.
@@ -63,6 +74,6 @@ func (c *Consumer) SendToDeadLetter(ctx context.Context, payload JobPayload) err
 		return fmt.Errorf("marshal job: %w", err)
 	}
 
-	c.client.LRem(ctx, KeyProcessing, 1, data)
+	c.RemoveFromProcessing(ctx, payload.JobID.String())
 	return c.client.LPush(ctx, KeyDead, data).Err()
 }
