@@ -187,7 +187,7 @@ func (h *SavesHandler) createImage(w http.ResponseWriter, r *http.Request, userI
 	}
 
 	if err := r.ParseMultipartForm(maxSize); err != nil {
-		WriteError(w, http.StatusBadRequest, "failed to parse multipart form")
+		WriteError(w, http.StatusRequestEntityTooLarge, fmt.Sprintf("file too large (max %dMB)", maxSize/(1024*1024)))
 		return
 	}
 
@@ -456,6 +456,9 @@ func (h *SavesHandler) Search(w http.ResponseWriter, r *http.Request) {
 	limit := req.Limit
 	if limit <= 0 {
 		limit = 10
+	}
+	if limit > 50 {
+		limit = 50
 	}
 
 	results, err := h.search.Search(r.Context(), userID, req.Query, limit)

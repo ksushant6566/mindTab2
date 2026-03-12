@@ -39,7 +39,7 @@ func (j *JinaReader) Extract(ctx context.Context, articleURL string) (string, er
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 10<<20))
 	if err != nil {
 		return "", fmt.Errorf("read response: %w", err)
 	}
@@ -65,7 +65,7 @@ func (j *JinaReader) FallbackExtract(ctx context.Context, articleURL string) (st
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 10<<20))
 	if err != nil {
 		return "", fmt.Errorf("read response: %w", err)
 	}
