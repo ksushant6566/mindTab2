@@ -17,7 +17,13 @@ import (
 	"github.com/ksushant6566/mindtab/server/internal/email"
 	"github.com/ksushant6566/mindtab/server/internal/handler"
 	mw "github.com/ksushant6566/mindtab/server/internal/middleware"
+	"github.com/ksushant6566/mindtab/server/internal/providers"
+	"github.com/ksushant6566/mindtab/server/internal/queue"
+	"github.com/ksushant6566/mindtab/server/internal/search"
+	"github.com/ksushant6566/mindtab/server/internal/services"
 	"github.com/ksushant6566/mindtab/server/internal/store"
+	"github.com/ksushant6566/mindtab/server/internal/worker"
+	"github.com/ksushant6566/mindtab/server/internal/worker/processors"
 )
 
 func main() {
@@ -44,6 +50,59 @@ func main() {
 	slog.Info("connected to database")
 
 	queries := store.New(pool)
+
+	// Redis + saves feature (optional — disabled if REDIS_URL not set)
+	var savesHandler *handler.SavesHandler
+	var dispatcher *worker.Dispatcher
+	if cfg.RedisURL != "" {
+		redisClient, err := queue.ConnectRedis(context.Background(), cfg.RedisURL)
+		if err != nil {
+			slog.Error("failed to connect to Redis", "error", err)
+			os.Exit(1)
+		}
+		defer redisClient.Close()
+
+		// Provider registry
+		registry, err := providers.NewRegistry(providers.RegistryConfig{
+			GeminiAPIKey:         cfg.GeminiAPIKey,
+			GeminiModel:          cfg.GeminiModel,
+			OpenAIAPIKey:         cfg.OpenAIAPIKey,
+			OpenAIEmbeddingModel: cfg.OpenAIEmbeddingModel,
+			EmbeddingDimensions:  cfg.EmbeddingDimensions,
+		}, slog.Default())
+		if err != nil {
+			slog.Error("failed to initialize providers", "error", err)
+			os.Exit(1)
+		}
+
+		// Storage
+		storage := services.NewLocalStorage(cfg.StorageLocalPath)
+
+		// Jina Reader
+		jina := services.NewJinaReader(cfg.JinaAPIKey)
+
+		// Queue
+		producer := queue.NewProducer(redisClient)
+		consumer := queue.NewConsumer(redisClient)
+		retryScheduler := queue.NewRetryScheduler(redisClient, slog.Default())
+
+		// Search
+		semanticSearch := search.NewSemanticSearch(pool, registry.Embedding)
+
+		// Saves handler
+		savesHandler = handler.NewSavesHandler(queries, producer, semanticSearch, int64(cfg.MaxFileSizeMB))
+
+		// Worker dispatcher
+		dispatcher = worker.NewDispatcher(consumer, retryScheduler, queries, slog.Default(), cfg.WorkerConcurrency)
+		dispatcher.Register(processors.NewArticleProcessor(jina, registry.LLM, registry.Embedding, queries, pool))
+		dispatcher.Register(processors.NewImageProcessor(storage, registry.LLM, registry.Embedding, queries, pool))
+
+		// Startup recovery
+		retryScheduler.RecoverOrphans(context.Background())
+
+		// Start workers
+		dispatcher.Start(context.Background())
+	}
 
 	// Initialize handlers.
 	emailService := email.NewService(cfg.ResendAPIKey)
@@ -144,6 +203,15 @@ func main() {
 		// Sync.
 		r.Post("/sync/bookmarks", bookmarksHandler.Sync)
 		r.Post("/sync/reading-lists", readingListsHandler.Sync)
+
+		// Saves (only if configured)
+		if savesHandler != nil {
+			r.Post("/saves", savesHandler.Create)
+			r.Get("/saves", savesHandler.List)
+			r.Post("/saves/search", savesHandler.Search)
+			r.Get("/saves/{id}", savesHandler.Get)
+			r.Delete("/saves/{id}", savesHandler.Delete)
+		}
 	})
 
 	// SPA fallback — must be last
@@ -170,10 +238,17 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	shutdownTimeout := 10 * time.Second
+	if cfg.WorkerShutdownTimeout > shutdownTimeout {
+		shutdownTimeout = cfg.WorkerShutdownTimeout
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
 
 	slog.Info("shutting down server")
+	if dispatcher != nil {
+		dispatcher.Stop()
+	}
 	if err := srv.Shutdown(ctx); err != nil {
 		slog.Error("server shutdown error", "error", err)
 	}
