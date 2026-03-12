@@ -7,6 +7,11 @@ import {
   setRefreshToken,
   clearTokens,
   refreshTokens,
+  emailSignup as emailSignupApi,
+  emailVerify as emailVerifyApi,
+  emailSignin as emailSigninApi,
+  forgotPassword as forgotPasswordApi,
+  resetPassword as resetPasswordApi,
 } from "~/lib/auth";
 
 type User = {
@@ -26,6 +31,11 @@ type AuthState = {
   _refreshSession: () => Promise<void>;
   login: () => Promise<void>;
   logout: () => Promise<void>;
+  emailSignup: (email: string, password: string, name: string) => Promise<void>;
+  emailVerify: (email: string, code: string) => Promise<void>;
+  emailSignin: (email: string, password: string) => Promise<void>;
+  forgotPassword: (email: string) => Promise<void>;
+  resetPassword: (email: string, code: string, newPassword: string) => Promise<void>;
 };
 
 GoogleSignin.configure({
@@ -108,6 +118,40 @@ const useAuthStore = create<AuthState>((set) => ({
     try { await GoogleSignin.signOut(); } catch {}
     set({ user: null, isAuthenticated: false, _hasChecked: false });
   },
+
+  emailSignup: async (email: string, password: string, name: string) => {
+    await emailSignupApi(email, password, name);
+  },
+
+  emailVerify: async (email: string, code: string) => {
+    const data = await emailVerifyApi(email, code);
+    await setAccessToken(data.accessToken);
+    await setRefreshToken(data.refreshToken);
+    set({
+      user: data.user as User,
+      isAuthenticated: true,
+      isLoading: false,
+    });
+  },
+
+  emailSignin: async (email: string, password: string) => {
+    const data = await emailSigninApi(email, password);
+    await setAccessToken(data.accessToken);
+    await setRefreshToken(data.refreshToken);
+    set({
+      user: data.user as User,
+      isAuthenticated: true,
+      isLoading: false,
+    });
+  },
+
+  forgotPassword: async (email: string) => {
+    await forgotPasswordApi(email);
+  },
+
+  resetPassword: async (email: string, code: string, newPassword: string) => {
+    await resetPasswordApi(email, code, newPassword);
+  },
 }));
 
 export function useAuth() {
@@ -120,5 +164,10 @@ export function useAuth() {
     login: store.login,
     logout: store.logout,
     refreshSession: store._refreshSession,
+    emailSignup: store.emailSignup,
+    emailVerify: store.emailVerify,
+    emailSignin: store.emailSignin,
+    forgotPassword: store.forgotPassword,
+    resetPassword: store.resetPassword,
   };
 }

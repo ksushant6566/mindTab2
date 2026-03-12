@@ -64,3 +64,78 @@ export async function refreshTokens(): Promise<boolean> {
   await clearTokens();
   return false;
 }
+
+export async function emailSignup(email: string, password: string, name: string): Promise<void> {
+  const res = await fetch(`${API_URL}/auth/email/signup`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Platform": "mobile" },
+    body: JSON.stringify({ email, password, name }),
+  });
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || "Signup failed");
+  }
+}
+
+export async function emailVerify(
+  email: string,
+  code: string
+): Promise<{ accessToken: string; refreshToken: string; user: any }> {
+  const res = await fetch(`${API_URL}/auth/email/verify`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Platform": "mobile" },
+    body: JSON.stringify({ email, code }),
+  });
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || "Verification failed");
+  }
+
+  return res.json();
+}
+
+export async function emailSignin(
+  email: string,
+  password: string
+): Promise<{ accessToken: string; refreshToken: string; user: any }> {
+  const res = await fetch(`${API_URL}/auth/email/signin`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Platform": "mobile" },
+    body: JSON.stringify({ email, password }),
+  });
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || "Sign in failed");
+  }
+
+  return res.json();
+}
+
+export async function forgotPassword(email: string): Promise<void> {
+  const res = await fetch(`${API_URL}/auth/email/forgot-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Platform": "mobile" },
+    body: JSON.stringify({ email }),
+  });
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || "Request failed");
+  }
+}
+
+export async function resetPassword(email: string, code: string, newPassword: string): Promise<void> {
+  const res = await fetch(`${API_URL}/auth/email/reset-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Platform": "mobile" },
+    body: JSON.stringify({ email, code, newPassword }),
+  });
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || "Password reset failed");
+  }
+}
