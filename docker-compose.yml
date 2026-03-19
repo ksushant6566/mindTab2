@@ -1,6 +1,7 @@
 services:
   db:
     image: pgvector/pgvector:pg16
+    profiles: ["local-db"]
     environment:
       POSTGRES_USER: mindtab
       POSTGRES_PASSWORD: mindtab
@@ -17,6 +18,7 @@ services:
 
   migrate:
     image: migrate/migrate
+    profiles: ["local-db"]
     depends_on:
       db:
         condition: service_healthy
@@ -25,12 +27,13 @@ services:
     command:
       [
         "-path", "/migrations",
-        "-database", "${DATABASE_URL:-postgres://mindtab:mindtab@db:5432/mindtab?sslmode=disable}",
+        "-database", "postgres://mindtab:mindtab@db:5432/mindtab?sslmode=disable",
         "up",
       ]
 
   redis:
     image: redis:7-alpine
+    profiles: ["local-redis"]
     ports:
       - "6379:6379"
     volumes:
@@ -45,19 +48,8 @@ services:
     build:
       context: ./server
       dockerfile: Dockerfile.dev
-    depends_on:
-      db:
-        condition: service_healthy
-      migrate:
-        condition: service_completed_successfully
-      redis:
-        condition: service_healthy
-    environment:
-      PORT: "8080"
-      DATABASE_URL: ${DATABASE_URL:-postgres://mindtab:mindtab@db:5432/mindtab?sslmode=disable}
-      JWT_SECRET: ${JWT_SECRET:-dev-secret-key-min-32-chars-long!!}
-      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
-      REDIS_URL: redis://redis:6379/0
+    env_file:
+      - ./server/.env
     ports:
       - "8080:8080"
     volumes:
