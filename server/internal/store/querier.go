@@ -17,13 +17,17 @@ type Querier interface {
 	ArchiveProject(ctx context.Context, arg ArchiveProjectParams) (MindmapProject, error)
 	CheckHabitTitleExists(ctx context.Context, arg CheckHabitTitleExistsParams) (bool, error)
 	CheckJournalTitleExists(ctx context.Context, arg CheckJournalTitleExistsParams) (bool, error)
+	CompleteJob(ctx context.Context, id pgtype.UUID) error
 	CompleteOnboarding(ctx context.Context, id string) error
+	CountContent(ctx context.Context, userID string) (int64, error)
 	CountGoals(ctx context.Context, arg CountGoalsParams) (int32, error)
 	CountJournals(ctx context.Context, userID string) (int32, error)
 	CountJournalsByProject(ctx context.Context, arg CountJournalsByProjectParams) (int32, error)
+	CreateContent(ctx context.Context, arg CreateContentParams) (CreateContentRow, error)
 	CreateEmailUser(ctx context.Context, arg CreateEmailUserParams) (MindmapUser, error)
 	CreateGoal(ctx context.Context, arg CreateGoalParams) error
 	CreateHabit(ctx context.Context, arg CreateHabitParams) error
+	CreateJob(ctx context.Context, arg CreateJobParams) (pgtype.UUID, error)
 	CreateJournal(ctx context.Context, arg CreateJournalParams) error
 	CreateProject(ctx context.Context, arg CreateProjectParams) (MindmapProject, error)
 	CreateRefreshToken(ctx context.Context, arg CreateRefreshTokenParams) error
@@ -36,6 +40,7 @@ type Querier interface {
 	DeleteUserRefreshTokens(ctx context.Context, userID string) error
 	DeleteVerificationToken(ctx context.Context, id pgtype.UUID) error
 	DeleteVerificationTokensByUserAndType(ctx context.Context, arg DeleteVerificationTokensByUserAndTypeParams) error
+	FailJob(ctx context.Context, arg FailJobParams) error
 	// Find habit UUIDs mentioned in notes that also mention a given goal.
 	// goal_pattern should be like '%data-id="goal:UUID"%'.
 	// Returns distinct habit IDs extracted via regex from note content.
@@ -43,6 +48,7 @@ type Querier interface {
 	// Find notes/journals whose content contains a mention of the given entity.
 	// mention_pattern should be like '%data-id="goal:UUID"%' or '%data-id="habit:UUID"%'.
 	GetConnectedNotes(ctx context.Context, arg GetConnectedNotesParams) ([]GetConnectedNotesRow, error)
+	GetContentByID(ctx context.Context, arg GetContentByIDParams) (GetContentByIDRow, error)
 	GetGoalActivity(ctx context.Context, arg GetGoalActivityParams) ([]GetGoalActivityRow, error)
 	GetGoalByID(ctx context.Context, arg GetGoalByIDParams) (GetGoalByIDRow, error)
 	GetHabitActivity(ctx context.Context, arg GetHabitActivityParams) ([]pgtype.Timestamptz, error)
@@ -50,6 +56,7 @@ type Querier interface {
 	GetHabitTrackerActivity(ctx context.Context, arg GetHabitTrackerActivityParams) ([]pgtype.Date, error)
 	// Fetch habits by a list of IDs for a given user.
 	GetHabitsByIDs(ctx context.Context, arg GetHabitsByIDsParams) ([]MindmapHabit, error)
+	GetJobByContentID(ctx context.Context, contentID pgtype.UUID) (MindmapJob, error)
 	GetJournalActivity(ctx context.Context, arg GetJournalActivityParams) ([]GetJournalActivityRow, error)
 	GetJournalByID(ctx context.Context, arg GetJournalByIDParams) (GetJournalByIDRow, error)
 	GetProjectByID(ctx context.Context, arg GetProjectByIDParams) (MindmapProject, error)
@@ -59,6 +66,8 @@ type Querier interface {
 	GetVerificationToken(ctx context.Context, arg GetVerificationTokenParams) (MindmapVerificationToken, error)
 	GetVerificationTokenByUserAndType(ctx context.Context, arg GetVerificationTokenByUserAndTypeParams) (MindmapVerificationToken, error)
 	IncrementVerificationAttempts(ctx context.Context, id pgtype.UUID) error
+	IsContentDeleted(ctx context.Context, id pgtype.UUID) (bool, error)
+	ListContent(ctx context.Context, arg ListContentParams) ([]ListContentRow, error)
 	ListGoalStatsByProject(ctx context.Context, arg ListGoalStatsByProjectParams) ([]ListGoalStatsByProjectRow, error)
 	ListGoals(ctx context.Context, arg ListGoalsParams) ([]ListGoalsRow, error)
 	ListGoalsByProject(ctx context.Context, arg ListGoalsByProjectParams) ([]MindmapGoal, error)
@@ -72,15 +81,22 @@ type Querier interface {
 	SearchJournals(ctx context.Context, arg SearchJournalsParams) ([]MindmapJournal, error)
 	SetEmailVerified(ctx context.Context, id string) error
 	SetPasswordHash(ctx context.Context, arg SetPasswordHashParams) error
+	SoftDeleteContent(ctx context.Context, arg SoftDeleteContentParams) error
 	SoftDeleteGoal(ctx context.Context, arg SoftDeleteGoalParams) error
 	SoftDeleteGoalsByProject(ctx context.Context, arg SoftDeleteGoalsByProjectParams) error
 	SoftDeleteJournalsByProject(ctx context.Context, arg SoftDeleteJournalsByProjectParams) error
 	SoftDeleteProject(ctx context.Context, arg SoftDeleteProjectParams) error
+	StartJob(ctx context.Context, id pgtype.UUID) error
 	TrackHabit(ctx context.Context, arg TrackHabitParams) (pgtype.UUID, error)
 	UntrackHabit(ctx context.Context, arg UntrackHabitParams) error
+	UpdateContentEmbedding(ctx context.Context, arg UpdateContentEmbeddingParams) error
+	UpdateContentResults(ctx context.Context, arg UpdateContentResultsParams) error
+	UpdateContentStatus(ctx context.Context, arg UpdateContentStatusParams) error
 	UpdateGoal(ctx context.Context, arg UpdateGoalParams) error
 	UpdateGoalPosition(ctx context.Context, arg UpdateGoalPositionParams) error
 	UpdateHabit(ctx context.Context, arg UpdateHabitParams) error
+	UpdateJobStatus(ctx context.Context, arg UpdateJobStatusParams) error
+	UpdateJobStepResults(ctx context.Context, arg UpdateJobStepResultsParams) error
 	UpdateJournal(ctx context.Context, arg UpdateJournalParams) error
 	UpdateProject(ctx context.Context, arg UpdateProjectParams) (MindmapProject, error)
 	UpdateUserXP(ctx context.Context, arg UpdateUserXPParams) (MindmapUser, error)
