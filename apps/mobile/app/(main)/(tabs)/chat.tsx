@@ -1,11 +1,14 @@
 import { View, Text, FlatList, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
 import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
 import { api } from "~/lib/api-client";
 import { ChatEmptyState } from "~/components/chat/empty-state";
 import { ConversationRow } from "~/components/chat/conversation-row";
 import { ChatInput } from "~/components/chat/chat-input";
 import { colors } from "~/styles/colors";
+import { useChatStore } from "~/hooks/use-chat-store";
+import { useWebSocket } from "~/hooks/use-websocket";
 
 type Conversation = {
   id: string;
@@ -15,6 +18,11 @@ type Conversation = {
 
 export default function ChatTab() {
   const router = useRouter();
+  const { connect, sendMessage, isConnected } = useWebSocket();
+  const { activeConversationId } = useChatStore();
+
+  // Track whether a navigation to new conversation is pending from this tab
+  const pendingNavigationRef = useRef(false);
 
   const { data } = useQuery({
     queryKey: ["conversations"],
@@ -28,8 +36,30 @@ export default function ChatTab() {
 
   const conversations: Conversation[] = (data as any)?.conversations ?? [];
 
+  // Connect WebSocket on mount
+  useEffect(() => {
+    connect();
+  }, [connect]);
+
+  // Navigate to the new conversation when stream.start sets activeConversationId
+  useEffect(() => {
+    if (pendingNavigationRef.current && activeConversationId) {
+      pendingNavigationRef.current = false;
+      router.push(`/(main)/chat/${activeConversationId}`);
+    }
+  }, [activeConversationId, router]);
+
   const handleSuggestionPress = (text: string) => {
-    console.log("Suggestion pressed:", text);
+    pendingNavigationRef.current = true;
+    useChatStore.getState().setActiveConversation(null);
+    sendMessage(text, undefined);
+  };
+
+  const handleSend = (text: string, attachments: string[]) => {
+    if (!text.trim() && attachments.length === 0) return;
+    pendingNavigationRef.current = true;
+    useChatStore.getState().setActiveConversation(null);
+    sendMessage(text, undefined, attachments);
   };
 
   const handleConversationPress = (id: string) => {
@@ -67,12 +97,7 @@ export default function ChatTab() {
         )}
 
         {/* Chat Input */}
-        <ChatInput
-          onSend={(text, attachments) => {
-            console.log("Send:", text, attachments);
-            // WebSocket integration comes in Task 12
-          }}
-        />
+        <ChatInput onSend={handleSend} disabled={!isConnected} />
       </View>
     </KeyboardAvoidingView>
   );
