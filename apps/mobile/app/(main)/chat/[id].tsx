@@ -268,7 +268,7 @@ export default function ConversationDetail() {
               });
               sendMessage(text, id, attachments);
             }}
-            disabled={!isConnected}
+            disabled={!isConnected || (isStreaming && activeConversationId === id)}
           />
         </View>
       </KeyboardAvoidingView>
