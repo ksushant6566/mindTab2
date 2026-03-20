@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback } from "react";
+import React, { useEffect, useRef, useCallback, useMemo } from "react";
 import {
   View,
   FlatList,
@@ -51,15 +51,59 @@ type ListItem =
   | { type: "message"; message: Message }
   | { type: "streaming" };
 
+// Streaming bubble reads from zustand directly — isolated re-renders,
+// doesn't force FlatList to recreate renderItem on every token.
+const StreamingBubble = React.memo(function StreamingBubble() {
+  const streamBuffer = useChatStore((s) => s.streamBuffer);
+  const pendingToolCalls = useChatStore((s) => s.pendingToolCalls);
+
+  return (
+    <View style={styles.messageWrapper}>
+      {pendingToolCalls.map((tc, idx) => (
+        <ToolIndicator
+          key={`pending-tool-${idx}`}
+          tool={tc.tool}
+          status={tc.status}
+          args={tc.args}
+          result={tc.result}
+        />
+      ))}
+      <MessageBubble role="assistant" content={streamBuffer} isStreaming />
+    </View>
+  );
+});
+
+// Static message row — memoized so it never re-renders unless the message changes
+const MessageRow = React.memo(function MessageRow({ message }: { message: Message }) {
+  const toolCalls = normalizeToolCalls(message.tool_calls);
+  return (
+    <View style={styles.messageWrapper}>
+      {toolCalls.length > 0 &&
+        toolCalls.map((tc, idx) => (
+          <ToolIndicator
+            key={`tool-${message.id}-${idx}`}
+            tool={tc.tool}
+            status={tc.status}
+            args={tc.args}
+            result={tc.result}
+          />
+        ))}
+      <MessageBubble role={message.role as "user" | "assistant"} content={message.content} />
+    </View>
+  );
+});
+
 export default function ConversationDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const queryClient = useQueryClient();
   const flatListRef = useRef<FlatList<ListItem>>(null);
+  const isAtBottomRef = useRef(true);
 
   const { sendMessage, connect, isConnected } = useWebSocket();
-  const { isStreaming, streamBuffer, pendingToolCalls, activeConversationId } =
-    useChatStore();
+  // Only subscribe to the fields needed for list composition — NOT streamBuffer
+  const isStreaming = useChatStore((s) => s.isStreaming);
+  const activeConversationId = useChatStore((s) => s.activeConversationId);
 
   // Connect WebSocket on mount
   useEffect(() => {
@@ -84,37 +128,40 @@ export default function ConversationDetail() {
     enabled: !!id,
   });
 
-  const rawMessages: Message[] = (messagesData as any)?.items ?? [];
-
-  // Filter out tool-result messages and empty intermediate assistant messages
-  // (tool activity is already shown via ToolIndicator)
-  const messages = rawMessages.filter((msg) => {
-    if (msg.role === "tool") return false;
-    if (msg.role === "assistant" && !msg.content && msg.tool_calls?.length) return false;
-    return true;
-  });
+  // Memoize the filtered messages to avoid new array on every render
+  const messages = useMemo(() => {
+    const raw: Message[] = (messagesData as any)?.items ?? [];
+    return raw.filter((msg) => {
+      if (msg.role === "tool") return false;
+      if (msg.role === "assistant" && !msg.content && msg.tool_calls?.length) return false;
+      return true;
+    });
+  }, [messagesData]);
 
   // Build list items: static messages + optional streaming item
-  const listItems = React.useMemo<ListItem[]>(() => {
+  const listItems = useMemo<ListItem[]>(() => {
     const items: ListItem[] = messages.map((msg) => ({
-      type: "message",
+      type: "message" as const,
       message: msg,
     }));
-    // Show streaming item when streaming in this conversation
     if (isStreaming && activeConversationId === id) {
       items.push({ type: "streaming" });
     }
     return items;
   }, [messages, isStreaming, activeConversationId, id]);
 
-  // Auto-scroll to bottom when messages or streaming buffer changes
-  useEffect(() => {
-    if (listItems.length > 0) {
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
-      }, 50);
+  // Single scroll handler — only on content size change, only if near bottom
+  const handleContentSizeChange = useCallback(() => {
+    if (isAtBottomRef.current) {
+      flatListRef.current?.scrollToEnd({ animated: true });
     }
-  }, [listItems.length, streamBuffer]);
+  }, []);
+
+  const handleScroll = useCallback((e: any) => {
+    const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
+    const distanceFromBottom = contentSize.height - contentOffset.y - layoutMeasurement.height;
+    isAtBottomRef.current = distanceFromBottom < 80;
+  }, []);
 
   const handleDelete = useCallback(() => {
     Alert.alert(
@@ -143,53 +190,19 @@ export default function ConversationDetail() {
 
   const conversationTitle = cachedConversation?.title ?? "Chat";
 
-  const renderItem = useCallback(
-    ({ item }: { item: ListItem }) => {
-      if (item.type === "streaming") {
-        return (
-          <View style={styles.messageWrapper}>
-            {pendingToolCalls.map((tc, idx) => (
-              <ToolIndicator
-                key={`pending-tool-${idx}`}
-                tool={tc.tool}
-                status={tc.status}
-                args={tc.args}
-                result={tc.result}
-              />
-            ))}
-            <MessageBubble
-              role="assistant"
-              content={streamBuffer}
-              isStreaming
-            />
-          </View>
-        );
-      }
-
-      const msg = item.message;
-      const toolCalls = normalizeToolCalls(msg.tool_calls);
-      return (
-        <View style={styles.messageWrapper}>
-          {toolCalls.length > 0 &&
-            toolCalls.map((tc, idx) => (
-              <ToolIndicator
-                key={`tool-${msg.id}-${idx}`}
-                tool={tc.tool}
-                status={tc.status}
-                args={tc.args}
-                result={tc.result}
-              />
-            ))}
-          <MessageBubble role={msg.role as "user" | "assistant"} content={msg.content} />
-        </View>
-      );
-    },
-    [streamBuffer, pendingToolCalls]
-  );
+  // renderItem is stable — no streaming state in deps
+  const renderItem = useCallback(({ item }: { item: ListItem }) => {
+    if (item.type === "streaming") {
+      return <StreamingBubble />;
+    }
+    return <MessageRow message={item.message} />;
+  }, []);
 
   const keyExtractor = useCallback((item: ListItem, index: number) => {
     if (item.type === "streaming") return "streaming";
-    return item.message.id ?? `msg-${index}`;
+    // Strip "optimistic-" prefix for stable keys across refetch
+    const msgId = item.message.id;
+    return msgId?.startsWith("optimistic-") ? `user-msg-${index}` : (msgId ?? `msg-${index}`);
   }, []);
 
   return (
@@ -231,9 +244,9 @@ export default function ConversationDetail() {
           renderItem={renderItem}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
-          onContentSizeChange={() => {
-            flatListRef.current?.scrollToEnd({ animated: false });
-          }}
+          onContentSizeChange={handleContentSizeChange}
+          onScroll={handleScroll}
+          scrollEventThrottle={100}
         />
 
         <View style={styles.inputContainer}>
