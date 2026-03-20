@@ -91,6 +91,7 @@ func (h *WSHandler) HandleChat(w http.ResponseWriter, r *http.Request) {
 	var cancelMu sync.Mutex
 	var activeCancel context.CancelFunc
 	var activeGen uint64
+	var handlerWg sync.WaitGroup // tracks active orchestrator goroutines
 
 	// 5. Write loop goroutine
 	go func() {
@@ -156,7 +157,9 @@ func (h *WSHandler) HandleChat(w http.ResponseWriter, r *http.Request) {
 			myGen := activeGen
 			cancelMu.Unlock()
 
+			handlerWg.Add(1)
 			go func(ctx context.Context, gen uint64) {
+				defer handlerWg.Done()
 				defer func() {
 					cancelMu.Lock()
 					if activeGen == gen {
@@ -190,6 +193,9 @@ func (h *WSHandler) HandleChat(w http.ResponseWriter, r *http.Request) {
 		activeCancel()
 	}
 	cancelMu.Unlock()
+
+	// Wait for orchestrator goroutine to finish BEFORE closing the channel
+	handlerWg.Wait()
 
 	close(writeChan)
 	<-done
