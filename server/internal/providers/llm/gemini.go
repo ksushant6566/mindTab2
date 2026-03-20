@@ -26,6 +26,13 @@ func NewGeminiProvider(apiKey, model string) (*GeminiProvider, error) {
 
 func (g *GeminiProvider) Name() string { return "gemini-flash" }
 
+func (g *GeminiProvider) resolveModel(req LLMRequest) string {
+	if req.Model != "" {
+		return req.Model
+	}
+	return g.model
+}
+
 func (g *GeminiProvider) Complete(ctx context.Context, req LLMRequest) (*LLMResponse, error) {
 	var parts []*genai.Part
 
@@ -48,7 +55,7 @@ func (g *GeminiProvider) Complete(ctx context.Context, req LLMRequest) (*LLMResp
 		}
 	}
 
-	result, err := g.client.Models.GenerateContent(ctx, g.model, []*genai.Content{
+	result, err := g.client.Models.GenerateContent(ctx, g.resolveModel(req), []*genai.Content{
 		genai.NewContentFromParts(parts, genai.RoleUser),
 	}, config)
 	if err != nil {

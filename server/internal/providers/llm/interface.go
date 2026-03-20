@@ -15,6 +15,7 @@ type LLMRequest struct {
 	Images       []ImageInput
 	MaxTokens    int
 	Temperature  float64
+	Model        string // optional: override provider's default model
 }
 
 type ImageInput struct {
