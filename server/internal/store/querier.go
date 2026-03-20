@@ -20,15 +20,19 @@ type Querier interface {
 	CompleteJob(ctx context.Context, id pgtype.UUID) error
 	CompleteOnboarding(ctx context.Context, id string) error
 	CountContent(ctx context.Context, userID string) (int64, error)
+	CountConversations(ctx context.Context, userID string) (int64, error)
 	CountGoals(ctx context.Context, arg CountGoalsParams) (int32, error)
 	CountJournals(ctx context.Context, userID string) (int32, error)
 	CountJournalsByProject(ctx context.Context, arg CountJournalsByProjectParams) (int32, error)
+	CountMessages(ctx context.Context, conversationID pgtype.UUID) (int64, error)
 	CreateContent(ctx context.Context, arg CreateContentParams) (CreateContentRow, error)
+	CreateConversation(ctx context.Context, userID string) (CreateConversationRow, error)
 	CreateEmailUser(ctx context.Context, arg CreateEmailUserParams) (MindmapUser, error)
 	CreateGoal(ctx context.Context, arg CreateGoalParams) error
 	CreateHabit(ctx context.Context, arg CreateHabitParams) error
 	CreateJob(ctx context.Context, arg CreateJobParams) (pgtype.UUID, error)
 	CreateJournal(ctx context.Context, arg CreateJournalParams) error
+	CreateMessage(ctx context.Context, arg CreateMessageParams) (MindmapMessage, error)
 	CreateProject(ctx context.Context, arg CreateProjectParams) (MindmapProject, error)
 	CreateRefreshToken(ctx context.Context, arg CreateRefreshTokenParams) error
 	CreateVerificationToken(ctx context.Context, arg CreateVerificationTokenParams) error
@@ -49,6 +53,7 @@ type Querier interface {
 	// mention_pattern should be like '%data-id="goal:UUID"%' or '%data-id="habit:UUID"%'.
 	GetConnectedNotes(ctx context.Context, arg GetConnectedNotesParams) ([]GetConnectedNotesRow, error)
 	GetContentByID(ctx context.Context, arg GetContentByIDParams) (GetContentByIDRow, error)
+	GetConversation(ctx context.Context, arg GetConversationParams) (GetConversationRow, error)
 	GetGoalActivity(ctx context.Context, arg GetGoalActivityParams) ([]GetGoalActivityRow, error)
 	GetGoalByID(ctx context.Context, arg GetGoalByIDParams) (GetGoalByIDRow, error)
 	GetHabitActivity(ctx context.Context, arg GetHabitActivityParams) ([]pgtype.Timestamptz, error)
@@ -59,6 +64,7 @@ type Querier interface {
 	GetJobByContentID(ctx context.Context, contentID pgtype.UUID) (MindmapJob, error)
 	GetJournalActivity(ctx context.Context, arg GetJournalActivityParams) ([]GetJournalActivityRow, error)
 	GetJournalByID(ctx context.Context, arg GetJournalByIDParams) (GetJournalByIDRow, error)
+	GetMessage(ctx context.Context, id pgtype.UUID) (MindmapMessage, error)
 	GetProjectByID(ctx context.Context, arg GetProjectByIDParams) (MindmapProject, error)
 	GetRefreshToken(ctx context.Context, tokenHash string) (MindmapRefreshToken, error)
 	GetUserByEmail(ctx context.Context, email string) (MindmapUser, error)
@@ -68,12 +74,14 @@ type Querier interface {
 	IncrementVerificationAttempts(ctx context.Context, id pgtype.UUID) error
 	IsContentDeleted(ctx context.Context, id pgtype.UUID) (bool, error)
 	ListContent(ctx context.Context, arg ListContentParams) ([]ListContentRow, error)
+	ListConversations(ctx context.Context, arg ListConversationsParams) ([]ListConversationsRow, error)
 	ListGoalStatsByProject(ctx context.Context, arg ListGoalStatsByProjectParams) ([]ListGoalStatsByProjectRow, error)
 	ListGoals(ctx context.Context, arg ListGoalsParams) ([]ListGoalsRow, error)
 	ListGoalsByProject(ctx context.Context, arg ListGoalsByProjectParams) ([]MindmapGoal, error)
 	ListHabitTrackerRecords(ctx context.Context, userID string) ([]MindmapHabitTracker, error)
 	ListHabits(ctx context.Context, userID string) ([]MindmapHabit, error)
 	ListJournals(ctx context.Context, arg ListJournalsParams) ([]ListJournalsRow, error)
+	ListMessages(ctx context.Context, arg ListMessagesParams) ([]MindmapMessage, error)
 	ListProjects(ctx context.Context, arg ListProjectsParams) ([]MindmapProject, error)
 	ListUnassignedGoals(ctx context.Context, userID string) ([]MindmapGoal, error)
 	SearchGoals(ctx context.Context, arg SearchGoalsParams) ([]MindmapGoal, error)
@@ -82,16 +90,19 @@ type Querier interface {
 	SetEmailVerified(ctx context.Context, id string) error
 	SetPasswordHash(ctx context.Context, arg SetPasswordHashParams) error
 	SoftDeleteContent(ctx context.Context, arg SoftDeleteContentParams) error
+	SoftDeleteConversation(ctx context.Context, arg SoftDeleteConversationParams) error
 	SoftDeleteGoal(ctx context.Context, arg SoftDeleteGoalParams) error
 	SoftDeleteGoalsByProject(ctx context.Context, arg SoftDeleteGoalsByProjectParams) error
 	SoftDeleteJournalsByProject(ctx context.Context, arg SoftDeleteJournalsByProjectParams) error
 	SoftDeleteProject(ctx context.Context, arg SoftDeleteProjectParams) error
 	StartJob(ctx context.Context, id pgtype.UUID) error
+	TouchConversation(ctx context.Context, id pgtype.UUID) error
 	TrackHabit(ctx context.Context, arg TrackHabitParams) (pgtype.UUID, error)
 	UntrackHabit(ctx context.Context, arg UntrackHabitParams) error
 	UpdateContentEmbedding(ctx context.Context, arg UpdateContentEmbeddingParams) error
 	UpdateContentResults(ctx context.Context, arg UpdateContentResultsParams) error
 	UpdateContentStatus(ctx context.Context, arg UpdateContentStatusParams) error
+	UpdateConversationTitle(ctx context.Context, arg UpdateConversationTitleParams) error
 	UpdateGoal(ctx context.Context, arg UpdateGoalParams) error
 	UpdateGoalPosition(ctx context.Context, arg UpdateGoalPositionParams) error
 	UpdateHabit(ctx context.Context, arg UpdateHabitParams) error
