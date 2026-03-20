@@ -32,9 +32,9 @@ func (r *ToolRegistry) Definitions() []llm.ToolDefinition {
 	defs := []llm.ToolDefinition{
 		{
 			Name:        "list_goals",
-			Description: "List the user's goals, optionally filtered by status or project. Returns all non-archived goals by default.",
+			Description: "List the user's goals, optionally filtered by status or project. Returns all non-archived goals by default. Omit status to get all goals.",
 			Parameters: jsonSchema("object", map[string]interface{}{
-				"status":     jsonSchema("string", nil, "Filter by status: pending, in_progress, completed, or archived. Omit to return all non-archived goals."),
+				"status":     jsonSchemaEnum([]string{"pending", "in_progress", "completed", "archived"}, "Filter by exact status. Omit to return all non-archived goals."),
 				"project_id": jsonSchema("string", nil, "Filter by project UUID"),
 			}),
 		},
@@ -43,7 +43,7 @@ func (r *ToolRegistry) Definitions() []llm.ToolDefinition {
 			Description: "Create a new goal for the user.",
 			Parameters: jsonSchemaWithRequired("object", map[string]interface{}{
 				"title":      jsonSchema("string", nil, "Title of the goal"),
-				"priority":   jsonSchema("string", nil, "Priority: low, medium, high, critical"),
+				"priority":   jsonSchemaEnum([]string{"priority_1", "priority_2", "priority_3", "priority_4"}, "Priority level: priority_1 (highest/critical), priority_2 (high), priority_3 (medium), priority_4 (low). Defaults to priority_3."),
 				"project_id": jsonSchema("string", nil, "Optional project UUID to assign the goal to"),
 			}, []string{"title"}),
 		},
@@ -53,8 +53,8 @@ func (r *ToolRegistry) Definitions() []llm.ToolDefinition {
 			Parameters: jsonSchemaWithRequired("object", map[string]interface{}{
 				"id":       jsonSchema("string", nil, "Goal UUID"),
 				"title":    jsonSchema("string", nil, "New title"),
-				"status":   jsonSchema("string", nil, "New status (e.g. active, completed, archived)"),
-				"priority": jsonSchema("string", nil, "New priority: low, medium, high, critical"),
+				"status":   jsonSchemaEnum([]string{"pending", "in_progress", "completed", "archived"}, "New status"),
+				"priority": jsonSchemaEnum([]string{"priority_1", "priority_2", "priority_3", "priority_4"}, "New priority: priority_1 (highest), priority_2, priority_3, priority_4 (lowest)"),
 			}, []string{"id"}),
 		},
 		{
@@ -74,7 +74,7 @@ func (r *ToolRegistry) Definitions() []llm.ToolDefinition {
 			Description: "Create a new habit for the user.",
 			Parameters: jsonSchemaWithRequired("object", map[string]interface{}{
 				"title":     jsonSchema("string", nil, "Title of the habit"),
-				"frequency": jsonSchema("string", nil, "Frequency: daily, weekly, monthly"),
+				"frequency": jsonSchemaEnum([]string{"daily", "weekly"}, "Frequency of the habit. Defaults to daily."),
 			}, []string{"title"}),
 		},
 		{
@@ -908,6 +908,15 @@ func jsonSchema(typ string, properties map[string]interface{}, description ...st
 		m["properties"] = properties
 	}
 	return m
+}
+
+// jsonSchemaEnum builds a JSON Schema string with an enum constraint.
+func jsonSchemaEnum(values []string, description string) map[string]interface{} {
+	return map[string]interface{}{
+		"type":        "string",
+		"enum":        values,
+		"description": description,
+	}
 }
 
 // jsonSchemaWithRequired builds a JSON Schema object with required fields.
