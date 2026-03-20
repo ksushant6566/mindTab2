@@ -47,17 +47,11 @@ export default function ConversationDetail() {
     connect();
   }, [connect]);
 
-  // Fetch conversation metadata for title
-  const { data: conversationData } = useQuery({
-    queryKey: ["conversation", id],
-    queryFn: async () => {
-      const { data } = await api.GET("/conversations/{id}" as any, {
-        params: { path: { id } },
-      });
-      return data;
-    },
-    enabled: !!id,
-  });
+  // Get conversation title from cached conversations list
+  const cachedConversations = queryClient.getQueryData(["conversations"]);
+  const cachedConversation = (cachedConversations as any)?.items?.find(
+    (c: any) => c.id === id
+  );
 
   // Fetch messages
   const { data: messagesData } = useQuery({
@@ -120,8 +114,7 @@ export default function ConversationDetail() {
     );
   }, [id, queryClient, router]);
 
-  const conversationTitle =
-    (conversationData as any)?.title ?? "Chat";
+  const conversationTitle = cachedConversation?.title ?? "Chat";
 
   const renderItem = useCallback(
     ({ item }: { item: ListItem }) => {
