@@ -20,13 +20,32 @@ import { ToolIndicator } from "~/components/chat/tool-indicator";
 import { ChatInput } from "~/components/chat/chat-input";
 import { colors } from "~/styles/colors";
 
+type ToolCallData = {
+  tool: string;
+  status: "calling" | "done";
+  args?: Record<string, unknown>;
+  result?: unknown;
+};
+
 type Message = {
   id: string;
   role: "user" | "assistant";
   content: string;
-  tool_calls?: Array<{ tool: string; status: "calling" | "done"; args?: Record<string, unknown>; result?: unknown }>;
+  tool_calls?: Array<Record<string, unknown>>;
   createdAt?: string;
 };
+
+// Server stores tool_calls as Go structs: {ID, Name, Arguments}
+// Normalize to the shape our components expect
+function normalizeToolCalls(raw?: Array<Record<string, unknown>>): ToolCallData[] {
+  if (!raw || raw.length === 0) return [];
+  return raw.map((tc) => ({
+    tool: (tc.Name as string) || (tc.name as string) || (tc.tool as string) || "",
+    status: "done" as const,
+    args: tc.Arguments ? (() => { try { return JSON.parse(tc.Arguments as string); } catch { return undefined; } })() : (tc.args as Record<string, unknown>),
+    result: tc.result as unknown,
+  }));
+}
 
 type ListItem =
   | { type: "message"; message: Message }
@@ -140,10 +159,11 @@ export default function ConversationDetail() {
       }
 
       const msg = item.message;
+      const toolCalls = normalizeToolCalls(msg.tool_calls);
       return (
         <View style={styles.messageWrapper}>
-          {msg.tool_calls && msg.tool_calls.length > 0 &&
-            msg.tool_calls.map((tc, idx) => (
+          {toolCalls.length > 0 &&
+            toolCalls.map((tc, idx) => (
               <ToolIndicator
                 key={`tool-${msg.id}-${idx}`}
                 tool={tc.tool}

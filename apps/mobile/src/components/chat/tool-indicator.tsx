@@ -36,7 +36,8 @@ const TOOL_NAMES: Record<string, string> = {
   get_user_profile: "Checking your profile",
 };
 
-function humanizeToolName(tool: string): string {
+function humanizeToolName(tool: string | undefined): string {
+  if (!tool) return "Using tool";
   if (TOOL_NAMES[tool]) {
     return TOOL_NAMES[tool];
   }
