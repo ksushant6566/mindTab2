@@ -40,10 +40,10 @@ Image uploads remain multipart form data, unchanged.
 ### Server-Side Behavior
 
 When `content` (and optionally `title`) is provided:
-- `extracted_text` is populated from `content`
-- `source_title` is populated from `title`
-- Processing pipeline skips extraction, proceeds directly to summarization/embedding
+- The handler writes `content` to `extracted_text` and `title` to `source_title` on the `mindmap_content` row at create time (before enqueuing the job)
+- The worker's extract step checks whether `extracted_text` is already populated — if so, it skips extraction (no Jina fetch) and proceeds directly to summarization/embedding
 - All other processing (summary, tags, key_topics, embedding) runs normally
+- The `createURLRequest` struct in the handler gains optional `Content` and `Title` fields; the `JobPayload` and worker structs remain unchanged since the pre-extracted data lives in the DB row
 
 No database schema changes required — `extracted_text` and `source_title` columns already exist in `mindmap_content`.
 
@@ -64,7 +64,7 @@ The main app writes auth tokens to the shared keychain (App Group-scoped), and t
 
 **Share extension reads:**
 - On launch, reads access token from shared keychain
-- If expired, calls `POST /auth/refresh` with the refresh token
+- If expired, calls `POST /auth/refresh` with the refresh token and `X-Platform: mobile` header (required — the server uses this header to read the refresh token from the request body instead of a cookie)
 - If no tokens found, shows "Please open MindTab and log in" message
 
 **On logout:**
@@ -105,9 +105,10 @@ ios/
 3. Detects content type by checking providers in order:
    - `kUTTypeImage` → load image data, prepare multipart upload
    - `kUTTypeURL` → load URL
-   - `kUTTypeText` → load text string
+   - `kUTTypeText` → load text string (captured as supplementary `content` alongside a URL)
 4. Many apps (Twitter, Reddit) share both a URL and text — both are captured
-5. Passes extracted content to `ShareView` for preview
+5. **Text-only shares (no URL, no image) are not supported in v1** — if only text is found with no URL or image, the extension shows a "Cannot save text-only content" message. The `POST /saves` endpoint requires a `url` for articles.
+6. Passes extracted content to `ShareView` for preview
 
 ### Activation Rules (Info.plist)
 
@@ -129,6 +130,7 @@ MindTab appears in the share sheet only when the source app shares URLs, images,
 - URLs (with optional text): `POST /saves` with JSON body `{url, content?, title?}`
 - Images: `POST /saves` with multipart form data
 - Auth header: `Bearer <access_token>` from shared keychain
+- All requests include `X-Platform: mobile` header (required for auth refresh compatibility)
 
 ## 4. Share Extension UI
 
@@ -187,7 +189,7 @@ User taps Share → iOS Share Sheet → MindTabShare extension launches
 
 ### In Scope (v1)
 - Native Swift share extension with SwiftUI UI
-- URL, text, and image content types
+- URL (with optional supplementary text) and image content types
 - Pre-extracted content passthrough (skip server extraction)
 - Shared keychain auth via App Groups
 - Preview card with Save confirmation
@@ -198,4 +200,5 @@ User taps Share → iOS Share Sheet → MindTabShare extension launches
 - Offline queueing / background sync
 - Tags or folder selection in share UI
 - Android share target (separate effort)
+- Standalone text-only shares (no URL or image)
 - Custom share extension icon (uses main app icon)
