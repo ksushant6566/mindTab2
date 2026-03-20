@@ -1,5 +1,5 @@
-import React from "react";
-import { View, Text, StyleSheet } from "react-native";
+import React, { useState } from "react";
+import { View, Text, StyleSheet, Pressable } from "react-native";
 
 type ToolIndicatorProps = {
   tool: string;
@@ -47,14 +47,25 @@ function humanizeToolName(tool: string): string {
     .join(" ");
 }
 
-export function ToolIndicator({ tool, status }: ToolIndicatorProps) {
+export function ToolIndicator({ tool, status, args, result }: ToolIndicatorProps) {
+  const [expanded, setExpanded] = useState(false);
   const icon = status === "calling" ? "⚡" : "✓";
   const label = humanizeToolName(tool);
 
   return (
-    <View style={styles.pill}>
-      <Text style={styles.icon}>{icon}</Text>
-      <Text style={styles.label}>{label}</Text>
+    <View>
+      <Pressable onPress={() => setExpanded(!expanded)}>
+        <View style={styles.pill}>
+          <Text style={styles.icon}>{icon}</Text>
+          <Text style={styles.label}>{label}</Text>
+        </View>
+      </Pressable>
+      {expanded && (args != null || result != null) && (
+        <View style={styles.expandedContent}>
+          {args != null && <Text style={styles.jsonText}>{JSON.stringify(args, null, 2)}</Text>}
+          {result != null && <Text style={styles.jsonText}>{JSON.stringify(result, null, 2)}</Text>}
+        </View>
+      )}
     </View>
   );
 }
@@ -80,5 +91,16 @@ const styles = StyleSheet.create({
   label: {
     color: "#666666",
     fontSize: 12,
+  },
+  expandedContent: {
+    backgroundColor: "#0d0d0d",
+    borderRadius: 8,
+    padding: 8,
+    marginTop: 4,
+  },
+  jsonText: {
+    color: "#666666",
+    fontSize: 11,
+    fontFamily: "monospace",
   },
 });

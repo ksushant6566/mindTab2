@@ -6,18 +6,37 @@ import {
   ScrollView,
   Image,
   StyleSheet,
+  ActivityIndicator,
 } from "react-native";
 import { Paperclip, Mic, Send, X } from "lucide-react-native";
 import * as ImagePicker from "expo-image-picker";
+import { getAccessToken } from "~/lib/auth";
 
 type ChatInputProps = {
   onSend: (text: string, attachments: string[]) => void;
   disabled?: boolean;
 };
 
+const uploadAttachment = async (uri: string): Promise<string> => {
+  const token = await getAccessToken();
+  const filename = uri.split("/").pop() || "attachment.jpg";
+  const formData = new FormData();
+  formData.append("file", { uri, name: filename, type: "image/jpeg" } as any);
+
+  const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:8080";
+  const res = await fetch(`${API_URL}/chat/attachments`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: formData,
+  });
+  const data = await res.json();
+  return data.media_key;
+};
+
 export function ChatInput({ onSend, disabled }: ChatInputProps) {
   const [text, setText] = useState("");
   const [attachments, setAttachments] = useState<string[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
 
   const hasContent = text.trim().length > 0 || attachments.length > 0;
 
@@ -35,9 +54,23 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
     setAttachments((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleSend = () => {
-    if (!hasContent || disabled) return;
-    onSend(text.trim(), attachments);
+  const handleSend = async () => {
+    if (!hasContent || disabled || isUploading) return;
+
+    let mediaKeys: string[] = [];
+    if (attachments.length > 0) {
+      setIsUploading(true);
+      try {
+        mediaKeys = await Promise.all(attachments.map(uploadAttachment));
+      } catch (e) {
+        console.error("[ChatInput] Failed to upload attachments:", e);
+        setIsUploading(false);
+        return;
+      }
+      setIsUploading(false);
+    }
+
+    onSend(text.trim(), mediaKeys);
     setText("");
     setAttachments([]);
   };
@@ -52,7 +85,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
         value={text}
         onChangeText={setText}
         multiline
-        editable={!disabled}
+        editable={!disabled && !isUploading}
       />
 
       {/* Attachment Previews */}
@@ -85,7 +118,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
           <TouchableOpacity
             style={styles.iconButton}
             onPress={pickImage}
-            disabled={disabled}
+            disabled={disabled || isUploading}
           >
             <Paperclip size={18} color="#777777" strokeWidth={2} />
           </TouchableOpacity>
@@ -102,16 +135,20 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
           <TouchableOpacity
             style={[
               styles.iconButton,
-              hasContent ? styles.sendButtonActive : styles.sendButtonInactive,
+              hasContent && !isUploading ? styles.sendButtonActive : styles.sendButtonInactive,
             ]}
             onPress={handleSend}
-            disabled={!hasContent || disabled}
+            disabled={!hasContent || disabled || isUploading}
           >
-            <Send
-              size={16}
-              color={hasContent ? "#0a0a0a" : "#666666"}
-              strokeWidth={2}
-            />
+            {isUploading ? (
+              <ActivityIndicator size="small" color="#0a0a0a" />
+            ) : (
+              <Send
+                size={16}
+                color={hasContent ? "#0a0a0a" : "#666666"}
+                strokeWidth={2}
+              />
+            )}
           </TouchableOpacity>
         </View>
       </View>

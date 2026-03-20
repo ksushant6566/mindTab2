@@ -71,7 +71,7 @@ export default function ConversationDetail() {
     enabled: !!id,
   });
 
-  const messages: Message[] = (messagesData as any)?.messages ?? [];
+  const messages: Message[] = (messagesData as any)?.items ?? [];
 
   // Build list items: static messages + optional streaming item
   const listItems = React.useMemo<ListItem[]>(() => {

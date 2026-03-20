@@ -67,6 +67,11 @@ export function SaveCard({
               {sourceTitle}
             </Text>
           ) : null}
+          {summary ? (
+            <Text style={styles.snippet} numberOfLines={2}>
+              {summary}
+            </Text>
+          ) : null}
           {tags && tags.length > 0 ? (
             <View style={styles.tagsRow}>
               {tags.map((tag) => (

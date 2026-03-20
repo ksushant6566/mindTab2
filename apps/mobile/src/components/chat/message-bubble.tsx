@@ -98,12 +98,39 @@ function BlinkingCursor() {
   );
 }
 
+function AnimatedDot({ delay }: { delay: number }) {
+  const opacity = useRef(new Animated.Value(0.3)).current;
+
+  useEffect(() => {
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.delay(delay),
+        Animated.timing(opacity, {
+          toValue: 1.0,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacity, {
+          toValue: 0.3,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+        Animated.delay(1200 - delay - 800),
+      ])
+    );
+    animation.start();
+    return () => animation.stop();
+  }, [opacity, delay]);
+
+  return <Animated.View style={[styles.dot, { opacity }]} />;
+}
+
 function ThreeDotsLoader() {
   return (
     <View style={styles.dotsContainer}>
-      <View style={[styles.dot, styles.dot1]} />
-      <View style={[styles.dot, styles.dot2]} />
-      <View style={[styles.dot, styles.dot3]} />
+      <AnimatedDot delay={0} />
+      <AnimatedDot delay={200} />
+      <AnimatedDot delay={400} />
     </View>
   );
 }
@@ -203,14 +230,6 @@ const styles = StyleSheet.create({
     width: 5,
     height: 5,
     borderRadius: 3,
-  },
-  dot1: {
-    backgroundColor: "#555555",
-  },
-  dot2: {
     backgroundColor: "#888888",
-  },
-  dot3: {
-    backgroundColor: "#bbbbbb",
   },
 });

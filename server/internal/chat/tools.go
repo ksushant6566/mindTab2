@@ -750,15 +750,17 @@ func (r *ToolRegistry) listProjects(ctx context.Context, userID string) (interfa
 	}
 
 	type projectItem struct {
-		ID   string `json:"id"`
-		Name string `json:"name"`
+		ID    string `json:"id"`
+		Name  string `json:"name"`
+		Color string `json:"color"`
 	}
 
 	projects := make([]projectItem, 0, len(rows))
 	for _, p := range rows {
 		projects = append(projects, projectItem{
-			ID:   uuidToString(p.ID),
-			Name: pgtextToString(p.Name),
+			ID:    uuidToString(p.ID),
+			Name:  pgtextToString(p.Name),
+			Color: "",
 		})
 	}
 
@@ -784,9 +786,15 @@ func (r *ToolRegistry) createProject(ctx context.Context, userID string, argsJSO
 		return nil, fmt.Errorf("create project: %w", err)
 	}
 
+	color := ""
+	if args.Color != nil {
+		color = *args.Color
+	}
+
 	return map[string]interface{}{
-		"id":   uuidToString(project.ID),
-		"name": pgtextToString(project.Name),
+		"id":    uuidToString(project.ID),
+		"name":  pgtextToString(project.Name),
+		"color": color,
 	}, nil
 }
 

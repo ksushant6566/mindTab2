@@ -34,7 +34,7 @@ export default function ChatTab() {
     },
   });
 
-  const conversations: Conversation[] = (data as any)?.conversations ?? [];
+  const conversations: Conversation[] = (data as any)?.items ?? [];
 
   // Connect WebSocket on mount
   useEffect(() => {
