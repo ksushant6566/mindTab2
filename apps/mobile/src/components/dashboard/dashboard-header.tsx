@@ -1,48 +1,25 @@
-import React, { useState, useCallback } from "react";
+import React from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
-import { useQuery } from "@tanstack/react-query";
 import { Search } from "lucide-react-native";
-import { habitTrackerQueryOptions } from "@mindtab/core";
 
-import { colors } from "~/styles/colors";
-import { getXPProgress } from "~/lib/xp";
-import { calculateStreak } from "~/lib/streak";
-import { ProgressBar } from "~/components/ui/progress-bar";
-import { StreakFlame } from "~/components/ui/streak-flame";
 import { useAuth } from "~/hooks/use-auth";
-import { api } from "~/lib/api-client";
-
-function interpolateColor(progress: number): string {
-  const r = Math.round(129 + (250 - 129) * progress);
-  const g = Math.round(140 + (204 - 140) * progress);
-  const b = Math.round(248 + (21 - 248) * progress);
-  return `rgb(${r}, ${g}, ${b})`;
-}
 
 type DashboardHeaderProps = {
-  xpBarGlowing?: boolean;
+  activeTab: "chat" | "index" | "vault";
+  onTabChange: (tab: "chat" | "index" | "vault") => void;
 };
 
-export function DashboardHeader({ xpBarGlowing = false }: DashboardHeaderProps) {
+const TAB_ITEMS: { key: "chat" | "index" | "vault"; label: string }[] = [
+  { key: "chat", label: "Chat" },
+  { key: "index", label: "Home" },
+  { key: "vault", label: "Vault" },
+];
+
+export function DashboardHeader({ activeTab, onTabChange }: DashboardHeaderProps) {
   const router = useRouter();
   const { user } = useAuth();
-  const [showXpTooltip, setShowXpTooltip] = useState(false);
 
-  const toggleXpTooltip = useCallback(() => {
-    setShowXpTooltip((v) => !v);
-    if (!showXpTooltip) {
-      setTimeout(() => setShowXpTooltip(false), 3000);
-    }
-  }, [showXpTooltip]);
-
-  const { data: tracker } = useQuery(habitTrackerQueryOptions(api));
-
-  const streak = tracker ? calculateStreak(tracker) : 0;
-  const xp = user?.xp ?? 0;
-  const { level, progress, xpToNext, nextLevelXP } = getXPProgress(xp);
-
-  const xpBarColor = interpolateColor(progress);
   const initial = (user?.name?.[0] ?? "").toUpperCase();
 
   return (
@@ -59,54 +36,49 @@ export function DashboardHeader({ xpBarGlowing = false }: DashboardHeaderProps) 
           )}
         </Pressable>
 
-        {/* XP section: label on top, bar below */}
-        <Pressable style={styles.xpSection} onPress={toggleXpTooltip}>
-          <View style={styles.xpLabelRow}>
-            <Text style={styles.levelText}>Lv.{level}</Text>
-            <Text style={styles.xpDot}>·</Text>
-            <Text style={styles.xpLabel}>{xp} XP</Text>
-          </View>
-          <ProgressBar
-            value={progress}
-            color={xpBarColor}
-            height={4}
-            glowing={xpBarGlowing}
-          />
-        </Pressable>
+        {/* Flex spacer */}
+        <View style={{ flex: 1 }} />
 
-        {/* Streak flame with overlaid count */}
-        <StreakFlame count={streak} size={28} showCount overlay />
+        {/* Tab chips */}
+        {TAB_ITEMS.map((tab) => {
+          const isActive = activeTab === tab.key;
+          return (
+            <Pressable
+              key={tab.key}
+              onPress={() => onTabChange(tab.key)}
+              style={isActive ? styles.chipActive : styles.chipInactive}
+            >
+              <Text style={isActive ? styles.chipTextActive : styles.chipTextInactive}>
+                {tab.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+
+        {/* Flex spacer */}
+        <View style={{ flex: 1 }} />
 
         {/* Search */}
         <Pressable
           onPress={() => router.push("/(modals)/command-palette")}
           style={styles.searchButton}
         >
-          <Search size={18} color={colors.text.secondary} />
+          <Search size={18} color="#a3a3a3" />
         </Pressable>
       </View>
-
-      {/* XP tooltip */}
-      {showXpTooltip && (
-        <View style={styles.xpTooltip}>
-          <Text style={styles.xpTooltipText}>
-            {xp} / {nextLevelXP} XP
-          </Text>
-          <Text style={styles.xpTooltipText}>{xpToNext} to next level</Text>
-        </View>
-      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 16,
+    paddingHorizontal: 20,
+    paddingBottom: 12,
   },
   row: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: 8,
   },
   avatar: {
     width: 36,
@@ -117,56 +89,39 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: colors.accent.indigo,
+    backgroundColor: "#ffffff",
     alignItems: "center",
     justifyContent: "center",
   },
   avatarFallbackText: {
-    color: "#FFFFFF",
+    color: "#0a0a0a",
     fontSize: 14,
     fontWeight: "bold",
   },
-  xpSection: {
-    flex: 1,
-    gap: 4,
+  chipActive: {
+    backgroundColor: "#ffffff",
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 999,
   },
-  xpLabelRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  levelText: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: colors.text.muted,
-  },
-  xpDot: {
-    fontSize: 12,
-    color: colors.text.muted,
-  },
-  xpLabel: {
-    fontSize: 12,
+  chipTextActive: {
+    color: "#0a0a0a",
+    fontSize: 13,
     fontWeight: "600",
-    color: colors.xp.gold,
+  },
+  chipInactive: {
+    backgroundColor: "transparent",
+    borderWidth: 1,
+    borderColor: "#2a2a2a",
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  chipTextInactive: {
+    color: "#666666",
+    fontSize: 13,
   },
   searchButton: {
     padding: 6,
-  },
-  xpTooltip: {
-    marginTop: 8,
-    backgroundColor: colors.bg.elevated,
-    borderWidth: 1,
-    borderColor: colors.border.default,
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    flexDirection: "row",
-    gap: 8,
-    alignSelf: "flex-start",
-  },
-  xpTooltipText: {
-    fontSize: 11,
-    color: colors.text.secondary,
-    fontWeight: "500",
   },
 });
