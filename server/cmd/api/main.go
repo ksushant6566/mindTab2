@@ -214,6 +214,13 @@ func main() {
 			r.Delete("/saves/{id}", savesHandler.Delete)
 			r.Get("/media/*", savesHandler.ServeMedia(storage))
 		}
+
+		// Chat.
+		chatHandler := handler.NewChatHandler(queries, int64(cfg.MaxFileSizeMB)*1024*1024)
+		r.Get("/conversations", chatHandler.ListConversations)
+		r.Get("/conversations/{id}/messages", chatHandler.GetMessages)
+		r.Delete("/conversations/{id}", chatHandler.DeleteConversation)
+		r.Post("/chat/attachments", chatHandler.UploadAttachment)
 	})
 
 	// SPA fallback — must be last

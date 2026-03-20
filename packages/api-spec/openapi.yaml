@@ -39,6 +39,8 @@ tags:
     description: Saved content (articles and images) with AI processing
   - name: Media
     description: Authenticated media file serving
+  - name: Chat
+    description: Conversations, messages, and chat attachments
 
 paths:
   # ─── Auth ───────────────────────────────────────────────────────────────
@@ -1322,6 +1324,136 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
 
+  # ─── Chat ───────────────────────────────────────────────────────────────
+  /conversations:
+    get:
+      operationId: listConversations
+      tags: [Chat]
+      summary: List conversations for the current user
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+          description: Maximum number of items to return
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+          description: Number of items to skip
+      responses:
+        "200":
+          description: Paginated list of conversations
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, total]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ConversationListItem"
+                  total:
+                    type: integer
+                    description: Total number of conversations
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /conversations/{id}/messages:
+    get:
+      operationId: getMessages
+      tags: [Chat]
+      summary: List messages in a conversation
+      parameters:
+        - $ref: "#/components/parameters/UuidId"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 100
+          description: Maximum number of messages to return
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+          description: Number of messages to skip
+      responses:
+        "200":
+          description: Paginated list of messages
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, total]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/MessageItem"
+                  total:
+                    type: integer
+                    description: Total number of messages in the conversation
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /conversations/{id}:
+    delete:
+      operationId: deleteConversation
+      tags: [Chat]
+      summary: Soft-delete a conversation
+      parameters:
+        - $ref: "#/components/parameters/UuidId"
+      responses:
+        "204":
+          description: Conversation deleted successfully
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /chat/attachments:
+    post:
+      operationId: uploadChatAttachment
+      tags: [Chat]
+      summary: Upload a file attachment for use in a chat message
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: File to upload (jpeg, png, webp, or pdf)
+      responses:
+        "201":
+          description: Attachment uploaded successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AttachmentUploadResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "413":
+          description: File too large
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
 components:
   # ─── Security ─────────────────────────────────────────────────────────
   securitySchemes:
@@ -2019,3 +2151,68 @@ components:
         created_at:
           type: string
           format: date-time
+
+    # ── Chat ────────────────────────────────────────────────────────────
+    ConversationListItem:
+      type: object
+      required: [id, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          nullable: true
+          description: Conversation title (auto-generated or user-set)
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    MessageItem:
+      type: object
+      required: [id, role, content, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        role:
+          type: string
+          enum: [user, assistant, tool]
+          description: Author role of the message
+        content:
+          type: string
+          description: Text content of the message
+        attachments:
+          nullable: true
+          description: JSON array of attachment references
+        tool_calls:
+          nullable: true
+          description: JSON array of tool call objects (assistant messages only)
+        tool_call_id:
+          type: string
+          nullable: true
+          description: ID of the tool call this message is responding to (tool messages only)
+        created_at:
+          type: string
+          format: date-time
+
+    AttachmentUploadResponse:
+      type: object
+      required: [media_key, filename, mime_type, size]
+      properties:
+        media_key:
+          type: string
+          description: "Storage key for the uploaded file (format: chat/{userID}/{uuid}/{filename})"
+        filename:
+          type: string
+          description: Original filename
+        mime_type:
+          type: string
+          description: Detected MIME type of the uploaded file
+        size:
+          type: integer
+          format: int64
+          description: File size in bytes
