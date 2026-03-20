@@ -17,7 +17,6 @@ export function useWebSocket() {
   const intentionalDisconnectRef = useRef(false);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const store = useChatStore();
   const queryClient = useQueryClient();
 
   const disconnect = useCallback(() => {
@@ -66,27 +65,28 @@ export function useWebSocket() {
       }
 
       const type = msg.type as string | undefined;
+      const state = useChatStore.getState();
 
       switch (type) {
         case "stream.start":
-          store.startStream(msg.message_id as string);
-          store.setActiveConversation(msg.conversation_id as string);
+          state.startStream(msg.message_id as string);
+          state.setActiveConversation(msg.conversation_id as string);
           break;
 
         case "stream.delta":
-          store.appendDelta(msg.content as string);
+          state.appendDelta(msg.content as string);
           break;
 
         case "stream.tool_call":
-          store.addToolCall(msg.tool as string, msg.args as Record<string, unknown>);
+          state.addToolCall(msg.tool as string, msg.args as Record<string, unknown>);
           break;
 
         case "stream.tool_result":
-          store.resolveToolCall(msg.tool as string, msg.result);
+          state.resolveToolCall(msg.tool as string, msg.result);
           break;
 
         case "stream.end":
-          store.endStream();
+          state.endStream();
           queryClient.invalidateQueries({ queryKey: ["messages"] });
           queryClient.invalidateQueries({ queryKey: ["conversations"] });
           break;
@@ -96,7 +96,7 @@ export function useWebSocket() {
           break;
 
         case "error":
-          store.endStream();
+          state.endStream();
           console.error("[useWebSocket] Server error:", msg.message ?? msg);
           break;
 
@@ -119,7 +119,7 @@ export function useWebSocket() {
     ws.onerror = (error) => {
       console.error("[useWebSocket] WebSocket error:", error);
     };
-  }, [store, queryClient]);
+  }, [queryClient]);
 
   const sendMessage = useCallback(
     (content: string, conversationId?: string, attachments?: unknown[]) => {
