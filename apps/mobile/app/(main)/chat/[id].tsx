@@ -29,7 +29,7 @@ type ToolCallData = {
 
 type Message = {
   id: string;
-  role: "user" | "assistant";
+  role: "user" | "assistant" | "tool";
   content: string;
   tool_calls?: Array<Record<string, unknown>>;
   createdAt?: string;
@@ -84,7 +84,15 @@ export default function ConversationDetail() {
     enabled: !!id,
   });
 
-  const messages: Message[] = (messagesData as any)?.items ?? [];
+  const rawMessages: Message[] = (messagesData as any)?.items ?? [];
+
+  // Filter out tool-result messages and empty intermediate assistant messages
+  // (tool activity is already shown via ToolIndicator)
+  const messages = rawMessages.filter((msg) => {
+    if (msg.role === "tool") return false;
+    if (msg.role === "assistant" && !msg.content && msg.tool_calls?.length) return false;
+    return true;
+  });
 
   // Build list items: static messages + optional streaming item
   const listItems = React.useMemo<ListItem[]>(() => {
@@ -172,7 +180,7 @@ export default function ConversationDetail() {
                 result={tc.result}
               />
             ))}
-          <MessageBubble role={msg.role} content={msg.content} />
+          <MessageBubble role={msg.role as "user" | "assistant"} content={msg.content} />
         </View>
       );
     },
