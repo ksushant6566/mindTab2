@@ -32,9 +32,9 @@ func (r *ToolRegistry) Definitions() []llm.ToolDefinition {
 	defs := []llm.ToolDefinition{
 		{
 			Name:        "list_goals",
-			Description: "List the user's goals, optionally filtered by status or project.",
+			Description: "List the user's goals, optionally filtered by status or project. Returns all non-archived goals by default.",
 			Parameters: jsonSchema("object", map[string]interface{}{
-				"status":     jsonSchema("string", nil, "Filter by status (e.g. active, completed, archived)"),
+				"status":     jsonSchema("string", nil, "Filter by status: pending, in_progress, completed, or archived. Omit to return all non-archived goals."),
 				"project_id": jsonSchema("string", nil, "Filter by project UUID"),
 			}),
 		},
@@ -293,8 +293,16 @@ func (r *ToolRegistry) listGoals(ctx context.Context, userID string, argsJSON st
 	for _, g := range rows {
 		// Apply optional status filter client-side
 		status := ifaceToString(g.Status)
-		if args.Status != nil && status != *args.Status {
-			continue
+		if args.Status != nil {
+			filter := *args.Status
+			// "active" is not a real status — treat it as "not archived/completed"
+			if filter == "active" {
+				if status == "archived" || status == "completed" {
+					continue
+				}
+			} else if status != filter {
+				continue
+			}
 		}
 		var proj *string
 		if g.ProjectName.Valid {
