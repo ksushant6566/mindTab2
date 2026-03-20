@@ -28,6 +28,11 @@ type SearchVaultTool struct {
 	search  *search.SemanticSearch
 }
 
+// NewSearchVaultTool returns a new SearchVaultTool.
+func NewSearchVaultTool(queries store.Querier, search *search.SemanticSearch) *SearchVaultTool {
+	return &SearchVaultTool{queries: queries, search: search}
+}
+
 func (t *SearchVaultTool) Name() string { return "search_vault" }
 
 func (t *SearchVaultTool) Description() string {
@@ -110,6 +115,11 @@ type GetVaultItemArgs struct {
 // GetVaultItemTool retrieves full details of a vault item by ID.
 type GetVaultItemTool struct {
 	queries store.Querier
+}
+
+// NewGetVaultItemTool returns a new GetVaultItemTool.
+func NewGetVaultItemTool(queries store.Querier) *GetVaultItemTool {
+	return &GetVaultItemTool{queries: queries}
 }
 
 func (t *GetVaultItemTool) Name() string { return "get_vault_item" }

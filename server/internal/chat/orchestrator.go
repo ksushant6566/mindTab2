@@ -44,15 +44,15 @@ type WSClientMessage struct {
 type Orchestrator struct {
 	queries  store.Querier
 	llmChain *providers.Chain[llm.LLMProvider]
-	tools    *ToolRegistry
+	registry *Registry
 }
 
 // NewOrchestrator creates a new Orchestrator.
-func NewOrchestrator(queries store.Querier, llmChain *providers.Chain[llm.LLMProvider], tools *ToolRegistry) *Orchestrator {
+func NewOrchestrator(queries store.Querier, llmChain *providers.Chain[llm.LLMProvider], registry *Registry) *Orchestrator {
 	return &Orchestrator{
 		queries:  queries,
 		llmChain: llmChain,
-		tools:    tools,
+		registry: registry,
 	}
 }
 
@@ -201,7 +201,7 @@ func (o *Orchestrator) streamWithTools(
 	userID string,
 	conversationID pgtype.UUID,
 ) (string, error) {
-	toolDefs := o.tools.Definitions()
+	toolDefs := o.registry.Definitions()
 	var fullText strings.Builder
 
 	// We may need to re-call the LLM after tool executions.
@@ -258,7 +258,7 @@ func (o *Orchestrator) streamWithTools(
 		// Execute each tool call and build follow-up prompt
 		var toolResultParts []string
 		for _, tc := range pendingToolCalls {
-			result, execErr := o.tools.Execute(ctx, userID, tc.Name, tc.Arguments)
+			result, execErr := o.registry.Execute(ctx, userID, tc.Name, tc.Arguments)
 
 			// Send tool result to client
 			if execErr != nil {

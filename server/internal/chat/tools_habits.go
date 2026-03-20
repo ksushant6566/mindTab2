@@ -21,6 +21,11 @@ type ListHabitsTool struct {
 	queries store.Querier
 }
 
+// NewListHabitsTool returns a new ListHabitsTool.
+func NewListHabitsTool(queries store.Querier) *ListHabitsTool {
+	return &ListHabitsTool{queries: queries}
+}
+
 func (t *ListHabitsTool) Name() string { return "list_habits" }
 
 func (t *ListHabitsTool) Description() string {
@@ -94,6 +99,11 @@ type CreateHabitTool struct {
 	queries store.Querier
 }
 
+// NewCreateHabitTool returns a new CreateHabitTool.
+func NewCreateHabitTool(queries store.Querier) *CreateHabitTool {
+	return &CreateHabitTool{queries: queries}
+}
+
 func (t *CreateHabitTool) Name() string { return "create_habit" }
 
 func (t *CreateHabitTool) Description() string {
@@ -154,6 +164,11 @@ type ToggleHabitArgs struct {
 // ToggleHabitTool toggles today's completion status for a habit.
 type ToggleHabitTool struct {
 	queries store.Querier
+}
+
+// NewToggleHabitTool returns a new ToggleHabitTool.
+func NewToggleHabitTool(queries store.Querier) *ToggleHabitTool {
+	return &ToggleHabitTool{queries: queries}
 }
 
 func (t *ToggleHabitTool) Name() string { return "toggle_habit" }

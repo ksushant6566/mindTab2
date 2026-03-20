@@ -19,6 +19,11 @@ type ListProjectsTool struct {
 	queries store.Querier
 }
 
+// NewListProjectsTool returns a new ListProjectsTool.
+func NewListProjectsTool(queries store.Querier) *ListProjectsTool {
+	return &ListProjectsTool{queries: queries}
+}
+
 func (t *ListProjectsTool) Name() string { return "list_projects" }
 
 func (t *ListProjectsTool) Description() string {
@@ -78,6 +83,11 @@ type CreateProjectArgs struct {
 // CreateProjectTool creates a new project.
 type CreateProjectTool struct {
 	queries store.Querier
+}
+
+// NewCreateProjectTool returns a new CreateProjectTool.
+func NewCreateProjectTool(queries store.Querier) *CreateProjectTool {
+	return &CreateProjectTool{queries: queries}
 }
 
 func (t *CreateProjectTool) Name() string { return "create_project" }

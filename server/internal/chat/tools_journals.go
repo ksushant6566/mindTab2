@@ -25,6 +25,11 @@ type ListJournalsTool struct {
 	queries store.Querier
 }
 
+// NewListJournalsTool returns a new ListJournalsTool.
+func NewListJournalsTool(queries store.Querier) *ListJournalsTool {
+	return &ListJournalsTool{queries: queries}
+}
+
 func (t *ListJournalsTool) Name() string { return "list_journals" }
 
 func (t *ListJournalsTool) Description() string {
@@ -108,6 +113,11 @@ type CreateJournalTool struct {
 	queries store.Querier
 }
 
+// NewCreateJournalTool returns a new CreateJournalTool.
+func NewCreateJournalTool(queries store.Querier) *CreateJournalTool {
+	return &CreateJournalTool{queries: queries}
+}
+
 func (t *CreateJournalTool) Name() string { return "create_journal" }
 
 func (t *CreateJournalTool) Description() string {
@@ -165,6 +175,11 @@ type UpdateJournalArgs struct {
 // UpdateJournalTool updates a journal entry's title or content.
 type UpdateJournalTool struct {
 	queries store.Querier
+}
+
+// NewUpdateJournalTool returns a new UpdateJournalTool.
+func NewUpdateJournalTool(queries store.Querier) *UpdateJournalTool {
+	return &UpdateJournalTool{queries: queries}
 }
 
 func (t *UpdateJournalTool) Name() string { return "update_journal" }
@@ -250,6 +265,11 @@ type DeleteJournalArgs struct {
 // DeleteJournalTool soft-deletes a journal entry.
 type DeleteJournalTool struct {
 	queries store.Querier
+}
+
+// NewDeleteJournalTool returns a new DeleteJournalTool.
+func NewDeleteJournalTool(queries store.Querier) *DeleteJournalTool {
+	return &DeleteJournalTool{queries: queries}
 }
 
 func (t *DeleteJournalTool) Name() string { return "delete_journal" }

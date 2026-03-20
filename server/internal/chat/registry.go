@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/ksushant6566/mindtab/server/internal/providers/llm"
 )
 
@@ -147,4 +149,77 @@ func sanitizeArgs(argsJSON string) string {
 		return argsJSON
 	}
 	return argsJSON[:maxLen] + "...[truncated]"
+}
+
+// ---------------------------------------------------------------------------
+// JSON Schema helpers
+// ---------------------------------------------------------------------------
+
+// jsonSchema builds a JSON Schema map for a ToolDefinition.Parameters entry.
+func jsonSchema(typ string, properties map[string]interface{}, description ...string) map[string]interface{} {
+	m := map[string]interface{}{
+		"type": typ,
+	}
+	if len(description) > 0 && description[0] != "" {
+		m["description"] = description[0]
+	}
+	if properties != nil {
+		m["properties"] = properties
+	}
+	return m
+}
+
+// jsonSchemaEnum builds a JSON Schema string with an enum constraint.
+func jsonSchemaEnum(values []string, description string) map[string]interface{} {
+	return map[string]interface{}{
+		"type":        "string",
+		"enum":        values,
+		"description": description,
+	}
+}
+
+// jsonSchemaWithRequired builds a JSON Schema object with required fields.
+func jsonSchemaWithRequired(typ string, properties map[string]interface{}, required []string) map[string]interface{} {
+	m := map[string]interface{}{
+		"type": typ,
+	}
+	if properties != nil {
+		m["properties"] = properties
+	}
+	if len(required) > 0 {
+		m["required"] = required
+	}
+	return m
+}
+
+// ---------------------------------------------------------------------------
+// pgtype conversion helpers
+// ---------------------------------------------------------------------------
+
+func uuidToString(u pgtype.UUID) string {
+	if !u.Valid {
+		return ""
+	}
+	return uuid.UUID(u.Bytes).String()
+}
+
+func pgtextToString(t pgtype.Text) string {
+	if !t.Valid {
+		return ""
+	}
+	return t.String
+}
+
+func timestamptzToString(t pgtype.Timestamptz) string {
+	if !t.Valid {
+		return ""
+	}
+	return t.Time.Format(time.RFC3339)
+}
+
+func ifaceToString(v interface{}) string {
+	if v == nil {
+		return ""
+	}
+	return fmt.Sprintf("%v", v)
 }
