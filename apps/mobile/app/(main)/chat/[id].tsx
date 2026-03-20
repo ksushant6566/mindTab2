@@ -239,6 +239,20 @@ export default function ConversationDetail() {
         <View style={styles.inputContainer}>
           <ChatInput
             onSend={(text, attachments) => {
+              // Optimistically add user message to the list immediately
+              queryClient.setQueryData(["messages", id], (old: any) => {
+                const optimisticMsg = {
+                  id: `optimistic-${Date.now()}`,
+                  role: "user",
+                  content: text,
+                  attachments: attachments.length > 0 ? attachments : null,
+                  tool_calls: null,
+                  tool_call_id: null,
+                  created_at: new Date().toISOString(),
+                };
+                const items = old?.items ? [...old.items, optimisticMsg] : [optimisticMsg];
+                return { ...old, items };
+              });
               sendMessage(text, id, attachments);
             }}
             disabled={!isConnected}
