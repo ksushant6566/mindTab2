@@ -13,11 +13,13 @@ import (
 	chimw "github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/ksushant6566/mindtab/server/internal/chat"
 	"github.com/ksushant6566/mindtab/server/internal/config"
 	"github.com/ksushant6566/mindtab/server/internal/email"
 	"github.com/ksushant6566/mindtab/server/internal/handler"
 	mw "github.com/ksushant6566/mindtab/server/internal/middleware"
 	"github.com/ksushant6566/mindtab/server/internal/providers"
+	"github.com/ksushant6566/mindtab/server/internal/providers/llm"
 	"github.com/ksushant6566/mindtab/server/internal/queue"
 	"github.com/ksushant6566/mindtab/server/internal/search"
 	"github.com/ksushant6566/mindtab/server/internal/services"
@@ -55,6 +57,8 @@ func main() {
 	var savesHandler *handler.SavesHandler
 	var dispatcher *worker.Dispatcher
 	var storage services.StorageProvider
+	var llmChain *providers.Chain[llm.LLMProvider]
+	var semanticSearch *search.SemanticSearch
 	if cfg.RedisURL != "" {
 		redisClient, err := queue.ConnectRedis(context.Background(), cfg.RedisURL)
 		if err != nil {
@@ -88,7 +92,10 @@ func main() {
 		retryScheduler := queue.NewRetryScheduler(redisClient, slog.Default())
 
 		// Search
-		semanticSearch := search.NewSemanticSearch(pool, registry.Embedding)
+		semanticSearch = search.NewSemanticSearch(pool, registry.Embedding)
+
+		// LLM chain (used by chat orchestrator)
+		llmChain = registry.LLM
 
 		// Saves handler
 		savesHandler = handler.NewSavesHandler(queries, producer, semanticSearch, int64(cfg.MaxFileSizeMB))
@@ -142,6 +149,12 @@ func main() {
 	r.Post("/auth/email/signin", emailAuthHandler.Signin)
 	r.Post("/auth/email/forgot-password", emailAuthHandler.ForgotPassword)
 	r.Post("/auth/email/reset-password", emailAuthHandler.ResetPassword)
+
+	// WebSocket chat — outside auth middleware (auth via query param token).
+	toolRegistry := chat.NewToolRegistry(queries, semanticSearch)
+	orchestrator := chat.NewOrchestrator(queries, llmChain, toolRegistry)
+	wsHandler := handler.NewWSHandler(orchestrator, cfg.JWTSecret)
+	r.Get("/ws/chat", wsHandler.HandleChat)
 
 	// Protected routes.
 	r.Group(func(r chi.Router) {
