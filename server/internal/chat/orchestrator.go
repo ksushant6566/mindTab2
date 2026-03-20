@@ -325,8 +325,8 @@ func (o *Orchestrator) generateTitle(
 	titleReq := llm.LLMRequest{
 		SystemPrompt: "Generate a short title (3-6 words) for this conversation based on the user's first message. Return only the title, nothing else.",
 		UserPrompt:   firstMessage,
-		Model:        "gemini-2.0-flash-lite", // non-thinking model for fast, cheap title generation
-		MaxTokens:    50,
+		Model:        "gemini-2.5-flash-lite", // lightweight model for fast, cheap title generation
+		MaxTokens:    1024,
 		Temperature:  0.5,
 	}
 

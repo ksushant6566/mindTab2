@@ -10,6 +10,12 @@ import { colors } from "~/styles/colors";
 import { useChatStore } from "~/hooks/use-chat-store";
 import { useWebSocket } from "~/hooks/use-websocket";
 
+type RawConversation = {
+  id: string;
+  title: string | null;
+  updated_at: string;
+};
+
 type Conversation = {
   id: string;
   title: string | null;
@@ -34,7 +40,12 @@ export default function ChatTab() {
     },
   });
 
-  const conversations: Conversation[] = (data as any)?.items ?? [];
+  const rawItems: RawConversation[] = (data as any)?.items ?? [];
+  const conversations: Conversation[] = rawItems.map((c) => ({
+    id: c.id,
+    title: c.title,
+    updatedAt: c.updated_at,
+  }));
 
   // Connect WebSocket on mount
   useEffect(() => {
