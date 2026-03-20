@@ -6,6 +6,7 @@ import { api } from "~/lib/api-client";
 import { FilterChips } from "~/components/vault/filter-chips";
 import { SaveGrid } from "~/components/vault/save-grid";
 import { type SaveCardProps } from "~/components/vault/save-card";
+import { SaveFAB } from "~/components/vault/save-fab";
 import { colors } from "~/styles/colors";
 
 type FilterType = "all" | "article" | "image";
@@ -86,6 +87,7 @@ export default function VaultTab() {
         refreshing={isFetching}
         onLoadMore={handleLoadMore}
       />
+      <SaveFAB />
     </View>
   );
 }
