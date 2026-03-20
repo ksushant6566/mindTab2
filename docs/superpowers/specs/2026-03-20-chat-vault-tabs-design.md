@@ -441,6 +441,14 @@ All tools execute server-side using the authenticated user's ID. The LLM receive
 
 - **React Query:** saves list (`GET /saves`), individual save (`GET /saves/{id}`)
 - Filter state (all/articles/images) as local `useState`
+- Vault filtering (All/Articles/Images) is client-side — filter the existing `GET /saves` response by `source_type` field. No new server endpoint needed.
+- Note: existing `GET /saves` returns a bare JSON array, not `{items, total}`. Client handles pagination via `limit`/`offset` query params and detects end-of-list when fewer items than `limit` are returned.
+
+## Implementation Notes
+
+- **WebSocket token expiry:** If the access token expires during an active connection, the server sends `{"type": "error", "code": "token_expired", "message": "..."}` and closes the connection. The client catches this, refreshes the token via the existing refresh flow, and reconnects automatically.
+- **LLM streaming:** The existing `LLMProvider.Complete()` method is synchronous. A new `StreamComplete()` method (or direct use of the Gemini SDK streaming API) is needed for token-by-token streaming to the WebSocket.
+- **Chat attachments:** Reuse the existing `StorageProvider` with a `chat/{user_id}/` prefix for media keys.
 
 ## Out of Scope
 
