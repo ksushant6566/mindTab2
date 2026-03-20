@@ -67,7 +67,7 @@ The JSON Schema in `Schema()` and the struct tags in `ParseArgs` both express th
 ```go
 type Registry struct {
     tools    map[string]Tool
-    validate *validator.Validate
+    validate *validator.Validate  // shared validator instance, passed to tools at registration
 }
 
 func NewRegistry() *Registry
@@ -75,6 +75,20 @@ func (r *Registry) Register(t Tool)
 func (r *Registry) Definitions() []llm.ToolDefinition
 func (r *Registry) Execute(ctx context.Context, userID string, toolName string, argsJSON string) (any, error)
 ```
+
+### Validator Ownership
+
+The `Registry` owns the `*validator.Validate` instance. Individual tools do NOT access the validator directly. Instead, the registry runs the full parse+validate cycle:
+
+1. Registry calls `tool.ParseArgs(json.RawMessage(argsJSON))` — tool unmarshals into typed struct only
+2. Registry calls `r.validate.Struct(parsedArgs)` — registry validates the returned struct
+3. On validation failure, registry formats the error message and returns it
+
+This keeps the `Tool` interface simple — `ParseArgs` just unmarshals, the registry handles all cross-cutting validation. Tools never need a reference to the validator.
+
+### `ParseArgs` Signature
+
+`ParseArgs` accepts `json.RawMessage` (which is `[]byte`). The registry converts `string` → `json.RawMessage` via `json.RawMessage(argsJSON)` before calling. This is a zero-copy cast in Go since `json.RawMessage` is `[]byte` and `string` → `[]byte` is trivial.
 
 ### Execution Pipeline
 
@@ -86,28 +100,32 @@ LLM returns tool call
    - Unknown tool -> return error: "unknown tool: {name}"
     |
     v
-2. tool.ParseArgs(argsJSON)
+2. tool.ParseArgs(json.RawMessage(argsJSON))
    - Unmarshal JSON into typed struct
-   - Validate via struct tags
+   - Failure -> return parse error
+    |
+    v
+3. registry.validate.Struct(parsedArgs)
+   - Validate struct tags (enums, required, uuid format, etc.)
    - Failure -> return clear error to LLM (not a panic, not silent)
     |
     v
-3. Log start
+4. Log start
    - slog.Info("tool.execute.start", "tool", name, "userID", userID, "args", sanitizedArgs)
    - Sanitize args: redact any field named "content" or longer than 200 chars
     |
     v
-4. tool.Execute(ctx, userID, parsedArgs)
+5. tool.Execute(ctx, userID, parsedArgs)
    - Args are pre-validated and typed
    - Tool focuses on business logic only
     |
     v
-5. Log end
+6. Log end
    - slog.Info("tool.execute.end", "tool", name, "userID", userID, "duration_ms", ms, "success", true/false)
    - On error: slog.Error with the error message
     |
     v
-6. Return result or structured error
+7. Return result or structured error
 ```
 
 ## File Structure
@@ -146,8 +164,7 @@ func (t *ListGoalsTool) Schema() llm.ToolDefinition       { return llm.ToolDefin
 func (t *ListGoalsTool) ParseArgs(raw json.RawMessage) (any, error) {
     var args ListGoalsArgs
     if err := json.Unmarshal(raw, &args); err != nil { return nil, err }
-    if err := validate.Struct(args); err != nil { return nil, formatValidationError(err) }
-    return &args, nil
+    return &args, nil  // validation is handled by the registry
 }
 func (t *ListGoalsTool) Execute(ctx context.Context, userID string, args any) (any, error) {
     a := args.(*ListGoalsArgs)
@@ -155,7 +172,24 @@ func (t *ListGoalsTool) Execute(ctx context.Context, userID string, args any) (a
 }
 ```
 
-All 4 concerns (schema, arg struct, validation, execution) in one place per tool.
+All 4 concerns (schema, arg struct, validation tags, execution) in one place per tool.
+
+## Tool Constructor Dependencies
+
+Most tools take `store.Querier`. Vault tools additionally need `*search.SemanticSearch` (can be nil):
+
+```go
+// Goal/Habit/Journal/Project tools
+NewListGoalsTool(queries store.Querier)
+
+// Vault tools
+NewSearchVaultTool(queries store.Querier, search *search.SemanticSearch)
+NewGetVaultItemTool(queries store.Querier)
+```
+
+## Schema Helpers
+
+The existing `jsonSchema`, `jsonSchemaEnum`, `jsonSchemaWithRequired` helper functions move to `registry.go` as package-level helpers. Individual tools use them in their `Schema()` method.
 
 ## Orchestrator Changes
 
