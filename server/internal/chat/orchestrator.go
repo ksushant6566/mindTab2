@@ -40,6 +40,7 @@ type WSServerMessage struct {
 	MessageID      string      `json:"message_id,omitempty"`
 	Content        string      `json:"content,omitempty"`
 	Tool           string      `json:"tool,omitempty"`
+	CallID         string      `json:"call_id,omitempty"`
 	Args           interface{} `json:"args,omitempty"`
 	Result         interface{} `json:"result,omitempty"`
 	Title          string      `json:"title,omitempty"`
@@ -236,6 +237,7 @@ func (o *Orchestrator) streamWithTools(
 
 	for iteration := 0; iteration <= maxToolIterations; iteration++ {
 		var pendingToolCalls []llm.ToolCall
+		var pendingCallIDs []string
 		var iterText strings.Builder
 
 		req := llm.LLMRequest{
@@ -257,18 +259,24 @@ func (o *Orchestrator) streamWithTools(
 					}
 				}
 				if len(delta.ToolCalls) > 0 {
-					pendingToolCalls = append(pendingToolCalls, delta.ToolCalls...)
-					for _, tc := range delta.ToolCalls {
+					for idx, tc := range delta.ToolCalls {
+						callID := tc.ID
+						if callID == "" {
+							callID = fmt.Sprintf("%s-%d", tc.Name, len(pendingToolCalls)+idx)
+						}
+						pendingCallIDs = append(pendingCallIDs, callID)
 						var argsData interface{}
 						_ = json.Unmarshal([]byte(tc.Arguments), &argsData)
 						if !trySend(ctx, writeChan, WSServerMessage{
-							Type: "stream.tool_call",
-							Tool: tc.Name,
-							Args: argsData,
+							Type:   "stream.tool_call",
+							Tool:   tc.Name,
+							CallID: callID,
+							Args:   argsData,
 						}) {
 							return fmt.Errorf("connection closed")
 						}
 					}
+					pendingToolCalls = append(pendingToolCalls, delta.ToolCalls...)
 				}
 				return nil
 			})
@@ -296,7 +304,11 @@ func (o *Orchestrator) streamWithTools(
 
 		// Execute each tool call and build follow-up prompt
 		var toolResultParts []string
-		for _, tc := range pendingToolCalls {
+		for i, tc := range pendingToolCalls {
+			callID := ""
+			if i < len(pendingCallIDs) {
+				callID = pendingCallIDs[i]
+			}
 			result, execErr := o.registry.Execute(ctx, userID, tc.Name, tc.Arguments)
 
 			// Send tool result to client
@@ -304,6 +316,7 @@ func (o *Orchestrator) streamWithTools(
 				trySend(ctx, writeChan, WSServerMessage{
 					Type:   "stream.tool_result",
 					Tool:   tc.Name,
+					CallID: callID,
 					Result: map[string]string{"error": execErr.Error()},
 				})
 				toolResultParts = append(toolResultParts,
@@ -312,6 +325,7 @@ func (o *Orchestrator) streamWithTools(
 				trySend(ctx, writeChan, WSServerMessage{
 					Type:   "stream.tool_result",
 					Tool:   tc.Name,
+					CallID: callID,
 					Result: result,
 				})
 				resultJSON, _ := json.Marshal(result)

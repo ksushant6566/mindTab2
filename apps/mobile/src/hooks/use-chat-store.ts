@@ -1,6 +1,7 @@
 import { create } from "zustand";
 
 type ToolCallState = {
+  callId: string;
   tool: string;
   args: Record<string, unknown>;
   result?: unknown;
@@ -17,8 +18,8 @@ type ChatState = {
   setActiveConversation: (id: string | null) => void;
   startStream: (messageId: string) => void;
   appendDelta: (content: string) => void;
-  addToolCall: (tool: string, args: Record<string, unknown>) => void;
-  resolveToolCall: (tool: string, result: unknown) => void;
+  addToolCall: (callId: string, tool: string, args: Record<string, unknown>) => void;
+  resolveToolCall: (callId: string, result: unknown) => void;
   endStream: () => void;
   reset: () => void;
 };
@@ -35,14 +36,14 @@ export const useChatStore = create<ChatState>((set) => ({
     set({ streamingMessageId: messageId, streamBuffer: "", isStreaming: true, pendingToolCalls: [] }),
   appendDelta: (content) =>
     set((state) => ({ streamBuffer: state.streamBuffer + content })),
-  addToolCall: (tool, args) =>
+  addToolCall: (callId, tool, args) =>
     set((state) => ({
-      pendingToolCalls: [...state.pendingToolCalls, { tool, args, status: "calling" }],
+      pendingToolCalls: [...state.pendingToolCalls, { callId, tool, args, status: "calling" }],
     })),
-  resolveToolCall: (tool, result) =>
+  resolveToolCall: (callId, result) =>
     set((state) => ({
       pendingToolCalls: state.pendingToolCalls.map((tc) =>
-        tc.tool === tool && tc.status === "calling" ? { ...tc, result, status: "done" } : tc
+        tc.callId === callId && tc.status === "calling" ? { ...tc, result, status: "done" } : tc
       ),
     })),
   endStream: () => set({ isStreaming: false, streamingMessageId: null, streamBuffer: "", pendingToolCalls: [] }),

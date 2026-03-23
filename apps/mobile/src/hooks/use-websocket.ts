@@ -2,7 +2,7 @@ import { useEffect, useRef, useCallback, useState } from "react";
 import { AppState } from "react-native";
 import { useChatStore } from "./use-chat-store";
 import { useQueryClient } from "@tanstack/react-query";
-import { getAccessToken } from "~/lib/auth";
+import { getAccessToken, refreshTokens } from "~/lib/auth";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:8080";
 
@@ -42,6 +42,10 @@ export function useWebSocket() {
 
     intentionalDisconnectRef.current = false;
 
+    // Proactively refresh the access token before connecting so a stale
+    // 15-minute token does not cause an immediate 401 and reconnect loop.
+    await refreshTokens();
+
     const token = await getAccessToken();
     if (!token) {
       console.warn("[useWebSocket] No access token available, skipping connect");
@@ -79,11 +83,11 @@ export function useWebSocket() {
           break;
 
         case "stream.tool_call":
-          state.addToolCall(msg.tool as string, msg.args as Record<string, unknown>);
+          state.addToolCall(msg.call_id as string, msg.tool as string, msg.args as Record<string, unknown>);
           break;
 
         case "stream.tool_result":
-          state.resolveToolCall(msg.tool as string, msg.result);
+          state.resolveToolCall(msg.call_id as string, msg.result);
           break;
 
         case "stream.end": {
