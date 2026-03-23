@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback, useState } from "react";
+import { AppState } from "react-native";
 import { useChatStore } from "./use-chat-store";
 import { useQueryClient } from "@tanstack/react-query";
 import { getAccessToken } from "~/lib/auth";
@@ -109,6 +110,12 @@ export function useWebSocket() {
       setIsConnected(false);
       wsRef.current = null;
 
+      // Clean up stale streaming state — stream.end will never arrive on a dead connection
+      const chatState = useChatStore.getState();
+      if (chatState.isStreaming) {
+        chatState.endStream();
+      }
+
       if (!intentionalDisconnectRef.current) {
         reconnectTimerRef.current = setTimeout(() => {
           connect();
@@ -154,6 +161,20 @@ export function useWebSocket() {
 
     wsRef.current.send(JSON.stringify({ type: "message.cancel" }));
   }, []);
+
+  // Reconnect when app comes back to foreground (iOS kills WS connections in background)
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      if (
+        nextState === "active" &&
+        !intentionalDisconnectRef.current &&
+        (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN)
+      ) {
+        connect();
+      }
+    });
+    return () => subscription.remove();
+  }, [connect]);
 
   // Clean up on unmount
   useEffect(() => {
