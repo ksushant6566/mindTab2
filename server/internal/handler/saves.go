@@ -136,6 +136,16 @@ func (h *SavesHandler) createURL(w http.ResponseWriter, r *http.Request, userID 
 		return
 	}
 
+	// Validate optional fields.
+	if len(req.Content) > 100000 {
+		WriteError(w, http.StatusBadRequest, "content must be at most 100000 characters")
+		return
+	}
+	if len(req.Title) > 500 {
+		WriteError(w, http.StatusBadRequest, "title must be at most 500 characters")
+		return
+	}
+
 	// Create content record.
 	var contentID pgtype.UUID
 
