@@ -181,7 +181,7 @@ func (o *Orchestrator) HandleMessage(ctx context.Context, userID string, msg WSC
 		trySend(ctx, writeChan, WSServerMessage{
 			Type:    "error",
 			Code:    "llm_error",
-			Message: fmt.Sprintf("LLM error: %v", err),
+			Message: "Something went wrong generating a response. Please try again.",
 		})
 		return
 	}
@@ -285,6 +285,15 @@ func (o *Orchestrator) streamWithTools(
 			break
 		}
 
+		// Save the assistant's tool-calling message once for all tool calls in this iteration
+		allToolCallsJSON, _ := json.Marshal(pendingToolCalls)
+		o.queries.CreateMessage(ctx, store.CreateMessageParams{
+			ConversationID: conversationID,
+			Role:           "assistant",
+			Content:        iterText.String(),
+			ToolCalls:      allToolCallsJSON,
+		})
+
 		// Execute each tool call and build follow-up prompt
 		var toolResultParts []string
 		for _, tc := range pendingToolCalls {
@@ -309,15 +318,6 @@ func (o *Orchestrator) streamWithTools(
 				toolResultParts = append(toolResultParts,
 					fmt.Sprintf("[Tool %s result: %s]", tc.Name, string(resultJSON)))
 			}
-
-			// Save tool call message to DB
-			toolCallJSON, _ := json.Marshal([]llm.ToolCall{tc})
-			o.queries.CreateMessage(ctx, store.CreateMessageParams{
-				ConversationID: conversationID,
-				Role:           "assistant",
-				Content:        iterText.String(),
-				ToolCalls:      toolCallJSON,
-			})
 
 			// Save tool result message to DB
 			resultContent := ""

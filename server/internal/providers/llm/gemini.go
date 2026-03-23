@@ -123,7 +123,7 @@ func (g *GeminiProvider) StreamComplete(ctx context.Context, req LLMRequest, too
 		}
 	}
 
-	iter := g.client.Models.GenerateContentStream(ctx, g.model, []*genai.Content{
+	iter := g.client.Models.GenerateContentStream(ctx, g.resolveModel(req), []*genai.Content{
 		genai.NewContentFromParts(parts, genai.RoleUser),
 	}, config)
 

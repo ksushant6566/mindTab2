@@ -45,7 +45,7 @@ export const useChatStore = create<ChatState>((set) => ({
         tc.tool === tool && tc.status === "calling" ? { ...tc, result, status: "done" } : tc
       ),
     })),
-  endStream: () => set({ isStreaming: false, streamingMessageId: null }),
+  endStream: () => set({ isStreaming: false, streamingMessageId: null, streamBuffer: "", pendingToolCalls: [] }),
   reset: () =>
     set({
       activeConversationId: null,
