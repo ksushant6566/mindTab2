@@ -88,7 +88,10 @@ const MessageRow = React.memo(function MessageRow({ message }: { message: Messag
             result={tc.result}
           />
         ))}
-      <MessageBubble role={message.role as "user" | "assistant"} content={message.content} />
+      {/* Only render bubble if there's content — tool-only messages just show indicators */}
+      {message.content ? (
+        <MessageBubble role={message.role as "user" | "assistant"} content={message.content} />
+      ) : null}
     </View>
   );
 });
@@ -129,11 +132,12 @@ export default function ConversationDetail() {
   });
 
   // Memoize the filtered messages to avoid new array on every render
+  // Keep assistant messages with tool_calls (rendered as tool-indicator-only rows)
+  // Only filter out role=tool messages (raw tool results from DB)
   const messages = useMemo(() => {
     const raw: Message[] = (messagesData as any)?.items ?? [];
     return raw.filter((msg) => {
       if (msg.role === "tool") return false;
-      if (msg.role === "assistant" && !msg.content && msg.tool_calls?.length) return false;
       return true;
     });
   }, [messagesData]);

@@ -86,11 +86,43 @@ export function useWebSocket() {
           state.resolveToolCall(msg.tool as string, msg.result);
           break;
 
-        case "stream.end":
+        case "stream.end": {
+          // Snapshot streaming state BEFORE clearing it
+          const conversationId = state.activeConversationId;
+          const completedContent = state.streamBuffer;
+          const toolCalls = state.pendingToolCalls
+            .filter((tc) => tc.status === "done")
+            .map((tc) => ({
+              Name: tc.tool,
+              Arguments: JSON.stringify(tc.args ?? {}),
+            }));
+
+          // Insert completed message into cache BEFORE clearing streaming state
+          // This prevents the gap where the streaming bubble disappears but the
+          // refetched message hasn't arrived yet
+          if (conversationId) {
+            queryClient.setQueryData(["messages", conversationId], (old: any) => {
+              const completedMsg = {
+                id: msg.message_id || `completed-${Date.now()}`,
+                role: "assistant",
+                content: completedContent,
+                tool_calls: toolCalls.length > 0 ? toolCalls : null,
+                tool_call_id: null,
+                created_at: new Date().toISOString(),
+              };
+              const items = old?.items ? [...old.items, completedMsg] : [completedMsg];
+              return { ...old, items };
+            });
+          }
+
+          // NOW clear streaming state — the cached message is already in the list
           state.endStream();
+
+          // Background refetch to get canonical server data (proper IDs, etc.)
           queryClient.invalidateQueries({ queryKey: ["messages"] });
           queryClient.invalidateQueries({ queryKey: ["conversations"] });
           break;
+        }
 
         case "conversation.title":
           queryClient.invalidateQueries({ queryKey: ["conversations"] });
