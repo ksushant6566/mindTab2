@@ -30,7 +30,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     } else if (isAuthenticated && !user?.onboardingCompleted && !inOnboarding) {
       router.replace("/(onboarding)");
     } else if (isAuthenticated && user?.onboardingCompleted && (inAuthGroup || inOnboarding)) {
-      router.replace("/(main)");
+      router.replace("/");
     }
   }, [isAuthenticated, isLoading, hasChecked, user, segments]);
 

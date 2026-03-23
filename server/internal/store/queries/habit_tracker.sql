@@ -9,3 +9,24 @@ RETURNING id;
 
 -- name: UntrackHabit :exec
 DELETE FROM mindmap_habit_tracker WHERE habit_id = $1 AND user_id = $2 AND date = $3;
+
+-- name: IsHabitTrackedOnDate :one
+SELECT EXISTS(
+  SELECT 1 FROM mindmap_habit_tracker
+  WHERE habit_id = $1 AND user_id = $2 AND date = $3
+) AS tracked;
+
+-- name: GetHabitCompletionStats :many
+SELECT h.id AS habit_id,
+       h.title AS habit_title,
+       COUNT(ht.id) AS completion_count,
+       MIN(ht.date) AS first_completion,
+       MAX(ht.date) AS last_completion
+FROM mindmap_habit h
+LEFT JOIN mindmap_habit_tracker ht
+  ON h.id = ht.habit_id
+  AND ht.date >= @start_date
+  AND ht.date <= @end_date
+WHERE h.user_id = @user_id
+GROUP BY h.id, h.title
+ORDER BY completion_count DESC;

@@ -7,9 +7,7 @@ import {
   type NativeSyntheticEvent,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQueryClient } from "@tanstack/react-query";
-import { DashboardHeader } from "~/components/dashboard/dashboard-header";
 import { ProjectPills } from "~/components/dashboard/project-pills";
 import { HabitsBubble } from "~/components/dashboard/habits-bubble";
 import { GoalsSection } from "~/components/dashboard/goals-section";
@@ -20,7 +18,6 @@ import { colors } from "~/styles/colors";
 
 export default function Dashboard() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [fabVisible, setFabVisible] = useState(true);
@@ -47,9 +44,6 @@ export default function Dashboard() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg.primary }}>
-      <View style={{ paddingTop: insets.top, paddingHorizontal: 20 }}>
-        <DashboardHeader />
-      </View>
       <ScrollView
         onScroll={handleScroll}
         scrollEventThrottle={16}
@@ -60,7 +54,7 @@ export default function Dashboard() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            tintColor={colors.accent.indigo}
+            tintColor={colors.text.secondary}
           />
         }
       >
@@ -76,4 +70,3 @@ export default function Dashboard() {
     </View>
   );
 }
-

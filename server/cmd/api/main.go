@@ -13,11 +13,13 @@ import (
 	chimw "github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/ksushant6566/mindtab/server/internal/chat"
 	"github.com/ksushant6566/mindtab/server/internal/config"
 	"github.com/ksushant6566/mindtab/server/internal/email"
 	"github.com/ksushant6566/mindtab/server/internal/handler"
 	mw "github.com/ksushant6566/mindtab/server/internal/middleware"
 	"github.com/ksushant6566/mindtab/server/internal/providers"
+	"github.com/ksushant6566/mindtab/server/internal/providers/llm"
 	"github.com/ksushant6566/mindtab/server/internal/queue"
 	"github.com/ksushant6566/mindtab/server/internal/search"
 	"github.com/ksushant6566/mindtab/server/internal/services"
@@ -55,6 +57,8 @@ func main() {
 	var savesHandler *handler.SavesHandler
 	var dispatcher *worker.Dispatcher
 	var storage services.StorageProvider
+	var llmChain *providers.Chain[llm.LLMProvider]
+	var semanticSearch *search.SemanticSearch
 	if cfg.RedisURL != "" {
 		redisClient, err := queue.ConnectRedis(context.Background(), cfg.RedisURL)
 		if err != nil {
@@ -88,7 +92,10 @@ func main() {
 		retryScheduler := queue.NewRetryScheduler(redisClient, slog.Default())
 
 		// Search
-		semanticSearch := search.NewSemanticSearch(pool, registry.Embedding)
+		semanticSearch = search.NewSemanticSearch(pool, registry.Embedding)
+
+		// LLM chain (used by chat orchestrator)
+		llmChain = registry.LLM
 
 		// Saves handler
 		savesHandler = handler.NewSavesHandler(queries, producer, semanticSearch, int64(cfg.MaxFileSizeMB))
@@ -142,6 +149,48 @@ func main() {
 	r.Post("/auth/email/signin", emailAuthHandler.Signin)
 	r.Post("/auth/email/forgot-password", emailAuthHandler.ForgotPassword)
 	r.Post("/auth/email/reset-password", emailAuthHandler.ResetPassword)
+
+	// WebSocket chat — outside auth middleware (auth via query param token).
+	registry := chat.NewRegistry()
+	registry.Register(chat.NewListGoalsTool(queries))
+	registry.Register(chat.NewCreateGoalTool(queries))
+	registry.Register(chat.NewUpdateGoalTool(queries))
+	registry.Register(chat.NewDeleteGoalTool(queries))
+	registry.Register(chat.NewListHabitsTool(queries))
+	registry.Register(chat.NewCreateHabitTool(queries))
+	registry.Register(chat.NewToggleHabitTool(queries))
+	registry.Register(chat.NewListJournalsTool(queries))
+	registry.Register(chat.NewCreateJournalTool(queries))
+	registry.Register(chat.NewUpdateJournalTool(queries))
+	registry.Register(chat.NewDeleteJournalTool(queries))
+	registry.Register(chat.NewListProjectsTool(queries))
+	registry.Register(chat.NewCreateProjectTool(queries))
+	registry.Register(chat.NewSearchVaultTool(queries, semanticSearch))
+	registry.Register(chat.NewGetVaultItemTool(queries))
+	// Tier 1 — Analytics
+	registry.Register(chat.NewGetHabitStatsTool(queries))
+	registry.Register(chat.NewGetActivitySummaryTool(queries))
+	registry.Register(chat.NewGetUserProfileTool(queries))
+	// Tier 2 — Search & Detail
+	registry.Register(chat.NewSearchGoalsTool(queries))
+	registry.Register(chat.NewSearchJournalsTool(queries))
+	registry.Register(chat.NewGetJournalContentTool(queries))
+	registry.Register(chat.NewGetGoalDetailTool(queries))
+	// Tier 3 — Power User
+	registry.Register(chat.NewGetProjectStatsTool(queries))
+	registry.Register(chat.NewDeleteHabitTool(queries))
+	registry.Register(chat.NewUpdateHabitTool(queries))
+	registry.Register(chat.NewSearchHabitsTool(queries))
+	registry.Register(chat.NewUpdateProjectTool(queries))
+	// Tier 4 — Intelligence
+	registry.Register(chat.NewGetDailyBriefingTool(queries))
+	registry.Register(chat.NewSearchEverythingTool(queries, semanticSearch))
+	registry.Register(chat.NewGetHabitPatternsTool(queries))
+	registry.Register(chat.NewComparePeriodsTool(queries))
+	registry.Register(chat.NewGetStaleItemsTool(queries))
+	orchestrator := chat.NewOrchestrator(queries, llmChain, registry)
+	wsHandler := handler.NewWSHandler(orchestrator, cfg.JWTSecret, cfg.AllowedOrigins)
+	r.Get("/ws/chat", wsHandler.HandleChat)
 
 	// Protected routes.
 	r.Group(func(r chi.Router) {
@@ -214,6 +263,13 @@ func main() {
 			r.Delete("/saves/{id}", savesHandler.Delete)
 			r.Get("/media/*", savesHandler.ServeMedia(storage))
 		}
+
+		// Chat.
+		chatHandler := handler.NewChatHandler(queries, int64(cfg.MaxFileSizeMB)*1024*1024)
+		r.Get("/conversations", chatHandler.ListConversations)
+		r.Get("/conversations/{id}/messages", chatHandler.GetMessages)
+		r.Delete("/conversations/{id}", chatHandler.DeleteConversation)
+		r.Post("/chat/attachments", chatHandler.UploadAttachment)
 	})
 
 	// SPA fallback — must be last

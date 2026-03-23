@@ -57,7 +57,7 @@ func Load() (*Config, error) {
 	cfg.GeminiAPIKey = getEnv("GEMINI_API_KEY", "")
 	cfg.OpenAIAPIKey = getEnv("OPENAI_API_KEY", "")
 	cfg.JinaAPIKey = getEnv("JINA_API_KEY", "")
-	cfg.GeminiModel = getEnv("GEMINI_MODEL", "gemini-2.0-flash")
+	cfg.GeminiModel = getEnv("GEMINI_MODEL", "gemini-2.5-flash")
 	cfg.OpenAIEmbeddingModel = getEnv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small")
 	cfg.StorageProvider = getEnv("STORAGE_PROVIDER", "local")
 	cfg.StorageLocalPath = getEnv("STORAGE_LOCAL_PATH", "/data/mindtab/media")

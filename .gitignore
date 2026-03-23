@@ -15,3 +15,4 @@ server/tmp/
 # Worktrees
 .worktrees/
 server/api
+.superpowers/

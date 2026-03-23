@@ -14,7 +14,7 @@ export default function MainLayout() {
         headerShadowVisible: false,
       }}
     >
-      <Stack.Screen name="index" />
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen
         name="goals/index"
         options={{ headerShown: true, title: "Goals", headerRight: () => <HeaderRight /> }}
@@ -46,6 +46,14 @@ export default function MainLayout() {
       <Stack.Screen
         name="projects/[id]"
         options={{ headerShown: true, title: "Project" }}
+      />
+      <Stack.Screen
+        name="chat/[id]"
+        options={{ headerShown: true, title: "Conversation", animation: "slide_from_right" }}
+      />
+      <Stack.Screen
+        name="vault/[id]"
+        options={{ headerShown: true, title: "Vault", animation: "slide_from_right" }}
       />
     </Stack>
   );
