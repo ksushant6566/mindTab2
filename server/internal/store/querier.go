@@ -58,6 +58,7 @@ type Querier interface {
 	GetGoalByID(ctx context.Context, arg GetGoalByIDParams) (GetGoalByIDRow, error)
 	GetHabitActivity(ctx context.Context, arg GetHabitActivityParams) ([]pgtype.Timestamptz, error)
 	GetHabitByID(ctx context.Context, arg GetHabitByIDParams) (MindmapHabit, error)
+	GetHabitCompletionStats(ctx context.Context, arg GetHabitCompletionStatsParams) ([]GetHabitCompletionStatsRow, error)
 	GetHabitTrackerActivity(ctx context.Context, arg GetHabitTrackerActivityParams) ([]pgtype.Date, error)
 	// Fetch habits by a list of IDs for a given user.
 	GetHabitsByIDs(ctx context.Context, arg GetHabitsByIDsParams) ([]MindmapHabit, error)

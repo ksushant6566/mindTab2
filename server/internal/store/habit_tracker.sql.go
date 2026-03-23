@@ -11,6 +11,62 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const getHabitCompletionStats = `-- name: GetHabitCompletionStats :many
+SELECT h.id AS habit_id,
+       h.title AS habit_title,
+       COUNT(ht.id) AS completion_count,
+       MIN(ht.date) AS first_completion,
+       MAX(ht.date) AS last_completion
+FROM mindmap_habit h
+LEFT JOIN mindmap_habit_tracker ht
+  ON h.id = ht.habit_id
+  AND ht.date >= $1
+  AND ht.date <= $2
+WHERE h.user_id = $3
+GROUP BY h.id, h.title
+ORDER BY completion_count DESC
+`
+
+type GetHabitCompletionStatsParams struct {
+	StartDate pgtype.Date `json:"start_date"`
+	EndDate   pgtype.Date `json:"end_date"`
+	UserID    string      `json:"user_id"`
+}
+
+type GetHabitCompletionStatsRow struct {
+	HabitID         pgtype.UUID `json:"habit_id"`
+	HabitTitle      pgtype.Text `json:"habit_title"`
+	CompletionCount int64       `json:"completion_count"`
+	FirstCompletion interface{} `json:"first_completion"`
+	LastCompletion  interface{} `json:"last_completion"`
+}
+
+func (q *Queries) GetHabitCompletionStats(ctx context.Context, arg GetHabitCompletionStatsParams) ([]GetHabitCompletionStatsRow, error) {
+	rows, err := q.db.Query(ctx, getHabitCompletionStats, arg.StartDate, arg.EndDate, arg.UserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetHabitCompletionStatsRow
+	for rows.Next() {
+		var i GetHabitCompletionStatsRow
+		if err := rows.Scan(
+			&i.HabitID,
+			&i.HabitTitle,
+			&i.CompletionCount,
+			&i.FirstCompletion,
+			&i.LastCompletion,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listHabitTrackerRecords = `-- name: ListHabitTrackerRecords :many
 SELECT id, habit_id, status, date, created_at, updated_at, user_id FROM mindmap_habit_tracker WHERE user_id = $1
 `
