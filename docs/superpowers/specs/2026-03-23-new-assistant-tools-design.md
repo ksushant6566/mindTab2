@@ -81,7 +81,7 @@ Period presets: `week` = last 7 days, `month` = last 30 days, `quarter` = last 9
 4. Longest streak: find the longest consecutive run of completion dates
 5. Rate: `completions / total_days_in_range`
 
-**SQL used:** New `GetHabitCompletionStats` + existing `ListHabitTrackerRecords`
+**SQL used:** New `GetHabitCompletionStats` (date-filtered completion counts) + existing `ListHabitTrackerRecords` (unfiltered, needed for streak calculation since streaks require full history to walk back from today)
 
 #### 2. `get_activity_summary`
 
@@ -109,7 +109,12 @@ Period presets: `today` = today only, `week` = last 7 days, `month` = last 30 da
 }
 ```
 
-**SQL used:** Existing `GetGoalActivity`, `GetHabitTrackerActivity`, `GetJournalActivity`. These return per-date counts; aggregate them in Go.
+**SQL used:** Existing `GetGoalActivity`, `GetHabitTrackerActivity`, `GetJournalActivity`. These return raw rows (not pre-aggregated counts):
+- `GetGoalActivity` returns `(created_at, status)` per goal — count rows where `created_at` is in range for `goals_created`, count rows where `status = 'completed'` for `goals_completed`
+- `GetHabitTrackerActivity` returns `(date)` per tracker record — count rows where `date` is in range
+- `GetJournalActivity` returns `(created_at, updated_at)` per journal — count rows where `created_at` is in range
+
+Aggregate by counting raw rows in Go.
 
 #### 3. `get_user_profile`
 
@@ -286,12 +291,15 @@ Level 1: 0 XP
 Level 2: 100 XP
 Level 3: 250 XP
 Level 4: 500 XP
-Level 5: 1000 XP
-Level 6: 2000 XP
-Level 7: 4000 XP
-Level 8: 7500 XP
-Level 9: 15000 XP
+Level 5: 800 XP
+Level 6: 1200 XP
+Level 7: 1700 XP
+Level 8: 2300 XP
+Level 9: 3000 XP
+Level 10: 4000 XP
 ```
+
+Source of truth: `apps/mobile/src/lib/xp.ts` — `LEVEL_THRESHOLDS = [0, 100, 250, 500, 800, 1200, 1700, 2300, 3000, 4000]`
 
 ## Registration
 
