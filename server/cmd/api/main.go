@@ -182,6 +182,12 @@ func main() {
 	registry.Register(chat.NewUpdateHabitTool(queries))
 	registry.Register(chat.NewSearchHabitsTool(queries))
 	registry.Register(chat.NewUpdateProjectTool(queries))
+	// Tier 4 — Intelligence
+	registry.Register(chat.NewGetDailyBriefingTool(queries))
+	registry.Register(chat.NewSearchEverythingTool(queries, semanticSearch))
+	registry.Register(chat.NewGetHabitPatternsTool(queries))
+	registry.Register(chat.NewComparePeriodsTool(queries))
+	registry.Register(chat.NewGetStaleItemsTool(queries))
 	orchestrator := chat.NewOrchestrator(queries, llmChain, registry)
 	wsHandler := handler.NewWSHandler(orchestrator, cfg.JWTSecret)
 	r.Get("/ws/chat", wsHandler.HandleChat)

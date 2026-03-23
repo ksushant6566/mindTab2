@@ -733,3 +733,492 @@ func (t *GetHabitPatternsTool) Execute(ctx context.Context, userID string, _ any
 		"habit_detail": habitPatterns,
 	}, nil
 }
+
+// ---------------------------------------------------------------------------
+// ComparePeriodsTool
+// ---------------------------------------------------------------------------
+
+// ComparePeriodsArgs holds validated arguments for ComparePeriodsTool.
+type ComparePeriodsArgs struct {
+	Period1Start string `json:"period1_start" validate:"required"`
+	Period1End   string `json:"period1_end"   validate:"required"`
+	Period2Start string `json:"period2_start" validate:"required"`
+	Period2End   string `json:"period2_end"   validate:"required"`
+}
+
+// ComparePeriodsTool compares productivity metrics between two time periods.
+type ComparePeriodsTool struct {
+	queries store.Querier
+}
+
+// NewComparePeriodsTool returns a new ComparePeriodsTool.
+func NewComparePeriodsTool(queries store.Querier) *ComparePeriodsTool {
+	return &ComparePeriodsTool{queries: queries}
+}
+
+func (t *ComparePeriodsTool) Name() string { return "compare_periods" }
+
+func (t *ComparePeriodsTool) Description() string {
+	return "Compare productivity metrics (goals created, goals completed, habit completions, journal entries, habit rate) between two date ranges. Useful for answering 'how did I do this month vs last month?'"
+}
+
+func (t *ComparePeriodsTool) Schema() llm.ToolDefinition {
+	return llm.ToolDefinition{
+		Name:        t.Name(),
+		Description: t.Description(),
+		Parameters: jsonSchemaWithRequired("object", map[string]interface{}{
+			"period1_start": jsonSchema("string", nil, "Start date of period 1 (YYYY-MM-DD)"),
+			"period1_end":   jsonSchema("string", nil, "End date of period 1 (YYYY-MM-DD)"),
+			"period2_start": jsonSchema("string", nil, "Start date of period 2 (YYYY-MM-DD)"),
+			"period2_end":   jsonSchema("string", nil, "End date of period 2 (YYYY-MM-DD)"),
+		}, []string{"period1_start", "period1_end", "period2_start", "period2_end"}),
+	}
+}
+
+func (t *ComparePeriodsTool) ParseArgs(raw json.RawMessage) (any, error) {
+	var args ComparePeriodsArgs
+	if err := json.Unmarshal(raw, &args); err != nil {
+		return nil, fmt.Errorf("parse compare_periods args: %w", err)
+	}
+	return &args, nil
+}
+
+func (t *ComparePeriodsTool) Execute(ctx context.Context, userID string, a any) (any, error) {
+	args := a.(*ComparePeriodsArgs)
+
+	p1Start, err := time.Parse("2006-01-02", args.Period1Start)
+	if err != nil {
+		return nil, fmt.Errorf("invalid period1_start: %w", err)
+	}
+	p1End, err := time.Parse("2006-01-02", args.Period1End)
+	if err != nil {
+		return nil, fmt.Errorf("invalid period1_end: %w", err)
+	}
+	p2Start, err := time.Parse("2006-01-02", args.Period2Start)
+	if err != nil {
+		return nil, fmt.Errorf("invalid period2_start: %w", err)
+	}
+	p2End, err := time.Parse("2006-01-02", args.Period2End)
+	if err != nil {
+		return nil, fmt.Errorf("invalid period2_end: %w", err)
+	}
+
+	// Preload habits for rate calculation.
+	habits, err := t.queries.ListHabits(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("compare periods: list habits: %w", err)
+	}
+	totalHabits := len(habits)
+
+	computePeriodStats := func(start, end time.Time) (map[string]any, error) {
+		pgStart := pgtype.Timestamptz{Time: start, Valid: true}
+
+		goalRows, err := t.queries.GetGoalActivity(ctx, store.GetGoalActivityParams{
+			UserID:    userID,
+			CreatedAt: pgStart,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("get goal activity: %w", err)
+		}
+
+		endDay := end.AddDate(0, 0, 1) // exclusive upper bound for filtering
+		goalsCreated := 0
+		goalsCompleted := 0
+		for _, row := range goalRows {
+			if !row.CreatedAt.Valid {
+				continue
+			}
+			ts := row.CreatedAt.Time
+			if (ts.Equal(start) || ts.After(start)) && ts.Before(endDay) {
+				goalsCreated++
+				if ifaceToString(row.Status) == "completed" {
+					goalsCompleted++
+				}
+			}
+		}
+
+		pgStartDate := pgtype.Date{
+			Time:  time.Date(start.Year(), start.Month(), start.Day(), 0, 0, 0, 0, start.Location()),
+			Valid: true,
+		}
+		trackerDates, err := t.queries.GetHabitTrackerActivity(ctx, store.GetHabitTrackerActivityParams{
+			UserID:  userID,
+			Column2: pgStartDate,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("get habit tracker activity: %w", err)
+		}
+
+		endDateTrunc := time.Date(end.Year(), end.Month(), end.Day(), 23, 59, 59, 0, end.Location())
+		habitCompletions := 0
+		for _, d := range trackerDates {
+			if d.Valid && !d.Time.After(endDateTrunc) {
+				habitCompletions++
+			}
+		}
+
+		journalRows, err := t.queries.GetJournalActivity(ctx, store.GetJournalActivityParams{
+			UserID:    userID,
+			CreatedAt: pgStart,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("get journal activity: %w", err)
+		}
+
+		journalEntries := 0
+		for _, row := range journalRows {
+			if !row.CreatedAt.Valid {
+				continue
+			}
+			ts := row.CreatedAt.Time
+			if (ts.Equal(start) || ts.After(start)) && ts.Before(endDay) {
+				journalEntries++
+			}
+		}
+
+		days := int(end.Sub(start).Hours()/24) + 1
+		var habitRate float64
+		if totalHabits > 0 && days > 0 {
+			habitRate = math.Round(float64(habitCompletions)/float64(totalHabits*days)*10000) / 100
+		}
+
+		return map[string]any{
+			"start":             start.Format("2006-01-02"),
+			"end":               end.Format("2006-01-02"),
+			"days":              days,
+			"goals_created":     goalsCreated,
+			"goals_completed":   goalsCompleted,
+			"habit_completions": habitCompletions,
+			"journal_entries":   journalEntries,
+			"habit_rate":        habitRate,
+		}, nil
+	}
+
+	stats1, err := computePeriodStats(p1Start, p1End)
+	if err != nil {
+		return nil, fmt.Errorf("compare periods: period1: %w", err)
+	}
+	stats2, err := computePeriodStats(p2Start, p2End)
+	if err != nil {
+		return nil, fmt.Errorf("compare periods: period2: %w", err)
+	}
+
+	formatDelta := func(v1, v2 int) string {
+		d := v1 - v2
+		if d >= 0 {
+			return fmt.Sprintf("+%d", d)
+		}
+		return fmt.Sprintf("%d", d)
+	}
+	formatDeltaF := func(v1, v2 float64) string {
+		d := v1 - v2
+		if d >= 0 {
+			return fmt.Sprintf("+%.2f", d)
+		}
+		return fmt.Sprintf("%.2f", d)
+	}
+
+	deltas := map[string]any{
+		"goals_created":     formatDelta(stats1["goals_created"].(int), stats2["goals_created"].(int)),
+		"goals_completed":   formatDelta(stats1["goals_completed"].(int), stats2["goals_completed"].(int)),
+		"habit_completions": formatDelta(stats1["habit_completions"].(int), stats2["habit_completions"].(int)),
+		"journal_entries":   formatDelta(stats1["journal_entries"].(int), stats2["journal_entries"].(int)),
+		"habit_rate":        formatDeltaF(stats1["habit_rate"].(float64), stats2["habit_rate"].(float64)),
+	}
+
+	return map[string]any{
+		"period1": stats1,
+		"period2": stats2,
+		"deltas":  deltas,
+	}, nil
+}
+
+// ---------------------------------------------------------------------------
+// GetStaleItemsTool
+// ---------------------------------------------------------------------------
+
+// GetStaleItemsArgs holds validated arguments for GetStaleItemsTool.
+type GetStaleItemsArgs struct {
+	DaysThreshold *int `json:"days_threshold" validate:"omitempty,min=1,max=365"`
+}
+
+// GetStaleItemsTool surfaces goals, projects, and habits that have had no
+// recent activity.
+type GetStaleItemsTool struct {
+	queries store.Querier
+}
+
+// NewGetStaleItemsTool returns a new GetStaleItemsTool.
+func NewGetStaleItemsTool(queries store.Querier) *GetStaleItemsTool {
+	return &GetStaleItemsTool{queries: queries}
+}
+
+func (t *GetStaleItemsTool) Name() string { return "get_stale_items" }
+
+func (t *GetStaleItemsTool) Description() string {
+	return "Find goals, projects, and habits that have been neglected or have had no activity for longer than a threshold (default 14 days). Useful for 'what have I been ignoring?' questions."
+}
+
+func (t *GetStaleItemsTool) Schema() llm.ToolDefinition {
+	return llm.ToolDefinition{
+		Name:        t.Name(),
+		Description: t.Description(),
+		Parameters: jsonSchema("object", map[string]interface{}{
+			"days_threshold": jsonSchema("integer", nil, "Number of days without activity to consider an item stale. Defaults to 14. Min 1, max 365."),
+		}),
+	}
+}
+
+func (t *GetStaleItemsTool) ParseArgs(raw json.RawMessage) (any, error) {
+	var args GetStaleItemsArgs
+	if err := json.Unmarshal(raw, &args); err != nil {
+		return nil, fmt.Errorf("parse get_stale_items args: %w", err)
+	}
+	return &args, nil
+}
+
+func (t *GetStaleItemsTool) Execute(ctx context.Context, userID string, a any) (any, error) {
+	args := a.(*GetStaleItemsArgs)
+
+	threshold := 14
+	if args.DaysThreshold != nil {
+		threshold = *args.DaysThreshold
+	}
+
+	now := time.Now()
+	cutoff := now.AddDate(0, 0, -threshold)
+
+	// -----------------------------------------------------------------
+	// 1. Stale goals — pending/in_progress with UpdatedAt before cutoff
+	// -----------------------------------------------------------------
+	allGoals, err := t.queries.ListGoals(ctx, store.ListGoalsParams{
+		UserID:  userID,
+		Column2: false,
+		Column3: pgtype.UUID{},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("get stale items: list goals: %w", err)
+	}
+
+	type staleGoal struct {
+		ID              string `json:"id"`
+		Title           string `json:"title"`
+		Status          string `json:"status"`
+		Priority        string `json:"priority"`
+		DaysSinceUpdate int    `json:"days_since_update"`
+	}
+
+	staleGoals := make([]staleGoal, 0)
+	for _, g := range allGoals {
+		status := ifaceToString(g.Status)
+		if status != "pending" && status != "in_progress" {
+			continue
+		}
+		if !g.UpdatedAt.Valid {
+			continue
+		}
+		if g.UpdatedAt.Time.Before(cutoff) {
+			days := int(now.Sub(g.UpdatedAt.Time).Hours() / 24)
+			staleGoals = append(staleGoals, staleGoal{
+				ID:              uuidToString(g.ID),
+				Title:           pgtextToString(g.Title),
+				Status:          status,
+				Priority:        ifaceToString(g.Priority),
+				DaysSinceUpdate: days,
+			})
+		}
+	}
+
+	// -----------------------------------------------------------------
+	// 2. Stale projects — no goals updated after cutoff
+	// -----------------------------------------------------------------
+	projects, err := t.queries.ListProjects(ctx, store.ListProjectsParams{
+		CreatedBy: userID,
+		Column2:   false,
+		Column3:   nil,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("get stale items: list projects: %w", err)
+	}
+
+	// Build map of project ID -> most recent goal update time and active goal count.
+	type projectActivityInfo struct {
+		mostRecentGoalUpdate time.Time
+		activeGoalCount      int
+	}
+	projectActivityMap := make(map[string]*projectActivityInfo)
+	for _, p := range projects {
+		pID := uuidToString(p.ID)
+		projectActivityMap[pID] = &projectActivityInfo{}
+	}
+
+	for _, g := range allGoals {
+		if !g.ProjectID.Valid {
+			continue
+		}
+		pID := uuidToString(g.ProjectID)
+		pa, ok := projectActivityMap[pID]
+		if !ok {
+			continue
+		}
+		// Count active (non-archived) goals.
+		gStatus := ifaceToString(g.Status)
+		if gStatus != "archived" {
+			pa.activeGoalCount++
+		}
+		// Track most recent goal update.
+		if g.UpdatedAt.Valid {
+			if pa.mostRecentGoalUpdate.IsZero() || g.UpdatedAt.Time.After(pa.mostRecentGoalUpdate) {
+				pa.mostRecentGoalUpdate = g.UpdatedAt.Time
+			}
+		}
+	}
+
+	type staleProject struct {
+		ID                string `json:"id"`
+		Name              string `json:"name"`
+		Status            string `json:"status"`
+		ActiveGoalCount   int    `json:"active_goal_count"`
+		DaysSinceActivity int    `json:"days_since_activity"`
+	}
+
+	staleProjects := make([]staleProject, 0)
+	for _, p := range projects {
+		pID := uuidToString(p.ID)
+		pa := projectActivityMap[pID]
+
+		// A project is stale if it has no goals updated after the cutoff.
+		if pa.mostRecentGoalUpdate.IsZero() || pa.mostRecentGoalUpdate.Before(cutoff) {
+			var daysSince int
+			if !pa.mostRecentGoalUpdate.IsZero() {
+				daysSince = int(now.Sub(pa.mostRecentGoalUpdate).Hours() / 24)
+			} else {
+				// No goals at all; use project's own updated_at.
+				if p.UpdatedAt.Valid {
+					daysSince = int(now.Sub(p.UpdatedAt.Time).Hours() / 24)
+				}
+			}
+			staleProjects = append(staleProjects, staleProject{
+				ID:                uuidToString(p.ID),
+				Name:              pgtextToString(p.Name),
+				Status:            ifaceToString(p.Status),
+				ActiveGoalCount:   pa.activeGoalCount,
+				DaysSinceActivity: daysSince,
+			})
+		}
+	}
+
+	// -----------------------------------------------------------------
+	// 3. Neglected habits — most recent completion > threshold days ago
+	// -----------------------------------------------------------------
+	habits, err := t.queries.ListHabits(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("get stale items: list habits: %w", err)
+	}
+
+	trackers, err := t.queries.ListHabitTrackerRecords(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("get stale items: list tracker records: %w", err)
+	}
+
+	// Group tracker dates by habit ID.
+	habitDatesMap := make(map[string][]time.Time)
+	for _, tr := range trackers {
+		if tr.Date.Valid {
+			hID := uuidToString(tr.HabitID)
+			habitDatesMap[hID] = append(habitDatesMap[hID], tr.Date.Time)
+		}
+	}
+
+	type neglectedHabit struct {
+		ID        string `json:"id"`
+		Title     string `json:"title"`
+		DaysSince int    `json:"days_since"`
+		WasStreak int    `json:"was_streak"`
+	}
+
+	neglectedHabits := make([]neglectedHabit, 0)
+	for _, h := range habits {
+		hID := uuidToString(h.ID)
+		dates := habitDatesMap[hID]
+
+		if len(dates) == 0 {
+			// Never completed — stale by definition if old enough.
+			daysSince := threshold + 1
+			if h.CreatedAt.Valid {
+				daysSince = int(now.Sub(h.CreatedAt.Time).Hours() / 24)
+			}
+			if daysSince >= threshold {
+				neglectedHabits = append(neglectedHabits, neglectedHabit{
+					ID:        hID,
+					Title:     pgtextToString(h.Title),
+					DaysSince: daysSince,
+					WasStreak: 0,
+				})
+			}
+			continue
+		}
+
+		// Find most recent completion.
+		mostRecent := dates[0]
+		for _, d := range dates[1:] {
+			if d.After(mostRecent) {
+				mostRecent = d
+			}
+		}
+
+		if mostRecent.Before(cutoff) {
+			daysSince := int(now.Sub(mostRecent).Hours() / 24)
+			wasStreak := computeStreakAsOfDate(dates, mostRecent)
+			neglectedHabits = append(neglectedHabits, neglectedHabit{
+				ID:        hID,
+				Title:     pgtextToString(h.Title),
+				DaysSince: daysSince,
+				WasStreak: wasStreak,
+			})
+		}
+	}
+
+	return map[string]any{
+		"threshold_days":   threshold,
+		"stale_goals":      staleGoals,
+		"stale_projects":   staleProjects,
+		"neglected_habits": neglectedHabits,
+	}, nil
+}
+
+// computeStreakAsOfDate counts consecutive days ending at the given anchor date.
+func computeStreakAsOfDate(dates []time.Time, anchor time.Time) int {
+	if len(dates) == 0 {
+		return 0
+	}
+
+	anchorDay := anchor.Truncate(24 * time.Hour)
+	streak := 0
+	expected := anchorDay
+
+	// Sort descending.
+	sorted := make([]time.Time, len(dates))
+	copy(sorted, dates)
+	for i := 0; i < len(sorted); i++ {
+		for j := i + 1; j < len(sorted); j++ {
+			if sorted[j].After(sorted[i]) {
+				sorted[i], sorted[j] = sorted[j], sorted[i]
+			}
+		}
+	}
+
+	for _, d := range sorted {
+		day := d.Truncate(24 * time.Hour)
+		if day.After(anchorDay) {
+			continue // skip entries after anchor
+		}
+		if day.Equal(expected) {
+			streak++
+			expected = expected.AddDate(0, 0, -1)
+		} else if day.Before(expected) {
+			break
+		}
+	}
+	return streak
+}
