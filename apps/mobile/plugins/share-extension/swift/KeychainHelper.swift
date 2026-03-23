@@ -28,6 +28,12 @@ struct KeychainHelper {
         return await refreshAccessToken(apiBaseURL: apiBaseURL, refreshToken: refreshToken)
     }
 
+    /// Force-refresh the access token using the stored refresh token.
+    static func refreshAndGetToken(apiBaseURL: String) async -> String? {
+        guard let refreshToken = getRefreshToken() else { return nil }
+        return await refreshAccessToken(apiBaseURL: apiBaseURL, refreshToken: refreshToken)
+    }
+
     private static func refreshAccessToken(apiBaseURL: String, refreshToken: String) async -> String? {
         guard let url = URL(string: "\(apiBaseURL)/auth/refresh") else { return nil }
 

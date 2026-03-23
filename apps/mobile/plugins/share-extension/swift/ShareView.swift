@@ -152,14 +152,26 @@ struct ShareView: View {
         state = .preview
     }
 
+    private func performSave(token: String) async throws {
+        if let imageData = content.imageData, let imageMIME = content.imageMIME {
+            _ = try await APIClient.saveImage(imageData: imageData, mimeType: imageMIME, token: token)
+        } else if let url = content.url {
+            _ = try await APIClient.saveURL(
+                url: url.absoluteString,
+                content: content.text,
+                title: nil,
+                token: token
+            )
+        }
+    }
+
     private func save() {
         guard state == .preview else { return }
         state = .saving
 
         Task {
             do {
-                let token = await KeychainHelper.getValidToken(apiBaseURL: APIClient.baseURL)
-                guard let token = token else {
+                guard var token = KeychainHelper.getAccessToken() ?? (await KeychainHelper.refreshAndGetToken(apiBaseURL: APIClient.baseURL)) else {
                     await MainActor.run {
                         state = .error
                         errorMessage = "Please open MindTab and log in first."
@@ -167,15 +179,19 @@ struct ShareView: View {
                     return
                 }
 
-                if let imageData = content.imageData, let imageMIME = content.imageMIME {
-                    _ = try await APIClient.saveImage(imageData: imageData, mimeType: imageMIME, token: token)
-                } else if let url = content.url {
-                    _ = try await APIClient.saveURL(
-                        url: url.absoluteString,
-                        content: content.text,
-                        title: nil,
-                        token: token
-                    )
+                do {
+                    try await performSave(token: token)
+                } catch APIError.serverError(401, _) {
+                    // Token expired — refresh and retry once
+                    guard let refreshedToken = await KeychainHelper.refreshAndGetToken(apiBaseURL: APIClient.baseURL) else {
+                        await MainActor.run {
+                            state = .error
+                            errorMessage = "Please open MindTab and log in first."
+                        }
+                        return
+                    }
+                    token = refreshedToken
+                    try await performSave(token: token)
                 }
 
                 await MainActor.run {
