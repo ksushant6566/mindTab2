@@ -167,6 +167,21 @@ func main() {
 	registry.Register(chat.NewCreateProjectTool(queries))
 	registry.Register(chat.NewSearchVaultTool(queries, semanticSearch))
 	registry.Register(chat.NewGetVaultItemTool(queries))
+	// Tier 1 — Analytics
+	registry.Register(chat.NewGetHabitStatsTool(queries))
+	registry.Register(chat.NewGetActivitySummaryTool(queries))
+	registry.Register(chat.NewGetUserProfileTool(queries))
+	// Tier 2 — Search & Detail
+	registry.Register(chat.NewSearchGoalsTool(queries))
+	registry.Register(chat.NewSearchJournalsTool(queries))
+	registry.Register(chat.NewGetJournalContentTool(queries))
+	registry.Register(chat.NewGetGoalDetailTool(queries))
+	// Tier 3 — Power User
+	registry.Register(chat.NewGetProjectStatsTool(queries))
+	registry.Register(chat.NewDeleteHabitTool(queries))
+	registry.Register(chat.NewUpdateHabitTool(queries))
+	registry.Register(chat.NewSearchHabitsTool(queries))
+	registry.Register(chat.NewUpdateProjectTool(queries))
 	orchestrator := chat.NewOrchestrator(queries, llmChain, registry)
 	wsHandler := handler.NewWSHandler(orchestrator, cfg.JWTSecret)
 	r.Get("/ws/chat", wsHandler.HandleChat)
