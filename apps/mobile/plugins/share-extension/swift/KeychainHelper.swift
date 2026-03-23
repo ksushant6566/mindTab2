@@ -14,20 +14,6 @@ struct KeychainHelper {
         return get(key: refreshTokenKey)
     }
 
-    /// Attempt to get a valid access token, refreshing if needed.
-    static func getValidToken(apiBaseURL: String) async -> String? {
-        if let token = getAccessToken() {
-            return token
-        }
-
-        // Try refreshing
-        guard let refreshToken = getRefreshToken() else {
-            return nil
-        }
-
-        return await refreshAccessToken(apiBaseURL: apiBaseURL, refreshToken: refreshToken)
-    }
-
     /// Force-refresh the access token using the stored refresh token.
     static func refreshAndGetToken(apiBaseURL: String) async -> String? {
         guard let refreshToken = getRefreshToken() else { return nil }

@@ -28,7 +28,7 @@ func Extract(ctx context.Context, jina *services.JinaReader, queries store.Queri
 		UserID: job.UserID,
 	})
 	if err != nil {
-		slog.Warn("extract: failed to check for pre-extracted content, falling back to Jina", "error", err, "contentID", job.ContentID)
+		slog.Warn("extract: failed to check for pre-extracted content, falling back to Jina", "error", err, "contentID", job.ContentID.String())
 	} else if content.ExtractedText.Valid && content.ExtractedText.String != "" {
 		result := ExtractResult{
 			Text:  content.ExtractedText.String,

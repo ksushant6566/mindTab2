@@ -138,11 +138,11 @@ func (h *SavesHandler) createURL(w http.ResponseWriter, r *http.Request, userID 
 
 	// Validate optional fields.
 	if len(req.Content) > 100000 {
-		WriteError(w, http.StatusBadRequest, "content must be at most 100000 characters")
+		WriteError(w, http.StatusBadRequest, "content must be at most 100000 bytes")
 		return
 	}
 	if len(req.Title) > 500 {
-		WriteError(w, http.StatusBadRequest, "title must be at most 500 characters")
+		WriteError(w, http.StatusBadRequest, "title must be at most 500 bytes")
 		return
 	}
 
