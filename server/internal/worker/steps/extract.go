@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/ksushant6566/mindtab/server/internal/services"
@@ -26,7 +27,9 @@ func Extract(ctx context.Context, jina *services.JinaReader, queries store.Queri
 		ID:     pgtype.UUID{Bytes: job.ContentID, Valid: true},
 		UserID: job.UserID,
 	})
-	if err == nil && content.ExtractedText.Valid && content.ExtractedText.String != "" {
+	if err != nil {
+		slog.Warn("extract: failed to check for pre-extracted content, falling back to Jina", "error", err, "contentID", job.ContentID)
+	} else if content.ExtractedText.Valid && content.ExtractedText.String != "" {
 		result := ExtractResult{
 			Text:  content.ExtractedText.String,
 			Title: content.SourceTitle.String,
