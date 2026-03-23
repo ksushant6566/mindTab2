@@ -119,7 +119,7 @@ function withShareExtension(config, options) {
         config.buildSettings.CODE_SIGN_STYLE = "Automatic";
         config.buildSettings.PRODUCT_BUNDLE_IDENTIFIER = `"${extensionBundleId}"`;
         // Inherit the development team from the main target
-        config.buildSettings.DEVELOPMENT_TEAM = "$(DEVELOPMENT_TEAM)";
+        config.buildSettings.DEVELOPMENT_TEAM = '"$(DEVELOPMENT_TEAM)"';
       }
     }
 
