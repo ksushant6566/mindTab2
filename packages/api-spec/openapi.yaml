@@ -1171,6 +1171,12 @@ paths:
                   type: string
                   format: uri
                   description: URL of the article to save
+                content:
+                  type: string
+                  description: Pre-extracted text content (skips server-side extraction when provided)
+                title:
+                  type: string
+                  description: Source title (e.g., tweet author, page title)
           multipart/form-data:
             schema:
               type: object
