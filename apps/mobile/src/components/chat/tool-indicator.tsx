@@ -1,11 +1,9 @@
-import React, { useState } from "react";
-import { View, Text, StyleSheet, Pressable } from "react-native";
+import React from "react";
+import { View, Text, StyleSheet } from "react-native";
 
 type ToolIndicatorProps = {
   tool: string;
   status: "calling" | "done";
-  args?: Record<string, unknown>;
-  result?: unknown;
 };
 
 const TOOL_NAMES: Record<string, string> = {
@@ -31,8 +29,11 @@ const TOOL_NAMES: Record<string, string> = {
   get_project: "Reading project",
   create_project: "Creating project",
   update_project: "Updating project",
-  list_journal: "Reading journal",
+  list_journals: "Reading journals",
   create_journal: "Writing journal entry",
+  update_journal: "Updating journal",
+  delete_journal: "Deleting journal",
+  toggle_habit: "Updating habit",
   get_user_profile: "Checking your profile",
 };
 
@@ -41,32 +42,20 @@ function humanizeToolName(tool: string | undefined): string {
   if (TOOL_NAMES[tool]) {
     return TOOL_NAMES[tool];
   }
-  // Fallback: convert snake_case to Title Case words
   return tool
     .split("_")
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(" ");
 }
 
-export function ToolIndicator({ tool, status, args, result }: ToolIndicatorProps) {
-  const [expanded, setExpanded] = useState(false);
+export function ToolIndicator({ tool, status }: ToolIndicatorProps) {
   const icon = status === "calling" ? "⚡" : "✓";
   const label = humanizeToolName(tool);
 
   return (
-    <View>
-      <Pressable onPress={() => setExpanded(!expanded)}>
-        <View style={styles.pill}>
-          <Text style={styles.icon}>{icon}</Text>
-          <Text style={styles.label}>{label}</Text>
-        </View>
-      </Pressable>
-      {expanded && (args != null || result != null) && (
-        <View style={styles.expandedContent}>
-          {args != null && <Text style={styles.jsonText}>{JSON.stringify(args, null, 2)}</Text>}
-          {result != null && <Text style={styles.jsonText}>{JSON.stringify(result, null, 2)}</Text>}
-        </View>
-      )}
+    <View style={styles.pill}>
+      <Text style={styles.icon}>{icon}</Text>
+      <Text style={styles.label}>{label}</Text>
     </View>
   );
 }
@@ -92,16 +81,5 @@ const styles = StyleSheet.create({
   label: {
     color: "#666666",
     fontSize: 12,
-  },
-  expandedContent: {
-    backgroundColor: "#0d0d0d",
-    borderRadius: 8,
-    padding: 8,
-    marginTop: 4,
-  },
-  jsonText: {
-    color: "#666666",
-    fontSize: 11,
-    fontFamily: "monospace",
   },
 });

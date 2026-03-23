@@ -64,8 +64,6 @@ const StreamingBubble = React.memo(function StreamingBubble() {
           key={`pending-tool-${idx}`}
           tool={tc.tool}
           status={tc.status}
-          args={tc.args}
-          result={tc.result}
         />
       ))}
       <MessageBubble role="assistant" content={streamBuffer} isStreaming />
@@ -84,8 +82,6 @@ const MessageRow = React.memo(function MessageRow({ message }: { message: Messag
             key={`tool-${message.id}-${idx}`}
             tool={tc.tool}
             status={tc.status}
-            args={tc.args}
-            result={tc.result}
           />
         ))}
       {/* Only render bubble if there's content — tool-only messages just show indicators */}
@@ -132,12 +128,17 @@ export default function ConversationDetail() {
   });
 
   // Memoize the filtered messages to avoid new array on every render
-  // Keep assistant messages with tool_calls (rendered as tool-indicator-only rows)
-  // Only filter out role=tool messages (raw tool results from DB)
   const messages = useMemo(() => {
     const raw: Message[] = (messagesData as any)?.items ?? [];
     return raw.filter((msg) => {
+      // Remove raw tool result messages
       if (msg.role === "tool") return false;
+      // Remove intermediate assistant messages that only have tool call args as content
+      // (the orchestrator saves iterText which can be raw JSON from the LLM)
+      if (msg.role === "assistant" && msg.tool_calls?.length && msg.content) {
+        const trimmed = msg.content.trim();
+        if (trimmed.startsWith("{") || trimmed.startsWith("[")) return false;
+      }
       return true;
     });
   }, [messagesData]);
