@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/ksushant6566/mindtab/server/internal/providers/llm"
+	"github.com/ksushant6566/mindtab/server/internal/search"
 	"github.com/ksushant6566/mindtab/server/internal/store"
 )
 
@@ -372,4 +374,362 @@ func computeStreakAsOfYesterday(dates []time.Time) int {
 		}
 	}
 	return streak
+}
+
+// ---------------------------------------------------------------------------
+// SearchEverythingTool
+// ---------------------------------------------------------------------------
+
+// SearchEverythingArgs holds validated arguments for search_everything.
+type SearchEverythingArgs struct {
+	Query string `json:"query" validate:"required,min=1"`
+}
+
+// SearchEverythingTool searches across goals, journals, habits, and vault items.
+type SearchEverythingTool struct {
+	queries store.Querier
+	search  *search.SemanticSearch // may be nil
+}
+
+// NewSearchEverythingTool returns a new SearchEverythingTool.
+func NewSearchEverythingTool(queries store.Querier, s *search.SemanticSearch) *SearchEverythingTool {
+	return &SearchEverythingTool{queries: queries, search: s}
+}
+
+func (t *SearchEverythingTool) Name() string { return "search_everything" }
+
+func (t *SearchEverythingTool) Description() string {
+	return "Search across all user data — goals, journals, habits, and saved vault items — using a keyword query. Returns the top matches from each domain. Use this when the user asks to find something or wants to search their data."
+}
+
+func (t *SearchEverythingTool) Schema() llm.ToolDefinition {
+	return llm.ToolDefinition{
+		Name:        t.Name(),
+		Description: t.Description(),
+		Parameters: jsonSchemaWithRequired("object", map[string]interface{}{
+			"query": jsonSchema("string", nil, "The search query string"),
+		}, []string{"query"}),
+	}
+}
+
+func (t *SearchEverythingTool) ParseArgs(raw json.RawMessage) (any, error) {
+	var args SearchEverythingArgs
+	if err := json.Unmarshal(raw, &args); err != nil {
+		return nil, fmt.Errorf("parse search_everything args: %w", err)
+	}
+	return &args, nil
+}
+
+func (t *SearchEverythingTool) Execute(ctx context.Context, userID string, argsAny any) (any, error) {
+	args := argsAny.(*SearchEverythingArgs)
+	query := args.Query
+
+	searchParam := pgtype.Text{String: query, Valid: true}
+
+	// Run keyword searches concurrently.
+	var (
+		wg       sync.WaitGroup
+		mu       sync.Mutex
+		errs     []error
+		goals    []store.MindmapGoal
+		journals []store.MindmapJournal
+		habits   []store.MindmapHabit
+		vault    []search.SearchResult
+	)
+
+	wg.Add(3)
+
+	go func() {
+		defer wg.Done()
+		res, err := t.queries.SearchGoals(ctx, store.SearchGoalsParams{
+			UserID:  userID,
+			Column2: searchParam,
+		})
+		mu.Lock()
+		defer mu.Unlock()
+		if err != nil {
+			errs = append(errs, fmt.Errorf("search goals: %w", err))
+		} else {
+			goals = res
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		res, err := t.queries.SearchJournals(ctx, store.SearchJournalsParams{
+			UserID:  userID,
+			Column2: searchParam,
+		})
+		mu.Lock()
+		defer mu.Unlock()
+		if err != nil {
+			errs = append(errs, fmt.Errorf("search journals: %w", err))
+		} else {
+			journals = res
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		res, err := t.queries.SearchHabits(ctx, store.SearchHabitsParams{
+			UserID:  userID,
+			Column2: searchParam,
+		})
+		mu.Lock()
+		defer mu.Unlock()
+		if err != nil {
+			errs = append(errs, fmt.Errorf("search habits: %w", err))
+		} else {
+			habits = res
+		}
+	}()
+
+	// Semantic vault search (optional).
+	if t.search != nil {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			res, err := t.search.Search(ctx, userID, query, 5)
+			mu.Lock()
+			defer mu.Unlock()
+			if err != nil {
+				errs = append(errs, fmt.Errorf("search vault: %w", err))
+			} else {
+				vault = res
+			}
+		}()
+	}
+
+	wg.Wait()
+
+	if len(errs) > 0 {
+		return nil, errs[0]
+	}
+
+	// Shape goal results.
+	type goalItem struct {
+		ID       string `json:"id"`
+		Title    string `json:"title"`
+		Status   string `json:"status"`
+		Priority string `json:"priority"`
+	}
+	goalItems := make([]goalItem, 0, len(goals))
+	for _, g := range goals {
+		goalItems = append(goalItems, goalItem{
+			ID:       uuidToString(g.ID),
+			Title:    pgtextToString(g.Title),
+			Status:   ifaceToString(g.Status),
+			Priority: ifaceToString(g.Priority),
+		})
+	}
+
+	// Shape journal results.
+	type journalItem struct {
+		ID    string `json:"id"`
+		Title string `json:"title"`
+	}
+	journalItems := make([]journalItem, 0, len(journals))
+	for _, j := range journals {
+		journalItems = append(journalItems, journalItem{
+			ID:    uuidToString(j.ID),
+			Title: j.Title,
+		})
+	}
+
+	// Shape habit results.
+	type habitItem struct {
+		ID    string `json:"id"`
+		Title string `json:"title"`
+	}
+	habitItems := make([]habitItem, 0, len(habits))
+	for _, h := range habits {
+		habitItems = append(habitItems, habitItem{
+			ID:    uuidToString(h.ID),
+			Title: pgtextToString(h.Title),
+		})
+	}
+
+	return map[string]any{
+		"query":    query,
+		"goals":    goalItems,
+		"journals": journalItems,
+		"habits":   habitItems,
+		"vault":    vault,
+	}, nil
+}
+
+// ---------------------------------------------------------------------------
+// GetHabitPatternsTool
+// ---------------------------------------------------------------------------
+
+// GetHabitPatternsTool analyses habit completion patterns over the last 90 days.
+type GetHabitPatternsTool struct {
+	queries store.Querier
+}
+
+// NewGetHabitPatternsTool returns a new GetHabitPatternsTool.
+func NewGetHabitPatternsTool(queries store.Querier) *GetHabitPatternsTool {
+	return &GetHabitPatternsTool{queries: queries}
+}
+
+func (t *GetHabitPatternsTool) Name() string { return "get_habit_patterns" }
+
+func (t *GetHabitPatternsTool) Description() string {
+	return "Analyse habit completion patterns over the last 90 days. Returns best/worst days of the week globally and per habit, along with completion rates. Use when the user asks about their habit trends, patterns, or best days."
+}
+
+func (t *GetHabitPatternsTool) Schema() llm.ToolDefinition {
+	return llm.ToolDefinition{
+		Name:        t.Name(),
+		Description: t.Description(),
+		Parameters:  jsonSchema("object", nil, ""),
+	}
+}
+
+func (t *GetHabitPatternsTool) ParseArgs(_ json.RawMessage) (any, error) {
+	return nil, nil
+}
+
+var weekdayNames = [7]string{"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"}
+
+func (t *GetHabitPatternsTool) Execute(ctx context.Context, userID string, _ any) (any, error) {
+	habits, err := t.queries.ListHabits(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("get habit patterns: list habits: %w", err)
+	}
+
+	records, err := t.queries.ListHabitTrackerRecords(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("get habit patterns: list records: %w", err)
+	}
+
+	// Filter to last 90 days.
+	cutoff := time.Now().AddDate(0, 0, -90).Truncate(24 * time.Hour)
+	var recentRecords []store.MindmapHabitTracker
+	for _, r := range records {
+		if r.Date.Valid && !r.Date.Time.Before(cutoff) {
+			recentRecords = append(recentRecords, r)
+		}
+	}
+
+	// Global day-of-week completion counts.
+	// dayCompletions[weekday] = number of completions on that weekday.
+	var dayCompletions [7]int
+	// Per habit: habitDayCompletions[habitID][weekday] = count.
+	habitDayCompletions := make(map[string][7]int)
+
+	for _, r := range recentRecords {
+		dow := int(r.Date.Time.Weekday()) // 0=Sunday … 6=Saturday
+		dayCompletions[dow]++
+		hID := uuidToString(r.HabitID)
+		counts := habitDayCompletions[hID]
+		counts[dow]++
+		habitDayCompletions[hID] = counts
+	}
+
+	// Each weekday appears approximately 90/7 ≈ 13 times in the window.
+	const daysInWindow = 90
+	const weeksApprox = daysInWindow / 7
+
+	// Compute global best / worst day.
+	bestDayIdx, worstDayIdx := 0, 0
+	for i := 1; i < 7; i++ {
+		if dayCompletions[i] > dayCompletions[bestDayIdx] {
+			bestDayIdx = i
+		}
+		if dayCompletions[i] < dayCompletions[worstDayIdx] {
+			worstDayIdx = i
+		}
+	}
+
+	type dayPattern struct {
+		Day         string  `json:"day"`
+		Completions int     `json:"completions"`
+		Rate        float64 `json:"rate"`
+	}
+
+	globalDays := make([]dayPattern, 7)
+	for i := 0; i < 7; i++ {
+		rate := 0.0
+		if weeksApprox > 0 && len(habits) > 0 {
+			rate = float64(dayCompletions[i]) / float64(weeksApprox*len(habits)) * 100
+			rate = math.Round(rate*100) / 100
+		}
+		globalDays[i] = dayPattern{
+			Day:         weekdayNames[i],
+			Completions: dayCompletions[i],
+			Rate:        rate,
+		}
+	}
+
+	// Per-habit breakdown.
+	type habitPattern struct {
+		ID          string       `json:"id"`
+		Title       string       `json:"title"`
+		OverallRate float64      `json:"overall_rate"`
+		BestDay     string       `json:"best_day"`
+		WorstDay    string       `json:"worst_day"`
+		Days        []dayPattern `json:"days"`
+	}
+
+	habitTitleByID := make(map[string]string, len(habits))
+	for _, h := range habits {
+		habitTitleByID[uuidToString(h.ID)] = pgtextToString(h.Title)
+	}
+
+	habitPatterns := make([]habitPattern, 0, len(habits))
+	for _, h := range habits {
+		hID := uuidToString(h.ID)
+		counts := habitDayCompletions[hID]
+
+		totalCompletions := 0
+		for _, c := range counts {
+			totalCompletions += c
+		}
+
+		overallRate := 0.0
+		if daysInWindow > 0 {
+			overallRate = math.Round(float64(totalCompletions)/float64(daysInWindow)*100*100) / 100
+		}
+
+		bestIdx, worstIdx := 0, 0
+		for i := 1; i < 7; i++ {
+			if counts[i] > counts[bestIdx] {
+				bestIdx = i
+			}
+			if counts[i] < counts[worstIdx] {
+				worstIdx = i
+			}
+		}
+
+		days := make([]dayPattern, 7)
+		for i := 0; i < 7; i++ {
+			r := 0.0
+			if weeksApprox > 0 {
+				r = math.Round(float64(counts[i])/float64(weeksApprox)*100*100) / 100
+			}
+			days[i] = dayPattern{
+				Day:         weekdayNames[i],
+				Completions: counts[i],
+				Rate:        r,
+			}
+		}
+
+		habitPatterns = append(habitPatterns, habitPattern{
+			ID:          hID,
+			Title:       habitTitleByID[hID],
+			OverallRate: overallRate,
+			BestDay:     weekdayNames[bestIdx],
+			WorstDay:    weekdayNames[worstIdx],
+			Days:        days,
+		})
+	}
+
+	return map[string]any{
+		"window_days":  daysInWindow,
+		"best_day":     weekdayNames[bestDayIdx],
+		"worst_day":    weekdayNames[worstDayIdx],
+		"by_day":       globalDays,
+		"habit_detail": habitPatterns,
+	}, nil
 }
