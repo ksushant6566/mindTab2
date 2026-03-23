@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -28,24 +29,43 @@ const (
 	wsMaxMessageSize = 8192
 )
 
-var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
-	CheckOrigin:     func(r *http.Request) bool { return true },
-}
-
 // WSHandler handles WebSocket connections for the chat feature.
 type WSHandler struct {
-	orchestrator *chat.Orchestrator
-	jwtSecret    string
+	orchestrator   *chat.Orchestrator
+	jwtSecret      string
+	allowedOrigins []string
+	upgrader       websocket.Upgrader
 }
 
 // NewWSHandler creates a new WSHandler.
-func NewWSHandler(orchestrator *chat.Orchestrator, jwtSecret string) *WSHandler {
-	return &WSHandler{
-		orchestrator: orchestrator,
-		jwtSecret:    jwtSecret,
+func NewWSHandler(orchestrator *chat.Orchestrator, jwtSecret string, allowedOrigins []string) *WSHandler {
+	h := &WSHandler{
+		orchestrator:   orchestrator,
+		jwtSecret:      jwtSecret,
+		allowedOrigins: allowedOrigins,
 	}
+	h.upgrader = websocket.Upgrader{
+		ReadBufferSize:  1024,
+		WriteBufferSize: 1024,
+		CheckOrigin: func(r *http.Request) bool {
+			origin := r.Header.Get("Origin")
+			if origin == "" {
+				return true // mobile apps and non-browser clients
+			}
+			// Allow localhost for development
+			if strings.HasPrefix(origin, "http://localhost") || strings.HasPrefix(origin, "https://localhost") {
+				return true
+			}
+			// Check against configured allowed origins
+			for _, allowed := range h.allowedOrigins {
+				if origin == allowed {
+					return true
+				}
+			}
+			return false
+		},
+	}
+	return h
 }
 
 // HandleChat upgrades the HTTP connection to WebSocket and manages the chat session.
@@ -65,7 +85,7 @@ func (h *WSHandler) HandleChat(w http.ResponseWriter, r *http.Request) {
 	userID := claims.UserID
 
 	// 2. Upgrade to WebSocket
-	conn, err := upgrader.Upgrade(w, r, nil)
+	conn, err := h.upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		slog.Error("websocket upgrade failed", "error", err, "userID", userID)
 		return

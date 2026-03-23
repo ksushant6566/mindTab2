@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"sort"
 	"sync"
 	"time"
 
@@ -356,13 +357,9 @@ func computeStreakAsOfYesterday(dates []time.Time) int {
 	// Sort descending (most recent first).
 	sorted := make([]time.Time, len(dates))
 	copy(sorted, dates)
-	for i := 0; i < len(sorted); i++ {
-		for j := i + 1; j < len(sorted); j++ {
-			if sorted[j].After(sorted[i]) {
-				sorted[i], sorted[j] = sorted[j], sorted[i]
-			}
-		}
-	}
+	sort.Slice(sorted, func(i, j int) bool {
+		return sorted[i].After(sorted[j])
+	})
 
 	for _, d := range sorted {
 		day := d.Truncate(24 * time.Hour)
@@ -1200,13 +1197,9 @@ func computeStreakAsOfDate(dates []time.Time, anchor time.Time) int {
 	// Sort descending.
 	sorted := make([]time.Time, len(dates))
 	copy(sorted, dates)
-	for i := 0; i < len(sorted); i++ {
-		for j := i + 1; j < len(sorted); j++ {
-			if sorted[j].After(sorted[i]) {
-				sorted[i], sorted[j] = sorted[j], sorted[i]
-			}
-		}
-	}
+	sort.Slice(sorted, func(i, j int) bool {
+		return sorted[i].After(sorted[j])
+	})
 
 	for _, d := range sorted {
 		day := d.Truncate(24 * time.Hour)

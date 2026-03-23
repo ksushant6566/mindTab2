@@ -74,6 +74,7 @@ type Querier interface {
 	GetVerificationTokenByUserAndType(ctx context.Context, arg GetVerificationTokenByUserAndTypeParams) (MindmapVerificationToken, error)
 	IncrementVerificationAttempts(ctx context.Context, id pgtype.UUID) error
 	IsContentDeleted(ctx context.Context, id pgtype.UUID) (bool, error)
+	IsHabitTrackedOnDate(ctx context.Context, arg IsHabitTrackedOnDateParams) (bool, error)
 	ListContent(ctx context.Context, arg ListContentParams) ([]ListContentRow, error)
 	ListConversations(ctx context.Context, arg ListConversationsParams) ([]ListConversationsRow, error)
 	ListGoalStatsByProject(ctx context.Context, arg ListGoalStatsByProjectParams) ([]ListGoalStatsByProjectRow, error)

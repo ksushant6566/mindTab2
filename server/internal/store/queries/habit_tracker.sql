@@ -10,6 +10,12 @@ RETURNING id;
 -- name: UntrackHabit :exec
 DELETE FROM mindmap_habit_tracker WHERE habit_id = $1 AND user_id = $2 AND date = $3;
 
+-- name: IsHabitTrackedOnDate :one
+SELECT EXISTS(
+  SELECT 1 FROM mindmap_habit_tracker
+  WHERE habit_id = $1 AND user_id = $2 AND date = $3
+) AS tracked;
+
 -- name: GetHabitCompletionStats :many
 SELECT h.id AS habit_id,
        h.title AS habit_title,

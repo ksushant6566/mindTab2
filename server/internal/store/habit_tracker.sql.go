@@ -67,6 +67,26 @@ func (q *Queries) GetHabitCompletionStats(ctx context.Context, arg GetHabitCompl
 	return items, nil
 }
 
+const isHabitTrackedOnDate = `-- name: IsHabitTrackedOnDate :one
+SELECT EXISTS(
+  SELECT 1 FROM mindmap_habit_tracker
+  WHERE habit_id = $1 AND user_id = $2 AND date = $3
+) AS tracked
+`
+
+type IsHabitTrackedOnDateParams struct {
+	HabitID pgtype.UUID `json:"habit_id"`
+	UserID  string      `json:"user_id"`
+	Date    pgtype.Date `json:"date"`
+}
+
+func (q *Queries) IsHabitTrackedOnDate(ctx context.Context, arg IsHabitTrackedOnDateParams) (bool, error) {
+	row := q.db.QueryRow(ctx, isHabitTrackedOnDate, arg.HabitID, arg.UserID, arg.Date)
+	var tracked bool
+	err := row.Scan(&tracked)
+	return tracked, err
+}
+
 const listHabitTrackerRecords = `-- name: ListHabitTrackerRecords :many
 SELECT id, habit_id, status, date, created_at, updated_at, user_id FROM mindmap_habit_tracker WHERE user_id = $1
 `

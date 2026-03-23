@@ -211,18 +211,13 @@ func (t *ToggleHabitTool) Execute(ctx context.Context, userID string, a any) (an
 		Valid: true,
 	}
 
-	trackers, err := t.queries.ListHabitTrackerRecords(ctx, userID)
+	alreadyTracked, err := t.queries.IsHabitTrackedOnDate(ctx, store.IsHabitTrackedOnDateParams{
+		HabitID: pgID,
+		UserID:  userID,
+		Date:    todayDate,
+	})
 	if err != nil {
-		return nil, fmt.Errorf("list tracker records: %w", err)
-	}
-
-	today := now.Format("2006-01-02")
-	alreadyTracked := false
-	for _, tr := range trackers {
-		if uuidToString(tr.HabitID) == args.ID && tr.Date.Valid && tr.Date.Time.Format("2006-01-02") == today {
-			alreadyTracked = true
-			break
-		}
+		return nil, fmt.Errorf("check habit tracked on date: %w", err)
 	}
 
 	if alreadyTracked {

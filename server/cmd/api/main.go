@@ -189,7 +189,7 @@ func main() {
 	registry.Register(chat.NewComparePeriodsTool(queries))
 	registry.Register(chat.NewGetStaleItemsTool(queries))
 	orchestrator := chat.NewOrchestrator(queries, llmChain, registry)
-	wsHandler := handler.NewWSHandler(orchestrator, cfg.JWTSecret)
+	wsHandler := handler.NewWSHandler(orchestrator, cfg.JWTSecret, cfg.AllowedOrigins)
 	r.Get("/ws/chat", wsHandler.HandleChat)
 
 	// Protected routes.
