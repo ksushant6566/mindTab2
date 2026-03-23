@@ -1,6 +1,5 @@
 const {
   withXcodeProject,
-  withInfoPlist,
   IOSConfig,
 } = require("expo/config-plugins");
 const path = require("path");
@@ -44,7 +43,16 @@ function withShareExtension(config, options) {
     const infoPlistSrc = path.join(swiftSourceDir, "Info.plist");
     const infoPlistDest = path.join(extensionDir, "Info.plist");
     if (fs.existsSync(infoPlistSrc)) {
-      fs.copyFileSync(infoPlistSrc, infoPlistDest);
+      let plistContent = fs.readFileSync(infoPlistSrc, "utf8");
+      // Inject API_BASE_URL so the extension can read it from its own bundle
+      const apiURL =
+        process.env.EXPO_PUBLIC_API_URL || "https://api.mindtab.in";
+      const injection = `    <key>API_BASE_URL</key>\n    <string>${apiURL}</string>\n`;
+      plistContent = plistContent.replace(
+        "</dict>\n</plist>",
+        `${injection}</dict>\n</plist>`
+      );
+      fs.writeFileSync(infoPlistDest, plistContent);
     }
 
     // Create entitlements file for the extension
@@ -123,13 +131,6 @@ function withShareExtension(config, options) {
       }
     }
 
-    return config;
-  });
-
-  // Inject API_BASE_URL into main app Info.plist so the extension can read it
-  config = withInfoPlist(config, (config) => {
-    config.modResults.API_BASE_URL =
-      process.env.EXPO_PUBLIC_API_URL || "https://api.mindtab.in";
     return config;
   });
 
