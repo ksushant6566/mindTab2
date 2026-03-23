@@ -1,4 +1,5 @@
 import * as SecureStore from "expo-secure-store";
+import { setSharedToken, removeSharedToken, clearSharedTokens } from "../../modules/shared-keychain";
 
 const ACCESS_TOKEN_KEY = "mindtab_access_token";
 const REFRESH_TOKEN_KEY = "mindtab_refresh_token";
@@ -12,8 +13,10 @@ export async function getAccessToken(): Promise<string | null> {
 export async function setAccessToken(token: string | null): Promise<void> {
   if (token) {
     await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, token);
+    await setSharedToken(ACCESS_TOKEN_KEY, token).catch(() => {});
   } else {
     await SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY);
+    await removeSharedToken(ACCESS_TOKEN_KEY).catch(() => {});
   }
 }
 
@@ -24,8 +27,10 @@ export async function getRefreshToken(): Promise<string | null> {
 export async function setRefreshToken(token: string | null): Promise<void> {
   if (token) {
     await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, token);
+    await setSharedToken(REFRESH_TOKEN_KEY, token).catch(() => {});
   } else {
     await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
+    await removeSharedToken(REFRESH_TOKEN_KEY).catch(() => {});
   }
 }
 
@@ -33,6 +38,7 @@ export async function clearTokens(): Promise<void> {
   await Promise.all([
     SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY),
     SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY),
+    clearSharedTokens().catch(() => {}),
   ]);
 }
 

@@ -3,6 +3,11 @@ INSERT INTO mindmap_content (user_id, source_url, source_type, source_title, pro
 VALUES ($1, $2, $3, $4, 'pending')
 RETURNING id, user_id, source_url, source_type, source_title, processing_status, created_at;
 
+-- name: CreateContentWithExtracted :one
+INSERT INTO mindmap_content (user_id, source_url, source_type, source_title, extracted_text, processing_status)
+VALUES ($1, $2, $3, $4, $5, 'pending')
+RETURNING id, user_id, source_url, source_type, source_title, processing_status, created_at;
+
 -- name: GetContentByID :one
 SELECT id, user_id, source_url, source_type, source_title, source_thumbnail_url,
        extracted_text, visual_description, summary, tags, key_topics,

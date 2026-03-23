@@ -32,6 +32,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     "expo-asset",
     "expo-router",
     "expo-secure-store",
+    "./plugins/share-extension",
     [
       "@react-native-google-signin/google-signin",
       {
