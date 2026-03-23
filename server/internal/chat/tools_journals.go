@@ -314,3 +314,155 @@ func (t *DeleteJournalTool) Execute(ctx context.Context, userID string, args any
 
 	return map[string]interface{}{"success": true}, nil
 }
+
+// ---------------------------------------------------------------------------
+// GetJournalContentTool
+// ---------------------------------------------------------------------------
+
+// GetJournalContentArgs holds arguments for the get_journal_content tool.
+type GetJournalContentArgs struct {
+	ID string `json:"id" validate:"required,uuid"`
+}
+
+// GetJournalContentTool retrieves the full content of a journal entry by ID.
+type GetJournalContentTool struct {
+	queries store.Querier
+}
+
+// NewGetJournalContentTool returns a new GetJournalContentTool.
+func NewGetJournalContentTool(queries store.Querier) *GetJournalContentTool {
+	return &GetJournalContentTool{queries: queries}
+}
+
+func (t *GetJournalContentTool) Name() string { return "get_journal_content" }
+
+func (t *GetJournalContentTool) Description() string {
+	return "Get the full content of a journal entry by ID."
+}
+
+func (t *GetJournalContentTool) Schema() llm.ToolDefinition {
+	return llm.ToolDefinition{
+		Name:        t.Name(),
+		Description: t.Description(),
+		Parameters: jsonSchemaWithRequired("object", map[string]interface{}{
+			"id": jsonSchema("string", nil, "Journal UUID"),
+		}, []string{"id"}),
+	}
+}
+
+func (t *GetJournalContentTool) ParseArgs(raw json.RawMessage) (any, error) {
+	var args GetJournalContentArgs
+	if err := json.Unmarshal(raw, &args); err != nil {
+		return nil, fmt.Errorf("parse get_journal_content args: %w", err)
+	}
+	return &args, nil
+}
+
+func (t *GetJournalContentTool) Execute(ctx context.Context, userID string, args any) (any, error) {
+	a := args.(*GetJournalContentArgs)
+
+	journalUUID, err := uuid.Parse(a.ID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid journal id: %w", err)
+	}
+	pgID := pgtype.UUID{Bytes: journalUUID, Valid: true}
+
+	j, err := t.queries.GetJournalByID(ctx, store.GetJournalByIDParams{
+		ID:     pgID,
+		UserID: userID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("get journal: %w", err)
+	}
+
+	return map[string]interface{}{
+		"id":           uuidToString(j.ID),
+		"title":        j.Title,
+		"content":      j.Content,
+		"type":         j.Type,
+		"project_id":   uuidToString(j.ProjectID),
+		"project_name": pgtextToString(j.ProjectName),
+		"created_at":   timestamptzToString(j.CreatedAt),
+		"updated_at":   timestamptzToString(j.UpdatedAt),
+	}, nil
+}
+
+// ---------------------------------------------------------------------------
+// SearchJournalsTool
+// ---------------------------------------------------------------------------
+
+// SearchJournalsArgs holds arguments for the search_journals tool.
+type SearchJournalsArgs struct {
+	Query string `json:"query" validate:"required,min=1"`
+}
+
+// SearchJournalsTool searches journal entries by title keyword.
+type SearchJournalsTool struct {
+	queries store.Querier
+}
+
+// NewSearchJournalsTool returns a new SearchJournalsTool.
+func NewSearchJournalsTool(queries store.Querier) *SearchJournalsTool {
+	return &SearchJournalsTool{queries: queries}
+}
+
+func (t *SearchJournalsTool) Name() string { return "search_journals" }
+
+func (t *SearchJournalsTool) Description() string {
+	return "Search journal entries by title keyword."
+}
+
+func (t *SearchJournalsTool) Schema() llm.ToolDefinition {
+	return llm.ToolDefinition{
+		Name:        t.Name(),
+		Description: t.Description(),
+		Parameters: jsonSchemaWithRequired("object", map[string]interface{}{
+			"query": jsonSchema("string", nil, "Search keyword to match against journal titles"),
+		}, []string{"query"}),
+	}
+}
+
+func (t *SearchJournalsTool) ParseArgs(raw json.RawMessage) (any, error) {
+	var args SearchJournalsArgs
+	if err := json.Unmarshal(raw, &args); err != nil {
+		return nil, fmt.Errorf("parse search_journals args: %w", err)
+	}
+	return &args, nil
+}
+
+func (t *SearchJournalsTool) Execute(ctx context.Context, userID string, args any) (any, error) {
+	a := args.(*SearchJournalsArgs)
+
+	rows, err := t.queries.SearchJournals(ctx, store.SearchJournalsParams{
+		UserID:  userID,
+		Column2: pgtype.Text{String: a.Query, Valid: true},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("search journals: %w", err)
+	}
+
+	type journalItem struct {
+		ID        string `json:"id"`
+		Title     string `json:"title"`
+		Snippet   string `json:"snippet"`
+		Type      any    `json:"type"`
+		UpdatedAt string `json:"updated_at"`
+	}
+
+	journals := make([]journalItem, 0, len(rows))
+	for _, j := range rows {
+		snippet := j.Content
+		if len(snippet) > 200 {
+			snippet = snippet[:200] + "..."
+		}
+		journals = append(journals, journalItem{
+			ID:        uuidToString(j.ID),
+			Title:     j.Title,
+			Snippet:   snippet,
+			Type:      j.Type,
+			UpdatedAt: timestamptzToString(j.UpdatedAt),
+		})
+	}
+
+	return map[string]interface{}{"journals": journals}, nil
+}
