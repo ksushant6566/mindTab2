@@ -387,3 +387,161 @@ func (t *DeleteGoalTool) Execute(ctx context.Context, userID string, argsAny any
 
 	return map[string]interface{}{"success": true}, nil
 }
+
+// ---------------------------------------------------------------------------
+// GetGoalDetailTool
+// ---------------------------------------------------------------------------
+
+// GetGoalDetailArgs holds validated arguments for get_goal_detail.
+type GetGoalDetailArgs struct {
+	ID string `json:"id" validate:"required,uuid"`
+}
+
+// GetGoalDetailTool implements the Tool interface for fetching full goal details.
+type GetGoalDetailTool struct {
+	queries store.Querier
+}
+
+// NewGetGoalDetailTool returns a new GetGoalDetailTool.
+func NewGetGoalDetailTool(queries store.Querier) *GetGoalDetailTool {
+	return &GetGoalDetailTool{queries: queries}
+}
+
+func (t *GetGoalDetailTool) Name() string { return "get_goal_detail" }
+
+func (t *GetGoalDetailTool) Description() string {
+	return "Get full details of a specific goal by its UUID, including description, impact, project, and timestamps."
+}
+
+func (t *GetGoalDetailTool) Schema() llm.ToolDefinition {
+	return llm.ToolDefinition{
+		Name:        t.Name(),
+		Description: t.Description(),
+		Parameters: jsonSchemaWithRequired("object", map[string]interface{}{
+			"id": jsonSchema("string", nil, "Goal UUID"),
+		}, []string{"id"}),
+	}
+}
+
+func (t *GetGoalDetailTool) ParseArgs(raw json.RawMessage) (any, error) {
+	var args GetGoalDetailArgs
+	if err := json.Unmarshal(raw, &args); err != nil {
+		return nil, fmt.Errorf("parse get_goal_detail args: %w", err)
+	}
+	return &args, nil
+}
+
+func (t *GetGoalDetailTool) Execute(ctx context.Context, userID string, argsAny any) (any, error) {
+	args := argsAny.(*GetGoalDetailArgs)
+
+	goalUUID, err := uuid.Parse(args.ID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid goal id: %w", err)
+	}
+	pgID := pgtype.UUID{Bytes: goalUUID, Valid: true}
+
+	g, err := t.queries.GetGoalByID(ctx, store.GetGoalByIDParams{
+		ID:     pgID,
+		UserID: userID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("get goal: %w", err)
+	}
+
+	var completedAt *string
+	if g.CompletedAt.Valid {
+		s := g.CompletedAt.Time.Format(time.RFC3339)
+		completedAt = &s
+	}
+
+	var project *string
+	if g.ProjectName.Valid {
+		project = &g.ProjectName.String
+	}
+
+	return map[string]interface{}{
+		"id":           uuidToString(g.ID),
+		"title":        pgtextToString(g.Title),
+		"description":  pgtextToString(g.Description),
+		"status":       ifaceToString(g.Status),
+		"priority":     ifaceToString(g.Priority),
+		"impact":       ifaceToString(g.Impact),
+		"project":      project,
+		"created_at":   timestamptzToString(g.CreatedAt),
+		"completed_at": completedAt,
+	}, nil
+}
+
+// ---------------------------------------------------------------------------
+// SearchGoalsTool
+// ---------------------------------------------------------------------------
+
+// SearchGoalsArgs holds validated arguments for search_goals.
+type SearchGoalsArgs struct {
+	Query string `json:"query" validate:"required,min=1"`
+}
+
+// SearchGoalsTool implements the Tool interface for searching goals by title.
+type SearchGoalsTool struct {
+	queries store.Querier
+}
+
+// NewSearchGoalsTool returns a new SearchGoalsTool.
+func NewSearchGoalsTool(queries store.Querier) *SearchGoalsTool {
+	return &SearchGoalsTool{queries: queries}
+}
+
+func (t *SearchGoalsTool) Name() string { return "search_goals" }
+
+func (t *SearchGoalsTool) Description() string {
+	return "Search for goals by title keyword. Returns up to 5 matching non-archived goals."
+}
+
+func (t *SearchGoalsTool) Schema() llm.ToolDefinition {
+	return llm.ToolDefinition{
+		Name:        t.Name(),
+		Description: t.Description(),
+		Parameters: jsonSchemaWithRequired("object", map[string]interface{}{
+			"query": jsonSchema("string", nil, "Search keyword to match against goal titles"),
+		}, []string{"query"}),
+	}
+}
+
+func (t *SearchGoalsTool) ParseArgs(raw json.RawMessage) (any, error) {
+	var args SearchGoalsArgs
+	if err := json.Unmarshal(raw, &args); err != nil {
+		return nil, fmt.Errorf("parse search_goals args: %w", err)
+	}
+	return &args, nil
+}
+
+func (t *SearchGoalsTool) Execute(ctx context.Context, userID string, argsAny any) (any, error) {
+	args := argsAny.(*SearchGoalsArgs)
+
+	rows, err := t.queries.SearchGoals(ctx, store.SearchGoalsParams{
+		UserID:  userID,
+		Column2: pgtype.Text{String: args.Query, Valid: true},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("search goals: %w", err)
+	}
+
+	type goalItem struct {
+		ID       string `json:"id"`
+		Title    string `json:"title"`
+		Status   string `json:"status"`
+		Priority string `json:"priority"`
+	}
+
+	goals := make([]goalItem, 0, len(rows))
+	for _, g := range rows {
+		goals = append(goals, goalItem{
+			ID:       uuidToString(g.ID),
+			Title:    pgtextToString(g.Title),
+			Status:   ifaceToString(g.Status),
+			Priority: ifaceToString(g.Priority),
+		})
+	}
+
+	return map[string]interface{}{"goals": goals}, nil
+}
