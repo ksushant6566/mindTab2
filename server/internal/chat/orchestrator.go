@@ -56,14 +56,25 @@ func NewOrchestrator(queries store.Querier, llmChain *providers.Chain[llm.LLMPro
 	}
 }
 
+// trySend sends a message to writeChan, returning false if the context is canceled.
+// Prevents goroutine leaks when the connection dies mid-stream.
+func trySend(ctx context.Context, writeChan chan<- WSServerMessage, msg WSServerMessage) bool {
+	select {
+	case writeChan <- msg:
+		return true
+	case <-ctx.Done():
+		return false
+	}
+}
+
 // HandleMessage processes an incoming user message through the full chat pipeline.
 func (o *Orchestrator) HandleMessage(ctx context.Context, userID string, msg WSClientMessage, writeChan chan<- WSServerMessage) {
 	if o.llmChain == nil {
-		writeChan <- WSServerMessage{
+		trySend(ctx, writeChan, WSServerMessage{
 			Type:    "error",
 			Code:    "not_configured",
 			Message: "Chat is not available — LLM providers are not configured.",
-		}
+		})
 		return
 	}
 
@@ -74,11 +85,11 @@ func (o *Orchestrator) HandleMessage(ctx context.Context, userID string, msg WSC
 	if msg.ConversationID != nil && *msg.ConversationID != "" {
 		parsed, err := uuid.Parse(*msg.ConversationID)
 		if err != nil {
-			writeChan <- WSServerMessage{
+			trySend(ctx, writeChan, WSServerMessage{
 				Type:    "error",
 				Code:    "invalid_conversation_id",
 				Message: "Invalid conversation ID.",
-			}
+			})
 			return
 		}
 		conversationID = pgtype.UUID{Bytes: parsed, Valid: true}
@@ -86,11 +97,11 @@ func (o *Orchestrator) HandleMessage(ctx context.Context, userID string, msg WSC
 		conv, err := o.queries.CreateConversation(ctx, userID)
 		if err != nil {
 			slog.Error("failed to create conversation", "error", err, "userID", userID)
-			writeChan <- WSServerMessage{
+			trySend(ctx, writeChan, WSServerMessage{
 				Type:    "error",
 				Code:    "db_error",
 				Message: "Failed to create conversation.",
-			}
+			})
 			return
 		}
 		conversationID = conv.ID
@@ -113,11 +124,11 @@ func (o *Orchestrator) HandleMessage(ctx context.Context, userID string, msg WSC
 	})
 	if err != nil {
 		slog.Error("failed to save user message", "error", err, "conversationID", convIDStr)
-		writeChan <- WSServerMessage{
+		trySend(ctx, writeChan, WSServerMessage{
 			Type:    "error",
 			Code:    "db_error",
 			Message: "Failed to save message.",
-		}
+		})
 		return
 	}
 
@@ -129,11 +140,11 @@ func (o *Orchestrator) HandleMessage(ctx context.Context, userID string, msg WSC
 	})
 	if err != nil {
 		slog.Error("failed to load conversation history", "error", err, "conversationID", convIDStr)
-		writeChan <- WSServerMessage{
+		trySend(ctx, writeChan, WSServerMessage{
 			Type:    "error",
 			Code:    "db_error",
 			Message: "Failed to load conversation history.",
-		}
+		})
 		return
 	}
 
@@ -142,21 +153,21 @@ func (o *Orchestrator) HandleMessage(ctx context.Context, userID string, msg WSC
 
 	// 5. Send stream.start
 	assistantMsgID := uuid.New().String()
-	writeChan <- WSServerMessage{
+	trySend(ctx, writeChan, WSServerMessage{
 		Type:           "stream.start",
 		ConversationID: convIDStr,
 		MessageID:      assistantMsgID,
-	}
+	})
 
 	// 6. LLM streaming loop with tool call support
 	fullResponse, err := o.streamWithTools(ctx, userPrompt, history, writeChan, userID, conversationID)
 	if err != nil {
 		slog.Error("LLM stream failed", "error", err, "conversationID", convIDStr)
-		writeChan <- WSServerMessage{
+		trySend(ctx, writeChan, WSServerMessage{
 			Type:    "error",
 			Code:    "llm_error",
 			Message: fmt.Sprintf("LLM error: %v", err),
-		}
+		})
 		return
 	}
 
@@ -175,11 +186,11 @@ func (o *Orchestrator) HandleMessage(ctx context.Context, userID string, msg WSC
 	if savedMsg.ID.Valid {
 		msgID = uuidToString(savedMsg.ID)
 	}
-	writeChan <- WSServerMessage{
+	trySend(ctx, writeChan, WSServerMessage{
 		Type:           "stream.end",
 		ConversationID: convIDStr,
 		MessageID:      msgID,
-	}
+	})
 
 	// 9. Generate title for new conversations
 	if isNewConversation {
@@ -223,9 +234,11 @@ func (o *Orchestrator) streamWithTools(
 			return provider.StreamComplete(ctx, req, toolDefs, func(delta llm.StreamDelta) error {
 				if delta.Content != "" {
 					iterText.WriteString(delta.Content)
-					writeChan <- WSServerMessage{
+					if !trySend(ctx, writeChan, WSServerMessage{
 						Type:    "stream.delta",
 						Content: delta.Content,
+					}) {
+						return fmt.Errorf("connection closed")
 					}
 				}
 				if len(delta.ToolCalls) > 0 {
@@ -233,10 +246,12 @@ func (o *Orchestrator) streamWithTools(
 					for _, tc := range delta.ToolCalls {
 						var argsData interface{}
 						_ = json.Unmarshal([]byte(tc.Arguments), &argsData)
-						writeChan <- WSServerMessage{
+						if !trySend(ctx, writeChan, WSServerMessage{
 							Type: "stream.tool_call",
 							Tool: tc.Name,
 							Args: argsData,
+						}) {
+							return fmt.Errorf("connection closed")
 						}
 					}
 				}
@@ -262,19 +277,19 @@ func (o *Orchestrator) streamWithTools(
 
 			// Send tool result to client
 			if execErr != nil {
-				writeChan <- WSServerMessage{
+				trySend(ctx, writeChan, WSServerMessage{
 					Type:   "stream.tool_result",
 					Tool:   tc.Name,
 					Result: map[string]string{"error": execErr.Error()},
-				}
+				})
 				toolResultParts = append(toolResultParts,
 					fmt.Sprintf("[Tool %s error: %v]", tc.Name, execErr))
 			} else {
-				writeChan <- WSServerMessage{
+				trySend(ctx, writeChan, WSServerMessage{
 					Type:   "stream.tool_result",
 					Tool:   tc.Name,
 					Result: result,
-				}
+				})
 				resultJSON, _ := json.Marshal(result)
 				toolResultParts = append(toolResultParts,
 					fmt.Sprintf("[Tool %s result: %s]", tc.Name, string(resultJSON)))
@@ -356,11 +371,11 @@ func (o *Orchestrator) generateTitle(
 	}
 
 	// Notify client
-	writeChan <- WSServerMessage{
+	trySend(ctx, writeChan, WSServerMessage{
 		Type:           "conversation.title",
 		ConversationID: convIDStr,
 		Title:          title,
-	}
+	})
 }
 
 // buildConversationPrompt converts DB message history into a single text prompt
