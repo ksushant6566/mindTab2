@@ -109,7 +109,9 @@ func (h *SavesHandler) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 type createURLRequest struct {
-	URL string `json:"url"`
+	URL     string `json:"url"`
+	Content string `json:"content,omitempty"`
+	Title   string `json:"title,omitempty"`
 }
 
 func (h *SavesHandler) createURL(w http.ResponseWriter, r *http.Request, userID string) {
@@ -135,26 +137,46 @@ func (h *SavesHandler) createURL(w http.ResponseWriter, r *http.Request, userID 
 	}
 
 	// Create content record.
-	content, err := h.queries.CreateContent(r.Context(), store.CreateContentParams{
-		UserID:      userID,
-		SourceUrl:   pgtextFrom(req.URL),
-		SourceType:  "article",
-		SourceTitle: pgtype.Text{},
-	})
-	if err != nil {
-		slog.Error("failed to create content record", "error", err, "userID", userID)
-		WriteError(w, http.StatusInternalServerError, "failed to create save")
-		return
+	var contentID pgtype.UUID
+
+	if req.Content != "" {
+		// Pre-extracted content provided — write extracted_text at create time.
+		content, err := h.queries.CreateContentWithExtracted(r.Context(), store.CreateContentWithExtractedParams{
+			UserID:        userID,
+			SourceUrl:     pgtextFrom(req.URL),
+			SourceType:    "article",
+			SourceTitle:   pgtextFrom(req.Title),
+			ExtractedText: pgtextFrom(req.Content),
+		})
+		if err != nil {
+			slog.Error("failed to create content record", "error", err, "userID", userID)
+			WriteError(w, http.StatusInternalServerError, "failed to create save")
+			return
+		}
+		contentID = content.ID
+	} else {
+		content, err := h.queries.CreateContent(r.Context(), store.CreateContentParams{
+			UserID:      userID,
+			SourceUrl:   pgtextFrom(req.URL),
+			SourceType:  "article",
+			SourceTitle: pgtextFrom(req.Title),
+		})
+		if err != nil {
+			slog.Error("failed to create content record", "error", err, "userID", userID)
+			WriteError(w, http.StatusInternalServerError, "failed to create save")
+			return
+		}
+		contentID = content.ID
 	}
 
 	// Create job record.
 	jobID, err := h.queries.CreateJob(r.Context(), store.CreateJobParams{
-		ContentID:   content.ID,
+		ContentID:   contentID,
 		UserID:      userID,
 		ContentType: "article",
 	})
 	if err != nil {
-		slog.Error("failed to create job record", "error", err, "contentID", uuidToString(content.ID))
+		slog.Error("failed to create job record", "error", err, "contentID", uuidToString(contentID))
 		WriteError(w, http.StatusInternalServerError, "failed to create processing job")
 		return
 	}
@@ -162,7 +184,7 @@ func (h *SavesHandler) createURL(w http.ResponseWriter, r *http.Request, userID 
 	// Enqueue to Redis.
 	payload := queue.JobPayload{
 		JobID:       uuidFromPgtype(jobID),
-		ContentID:   uuidFromPgtype(content.ID),
+		ContentID:   uuidFromPgtype(contentID),
 		UserID:      userID,
 		ContentType: "article",
 		SourceURL:   req.URL,
@@ -175,7 +197,7 @@ func (h *SavesHandler) createURL(w http.ResponseWriter, r *http.Request, userID 
 	}
 
 	WriteJSON(w, http.StatusCreated, saveResponse{
-		ID:     uuidToString(content.ID),
+		ID:     uuidToString(contentID),
 		Status: "pending",
 	})
 }

@@ -67,6 +67,51 @@ func (q *Queries) CreateContent(ctx context.Context, arg CreateContentParams) (C
 	return i, err
 }
 
+const createContentWithExtracted = `-- name: CreateContentWithExtracted :one
+INSERT INTO mindmap_content (user_id, source_url, source_type, source_title, extracted_text, processing_status)
+VALUES ($1, $2, $3, $4, $5, 'pending')
+RETURNING id, user_id, source_url, source_type, source_title, processing_status, created_at
+`
+
+type CreateContentWithExtractedParams struct {
+	UserID        string      `json:"user_id"`
+	SourceUrl     pgtype.Text `json:"source_url"`
+	SourceType    string      `json:"source_type"`
+	SourceTitle   pgtype.Text `json:"source_title"`
+	ExtractedText pgtype.Text `json:"extracted_text"`
+}
+
+type CreateContentWithExtractedRow struct {
+	ID               pgtype.UUID        `json:"id"`
+	UserID           string             `json:"user_id"`
+	SourceUrl        pgtype.Text        `json:"source_url"`
+	SourceType       string             `json:"source_type"`
+	SourceTitle      pgtype.Text        `json:"source_title"`
+	ProcessingStatus string             `json:"processing_status"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+}
+
+func (q *Queries) CreateContentWithExtracted(ctx context.Context, arg CreateContentWithExtractedParams) (CreateContentWithExtractedRow, error) {
+	row := q.db.QueryRow(ctx, createContentWithExtracted,
+		arg.UserID,
+		arg.SourceUrl,
+		arg.SourceType,
+		arg.SourceTitle,
+		arg.ExtractedText,
+	)
+	var i CreateContentWithExtractedRow
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.SourceUrl,
+		&i.SourceType,
+		&i.SourceTitle,
+		&i.ProcessingStatus,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const getContentByID = `-- name: GetContentByID :one
 SELECT id, user_id, source_url, source_type, source_title, source_thumbnail_url,
        extracted_text, visual_description, summary, tags, key_topics,

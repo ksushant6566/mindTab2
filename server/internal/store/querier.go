@@ -24,6 +24,7 @@ type Querier interface {
 	CountJournals(ctx context.Context, userID string) (int32, error)
 	CountJournalsByProject(ctx context.Context, arg CountJournalsByProjectParams) (int32, error)
 	CreateContent(ctx context.Context, arg CreateContentParams) (CreateContentRow, error)
+	CreateContentWithExtracted(ctx context.Context, arg CreateContentWithExtractedParams) (CreateContentWithExtractedRow, error)
 	CreateEmailUser(ctx context.Context, arg CreateEmailUserParams) (MindmapUser, error)
 	CreateGoal(ctx context.Context, arg CreateGoalParams) error
 	CreateHabit(ctx context.Context, arg CreateHabitParams) error
