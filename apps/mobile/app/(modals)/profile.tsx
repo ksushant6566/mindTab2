@@ -111,6 +111,17 @@ export default function ProfileModal() {
           </View>
           <Text style={styles.userName}>{user?.name}</Text>
           <Text style={styles.userEmail}>{user?.email}</Text>
+
+          {/* Compact XP display */}
+          <View style={styles.xpCompact}>
+            <Text style={styles.xpCompactLevel}>Lv.{level}</Text>
+            <Text style={styles.xpCompactCount}>{xp} XP</Text>
+            <View style={styles.xpCompactBarContainer}>
+              <View
+                style={[styles.xpCompactBarFill, { width: `${Math.round(progress * 100)}%` }]}
+              />
+            </View>
+          </View>
         </View>
 
         {/* XP Level card */}
@@ -260,6 +271,35 @@ const styles = StyleSheet.create({
   userEmail: {
     fontSize: 14,
     color: colors.text.muted,
+  },
+
+  // Compact XP display (below email in avatar section)
+  xpCompact: {
+    alignItems: "center",
+    marginTop: 12,
+    gap: 4,
+    width: "100%",
+    paddingHorizontal: 32,
+  },
+  xpCompactLevel: {
+    color: "#ffffff",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  xpCompactCount: {
+    color: "#888888",
+    fontSize: 12,
+  },
+  xpCompactBarContainer: {
+    height: 4,
+    backgroundColor: "#222222",
+    borderRadius: 2,
+    width: "100%",
+  },
+  xpCompactBarFill: {
+    height: 4,
+    backgroundColor: "#ffffff",
+    borderRadius: 2,
   },
 
   // Card

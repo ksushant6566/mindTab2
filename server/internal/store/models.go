@@ -33,6 +33,15 @@ type MindmapContent struct {
 	DeletedAt          pgtype.Timestamptz `json:"deleted_at"`
 }
 
+type MindmapConversation struct {
+	ID        pgtype.UUID        `json:"id"`
+	UserID    string             `json:"user_id"`
+	Title     pgtype.Text        `json:"title"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt pgtype.Timestamptz `json:"deleted_at"`
+}
+
 type MindmapGoal struct {
 	ID          pgtype.UUID        `json:"id"`
 	Title       pgtype.Text        `json:"title"`
@@ -116,6 +125,17 @@ type MindmapJournalHabit struct {
 	HabitID   pgtype.UUID        `json:"habit_id"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+}
+
+type MindmapMessage struct {
+	ID             pgtype.UUID        `json:"id"`
+	ConversationID pgtype.UUID        `json:"conversation_id"`
+	Role           string             `json:"role"`
+	Content        string             `json:"content"`
+	Attachments    []byte             `json:"attachments"`
+	ToolCalls      []byte             `json:"tool_calls"`
+	ToolCallID     pgtype.Text        `json:"tool_call_id"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 }
 
 type MindmapProject struct {
