@@ -63,7 +63,7 @@ export function SaveFAB() {
     setUrlLoading(true);
     try {
       const { error } = await (api as any).POST("/saves", {
-        body: { source_url: trimmed, source_type: "article" },
+        body: { url: trimmed },
       });
       if (error) throw new Error("Failed to save URL");
       queryClient.invalidateQueries({ queryKey: ["saves"] });
