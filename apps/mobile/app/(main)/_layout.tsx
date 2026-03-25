@@ -48,8 +48,8 @@ export default function MainLayout() {
         options={{ headerShown: true, title: "Project" }}
       />
       <Stack.Screen
-        name="chat/[id]"
-        options={{ headerShown: true, title: "Conversation", animation: "slide_from_right" }}
+        name="chat"
+        options={{ headerShown: false }}
       />
       <Stack.Screen
         name="vault/[id]"

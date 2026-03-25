@@ -5,13 +5,15 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   TouchableOpacity,
   Text,
   Alert,
 } from "react-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { MoreHorizontal } from "lucide-react-native";
+import { MoreHorizontal, Menu } from "lucide-react-native";
+import { useChatSidebar } from "~/hooks/use-chat-sidebar";
 import { api } from "~/lib/api-client";
 import { useChatStore } from "~/hooks/use-chat-store";
 import { useWebSocket } from "~/hooks/use-websocket";
@@ -100,6 +102,7 @@ export default function ConversationDetail() {
   const isAtBottomRef = useRef(true);
 
   const { sendMessage, connect, isConnected } = useWebSocket();
+  const openSidebar = useChatSidebar((s) => s.open);
   // Only subscribe to the fields needed for list composition — NOT streamBuffer
   const isStreaming = useChatStore((s) => s.isStreaming);
   const activeConversationId = useChatStore((s) => s.activeConversationId);
@@ -216,6 +219,11 @@ export default function ConversationDetail() {
         options={{
           title: conversationTitle,
           headerShown: true,
+          headerLeft: () => (
+            <Pressable onPress={openSidebar} style={styles.menuButton}>
+              <Menu size={22} color={colors.text.secondary} />
+            </Pressable>
+          ),
           headerRight: () => (
             <TouchableOpacity
               onPress={() =>
@@ -302,5 +310,9 @@ const styles = StyleSheet.create({
   },
   headerButton: {
     marginRight: 4,
+  },
+  menuButton: {
+    marginRight: 8,
+    padding: 4,
   },
 });

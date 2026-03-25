@@ -1,13 +1,15 @@
 import React from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
-import { Search } from "lucide-react-native";
+import { Search, Menu } from "lucide-react-native";
 
 import { useAuth } from "~/hooks/use-auth";
+import { colors } from "~/styles/colors";
 
 type DashboardHeaderProps = {
   activeTab: "chat" | "index" | "vault";
   onTabChange: (tab: "chat" | "index" | "vault") => void;
+  onMenuPress?: () => void;
 };
 
 const TAB_ITEMS: { key: "chat" | "index" | "vault"; label: string }[] = [
@@ -16,7 +18,7 @@ const TAB_ITEMS: { key: "chat" | "index" | "vault"; label: string }[] = [
   { key: "vault", label: "Vault" },
 ];
 
-export function DashboardHeader({ activeTab, onTabChange }: DashboardHeaderProps) {
+export function DashboardHeader({ activeTab, onTabChange, onMenuPress }: DashboardHeaderProps) {
   const router = useRouter();
   const { user } = useAuth();
 
@@ -25,16 +27,22 @@ export function DashboardHeader({ activeTab, onTabChange }: DashboardHeaderProps
   return (
     <View style={styles.container}>
       <View style={styles.row}>
-        {/* Avatar */}
-        <Pressable onPress={() => router.push("/(modals)/profile")}>
-          {user?.image ? (
-            <Image source={{ uri: user.image }} style={styles.avatar} />
-          ) : (
-            <View style={styles.avatarFallback}>
-              <Text style={styles.avatarFallbackText}>{initial}</Text>
-            </View>
-          )}
-        </Pressable>
+        {/* Avatar or Hamburger menu (chat tab only) */}
+        {activeTab === "chat" && onMenuPress ? (
+          <Pressable onPress={onMenuPress} style={styles.menuButton}>
+            <Menu size={22} color={colors.text.secondary} />
+          </Pressable>
+        ) : (
+          <Pressable onPress={() => router.push("/(modals)/profile")}>
+            {user?.image ? (
+              <Image source={{ uri: user.image }} style={styles.avatar} />
+            ) : (
+              <View style={styles.avatarFallback}>
+                <Text style={styles.avatarFallbackText}>{initial}</Text>
+              </View>
+            )}
+          </Pressable>
+        )}
 
         {/* Flex spacer */}
         <View style={{ flex: 1 }} />
@@ -123,5 +131,11 @@ const styles = StyleSheet.create({
   },
   searchButton: {
     padding: 6,
+  },
+  menuButton: {
+    width: 36,
+    height: 36,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

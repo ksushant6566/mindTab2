@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -14,7 +15,11 @@ import (
 	"github.com/ksushant6566/mindtab/server/internal/store"
 )
 
-const systemPrompt = `You are MindTab, a personal productivity assistant. You have access to the user's goals, habits, journals, projects, and saved vault items.
+func buildSystemPrompt() string {
+	now := time.Now()
+	return fmt.Sprintf(`You are MindTab, a personal productivity assistant. You have access to the user's goals, habits, journals, projects, and saved vault items.
+
+CURRENT DATE & TIME: %s (timezone: %s)
 
 BEHAVIOR:
 - Be concise and conversational. Don't dump raw data — interpret it.
@@ -29,7 +34,10 @@ PERSONALITY:
 - Direct and honest. If the user is falling behind, say so kindly.
 - Encouraging when they're doing well. Acknowledge streaks and completions.
 - Practical — suggest specific next actions, not vague advice.
-- Never say "I can only tell you..." — use the tools to find the answer.`
+- Never say "I can only tell you..." — use the tools to find the answer.`,
+		now.Format("Monday, January 2, 2006 3:04 PM"),
+		now.Format("MST"))
+}
 
 const maxToolIterations = 5
 
@@ -241,7 +249,7 @@ func (o *Orchestrator) streamWithTools(
 		var iterText strings.Builder
 
 		req := llm.LLMRequest{
-			SystemPrompt: systemPrompt,
+			SystemPrompt: buildSystemPrompt(),
 			UserPrompt:   currentPrompt,
 			MaxTokens:    4096,
 			Temperature:  0.7,
