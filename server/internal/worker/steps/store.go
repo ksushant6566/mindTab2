@@ -59,6 +59,12 @@ func Store(
 		extractedText = visionResult.ExtractedText
 	}
 
+	// Prefer extract title (articles), fall back to summarize title (images)
+	title := extractResult.Title
+	if title == "" {
+		title = summarizeResult.Title
+	}
+
 	// Update content results
 	err = queries.UpdateContentResults(ctx, store.UpdateContentResultsParams{
 		ID:                contentID,
@@ -67,7 +73,7 @@ func Store(
 		Summary:           pgtextFrom(summarizeResult.Summary),
 		Tags:              summarizeResult.Tags,
 		KeyTopics:         summarizeResult.KeyTopics,
-		SourceTitle:       pgtextFrom(extractResult.Title),
+		SourceTitle:       pgtextFrom(title),
 		SummaryProvider:   pgtextFrom(summarizeResult.Provider),
 		EmbeddingProvider: pgtextFrom(embedResult.Provider),
 		EmbeddingModel:    pgtextFrom(embedResult.Model),

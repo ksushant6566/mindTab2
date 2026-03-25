@@ -1,7 +1,8 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { View } from "react-native";
 import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
+import { getAccessToken } from "~/lib/auth";
 import { api } from "~/lib/api-client";
 import { FilterChips } from "~/components/vault/filter-chips";
 import { SaveGrid } from "~/components/vault/save-grid";
@@ -28,7 +29,12 @@ export default function VaultTab() {
   const router = useRouter();
   const [filter, setFilter] = useState<FilterType>("all");
   const [offset, setOffset] = useState(0);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
   const PAGE_SIZE = 20;
+
+  useEffect(() => {
+    getAccessToken().then(setAccessToken);
+  }, []);
 
   const { data, isFetching, refetch } = useQuery({
     queryKey: ["saves"],
@@ -37,6 +43,13 @@ export default function VaultTab() {
         params: { query: { limit: 100, offset: 0 } },
       });
       return (data as RawSave[]) ?? [];
+    },
+    refetchInterval: (query) => {
+      const saves = (query.state.data as RawSave[] | undefined) ?? [];
+      const hasProcessing = saves.some(
+        (s) => s.processing_status !== "completed" && s.processing_status !== "failed"
+      );
+      return hasProcessing ? 3000 : false;
     },
   });
 
@@ -58,6 +71,7 @@ export default function VaultTab() {
     tags: s.tags,
     mediaKey: s.media_key,
     processingStatus: s.processing_status,
+    accessToken,
     onPress: (id: string) => router.push(`/(main)/vault/${id}` as any),
   }));
 

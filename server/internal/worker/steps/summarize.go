@@ -11,13 +11,15 @@ import (
 )
 
 type SummarizeResult struct {
+	Title     string   `json:"title"`
 	Summary   string   `json:"summary"`
 	Tags      []string `json:"tags"`
 	KeyTopics []string `json:"key_topics"`
 	Provider  string   `json:"provider"`
 }
 
-const summarizeSystemPrompt = `You summarize content. Return a JSON object with exactly three fields:
+const summarizeSystemPrompt = `You summarize content. Return a JSON object with exactly four fields:
+- "title": a short descriptive title (3-8 words) for the content
 - "summary": a concise 2-4 sentence summary of the content
 - "tags": an array of 3-8 lowercase tags describing the content
 - "key_topics": an array of 2-5 key topics covered

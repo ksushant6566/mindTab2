@@ -220,9 +220,15 @@ func (d *Dispatcher) processJob(ctx context.Context, payload *queue.JobPayload) 
 		}
 	}
 
-	// All steps complete — mark job completed.
+	// All steps complete — mark job and content completed.
 	if err := d.queries.CompleteJob(ctx, toPgUUID(payload.JobID)); err != nil {
 		log.Error("failed to mark job completed", "error", err)
+	}
+	if err := d.queries.UpdateContentStatus(ctx, store.UpdateContentStatusParams{
+		ID:               toPgUUID(payload.ContentID),
+		ProcessingStatus: "completed",
+	}); err != nil {
+		log.Error("failed to mark content completed", "error", err)
 	}
 
 	// Remove from processing list.
@@ -263,10 +269,15 @@ func (d *Dispatcher) handleFailure(ctx context.Context, payload *queue.JobPayloa
 	if permanent || newAttempt >= payload.MaxAttempts {
 		log.Warn("sending job to dead letter queue", "attempts", newAttempt, "max", payload.MaxAttempts, "permanent", permanent)
 
-		// Mark as failed in DB.
+		// Mark job and content as failed in DB.
 		_ = d.queries.FailJob(ctx, store.FailJobParams{
 			ID:        toPgUUID(payload.JobID),
 			LastError: pgtype.Text{String: jobErr.Error(), Valid: true},
+		})
+		_ = d.queries.UpdateContentStatus(ctx, store.UpdateContentStatusParams{
+			ID:               toPgUUID(payload.ContentID),
+			ProcessingStatus: "failed",
+			ProcessingError:  pgtype.Text{String: jobErr.Error(), Valid: true},
 		})
 
 		if err := d.consumer.SendToDeadLetter(ctx, *payload); err != nil {
