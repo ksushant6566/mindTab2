@@ -30,6 +30,7 @@ export default function VaultTab() {
   const [filter, setFilter] = useState<FilterType>("all");
   const [offset, setOffset] = useState(0);
   const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [isManualRefresh, setIsManualRefresh] = useState(false);
   const PAGE_SIZE = 20;
 
   useEffect(() => {
@@ -77,7 +78,9 @@ export default function VaultTab() {
 
   const handleRefresh = useCallback(async () => {
     setOffset(0);
+    setIsManualRefresh(true);
     await refetch();
+    setIsManualRefresh(false);
   }, [refetch]);
 
   const handleLoadMore = useCallback(() => {
@@ -98,7 +101,7 @@ export default function VaultTab() {
         saves={cardProps}
         onSavePress={(id) => router.push(`/(main)/vault/${id}` as any)}
         onRefresh={handleRefresh}
-        refreshing={isFetching}
+        refreshing={isManualRefresh}
         onLoadMore={handleLoadMore}
       />
       <SaveFAB />
