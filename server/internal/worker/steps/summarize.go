@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/ksushant6566/mindtab/server/internal/providers"
 	"github.com/ksushant6566/mindtab/server/internal/providers/llm"
@@ -53,9 +54,23 @@ func Summarize(ctx context.Context, llmChain *providers.Chain[llm.LLMProvider], 
 		return nil, fmt.Errorf("summarize: %w", err)
 	}
 
+	// Strip markdown code fences if the LLM wrapped the JSON in them.
+	cleaned := strings.TrimSpace(resp.Text)
+	if strings.HasPrefix(cleaned, "```") {
+		// Remove opening fence (e.g. ```json)
+		if idx := strings.Index(cleaned, "\n"); idx != -1 {
+			cleaned = cleaned[idx+1:]
+		}
+		// Remove closing fence
+		if idx := strings.LastIndex(cleaned, "```"); idx != -1 {
+			cleaned = cleaned[:idx]
+		}
+		cleaned = strings.TrimSpace(cleaned)
+	}
+
 	var result SummarizeResult
-	if err := json.Unmarshal([]byte(resp.Text), &result); err != nil {
-		result = SummarizeResult{Summary: resp.Text}
+	if err := json.Unmarshal([]byte(cleaned), &result); err != nil {
+		result = SummarizeResult{Summary: cleaned}
 	}
 	result.Provider = providerName
 

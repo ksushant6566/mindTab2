@@ -15,6 +15,7 @@ import { Share2, Trash2 } from "lucide-react-native";
 import { toast } from "sonner-native";
 import { api } from "~/lib/api-client";
 import { getAccessToken } from "~/lib/auth";
+import { MarkdownContent } from "~/components/vault/markdown-content";
 import { colors } from "~/styles/colors";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -184,8 +185,8 @@ export default function VaultDetailScreen() {
             {/* ── Extracted content ── */}
             {save.extracted_text ? (
               <View style={styles.section}>
-                <Text style={styles.sectionLabel}>EXTRACTED CONTENT</Text>
-                <Text style={styles.extractedText}>{save.extracted_text}</Text>
+                <Text style={styles.sectionLabel}>ARTICLE</Text>
+                <MarkdownContent content={save.extracted_text} />
               </View>
             ) : null}
 
