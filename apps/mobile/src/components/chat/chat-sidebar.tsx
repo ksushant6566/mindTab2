@@ -148,7 +148,7 @@ export function ChatSidebar({
   return (
     <View style={styles.wrapper}>
       {/* Sidebar panel */}
-      <Animated.View style={[styles.sidebar, { paddingTop: insets.top + 8 }, sidebarStyle]}>
+      <Animated.View style={[styles.sidebar, { paddingTop: insets.top }, sidebarStyle]}>
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
@@ -220,8 +220,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 20,
+    paddingBottom: 12,
   },
   headerLeft: {
     flexDirection: "row",
