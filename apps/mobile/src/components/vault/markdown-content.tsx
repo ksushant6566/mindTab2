@@ -119,9 +119,17 @@ function parseBlocks(markdown: string): Block[] {
     if (/^\s*[-*+]\s+/.test(trimmed)) {
       flushParagraph();
       const items: string[] = [];
-      while (i < lines.length && /^\s*[-*+]\s+/.test(lines[i].trimEnd())) {
-        items.push(lines[i].trimEnd().replace(/^\s*[-*+]\s+/, ""));
-        i++;
+      while (i < lines.length) {
+        const cur = lines[i].trimEnd();
+        if (/^\s*[-*+]\s+/.test(cur)) {
+          items.push(cur.replace(/^\s*[-*+]\s+/, ""));
+          i++;
+        } else if (cur === "" && i + 1 < lines.length && /^\s*[-*+]\s+/.test(lines[i + 1].trimEnd())) {
+          // Skip blank line between list items
+          i++;
+        } else {
+          break;
+        }
       }
       blocks.push({ type: "unordered_list", items });
       continue;
@@ -131,9 +139,17 @@ function parseBlocks(markdown: string): Block[] {
     if (/^\s*\d+[.)]\s+/.test(trimmed)) {
       flushParagraph();
       const items: string[] = [];
-      while (i < lines.length && /^\s*\d+[.)]\s+/.test(lines[i].trimEnd())) {
-        items.push(lines[i].trimEnd().replace(/^\s*\d+[.)]\s+/, ""));
-        i++;
+      while (i < lines.length) {
+        const cur = lines[i].trimEnd();
+        if (/^\s*\d+[.)]\s+/.test(cur)) {
+          items.push(cur.replace(/^\s*\d+[.)]\s+/, ""));
+          i++;
+        } else if (cur === "" && i + 1 < lines.length && /^\s*\d+[.)]\s+/.test(lines[i + 1].trimEnd())) {
+          // Skip blank line between list items
+          i++;
+        } else {
+          break;
+        }
       }
       blocks.push({ type: "ordered_list", items });
       continue;
