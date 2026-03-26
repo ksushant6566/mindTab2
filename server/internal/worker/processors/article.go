@@ -70,7 +70,7 @@ func (p *ArticleProcessor) Execute(ctx context.Context, step string, job *worker
 }
 
 func (p *ArticleProcessor) extract(ctx context.Context, job *worker.Job) (*worker.StepResult, error) {
-	return steps.Extract(ctx, p.jina, job)
+	return steps.Extract(ctx, p.jina, p.queries, job)
 }
 
 func (p *ArticleProcessor) summarize(ctx context.Context, prevResults worker.StepResults) (*worker.StepResult, error) {
