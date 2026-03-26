@@ -53,7 +53,7 @@ export default function MainLayout() {
       />
       <Stack.Screen
         name="vault/[id]"
-        options={{ headerShown: true, title: "Vault", animation: "slide_from_right" }}
+        options={{ headerShown: true, title: "Vault", headerBackTitle: "Vault", animation: "slide_from_right" }}
       />
     </Stack>
   );
