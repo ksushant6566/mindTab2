@@ -76,7 +76,6 @@ export default function CreateGoalModal() {
       <AppBottomSheet
         snapPoints={["90%"]}
         onClose={() => router.back()}
-        showBackdrop={false}
       >
         {/* Header */}
         <View

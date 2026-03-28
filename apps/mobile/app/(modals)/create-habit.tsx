@@ -69,7 +69,6 @@ export default function CreateHabitModal() {
       <AppBottomSheet
         snapPoints={["90%"]}
         onClose={() => router.back()}
-        showBackdrop={false}
       >
         {/* Header */}
         <View

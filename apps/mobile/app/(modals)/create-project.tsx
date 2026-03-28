@@ -60,7 +60,6 @@ export default function CreateProjectModal() {
       <AppBottomSheet
         snapPoints={["90%"]}
         onClose={() => router.back()}
-        showBackdrop={false}
       >
         {/* Header */}
         <View

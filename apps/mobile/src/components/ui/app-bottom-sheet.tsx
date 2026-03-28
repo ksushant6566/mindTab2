@@ -29,6 +29,7 @@ export const AppBottomSheet = forwardRef<BottomSheet, AppBottomSheetProps>(
         index={0}
         snapPoints={snapPoints}
         enablePanDownToClose
+        enableDynamicSizing={false}
         keyboardBehavior="interactive"
         keyboardBlurBehavior="restore"
         android_keyboardInputMode="adjustResize"
