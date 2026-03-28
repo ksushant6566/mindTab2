@@ -1,31 +1,35 @@
-import { Tabs, usePathname, useRouter } from "expo-router";
+import { useRef, useCallback, useState } from "react";
 import { View, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import PagerView from "react-native-pager-view";
 import { DashboardHeader } from "~/components/dashboard/dashboard-header";
 import { ChatSidebar } from "~/components/chat/chat-sidebar";
 import { useChatSidebar } from "~/hooks/use-chat-sidebar";
 import { colors } from "~/styles/colors";
 
+import ChatTab from "./chat";
+import Dashboard from "./index";
+import VaultTab from "./vault";
+
+const TABS = ["chat", "index", "vault"] as const;
+type Tab = (typeof TABS)[number];
+
 export default function TabsLayout() {
-  const pathname = usePathname();
-  const router = useRouter();
+  const pagerRef = useRef<PagerView>(null);
+  const [activeIndex, setActiveIndex] = useState(1); // Home is default
   const { isOpen, open, close } = useChatSidebar();
 
-  const activeTab = pathname.includes("/chat")
-    ? "chat"
-    : pathname.includes("/vault")
-    ? "vault"
-    : "index";
-
-  const handleTabChange = (tab: "chat" | "index" | "vault") => {
-    if (tab === "index") {
-      router.replace("/");
-    } else {
-      router.replace(`/${tab}` as "/(main)/(tabs)/chat" | "/(main)/(tabs)/vault");
-    }
-  };
-
+  const activeTab = TABS[activeIndex];
   const isChatTab = activeTab === "chat";
+
+  const handleTabChange = useCallback((tab: Tab) => {
+    const index = TABS.indexOf(tab);
+    pagerRef.current?.setPage(index);
+  }, []);
+
+  const handlePageSelected = useCallback((e: { nativeEvent: { position: number } }) => {
+    setActiveIndex(e.nativeEvent.position);
+  }, []);
 
   return (
     <ChatSidebar isOpen={isChatTab && isOpen} onClose={close}>
@@ -35,16 +39,22 @@ export default function TabsLayout() {
           onTabChange={handleTabChange}
           onMenuPress={isChatTab ? open : undefined}
         />
-        <Tabs
-          screenOptions={{
-            headerShown: false,
-            tabBarStyle: { display: "none" },
-          }}
+        <PagerView
+          ref={pagerRef}
+          style={styles.pager}
+          initialPage={1}
+          onPageSelected={handlePageSelected}
         >
-          <Tabs.Screen name="chat" options={{ title: "Chat" }} />
-          <Tabs.Screen name="index" options={{ title: "Home" }} />
-          <Tabs.Screen name="vault" options={{ title: "Vault" }} />
-        </Tabs>
+          <View key="chat" style={styles.page}>
+            <ChatTab />
+          </View>
+          <View key="index" style={styles.page}>
+            <Dashboard />
+          </View>
+          <View key="vault" style={styles.page}>
+            <VaultTab />
+          </View>
+        </PagerView>
       </SafeAreaView>
     </ChatSidebar>
   );
@@ -54,5 +64,11 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.bg.primary,
+  },
+  pager: {
+    flex: 1,
+  },
+  page: {
+    flex: 1,
   },
 });
