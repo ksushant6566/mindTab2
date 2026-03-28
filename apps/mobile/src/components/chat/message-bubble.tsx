@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import { View, Text, StyleSheet, Animated } from "react-native";
+import { colors } from "~/styles/colors";
 
 type MessageBubbleProps = {
   role: "user" | "assistant";
@@ -169,14 +170,14 @@ const styles = StyleSheet.create({
   userBubble: {
     alignSelf: "flex-end",
     maxWidth: "80%",
-    backgroundColor: "#ffffff",
+    backgroundColor: colors.white,
     borderRadius: 18,
     borderBottomRightRadius: 4,
     paddingHorizontal: 14,
     paddingVertical: 10,
   },
   userText: {
-    color: "#0a0a0a",
+    color: colors.text.inverse,
     fontSize: 14,
     lineHeight: 21,
     fontWeight: "500",
@@ -184,7 +185,7 @@ const styles = StyleSheet.create({
   assistantBubble: {
     alignSelf: "flex-start",
     maxWidth: "85%",
-    backgroundColor: "#141414",
+    backgroundColor: colors.bg.elevated,
     borderRadius: 18,
     borderTopLeftRadius: 4,
     paddingHorizontal: 14,
@@ -196,27 +197,27 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
   },
   assistantText: {
-    color: "#e0e0e0",
+    color: colors.text.reader,
     fontSize: 14,
     lineHeight: 22,
     flexShrink: 1,
   },
   boldText: {
     fontWeight: "700",
-    color: "#e0e0e0",
+    color: colors.text.reader,
   },
   inlineCode: {
     fontFamily: "monospace",
-    backgroundColor: "#1c1c1c",
-    color: "#d0d0d0",
-    fontSize: 13,
+    backgroundColor: colors.bg.surface,
+    color: colors.text.reader,
+    fontSize: 12,
   },
   cursor: {
     marginLeft: 2,
     marginBottom: 1,
   },
   cursorText: {
-    color: "#888888",
+    color: colors.text.secondary,
     fontSize: 14,
     lineHeight: 22,
   },
@@ -230,6 +231,6 @@ const styles = StyleSheet.create({
     width: 5,
     height: 5,
     borderRadius: 3,
-    backgroundColor: "#888888",
+    backgroundColor: colors.text.secondary,
   },
 });

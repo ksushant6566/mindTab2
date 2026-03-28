@@ -11,6 +11,7 @@ import {
 import { Paperclip, Mic, Send, X } from "lucide-react-native";
 import * as ImagePicker from "expo-image-picker";
 import { getAccessToken } from "~/lib/auth";
+import { colors } from "~/styles/colors";
 
 type ChatInputProps = {
   onSend: (text: string, attachments: string[]) => void;
@@ -81,7 +82,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
       <TextInput
         style={styles.textInput}
         placeholder="Ask anything..."
-        placeholderTextColor="#444444"
+        placeholderTextColor={colors.text.dim}
         value={text}
         onChangeText={setText}
         multiline
@@ -104,7 +105,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
                 onPress={() => removeAttachment(index)}
                 hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
               >
-                <X size={10} color="#fafafa" strokeWidth={2.5} />
+                <X size={10} color={colors.text.primary} strokeWidth={2.5} />
               </TouchableOpacity>
             </View>
           ))}
@@ -120,7 +121,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
             onPress={pickImage}
             disabled={disabled || isUploading}
           >
-            <Paperclip size={18} color="#777777" strokeWidth={2} />
+            <Paperclip size={18} color={colors.text.muted} strokeWidth={2} />
           </TouchableOpacity>
         </View>
 
@@ -128,7 +129,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
         <View style={styles.rightGroup}>
           {/* Mic — non-functional placeholder */}
           <TouchableOpacity style={styles.iconButton} disabled>
-            <Mic size={18} color="#777777" strokeWidth={2} />
+            <Mic size={18} color={colors.text.muted} strokeWidth={2} />
           </TouchableOpacity>
 
           {/* Send */}
@@ -141,11 +142,11 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
             disabled={!hasContent || disabled || isUploading}
           >
             {isUploading ? (
-              <ActivityIndicator size="small" color="#0a0a0a" />
+              <ActivityIndicator size="small" color={colors.bg.primary} />
             ) : (
               <Send
                 size={16}
-                color={hasContent ? "#0a0a0a" : "#666666"}
+                color={hasContent ? colors.bg.primary : colors.text.muted}
                 strokeWidth={2}
               />
             )}
@@ -158,16 +159,16 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: "#141414",
+    backgroundColor: colors.bg.elevated,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: "#222222",
+    borderColor: colors.border.input,
     paddingHorizontal: 16,
     paddingTop: 14,
     paddingBottom: 10,
   },
   textInput: {
-    color: "#fafafa",
+    color: colors.text.primary,
     fontSize: 16,
     maxHeight: 120,
     marginBottom: 12,
@@ -200,7 +201,7 @@ const styles = StyleSheet.create({
     width: 16,
     height: 16,
     borderRadius: 8,
-    backgroundColor: "#333333",
+    backgroundColor: colors.bg.input,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -221,14 +222,14 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: "#1c1c1c",
+    backgroundColor: colors.bg.surface,
     alignItems: "center",
     justifyContent: "center",
   },
   sendButtonActive: {
-    backgroundColor: "#ffffff",
+    backgroundColor: colors.white,
   },
   sendButtonInactive: {
-    backgroundColor: "#333333",
+    backgroundColor: colors.bg.input,
   },
 });

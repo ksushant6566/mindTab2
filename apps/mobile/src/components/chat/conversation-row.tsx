@@ -1,4 +1,5 @@
 import { View, Text, Pressable, StyleSheet } from "react-native";
+import { colors } from "~/styles/colors";
 
 type ConversationRowProps = {
   id: string;
@@ -58,11 +59,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   timestamp: {
-    color: "#444444",
+    color: colors.text.dim,
     fontSize: 12,
   },
   chevron: {
-    color: "#444444",
+    color: colors.text.dim,
     fontSize: 18,
     marginLeft: 8,
   },

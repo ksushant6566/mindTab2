@@ -1,4 +1,5 @@
 import { View, Text, Pressable, StyleSheet } from "react-native";
+import { colors } from "~/styles/colors";
 
 type EmptyStateProps = {
   onSuggestionPress: (text: string) => void;
@@ -40,11 +41,11 @@ const styles = StyleSheet.create({
   },
   title: {
     color: "#fafafa",
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: "600",
   },
   subtitle: {
-    color: "#555555",
+    color: colors.text.dim,
     fontSize: 14,
     marginBottom: 36,
   },
@@ -63,6 +64,6 @@ const styles = StyleSheet.create({
   },
   chipText: {
     color: "#888888",
-    fontSize: 13,
+    fontSize: 12,
   },
 });
