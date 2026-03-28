@@ -112,6 +112,11 @@ export default function ConversationDetail() {
     connect();
   }, [connect]);
 
+  // Sync active conversation ID to store so sidebar highlights correctly
+  useEffect(() => {
+    useChatStore.getState().setActiveConversation(id);
+  }, [id]);
+
   // Get conversation title from cached conversations list
   const cachedConversations = queryClient.getQueryData(["conversations"]);
   const cachedConversation = (cachedConversations as any)?.items?.find(

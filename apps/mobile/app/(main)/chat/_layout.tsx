@@ -1,16 +1,17 @@
-import { Stack, useLocalSearchParams } from "expo-router";
+import { Stack } from "expo-router";
 import { Pressable, StyleSheet } from "react-native";
 import { Menu } from "lucide-react-native";
 import { ChatSidebar } from "~/components/chat/chat-sidebar";
 import { useChatSidebar } from "~/hooks/use-chat-sidebar";
+import { useChatStore } from "~/hooks/use-chat-store";
 import { colors } from "~/styles/colors";
 
 export default function ChatLayout() {
-  const { id } = useLocalSearchParams<{ id: string }>();
   const { isOpen, open, close } = useChatSidebar();
+  const activeConversationId = useChatStore((s) => s.activeConversationId);
 
   return (
-    <ChatSidebar isOpen={isOpen} onClose={close} activeConversationId={id}>
+    <ChatSidebar isOpen={isOpen} onClose={close} activeConversationId={activeConversationId}>
       <Stack
         screenOptions={{
           headerStyle: { backgroundColor: colors.bg.primary },
