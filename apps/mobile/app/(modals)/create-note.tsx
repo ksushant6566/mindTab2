@@ -20,7 +20,6 @@ import { Chip } from "~/components/ui/chip";
 import { AppBottomSheet } from "~/components/ui/app-bottom-sheet";
 import { colors } from "~/styles/colors";
 import { toast } from "sonner-native";
-import { useRichEditor, RichTextEditorView } from "~/components/notes/rich-text-editor";
 
 const noteTypes = [
   { value: "article", label: "Article", color: colors.noteType.article },
@@ -50,14 +49,11 @@ export default function CreateNoteModal() {
   }, []);
 
   const [title, setTitle] = useState(savedDraft?.title ?? "");
+  const [content, setContent] = useState(savedDraft?.content ?? "");
   const [noteType, setNoteType] = useState(savedDraft?.noteType ?? "article");
   const [projectId, setProjectId] = useState<string | null>(
     activeProjectId ?? null,
   );
-
-  const editor = useRichEditor({
-    initialContent: savedDraft?.content ?? "",
-  });
 
   useEffect(() => {
     if (!savedDraft || didPromptDraft) return;
@@ -72,6 +68,7 @@ export default function CreateNoteModal() {
           onPress: () => {
             draftStorage.delete(DRAFT_KEY);
             setTitle("");
+            setContent("");
             setNoteType("article");
           },
         },
@@ -84,30 +81,31 @@ export default function CreateNoteModal() {
   useEffect(() => {
     return () => {
       if (didCreate.current) {
-        // Successfully created, clear draft
         draftStorage.delete(DRAFT_KEY);
         return;
       }
-      // Save draft if there's any content
-      if (title.trim()) {
-        const draft = { title, noteType, content: "" };
+      if (title.trim() || content.trim()) {
+        const draft = { title, noteType, content };
         draftStorage.set(DRAFT_KEY, JSON.stringify(draft));
       }
     };
-  }, [title, noteType]);
+  }, [title, noteType, content]);
 
-  const handleCreate = useCallback(async () => {
+  const handleCreate = useCallback(() => {
     if (!title.trim()) {
       toast.error("Title is required");
       return;
     }
 
-    const htmlContent = await editor.getHTML();
+    // Wrap plain text in <p> tags for the rich editor on the detail screen
+    const htmlContent = content.trim()
+      ? content.split("\n").filter(Boolean).map((line) => `<p>${line}</p>`).join("")
+      : "<p></p>";
 
     createJournal.mutate(
       {
         title: title.trim(),
-        content: htmlContent || "<p></p>",
+        content: htmlContent,
         type: noteType,
         ...(projectId ? { projectId } : {}),
       },
@@ -121,7 +119,7 @@ export default function CreateNoteModal() {
         onError: () => toast.error("Failed to create note"),
       }
     );
-  }, [title, editor, noteType]);
+  }, [title, content, noteType, projectId]);
 
   return (
     <View style={{ flex: 1, backgroundColor: "transparent" }}>
@@ -170,7 +168,7 @@ export default function CreateNoteModal() {
           keyboardDismissMode="interactive"
           showsVerticalScrollIndicator={false}
         >
-          {/* Title input */}
+          {/* Title */}
           <Text
             style={{
               fontSize: 14,
@@ -184,9 +182,33 @@ export default function CreateNoteModal() {
           <Input
             value={title}
             onChangeText={setTitle}
-            placeholder="Title"
+            placeholder="What's on your mind?"
             autoFocus
-            style={{ fontSize: 18, marginBottom: 16 }}
+            style={{ marginBottom: 20 }}
+          />
+
+          {/* Content */}
+          <Text
+            style={{
+              fontSize: 14,
+              fontWeight: "500",
+              color: colors.text.secondary,
+              marginBottom: 6,
+            }}
+          >
+            Content
+          </Text>
+          <Input
+            value={content}
+            onChangeText={setContent}
+            placeholder="Start writing..."
+            multiline
+            numberOfLines={6}
+            style={{
+              textAlignVertical: "top",
+              minHeight: 140,
+              marginBottom: 20,
+            }}
           />
 
           {/* Type chips */}
@@ -205,7 +227,7 @@ export default function CreateNoteModal() {
               flexDirection: "row",
               flexWrap: "wrap",
               gap: 8,
-              marginBottom: 16,
+              marginBottom: 20,
             }}
           >
             {noteTypes.map((t) => (
@@ -236,7 +258,7 @@ export default function CreateNoteModal() {
               flexDirection: "row",
               flexWrap: "wrap",
               gap: 8,
-              marginBottom: 16,
+              marginBottom: 28,
             }}
           >
             <Chip
@@ -256,33 +278,26 @@ export default function CreateNoteModal() {
             ))}
           </View>
 
-          {/* Rich text editor */}
-          <View style={{ minHeight: 200 }}>
-            <RichTextEditorView editor={editor} />
-          </View>
-
           {/* Create button */}
-          <View style={{ paddingTop: 12 }}>
-            <Button
-              onPress={handleCreate}
-              loading={createJournal.isPending}
-              disabled={!title.trim()}
-              state={createJournal.isSuccess ? "success" : createJournal.isError ? "error" : "idle"}
-              size="lg"
-            >
-              Create Note
-            </Button>
-            <Text
-              style={{
-                fontSize: 12,
-                color: colors.xp.gold,
-                textAlign: "center",
-                marginTop: 8,
-              }}
-            >
-              +5 XP
-            </Text>
-          </View>
+          <Button
+            onPress={handleCreate}
+            loading={createJournal.isPending}
+            disabled={!title.trim()}
+            state={createJournal.isSuccess ? "success" : createJournal.isError ? "error" : "idle"}
+            size="lg"
+          >
+            Create Note
+          </Button>
+          <Text
+            style={{
+              fontSize: 12,
+              color: colors.xp.gold,
+              textAlign: "center",
+              marginTop: 8,
+            }}
+          >
+            +5 XP
+          </Text>
         </ScrollView>
       </AppBottomSheet>
     </View>
