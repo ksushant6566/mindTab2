@@ -80,7 +80,7 @@ export function ChatSidebar({
       const { data } = await api.GET("/conversations" as any, {
         params: { query: { limit: 100, offset: 0 } },
       });
-      return data;
+      return data ?? { items: [] };
     },
   });
 
@@ -152,7 +152,7 @@ export function ChatSidebar({
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
-            <Pressable onPress={() => router.push("/(modals)/profile")}>
+            <Pressable onPress={() => router.push("/(screens)/profile")}>
               {user?.image ? (
                 <Image source={{ uri: user.image }} style={styles.avatar} />
               ) : (

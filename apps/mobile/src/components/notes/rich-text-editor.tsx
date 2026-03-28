@@ -1,12 +1,12 @@
 import { useState, useMemo, useRef } from "react";
 import {
-  KeyboardAvoidingView,
   Platform,
   Pressable,
   Text,
   View,
   StyleSheet as RNStyleSheet,
 } from "react-native";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import {
   useEditorBridge,
   RichText,
@@ -187,7 +187,7 @@ export function RichTextEditorView({
       />
       {showToolbar && (
         <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          behavior="padding"
           style={{ position: "absolute", bottom: 0, left: 0, right: 0 }}
         >
           <Animated.View

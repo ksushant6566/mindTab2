@@ -1,9 +1,9 @@
 import {
   View,
   Text,
-  ScrollView,
   Pressable,
 } from "react-native";
+import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { useState, useRef, useCallback } from "react";
 import { useRouter } from "expo-router";
 import { useCreateHabit } from "@mindtab/core";
@@ -101,9 +101,10 @@ export default function CreateHabitModal() {
           </Pressable>
         </View>
 
-        <ScrollView
+        <BottomSheetScrollView
           contentContainerStyle={{ paddingBottom: 40 }}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
           showsVerticalScrollIndicator={false}
         >
           {/* Title */}
@@ -237,7 +238,7 @@ export default function CreateHabitModal() {
           >
             +10 XP per day
           </Text>
-        </ScrollView>
+        </BottomSheetScrollView>
       </AppBottomSheet>
     </View>
   );

@@ -4,10 +4,9 @@ import {
   TextInput,
   Pressable,
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
   ScrollView,
 } from "react-native";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useState } from "react";
 import { useRouter } from "expo-router";
 import { useAuth } from "~/hooks/use-auth";
@@ -57,12 +56,13 @@ export default function EmailSignupScreen() {
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      behavior="padding"
       className="flex-1 bg-background"
     >
       <ScrollView
         contentContainerStyle={{ flexGrow: 1, justifyContent: "center" }}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
         className="px-8"
       >
         <Pressable onPress={() => router.back()} className="mb-8">

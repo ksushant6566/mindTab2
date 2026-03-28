@@ -8,6 +8,7 @@ import {
   RefreshControl,
   StyleSheet,
 } from "react-native";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
@@ -273,7 +274,8 @@ export default function ProjectDetailScreen() {
   const dotColor = status?.color ?? colors.text.muted;
 
   return (
-    <View style={styles.screen}>
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
+      <View style={styles.screen}>
       {/* ── Header ── */}
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <Pressable onPress={goBack} hitSlop={8} style={styles.backBtn}>
@@ -362,6 +364,7 @@ export default function ProjectDetailScreen() {
       <ScrollView
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -547,7 +550,8 @@ export default function ProjectDetailScreen() {
           </>
         )}
       </ScrollView>
-    </View>
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 

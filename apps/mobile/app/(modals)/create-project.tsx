@@ -1,9 +1,9 @@
 import {
   View,
   Text,
-  ScrollView,
   Pressable,
 } from "react-native";
+import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { useState } from "react";
 import { useRouter } from "expo-router";
 import { useCreateProject } from "@mindtab/core";
@@ -92,9 +92,10 @@ export default function CreateProjectModal() {
           </Pressable>
         </View>
 
-        <ScrollView
+        <BottomSheetScrollView
           contentContainerStyle={{ paddingBottom: 40 }}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
           showsVerticalScrollIndicator={false}
         >
           {/* Name */}
@@ -180,7 +181,7 @@ export default function CreateProjectModal() {
           >
             Create Project
           </Button>
-        </ScrollView>
+        </BottomSheetScrollView>
       </AppBottomSheet>
     </View>
   );

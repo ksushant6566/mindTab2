@@ -11,13 +11,14 @@ type AppBottomSheetProps = {
   children: ReactNode;
   snapPoints?: (string | number)[];
   onClose?: () => void;
+  showBackdrop?: boolean;
 };
 
 export const AppBottomSheet = forwardRef<BottomSheet, AppBottomSheetProps>(
-  ({ children, snapPoints = ["50%", "90%"], onClose }, ref) => {
+  ({ children, snapPoints = ["50%", "90%"], onClose, showBackdrop = true }, ref) => {
     const renderBackdrop = useCallback(
       (props: BottomSheetBackdropProps) => (
-        <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.5} />
+        <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.7} />
       ),
       []
     );
@@ -28,6 +29,10 @@ export const AppBottomSheet = forwardRef<BottomSheet, AppBottomSheetProps>(
         index={0}
         snapPoints={snapPoints}
         enablePanDownToClose
+        enableDynamicSizing={false}
+        keyboardBehavior="interactive"
+        keyboardBlurBehavior="restore"
+        android_keyboardInputMode="adjustResize"
         backgroundStyle={{
           backgroundColor: colors.bg.elevated,
           borderTopLeftRadius: 20,
@@ -38,7 +43,7 @@ export const AppBottomSheet = forwardRef<BottomSheet, AppBottomSheetProps>(
           width: 36,
           height: 4,
         }}
-        backdropComponent={renderBackdrop}
+        {...(showBackdrop ? { backdropComponent: renderBackdrop } : {})}
         onChange={(index) => {
           if (index >= 0) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
           if (index === -1) onClose?.();

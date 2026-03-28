@@ -6,6 +6,7 @@ import {
   TextInput,
   StyleSheet,
 } from "react-native";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useState, useMemo } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -157,7 +158,8 @@ export default function GoalDetailScreen() {
   };
 
   return (
-    <View style={styles.screen}>
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
+      <View style={styles.screen}>
       {/* ── Header ── */}
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <Pressable onPress={goBack} hitSlop={8} style={styles.headerBtn}>
@@ -205,6 +207,7 @@ export default function GoalDetailScreen() {
       <ScrollView
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
       >
         {/* ── Title ── */}
         {isEditing ? (
@@ -331,7 +334,8 @@ export default function GoalDetailScreen() {
           </View>
         )}
       </ScrollView>
-    </View>
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 

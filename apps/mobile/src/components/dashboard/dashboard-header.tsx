@@ -33,7 +33,7 @@ export function DashboardHeader({ activeTab, onTabChange, onMenuPress }: Dashboa
             <Menu size={22} color={colors.text.secondary} />
           </Pressable>
         ) : (
-          <Pressable onPress={() => router.push("/(modals)/profile")}>
+          <Pressable onPress={() => router.push("/(screens)/profile")}>
             {user?.image ? (
               <Image source={{ uri: user.image }} style={styles.avatar} />
             ) : (
@@ -68,7 +68,7 @@ export function DashboardHeader({ activeTab, onTabChange, onMenuPress }: Dashboa
 
         {/* Search */}
         <Pressable
-          onPress={() => router.push("/(modals)/command-palette")}
+          onPress={() => router.push("/(screens)/command-palette")}
           style={styles.searchButton}
         >
           <Search size={18} color="#a3a3a3" />

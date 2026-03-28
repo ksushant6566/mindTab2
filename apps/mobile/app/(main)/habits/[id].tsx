@@ -7,6 +7,7 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from "react-native";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useState, useMemo, useCallback } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -363,7 +364,8 @@ export default function HabitDetailScreen() {
     });
 
   return (
-    <View style={styles.screen}>
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
+      <View style={styles.screen}>
       {/* ── Header ── */}
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <Pressable onPress={goBack} hitSlop={8} style={styles.headerBtnLeft}>
@@ -442,6 +444,7 @@ export default function HabitDetailScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
       >
         {/* ── Title / Description (inline edit) ── */}
         {isEditing ? (
@@ -674,7 +677,8 @@ export default function HabitDetailScreen() {
           </View>
         )}
       </ScrollView>
-    </View>
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 

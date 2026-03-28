@@ -1,9 +1,9 @@
 import {
   View,
   Text,
-  ScrollView,
   Pressable,
 } from "react-native";
+import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { useState } from "react";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
@@ -108,9 +108,10 @@ export default function CreateGoalModal() {
           </Pressable>
         </View>
 
-        <ScrollView
+        <BottomSheetScrollView
           contentContainerStyle={{ paddingBottom: 40 }}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
           showsVerticalScrollIndicator={false}
         >
           {/* Title */}
@@ -272,7 +273,7 @@ export default function CreateGoalModal() {
           >
             +25 XP
           </Text>
-        </ScrollView>
+        </BottomSheetScrollView>
       </AppBottomSheet>
     </View>
   );

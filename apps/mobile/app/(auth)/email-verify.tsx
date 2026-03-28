@@ -4,9 +4,9 @@ import {
   TextInput,
   Pressable,
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
+  Keyboard,
 } from "react-native";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useState } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useAuth } from "~/hooks/use-auth";
@@ -39,10 +39,10 @@ export default function EmailVerifyScreen() {
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      behavior="padding"
       className="flex-1 bg-background"
     >
-      <View className="flex-1 justify-center px-8">
+      <Pressable className="flex-1 justify-center px-8" onPress={Keyboard.dismiss}>
         <Pressable onPress={() => router.back()} className="mb-8">
           <Text className="text-muted-foreground text-base">← Back</Text>
         </Pressable>
@@ -82,7 +82,7 @@ export default function EmailVerifyScreen() {
             Didn't get a code? Go back and try again
           </Text>
         </Pressable>
-      </View>
+      </Pressable>
     </KeyboardAvoidingView>
   );
 }

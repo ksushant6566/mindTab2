@@ -4,6 +4,7 @@ import {
   Pressable,
   Alert,
 } from "react-native";
+import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
@@ -19,7 +20,6 @@ import { Chip } from "~/components/ui/chip";
 import { AppBottomSheet } from "~/components/ui/app-bottom-sheet";
 import { colors } from "~/styles/colors";
 import { toast } from "sonner-native";
-import { useRichEditor, RichTextEditorView } from "~/components/notes/rich-text-editor";
 
 const noteTypes = [
   { value: "article", label: "Article", color: colors.noteType.article },
@@ -49,14 +49,11 @@ export default function CreateNoteModal() {
   }, []);
 
   const [title, setTitle] = useState(savedDraft?.title ?? "");
+  const [content, setContent] = useState(savedDraft?.content ?? "");
   const [noteType, setNoteType] = useState(savedDraft?.noteType ?? "article");
   const [projectId, setProjectId] = useState<string | null>(
     activeProjectId ?? null,
   );
-
-  const editor = useRichEditor({
-    initialContent: savedDraft?.content ?? "",
-  });
 
   useEffect(() => {
     if (!savedDraft || didPromptDraft) return;
@@ -71,6 +68,7 @@ export default function CreateNoteModal() {
           onPress: () => {
             draftStorage.delete(DRAFT_KEY);
             setTitle("");
+            setContent("");
             setNoteType("article");
           },
         },
@@ -83,30 +81,31 @@ export default function CreateNoteModal() {
   useEffect(() => {
     return () => {
       if (didCreate.current) {
-        // Successfully created, clear draft
         draftStorage.delete(DRAFT_KEY);
         return;
       }
-      // Save draft if there's any content
-      if (title.trim()) {
-        const draft = { title, noteType, content: "" };
+      if (title.trim() || content.trim()) {
+        const draft = { title, noteType, content };
         draftStorage.set(DRAFT_KEY, JSON.stringify(draft));
       }
     };
-  }, [title, noteType]);
+  }, [title, noteType, content]);
 
-  const handleCreate = useCallback(async () => {
+  const handleCreate = useCallback(() => {
     if (!title.trim()) {
       toast.error("Title is required");
       return;
     }
 
-    const htmlContent = await editor.getHTML();
+    // Wrap plain text in <p> tags for the rich editor on the detail screen
+    const htmlContent = content.trim()
+      ? content.split("\n").filter(Boolean).map((line) => `<p>${line}</p>`).join("")
+      : "<p></p>";
 
     createJournal.mutate(
       {
         title: title.trim(),
-        content: htmlContent || "<p></p>",
+        content: htmlContent,
         type: noteType,
         ...(projectId ? { projectId } : {}),
       },
@@ -120,7 +119,7 @@ export default function CreateNoteModal() {
         onError: () => toast.error("Failed to create note"),
       }
     );
-  }, [title, editor, noteType]);
+  }, [title, content, noteType, projectId]);
 
   return (
     <View style={{ flex: 1, backgroundColor: "transparent" }}>
@@ -163,108 +162,123 @@ export default function CreateNoteModal() {
           </Pressable>
         </View>
 
-        {/* Title input */}
-        <Text
-          style={{
-            fontSize: 14,
-            fontWeight: "500",
-            color: colors.text.secondary,
-            marginBottom: 6,
-          }}
+        <BottomSheetScrollView
+          contentContainerStyle={{ paddingBottom: 40 }}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+          showsVerticalScrollIndicator={false}
         >
-          Title
-        </Text>
-        <Input
-          value={title}
-          onChangeText={setTitle}
-          placeholder="Title"
-          autoFocus
-          style={{ fontSize: 18, marginBottom: 16 }}
-        />
-
-        {/* Type chips */}
-        <Text
-          style={{
-            fontSize: 14,
-            fontWeight: "500",
-            color: colors.text.secondary,
-            marginBottom: 6,
-          }}
-        >
-          Type
-        </Text>
-        <View
-          style={{
-            flexDirection: "row",
-            flexWrap: "wrap",
-            gap: 8,
-            marginBottom: 16,
-          }}
-        >
-          {noteTypes.map((t) => (
-            <Chip
-              key={t.value}
-              label={t.label}
-              selected={noteType === t.value}
-              color={t.color}
-              size="sm"
-              onPress={() => setNoteType(t.value)}
-            />
-          ))}
-        </View>
-
-        {/* Project */}
-        <Text
-          style={{
-            fontSize: 14,
-            fontWeight: "500",
-            color: colors.text.secondary,
-            marginBottom: 6,
-          }}
-        >
-          Project
-        </Text>
-        <View
-          style={{
-            flexDirection: "row",
-            flexWrap: "wrap",
-            gap: 8,
-            marginBottom: 16,
-          }}
-        >
-          <Chip
-            label="None"
-            selected={projectId === null}
-            color={colors.text.muted}
-            onPress={() => setProjectId(null)}
-          />
-          {projects?.map((p) => (
-            <Chip
-              key={p.id}
-              label={p.name ?? ""}
-              selected={projectId === p.id}
-              color={colors.accent.indigo}
-              onPress={() => setProjectId(p.id)}
-            />
-          ))}
-        </View>
-
-        {/* Rich text editor */}
-        <View style={{ flex: 1 }}>
+          {/* Title */}
           <Text
             style={{
-              paddingBottom: 8,
-              fontSize: 12,
-              color: colors.text.muted,
+              fontSize: 14,
+              fontWeight: "500",
+              color: colors.text.secondary,
+              marginBottom: 6,
             }}
           >
-            TODO: add @mention picker search sheet when typing @ in the editor.
+            Title
           </Text>
-          <RichTextEditorView editor={editor} />
-        </View>
+          <Input
+            value={title}
+            onChangeText={setTitle}
+            placeholder="What's on your mind?"
+            autoFocus
+            style={{ marginBottom: 20 }}
+          />
 
-        {/* Create button */}
-        <View style={{ paddingBottom: 40, paddingTop: 12 }}>
+          {/* Content */}
+          <Text
+            style={{
+              fontSize: 14,
+              fontWeight: "500",
+              color: colors.text.secondary,
+              marginBottom: 6,
+            }}
+          >
+            Content
+          </Text>
+          <Input
+            value={content}
+            onChangeText={setContent}
+            placeholder="Start writing..."
+            multiline
+            numberOfLines={6}
+            style={{
+              textAlignVertical: "top",
+              minHeight: 140,
+              marginBottom: 20,
+            }}
+          />
+
+          {/* Type chips */}
+          <Text
+            style={{
+              fontSize: 14,
+              fontWeight: "500",
+              color: colors.text.secondary,
+              marginBottom: 6,
+            }}
+          >
+            Type
+          </Text>
+          <View
+            style={{
+              flexDirection: "row",
+              flexWrap: "wrap",
+              gap: 8,
+              marginBottom: 20,
+            }}
+          >
+            {noteTypes.map((t) => (
+              <Chip
+                key={t.value}
+                label={t.label}
+                selected={noteType === t.value}
+                color={t.color}
+                size="sm"
+                onPress={() => setNoteType(t.value)}
+              />
+            ))}
+          </View>
+
+          {/* Project */}
+          <Text
+            style={{
+              fontSize: 14,
+              fontWeight: "500",
+              color: colors.text.secondary,
+              marginBottom: 6,
+            }}
+          >
+            Project
+          </Text>
+          <View
+            style={{
+              flexDirection: "row",
+              flexWrap: "wrap",
+              gap: 8,
+              marginBottom: 28,
+            }}
+          >
+            <Chip
+              label="None"
+              selected={projectId === null}
+              color={colors.text.muted}
+              onPress={() => setProjectId(null)}
+            />
+            {projects?.map((p) => (
+              <Chip
+                key={p.id}
+                label={p.name ?? ""}
+                selected={projectId === p.id}
+                color={colors.accent.indigo}
+                onPress={() => setProjectId(p.id)}
+              />
+            ))}
+          </View>
+
+          {/* Create button */}
           <Button
             onPress={handleCreate}
             loading={createJournal.isPending}
@@ -284,7 +298,7 @@ export default function CreateNoteModal() {
           >
             +5 XP
           </Text>
-        </View>
+        </BottomSheetScrollView>
       </AppBottomSheet>
     </View>
   );
