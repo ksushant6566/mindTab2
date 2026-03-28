@@ -233,7 +233,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   monthLabel: {
-    fontSize: 9,
+    fontSize: 10,
     color: colors.text.muted,
   },
   gridContainer: {
@@ -243,7 +243,7 @@ const styles = StyleSheet.create({
     justifyContent: "flex-start",
   },
   dayLabelText: {
-    fontSize: 9,
+    fontSize: 10,
     color: colors.text.muted,
   },
   weeksRow: {

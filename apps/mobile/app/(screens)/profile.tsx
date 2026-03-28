@@ -263,7 +263,7 @@ const styles = StyleSheet.create({
     color: colors.text.primary,
   },
   userName: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: "700",
     color: colors.text.primary,
     marginBottom: 4,
@@ -334,7 +334,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   xpSubtitle: {
-    fontSize: 13,
+    fontSize: 12,
     color: colors.text.muted,
   },
 
