@@ -167,7 +167,7 @@ export function FAB({ visible, contextFilter }: FABProps) {
         <GestureDetector gesture={fabGesture}>
           <Animated.View style={styles.fab}>
             <Animated.View style={plusRotationStyle}>
-              <Plus size={28} color="#ffffff" strokeWidth={2.5} />
+              <Plus size={28} color={colors.white} strokeWidth={2.5} />
             </Animated.View>
           </Animated.View>
         </GestureDetector>

@@ -306,7 +306,7 @@ const styles = StyleSheet.create({
   },
 
   backdrop: {
-    backgroundColor: "#000",
+    backgroundColor: colors.black,
   },
 
   popup: {
