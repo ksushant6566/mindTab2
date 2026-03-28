@@ -159,7 +159,7 @@ export default function GoalDetailScreen() {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
-    <View style={styles.screen}>
+      <View style={styles.screen}>
       {/* ── Header ── */}
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <Pressable onPress={goBack} hitSlop={8} style={styles.headerBtn}>
@@ -333,7 +333,7 @@ export default function GoalDetailScreen() {
           </View>
         )}
       </ScrollView>
-    </View>
+      </View>
     </KeyboardAvoidingView>
   );
 }

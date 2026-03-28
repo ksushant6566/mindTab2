@@ -275,7 +275,7 @@ export default function ProjectDetailScreen() {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
-    <View style={styles.screen}>
+      <View style={styles.screen}>
       {/* ── Header ── */}
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <Pressable onPress={goBack} hitSlop={8} style={styles.backBtn}>
@@ -549,7 +549,7 @@ export default function ProjectDetailScreen() {
           </>
         )}
       </ScrollView>
-    </View>
+      </View>
     </KeyboardAvoidingView>
   );
 }

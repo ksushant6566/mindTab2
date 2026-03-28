@@ -365,7 +365,7 @@ export default function HabitDetailScreen() {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
-    <View style={styles.screen}>
+      <View style={styles.screen}>
       {/* ── Header ── */}
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <Pressable onPress={goBack} hitSlop={8} style={styles.headerBtnLeft}>
@@ -676,7 +676,7 @@ export default function HabitDetailScreen() {
           </View>
         )}
       </ScrollView>
-    </View>
+      </View>
     </KeyboardAvoidingView>
   );
 }
