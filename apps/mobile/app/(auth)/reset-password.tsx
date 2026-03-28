@@ -4,10 +4,9 @@ import {
   TextInput,
   Pressable,
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
   ScrollView,
 } from "react-native";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useState } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useAuth } from "~/hooks/use-auth";
@@ -51,7 +50,7 @@ export default function ResetPasswordScreen() {
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      behavior="padding"
       className="flex-1 bg-background"
     >
       <ScrollView
