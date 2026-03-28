@@ -27,8 +27,15 @@ export default function TabsLayout() {
     pagerRef.current?.setPage(index);
   }, []);
 
-  const handlePageSelected = useCallback((e: { nativeEvent: { position: number } }) => {
-    setActiveIndex(e.nativeEvent.position);
+  // Update pill during swipe, not just on settle
+  const lastRoundedPage = useRef(1);
+  const handlePageScroll = useCallback((e: { nativeEvent: { position: number; offset: number } }) => {
+    const { position, offset } = e.nativeEvent;
+    const rounded = Math.round(position + offset);
+    if (rounded !== lastRoundedPage.current) {
+      lastRoundedPage.current = rounded;
+      setActiveIndex(rounded);
+    }
   }, []);
 
   return (
@@ -43,7 +50,7 @@ export default function TabsLayout() {
           ref={pagerRef}
           style={styles.pager}
           initialPage={1}
-          onPageSelected={handlePageSelected}
+          onPageScroll={handlePageScroll}
         >
           <View key="chat" style={styles.page}>
             <ChatTab />
