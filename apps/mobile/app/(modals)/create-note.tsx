@@ -3,6 +3,7 @@ import {
   Text,
   Pressable,
   Alert,
+  Keyboard,
 } from "react-native";
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -132,6 +133,7 @@ export default function CreateNoteModal() {
         snapPoints={["90%"]}
         onClose={() => router.back()}
       >
+        <Pressable style={{ flex: 1 }} onPress={Keyboard.dismiss}>
         {/* Header */}
         <View
           style={{
@@ -285,6 +287,7 @@ export default function CreateNoteModal() {
             +5 XP
           </Text>
         </View>
+        </Pressable>
       </AppBottomSheet>
     </View>
   );
