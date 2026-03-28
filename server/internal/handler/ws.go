@@ -52,8 +52,14 @@ func NewWSHandler(orchestrator *chat.Orchestrator, jwtSecret string, allowedOrig
 			if origin == "" {
 				return true // mobile apps and non-browser clients
 			}
-			// Allow localhost for development
-			if strings.HasPrefix(origin, "http://localhost") || strings.HasPrefix(origin, "https://localhost") {
+			// Allow localhost and local network IPs for development (Metro bundler on physical devices)
+			if strings.HasPrefix(origin, "http://localhost") || strings.HasPrefix(origin, "https://localhost") ||
+				strings.HasPrefix(origin, "http://192.168.") || strings.HasPrefix(origin, "http://10.") ||
+				strings.HasPrefix(origin, "http://172.") {
+				return true
+			}
+			// React Native on-device: origin may be the app scheme or "file://"
+			if origin == "file://" {
 				return true
 			}
 			// Check against configured allowed origins
