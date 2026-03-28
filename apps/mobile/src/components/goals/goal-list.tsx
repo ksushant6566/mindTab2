@@ -194,7 +194,7 @@ const sortStyles = StyleSheet.create({
     borderColor: colors.border.default,
   },
   sortLabel: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "500",
     color: colors.text.secondary,
   },

@@ -604,7 +604,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   priorityText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "600",
   },
   impactRow: {
@@ -613,7 +613,7 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   impactText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "500",
   },
   projectName: {

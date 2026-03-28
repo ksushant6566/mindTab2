@@ -358,7 +358,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   typeBadgeText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "600",
   },
   dateText: {
@@ -372,7 +372,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   projectPillText: {
-    fontSize: 11,
+    fontSize: 12,
     color: colors.accent.indigo,
     fontWeight: "500",
   },
