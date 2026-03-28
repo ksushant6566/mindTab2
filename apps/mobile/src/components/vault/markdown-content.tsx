@@ -1,16 +1,32 @@
 import React from "react";
 import { StyleSheet } from "react-native";
-import Markdown from "react-native-markdown-display";
+import Markdown from "@ronradtke/react-native-markdown-display";
 import { colors } from "~/styles/colors";
 
 type MarkdownContentProps = {
   content: string;
 };
 
+function cleanContent(raw: string): string {
+  let text = raw;
+
+  // Strip preamble (temporary — should move server-side)
+  const idx = text.indexOf("Markdown Content:");
+  if (idx !== -1) {
+    text = text.slice(idx + "Markdown Content:".length);
+  }
+
+  // Remove all image markdown — extracted article text doesn't contain
+  // useful images (they're either broken URLs or extraction artifacts)
+  text = text.replace(/!\[[^\]]*\]\([^)]*\)/g, "");
+
+  return text.trim();
+}
+
 export function MarkdownContent({ content }: MarkdownContentProps) {
   return (
     <Markdown style={markdownStyles}>
-      {content}
+      {cleanContent(content)}
     </Markdown>
   );
 }
