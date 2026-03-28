@@ -71,7 +71,7 @@ const markdownStyles = StyleSheet.create({
   },
   heading5: {
     color: colors.text.primary,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "600",
     lineHeight: 19,
     marginTop: 2,
@@ -114,7 +114,7 @@ const markdownStyles = StyleSheet.create({
     fontFamily: "monospace",
     backgroundColor: "#1c1c1c",
     color: "#d0d0d0",
-    fontSize: 13,
+    fontSize: 12,
     paddingHorizontal: 3,
   },
   code_block: {

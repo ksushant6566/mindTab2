@@ -123,7 +123,7 @@ export function SaveFAB() {
     <>
       {/* FAB button */}
       <Pressable style={styles.fab} onPress={openSheet}>
-        <Plus size={24} color="#000000" strokeWidth={2.5} />
+        <Plus size={24} color={colors.black} strokeWidth={2.5} />
       </Pressable>
 
       {/* Bottom sheet */}
@@ -146,7 +146,7 @@ export function SaveFAB() {
               value={urlInput}
               onChangeText={setUrlInput}
               placeholder="Paste article URL..."
-              placeholderTextColor="#555555"
+              placeholderTextColor={colors.text.dim}
               style={styles.urlInput}
               autoCapitalize="none"
               autoCorrect={false}
@@ -190,10 +190,10 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: "#ffffff",
+    backgroundColor: colors.white,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#000000",
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.5,
     shadowRadius: 20,
@@ -218,7 +218,7 @@ const styles = StyleSheet.create({
   // Section label
   sectionLabel: {
     color: "#888888",
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "600",
     marginBottom: 12,
     marginTop: 8,
@@ -236,7 +236,7 @@ const styles = StyleSheet.create({
   },
   // Save button
   saveBtn: {
-    backgroundColor: "#ffffff",
+    backgroundColor: colors.white,
     borderRadius: 12,
     paddingVertical: 12,
     alignItems: "center",

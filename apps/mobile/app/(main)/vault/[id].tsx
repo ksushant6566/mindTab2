@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
   // Title
   title: {
     color: "#fafafa",
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: "600",
     lineHeight: 28.6,
     marginBottom: 14,
@@ -297,7 +297,7 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     color: "#555555",
-    fontSize: 11,
+    fontSize: 12,
     textTransform: "uppercase",
     letterSpacing: 0.5,
     marginBottom: 10,
@@ -335,7 +335,7 @@ const styles = StyleSheet.create({
   // Extracted content
   extractedText: {
     color: "#999999",
-    fontSize: 13,
+    fontSize: 12,
     lineHeight: 22.1,
   },
   // Open button

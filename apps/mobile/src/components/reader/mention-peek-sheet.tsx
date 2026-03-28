@@ -494,13 +494,13 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   pillLabel: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "600",
   },
 
   // Meta
   meta: {
-    fontSize: 13,
+    fontSize: 12,
     color: colors.text.muted,
   },
 
@@ -516,7 +516,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   sectionLabel: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "600",
     color: colors.text.muted,
   },
