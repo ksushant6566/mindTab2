@@ -1,10 +1,10 @@
 import {
   View,
   Text,
-  ScrollView,
   Pressable,
   Alert,
 } from "react-native";
+import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
@@ -162,7 +162,7 @@ export default function CreateNoteModal() {
           </Pressable>
         </View>
 
-        <ScrollView
+        <BottomSheetScrollView
           contentContainerStyle={{ paddingBottom: 40 }}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="interactive"
@@ -298,7 +298,7 @@ export default function CreateNoteModal() {
           >
             +5 XP
           </Text>
-        </ScrollView>
+        </BottomSheetScrollView>
       </AppBottomSheet>
     </View>
   );
