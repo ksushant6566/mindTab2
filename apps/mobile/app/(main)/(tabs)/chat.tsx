@@ -1,5 +1,5 @@
 import { View, StyleSheet, Keyboard, Pressable } from "react-native";
-import { KeyboardAvoidingView, useKeyboardContext } from "react-native-keyboard-controller";
+import { KeyboardAvoidingView, useReanimatedKeyboardAnimation } from "react-native-keyboard-controller";
 import Animated, { useAnimatedStyle, interpolate } from "react-native-reanimated";
 import { useRouter } from "expo-router";
 import { useEffect, useRef } from "react";
@@ -47,15 +47,10 @@ export default function ChatTab() {
     sendMessage(text, undefined, attachments);
   };
 
-  const { animated: { height: keyboardHeight } } = useKeyboardContext();
+  const { progress } = useReanimatedKeyboardAnimation();
 
   const animatedPadding = useAnimatedStyle(() => ({
-    paddingBottom: interpolate(
-      keyboardHeight.value,
-      [0, 1],
-      [36, 8],
-      "clamp",
-    ),
+    paddingBottom: interpolate(progress.value, [0, 1], [36, 8]),
   }));
 
   return (
