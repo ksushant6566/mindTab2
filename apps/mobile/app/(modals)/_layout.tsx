@@ -5,6 +5,7 @@ const transparentModalOptions = {
   presentation: "transparentModal" as const,
   animation: "fade" as const,
   headerShown: false,
+  contentStyle: { backgroundColor: "transparent" },
 };
 
 export default function ModalsLayout() {
