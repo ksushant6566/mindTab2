@@ -3,13 +3,13 @@ import {
   View,
   FlatList,
   StyleSheet,
-  KeyboardAvoidingView,
   Platform,
   Pressable,
   TouchableOpacity,
   Text,
   Alert,
 } from "react-native";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { MoreHorizontal, Menu } from "lucide-react-native";
@@ -252,8 +252,8 @@ export default function ConversationDetail() {
 
       <KeyboardAvoidingView
         style={styles.container}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+        behavior="padding"
+        keyboardVerticalOffset={90}
       >
         <FlatList
           ref={flatListRef}

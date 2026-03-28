@@ -1,4 +1,5 @@
-import { View, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
+import { View, StyleSheet } from "react-native";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useRouter } from "expo-router";
 import { useEffect, useRef } from "react";
 import { ChatEmptyState } from "~/components/chat/empty-state";
@@ -44,7 +45,7 @@ export default function ChatTab() {
   return (
     <KeyboardAvoidingView
       style={styles.keyboardAvoid}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      behavior="padding"
     >
       <View style={styles.container}>
         {/* Empty state centered */}
