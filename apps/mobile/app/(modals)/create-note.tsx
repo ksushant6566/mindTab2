@@ -130,6 +130,7 @@ export default function CreateNoteModal() {
       <AppBottomSheet
         snapPoints={["90%"]}
         onClose={() => router.back()}
+        showBackdrop={false}
       >
         {/* Header */}
         <View

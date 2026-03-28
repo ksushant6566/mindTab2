@@ -11,10 +11,11 @@ type AppBottomSheetProps = {
   children: ReactNode;
   snapPoints?: (string | number)[];
   onClose?: () => void;
+  showBackdrop?: boolean;
 };
 
 export const AppBottomSheet = forwardRef<BottomSheet, AppBottomSheetProps>(
-  ({ children, snapPoints = ["50%", "90%"], onClose }, ref) => {
+  ({ children, snapPoints = ["50%", "90%"], onClose, showBackdrop = true }, ref) => {
     const renderBackdrop = useCallback(
       (props: BottomSheetBackdropProps) => (
         <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.5} />
@@ -41,7 +42,7 @@ export const AppBottomSheet = forwardRef<BottomSheet, AppBottomSheetProps>(
           width: 36,
           height: 4,
         }}
-        backdropComponent={renderBackdrop}
+        backdropComponent={showBackdrop ? renderBackdrop : null}
         onChange={(index) => {
           if (index >= 0) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
           if (index === -1) onClose?.();
