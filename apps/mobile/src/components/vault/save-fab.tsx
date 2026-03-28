@@ -5,9 +5,8 @@ import {
   Text,
   TextInput,
   View,
-  KeyboardAvoidingView,
-  Platform,
 } from "react-native";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import {
   BottomSheetModal,
   BottomSheetView,
@@ -138,7 +137,7 @@ export function SaveFAB() {
       >
         <BottomSheetView style={styles.sheetContent}>
           <KeyboardAvoidingView
-            behavior={Platform.OS === "ios" ? "padding" : undefined}
+            behavior="padding"
             style={{ flex: 1 }}
           >
             {/* ── Save URL section ── */}
