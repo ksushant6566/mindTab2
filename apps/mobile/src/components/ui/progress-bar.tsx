@@ -105,6 +105,6 @@ const styles = StyleSheet.create({
   },
   shimmerOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "#ffffff",
+    backgroundColor: colors.white,
   },
 });

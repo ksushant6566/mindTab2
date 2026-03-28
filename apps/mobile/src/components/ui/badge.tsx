@@ -21,7 +21,7 @@ const variantBg: Record<BadgeVariant, ViewStyle> = {
 const variantText: Record<BadgeVariant, string> = {
   default: colors.bg.primary,
   secondary: colors.text.primary,
-  destructive: "#ffffff",
+  destructive: colors.white,
   outline: colors.text.primary,
   success: colors.feedback.success,
   warning: colors.feedback.warning,

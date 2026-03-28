@@ -143,7 +143,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent.indigoMuted,
   },
   undoText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "700",
     color: colors.accent.indigo,
     letterSpacing: 0.5,

@@ -112,7 +112,7 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   count: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "600",
   },
   overlayContainer: {
