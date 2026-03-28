@@ -48,7 +48,12 @@ export function useWebSocket() {
 
     const token = await getAccessToken();
     if (!token) {
-      console.warn("[useWebSocket] No access token available, skipping connect");
+      console.warn("[useWebSocket] No access token available, retrying in 3s");
+      if (!intentionalDisconnectRef.current) {
+        reconnectTimerRef.current = setTimeout(() => {
+          connect();
+        }, 3000);
+      }
       return;
     }
 
