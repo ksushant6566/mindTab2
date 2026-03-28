@@ -42,7 +42,7 @@ export function ConversationRow({ id, title, updatedAt, onPress }: ConversationR
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: "#111111",
+    backgroundColor: colors.bg.elevated,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -55,7 +55,7 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   title: {
-    color: "#e0e0e0",
+    color: colors.text.reader,
     fontSize: 14,
   },
   timestamp: {

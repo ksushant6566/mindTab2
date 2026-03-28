@@ -156,7 +156,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   processingUrl: {
-    color: "#888888",
+    color: colors.text.secondary,
     fontSize: 12,
   },
   articleThumbnail: {
@@ -185,7 +185,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   title: {
-    color: "#e0e0e0",
+    color: colors.text.reader,
     fontSize: 12,
     fontWeight: "500",
   },
@@ -206,7 +206,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   tagText: {
-    color: "#666666",
+    color: colors.text.muted,
     fontSize: 10,
   },
 });

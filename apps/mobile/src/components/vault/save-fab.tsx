@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#0a0a0a",
   },
   sheetHandle: {
-    backgroundColor: "#333333",
+    backgroundColor: colors.bg.input,
     width: 36,
     height: 4,
   },
@@ -217,7 +217,7 @@ const styles = StyleSheet.create({
   },
   // Section label
   sectionLabel: {
-    color: "#888888",
+    color: colors.text.secondary,
     fontSize: 12,
     fontWeight: "600",
     marginBottom: 12,
@@ -228,7 +228,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#141414",
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#222222",
+    borderColor: colors.border.input,
     color: "#fafafa",
     padding: 12,
     fontSize: 14,
@@ -261,7 +261,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#141414",
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#222222",
+    borderColor: colors.border.input,
     paddingVertical: 14,
     alignItems: "center",
   },

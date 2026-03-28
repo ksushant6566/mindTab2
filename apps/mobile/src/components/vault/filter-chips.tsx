@@ -54,7 +54,7 @@ const styles = StyleSheet.create({
   chipInactive: {
     backgroundColor: "transparent",
     borderWidth: 1,
-    borderColor: "#222222",
+    borderColor: colors.border.input,
     paddingHorizontal: 14,
     paddingVertical: 6,
     borderRadius: 999,

@@ -242,7 +242,7 @@ export default function GoalDetailScreen() {
                 <Text
                   style={[
                     styles.statusBtnText,
-                    { color: selected ? "#fff" : colors.text.muted },
+                    { color: selected ? colors.white : colors.text.muted },
                   ]}
                 >
                   {cfg.label}
@@ -407,7 +407,7 @@ const styles = StyleSheet.create({
   deleteConfirmText: {
     fontSize: 12,
     fontWeight: "600",
-    color: "#fff",
+    color: colors.white,
   },
 
   // Content

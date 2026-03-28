@@ -818,7 +818,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     minWidth: 180,
     zIndex: 21,
-    shadowColor: "#000",
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -888,7 +888,7 @@ const styles = StyleSheet.create({
   deleteConfirmText: {
     fontSize: 12,
     fontWeight: "600",
-    color: "#fff",
+    color: colors.white,
   },
 
   // Content
@@ -991,7 +991,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   statNumber: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: "700",
     color: colors.text.primary,
   },

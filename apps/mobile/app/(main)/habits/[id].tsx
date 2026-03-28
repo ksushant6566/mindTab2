@@ -761,7 +761,7 @@ const styles = StyleSheet.create({
   deleteBarConfirmText: {
     fontSize: 12,
     fontWeight: "600",
-    color: "#ffffff",
+    color: colors.white,
   },
 
   // ── Scroll content ──
@@ -1030,7 +1030,7 @@ const styles = StyleSheet.create({
     color: colors.text.secondary,
   },
   calendarDayNumDone: {
-    color: "#ffffff",
+    color: colors.white,
     fontWeight: "600",
   },
   calendarDayNumFuture: {

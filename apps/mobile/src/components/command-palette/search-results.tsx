@@ -159,7 +159,7 @@ const styles = StyleSheet.create({
     paddingBottom: 4,
   },
   sectionTitle: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "600",
     color: colors.text.muted,
     textTransform: "uppercase",
@@ -192,7 +192,7 @@ const styles = StyleSheet.create({
   },
   collapsedText: {
     flex: 1,
-    fontSize: 13,
+    fontSize: 12,
     color: colors.text.muted,
     fontWeight: "500",
   },

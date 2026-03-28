@@ -282,23 +282,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   xpCompactLevel: {
-    color: "#ffffff",
+    color: colors.white,
     fontSize: 14,
     fontWeight: "600",
   },
   xpCompactCount: {
-    color: "#888888",
+    color: colors.text.secondary,
     fontSize: 12,
   },
   xpCompactBarContainer: {
     height: 4,
-    backgroundColor: "#222222",
+    backgroundColor: colors.border.input,
     borderRadius: 2,
     width: "100%",
   },
   xpCompactBarFill: {
     height: 4,
-    backgroundColor: "#ffffff",
+    backgroundColor: colors.white,
     borderRadius: 2,
   },
 

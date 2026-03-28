@@ -57,13 +57,13 @@ const styles = StyleSheet.create({
   },
   chip: {
     borderWidth: 1,
-    borderColor: "#222222",
+    borderColor: colors.border.input,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 8,
   },
   chipText: {
-    color: "#888888",
+    color: colors.text.secondary,
     fontSize: 12,
   },
 });

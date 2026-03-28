@@ -126,7 +126,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   chipTextInactive: {
-    color: "#666666",
+    color: colors.text.muted,
     fontSize: 12,
   },
   searchButton: {
