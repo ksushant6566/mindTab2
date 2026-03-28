@@ -171,7 +171,11 @@ struct ShareView: View {
 
         Task {
             do {
-                guard var token = KeychainHelper.getAccessToken() ?? (await KeychainHelper.refreshAndGetToken(apiBaseURL: APIClient.baseURL)) else {
+                var token = KeychainHelper.getAccessToken()
+                if token == nil {
+                    token = await KeychainHelper.refreshAndGetToken(apiBaseURL: APIClient.baseURL)
+                }
+                guard var token else {
                     await MainActor.run {
                         state = .error
                         errorMessage = "Please open MindTab and log in first."

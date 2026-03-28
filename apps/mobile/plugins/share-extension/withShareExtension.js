@@ -86,7 +86,15 @@ function withShareExtension(config, options) {
       extensionBundleId
     );
 
-    // Add source files to the extension target
+    // Add a Sources build phase to the extension target (addTarget doesn't create one)
+    xcodeProject.addBuildPhase(
+      swiftFiles.map((f) => `${extensionName}/${f}`),
+      "PBXSourcesBuildPhase",
+      "Sources",
+      target.uuid
+    );
+
+    // Add file group for the extension
     const groupName = extensionName;
     const group = xcodeProject.addPbxGroup(
       [
@@ -102,14 +110,9 @@ function withShareExtension(config, options) {
     const mainGroupId = xcodeProject.getFirstProject().firstProject.mainGroup;
     xcodeProject.addToPbxGroup(group.uuid, mainGroupId);
 
-    // Add Swift source files to the target's build phase
-    for (const file of swiftFiles) {
-      xcodeProject.addSourceFile(
-        `${extensionName}/${file}`,
-        { target: target.uuid },
-        group.uuid
-      );
-    }
+    // Add target dependency so MindTab builds the extension before embedding it
+    const mainTarget = xcodeProject.getFirstTarget();
+    xcodeProject.addTargetDependency(mainTarget.uuid, [target.uuid]);
 
     // Configure build settings for the extension target
     const configurations = xcodeProject.pbxXCBuildConfigurationSection();
@@ -125,7 +128,7 @@ function withShareExtension(config, options) {
         config.buildSettings.CODE_SIGN_ENTITLEMENTS = `${extensionName}/${extensionName}.entitlements`;
         config.buildSettings.INFOPLIST_FILE = `${extensionName}/Info.plist`;
         config.buildSettings.CODE_SIGN_STYLE = "Automatic";
-        config.buildSettings.PRODUCT_BUNDLE_IDENTIFIER = `"${extensionBundleId}"`;
+        config.buildSettings.PRODUCT_BUNDLE_IDENTIFIER = extensionBundleId;
         // Inherit the development team from the main target
         config.buildSettings.DEVELOPMENT_TEAM = '"$(DEVELOPMENT_TEAM)"';
       }
