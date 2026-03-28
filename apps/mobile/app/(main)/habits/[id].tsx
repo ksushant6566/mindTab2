@@ -748,7 +748,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg.elevated,
   },
   deleteBarCancelText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "500",
     color: colors.text.secondary,
   },
@@ -759,7 +759,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.feedback.error,
   },
   deleteBarConfirmText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "600",
     color: "#ffffff",
   },
@@ -775,7 +775,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   title: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: "700",
     color: colors.text.primary,
     letterSpacing: -0.3,
@@ -792,7 +792,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   titleInput: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: "700",
     color: colors.text.primary,
     letterSpacing: -0.3,
@@ -814,7 +814,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg.surface,
   },
   sectionLabel: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "700",
     letterSpacing: 1.2,
     color: colors.text.muted,
@@ -843,7 +843,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   streakCount: {
-    fontSize: 40,
+    fontSize: 32,
     fontWeight: "800",
     color: colors.text.primary,
     letterSpacing: -1,
@@ -854,7 +854,7 @@ const styles = StyleSheet.create({
     color: colors.text.secondary,
   },
   bestStreakText: {
-    fontSize: 13,
+    fontSize: 12,
     color: colors.text.muted,
     marginTop: 4,
   },
@@ -947,7 +947,7 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   legendText: {
-    fontSize: 11,
+    fontSize: 12,
     color: colors.text.muted,
   },
   connectedNoteCard: {

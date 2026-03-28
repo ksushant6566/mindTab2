@@ -37,7 +37,7 @@ export function HabitCard({ habit, isCompleted, onToggle, onXpChange }: HabitCar
         className={`flex-row items-center rounded-lg border p-4 mb-2 ${isCompleted ? "border-emerald-800 bg-emerald-950/30" : "border-border bg-card"}`}
       >
         {isCompleted ? (
-          <CheckSquare size={22} color="#34d399" />
+          <CheckSquare size={22} color={colors.status.checked} />
         ) : (
           <Square size={22} color={colors.mutedForeground} />
         )}

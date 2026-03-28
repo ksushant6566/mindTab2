@@ -137,7 +137,7 @@ export function CreateHabitStep({ onHabitCreated, onBack }: CreateHabitStepProps
             className="flex-row items-center py-3 border-b border-border/30"
           >
             <View className="w-9 h-9 rounded-lg bg-emerald-500/10 items-center justify-center mr-3">
-              <p.Icon size={18} color="#34d399" />
+              <p.Icon size={18} color={colors.status.checked} />
             </View>
             <View className="flex-1">
               <Text className="text-foreground font-medium text-sm">{p.title}</Text>

@@ -606,12 +606,12 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   gridDayLabel: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "600",
     color: colors.text.muted,
   },
   gridHabitName: {
-    fontSize: 13,
+    fontSize: 12,
     color: colors.text.secondary,
   },
   gridDot: {
@@ -658,7 +658,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   streakBestLabel: {
-    fontSize: 11,
+    fontSize: 12,
     color: colors.text.muted,
     marginTop: 2,
   },
