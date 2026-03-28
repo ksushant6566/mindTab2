@@ -1,9 +1,9 @@
 import {
   View,
   Text,
+  ScrollView,
   Pressable,
   Alert,
-  Keyboard,
 } from "react-native";
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -133,7 +133,6 @@ export default function CreateNoteModal() {
         snapPoints={["90%"]}
         onClose={() => router.back()}
       >
-        <Pressable style={{ flex: 1 }} onPress={Keyboard.dismiss}>
         {/* Header */}
         <View
           style={{
@@ -165,129 +164,126 @@ export default function CreateNoteModal() {
           </Pressable>
         </View>
 
-        {/* Title input */}
-        <Text
-          style={{
-            fontSize: 14,
-            fontWeight: "500",
-            color: colors.text.secondary,
-            marginBottom: 6,
-          }}
+        <ScrollView
+          contentContainerStyle={{ paddingBottom: 40 }}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+          showsVerticalScrollIndicator={false}
         >
-          Title
-        </Text>
-        <Input
-          value={title}
-          onChangeText={setTitle}
-          placeholder="Title"
-          autoFocus
-          style={{ fontSize: 18, marginBottom: 16 }}
-        />
-
-        {/* Type chips */}
-        <Text
-          style={{
-            fontSize: 14,
-            fontWeight: "500",
-            color: colors.text.secondary,
-            marginBottom: 6,
-          }}
-        >
-          Type
-        </Text>
-        <View
-          style={{
-            flexDirection: "row",
-            flexWrap: "wrap",
-            gap: 8,
-            marginBottom: 16,
-          }}
-        >
-          {noteTypes.map((t) => (
-            <Chip
-              key={t.value}
-              label={t.label}
-              selected={noteType === t.value}
-              color={t.color}
-              size="sm"
-              onPress={() => setNoteType(t.value)}
-            />
-          ))}
-        </View>
-
-        {/* Project */}
-        <Text
-          style={{
-            fontSize: 14,
-            fontWeight: "500",
-            color: colors.text.secondary,
-            marginBottom: 6,
-          }}
-        >
-          Project
-        </Text>
-        <View
-          style={{
-            flexDirection: "row",
-            flexWrap: "wrap",
-            gap: 8,
-            marginBottom: 16,
-          }}
-        >
-          <Chip
-            label="None"
-            selected={projectId === null}
-            color={colors.text.muted}
-            onPress={() => setProjectId(null)}
+          {/* Title input */}
+          <Text
+            style={{
+              fontSize: 14,
+              fontWeight: "500",
+              color: colors.text.secondary,
+              marginBottom: 6,
+            }}
+          >
+            Title
+          </Text>
+          <Input
+            value={title}
+            onChangeText={setTitle}
+            placeholder="Title"
+            autoFocus
+            style={{ fontSize: 18, marginBottom: 16 }}
           />
-          {projects?.map((p) => (
+
+          {/* Type chips */}
+          <Text
+            style={{
+              fontSize: 14,
+              fontWeight: "500",
+              color: colors.text.secondary,
+              marginBottom: 6,
+            }}
+          >
+            Type
+          </Text>
+          <View
+            style={{
+              flexDirection: "row",
+              flexWrap: "wrap",
+              gap: 8,
+              marginBottom: 16,
+            }}
+          >
+            {noteTypes.map((t) => (
+              <Chip
+                key={t.value}
+                label={t.label}
+                selected={noteType === t.value}
+                color={t.color}
+                size="sm"
+                onPress={() => setNoteType(t.value)}
+              />
+            ))}
+          </View>
+
+          {/* Project */}
+          <Text
+            style={{
+              fontSize: 14,
+              fontWeight: "500",
+              color: colors.text.secondary,
+              marginBottom: 6,
+            }}
+          >
+            Project
+          </Text>
+          <View
+            style={{
+              flexDirection: "row",
+              flexWrap: "wrap",
+              gap: 8,
+              marginBottom: 16,
+            }}
+          >
             <Chip
-              key={p.id}
-              label={p.name ?? ""}
-              selected={projectId === p.id}
-              color={colors.accent.indigo}
-              onPress={() => setProjectId(p.id)}
+              label="None"
+              selected={projectId === null}
+              color={colors.text.muted}
+              onPress={() => setProjectId(null)}
             />
-          ))}
-        </View>
+            {projects?.map((p) => (
+              <Chip
+                key={p.id}
+                label={p.name ?? ""}
+                selected={projectId === p.id}
+                color={colors.accent.indigo}
+                onPress={() => setProjectId(p.id)}
+              />
+            ))}
+          </View>
 
-        {/* Rich text editor */}
-        <View style={{ flex: 1 }}>
-          <Text
-            style={{
-              paddingBottom: 8,
-              fontSize: 12,
-              color: colors.text.muted,
-            }}
-          >
-            TODO: add @mention picker search sheet when typing @ in the editor.
-          </Text>
-          <RichTextEditorView editor={editor} />
-        </View>
+          {/* Rich text editor */}
+          <View style={{ minHeight: 200 }}>
+            <RichTextEditorView editor={editor} />
+          </View>
 
-        {/* Create button */}
-        <View style={{ paddingBottom: 40, paddingTop: 12 }}>
-          <Button
-            onPress={handleCreate}
-            loading={createJournal.isPending}
-            disabled={!title.trim()}
-            state={createJournal.isSuccess ? "success" : createJournal.isError ? "error" : "idle"}
-            size="lg"
-          >
-            Create Note
-          </Button>
-          <Text
-            style={{
-              fontSize: 12,
-              color: colors.xp.gold,
-              textAlign: "center",
-              marginTop: 8,
-            }}
-          >
-            +5 XP
-          </Text>
-        </View>
-        </Pressable>
+          {/* Create button */}
+          <View style={{ paddingTop: 12 }}>
+            <Button
+              onPress={handleCreate}
+              loading={createJournal.isPending}
+              disabled={!title.trim()}
+              state={createJournal.isSuccess ? "success" : createJournal.isError ? "error" : "idle"}
+              size="lg"
+            >
+              Create Note
+            </Button>
+            <Text
+              style={{
+                fontSize: 12,
+                color: colors.xp.gold,
+                textAlign: "center",
+                marginTop: 8,
+              }}
+            >
+              +5 XP
+            </Text>
+          </View>
+        </ScrollView>
       </AppBottomSheet>
     </View>
   );
