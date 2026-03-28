@@ -80,7 +80,7 @@ export function ChatSidebar({
       const { data } = await api.GET("/conversations" as any, {
         params: { query: { limit: 100, offset: 0 } },
       });
-      return data;
+      return data ?? { items: [] };
     },
   });
 
