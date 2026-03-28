@@ -49,6 +49,7 @@ export default function EmailSigninScreen() {
       <ScrollView
         contentContainerStyle={{ flexGrow: 1, justifyContent: "center" }}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
         className="px-8"
       >
         <Pressable onPress={() => router.back()} className="mb-8">

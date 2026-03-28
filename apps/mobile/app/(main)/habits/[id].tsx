@@ -444,6 +444,7 @@ export default function HabitDetailScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
       >
         {/* ── Title / Description (inline edit) ── */}
         {isEditing ? (

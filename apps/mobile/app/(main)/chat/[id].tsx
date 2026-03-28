@@ -265,6 +265,8 @@ export default function ConversationDetail() {
           onContentSizeChange={handleContentSizeChange}
           onScroll={handleScroll}
           scrollEventThrottle={100}
+          keyboardDismissMode="interactive"
+          keyboardShouldPersistTaps="handled"
         />
 
         <View style={styles.inputContainer}>

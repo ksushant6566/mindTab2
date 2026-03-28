@@ -207,6 +207,7 @@ export default function GoalDetailScreen() {
       <ScrollView
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
       >
         {/* ── Title ── */}
         {isEditing ? (

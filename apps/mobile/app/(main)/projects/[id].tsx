@@ -364,6 +364,7 @@ export default function ProjectDetailScreen() {
       <ScrollView
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl

@@ -4,6 +4,7 @@ import {
   TextInput,
   Pressable,
   ActivityIndicator,
+  Keyboard,
 } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useState } from "react";
@@ -43,7 +44,7 @@ export default function ForgotPasswordScreen() {
       behavior="padding"
       className="flex-1 bg-background"
     >
-      <View className="flex-1 justify-center px-8">
+      <Pressable className="flex-1 justify-center px-8" onPress={Keyboard.dismiss}>
         <Pressable onPress={() => router.back()} className="mb-8">
           <Text className="text-muted-foreground text-base">← Back</Text>
         </Pressable>
@@ -79,7 +80,7 @@ export default function ForgotPasswordScreen() {
             </Text>
           )}
         </Pressable>
-      </View>
+      </Pressable>
     </KeyboardAvoidingView>
   );
 }

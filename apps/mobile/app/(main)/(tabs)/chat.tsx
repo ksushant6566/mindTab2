@@ -1,15 +1,19 @@
-import { View, StyleSheet } from "react-native";
+import { View, StyleSheet, Keyboard, Pressable } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useRouter } from "expo-router";
 import { useEffect, useRef } from "react";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ChatEmptyState } from "~/components/chat/empty-state";
 import { ChatInput } from "~/components/chat/chat-input";
 import { colors } from "~/styles/colors";
 import { useChatStore } from "~/hooks/use-chat-store";
 import { useWebSocket } from "~/hooks/use-websocket";
 
+const HEADER_HEIGHT = 48; // DashboardHeader: 36px row + 12px paddingBottom
+
 export default function ChatTab() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { connect, sendMessage, isConnected } = useWebSocket();
   const { activeConversationId } = useChatStore();
 
@@ -46,14 +50,15 @@ export default function ChatTab() {
     <KeyboardAvoidingView
       style={styles.keyboardAvoid}
       behavior="padding"
+      keyboardVerticalOffset={insets.top + HEADER_HEIGHT}
     >
-      <View style={styles.container}>
+      <Pressable style={styles.container} onPress={Keyboard.dismiss}>
         {/* Empty state centered */}
         <ChatEmptyState onSuggestionPress={handleSuggestionPress} />
 
         {/* Chat Input */}
         <ChatInput onSend={handleSend} disabled={!isConnected} />
-      </View>
+      </Pressable>
     </KeyboardAvoidingView>
   );
 }
