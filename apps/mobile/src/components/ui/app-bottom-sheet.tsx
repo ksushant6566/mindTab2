@@ -42,7 +42,7 @@ export const AppBottomSheet = forwardRef<BottomSheet, AppBottomSheetProps>(
           width: 36,
           height: 4,
         }}
-        backdropComponent={showBackdrop ? renderBackdrop : null}
+        {...(showBackdrop ? { backdropComponent: renderBackdrop } : {})}
         onChange={(index) => {
           if (index >= 0) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
           if (index === -1) onClose?.();
