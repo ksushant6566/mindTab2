@@ -6,6 +6,7 @@ export const colors = {
     surface: "#1c1c1c",
     overlay: "rgba(0,0,0,0.5)",
     input: "#333333",
+    bubble: "#e5e5e5",
   },
   // Text
   text: {

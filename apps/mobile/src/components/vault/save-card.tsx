@@ -186,12 +186,12 @@ const styles = StyleSheet.create({
   },
   title: {
     color: colors.text.reader,
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: "500",
   },
   snippet: {
-    color: colors.text.dim,
-    fontSize: 12,
+    color: colors.text.secondary,
+    fontSize: 14,
   },
   tagsRow: {
     flexDirection: "row",

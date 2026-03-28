@@ -170,7 +170,7 @@ const styles = StyleSheet.create({
   userBubble: {
     alignSelf: "flex-end",
     maxWidth: "80%",
-    backgroundColor: colors.white,
+    backgroundColor: colors.bg.bubble,
     borderRadius: 18,
     borderBottomRightRadius: 4,
     paddingHorizontal: 14,
