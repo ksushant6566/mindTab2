@@ -25,7 +25,7 @@ export default function Dashboard() {
   const lastScrollY = useRef(0);
 
   const handleShake = useCallback(() => {
-    router.push("/(modals)/command-palette");
+    router.push("/(screens)/command-palette");
   }, [router]);
 
   useShakeDetector(handleShake);

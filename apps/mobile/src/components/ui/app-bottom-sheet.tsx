@@ -18,7 +18,7 @@ export const AppBottomSheet = forwardRef<BottomSheet, AppBottomSheetProps>(
   ({ children, snapPoints = ["50%", "90%"], onClose, showBackdrop = true }, ref) => {
     const renderBackdrop = useCallback(
       (props: BottomSheetBackdropProps) => (
-        <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.5} />
+        <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.7} />
       ),
       []
     );

@@ -56,6 +56,7 @@ export default function RootLayout() {
           <Stack.Screen name="(onboarding)" />
           <Stack.Screen name="(main)" />
           <Stack.Screen name="(modals)" options={{ presentation: "transparentModal", animation: "fade", contentStyle: { backgroundColor: "transparent" } }} />
+          <Stack.Screen name="(screens)" options={{ presentation: "modal" }} />
         </Stack>
       </AuthGuard>
     </Providers>

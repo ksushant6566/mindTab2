@@ -24,7 +24,7 @@ export function ListHeader({ title, subtitle, searchContext }: ListHeaderProps) 
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.row}>
         {/* Avatar — same size/position as dashboard header */}
-        <Pressable onPress={() => router.push("/(modals)/profile")}>
+        <Pressable onPress={() => router.push("/(screens)/profile")}>
           {user?.image ? (
             <Image source={{ uri: user.image }} style={styles.avatar} />
           ) : (
@@ -47,8 +47,8 @@ export function ListHeader({ title, subtitle, searchContext }: ListHeaderProps) 
           onPress={() =>
             router.push(
               searchContext
-                ? { pathname: "/(modals)/command-palette", params: { context: searchContext } }
-                : "/(modals)/command-palette" as any,
+                ? { pathname: "/(screens)/command-palette", params: { context: searchContext } }
+                : "/(screens)/command-palette" as any,
             )
           }
           style={styles.searchButton}

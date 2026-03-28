@@ -31,13 +31,13 @@ export function HeaderRight() {
       )}
 
       {/* Search */}
-      <Pressable onPress={() => router.push("/(modals)/command-palette")} className="p-1">
+      <Pressable onPress={() => router.push("/(screens)/command-palette")} className="p-1">
         <Search size={20} color={colors.foreground} />
       </Pressable>
 
       {/* Avatar */}
       {user?.image ? (
-        <Pressable onPress={() => router.push("/(modals)/profile" as any)}>
+        <Pressable onPress={() => router.push("/(screens)/profile" as any)}>
           <Image
             source={{ uri: user.image }}
             className="w-7 h-7 rounded-full"
