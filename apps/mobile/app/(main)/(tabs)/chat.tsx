@@ -1,5 +1,6 @@
 import { View, StyleSheet, Keyboard, Pressable } from "react-native";
-import { KeyboardAvoidingView } from "react-native-keyboard-controller";
+import { KeyboardAvoidingView, useKeyboardContext } from "react-native-keyboard-controller";
+import Animated, { useAnimatedStyle, interpolate } from "react-native-reanimated";
 import { useRouter } from "expo-router";
 import { useEffect, useRef } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -46,19 +47,32 @@ export default function ChatTab() {
     sendMessage(text, undefined, attachments);
   };
 
+  const { animated: { height: keyboardHeight } } = useKeyboardContext();
+
+  const animatedPadding = useAnimatedStyle(() => ({
+    paddingBottom: interpolate(
+      keyboardHeight.value,
+      [0, 1],
+      [36, 8],
+      "clamp",
+    ),
+  }));
+
   return (
     <KeyboardAvoidingView
       style={styles.keyboardAvoid}
       behavior="padding"
       keyboardVerticalOffset={insets.top + HEADER_HEIGHT}
     >
-      <Pressable style={styles.container} onPress={Keyboard.dismiss}>
-        {/* Empty state centered */}
-        <ChatEmptyState onSuggestionPress={handleSuggestionPress} />
+      <Animated.View style={[styles.container, animatedPadding]}>
+        <Pressable style={styles.pressable} onPress={Keyboard.dismiss}>
+          {/* Empty state centered */}
+          <ChatEmptyState onSuggestionPress={handleSuggestionPress} />
+        </Pressable>
 
         {/* Chat Input */}
         <ChatInput onSend={handleSend} disabled={!isConnected} />
-      </Pressable>
+      </Animated.View>
     </KeyboardAvoidingView>
   );
 }
@@ -71,6 +85,8 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.bg.primary,
     paddingHorizontal: 16,
-    paddingBottom: 48,
+  },
+  pressable: {
+    flex: 1,
   },
 });
