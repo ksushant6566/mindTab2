@@ -148,12 +148,14 @@ export default function VaultDetailScreen() {
               <Text style={styles.title}>{save.source_title}</Text>
             ) : null}
 
-            {/* ── Tags ── */}
-            {save.tags && save.tags.length > 0 ? (
-              <View style={styles.tagsRow}>
-                {save.tags.map((tag) => (
-                  <View key={tag} style={styles.tagPill}>
-                    <Text style={styles.tagText}>{tag}</Text>
+            {/* ── Key topics ── */}
+            {save.key_topics && save.key_topics.length > 0 ? (
+              <View style={styles.section}>
+                <Text style={styles.sectionLabel}>KEY TOPICS</Text>
+                {save.key_topics.map((topic) => (
+                  <View key={topic} style={styles.bulletRow}>
+                    <View style={styles.bullet} />
+                    <Text style={styles.bulletText}>{topic}</Text>
                   </View>
                 ))}
               </View>
@@ -169,17 +171,25 @@ export default function VaultDetailScreen() {
               </View>
             ) : null}
 
-            {/* ── Key topics ── */}
-            {save.key_topics && save.key_topics.length > 0 ? (
-              <View style={styles.section}>
-                <Text style={styles.sectionLabel}>KEY TOPICS</Text>
-                {save.key_topics.map((topic) => (
-                  <View key={topic} style={styles.bulletRow}>
-                    <View style={styles.bullet} />
-                    <Text style={styles.bulletText}>{topic}</Text>
+            {/* ── Tags ── */}
+            {save.tags && save.tags.length > 0 ? (
+              <View style={styles.tagsRow}>
+                {save.tags.map((tag) => (
+                  <View key={tag} style={styles.tagPill}>
+                    <Text style={styles.tagText}>{tag}</Text>
                   </View>
                 ))}
               </View>
+            ) : null}
+
+            {/* ── Open Original Article button ── */}
+            {save.source_type === "article" && save.source_url ? (
+              <Pressable
+                style={styles.openBtn}
+                onPress={() => Linking.openURL(save.source_url!)}
+              >
+                <Text style={styles.openBtnText}>Open Original Article ↗</Text>
+              </Pressable>
             ) : null}
 
             {/* ── Extracted content ── */}
@@ -196,16 +206,6 @@ export default function VaultDetailScreen() {
                 <Text style={styles.sectionLabel}>DESCRIPTION</Text>
                 <Text style={styles.extractedText}>{save.visual_description}</Text>
               </View>
-            ) : null}
-
-            {/* ── Open Original Article button ── */}
-            {save.source_type === "article" && save.source_url ? (
-              <Pressable
-                style={styles.openBtn}
-                onPress={() => Linking.openURL(save.source_url!)}
-              >
-                <Text style={styles.openBtnText}>Open Original Article ↗</Text>
-              </Pressable>
             ) : null}
           </ScrollView>
         )}
@@ -345,6 +345,7 @@ const styles = StyleSheet.create({
     padding: 12,
     alignItems: "center",
     marginTop: 8,
+    marginBottom: 20,
   },
   openBtnText: {
     color: "#0a0a0a",
