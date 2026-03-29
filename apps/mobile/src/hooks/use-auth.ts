@@ -46,7 +46,7 @@ GoogleSignin.configure({
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:8080";
 
-const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   isAuthenticated: false,
   isLoading: true,
