@@ -5,24 +5,11 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import { getAccessToken } from "~/lib/auth";
 import { api } from "~/lib/api-client";
 import { FilterChips } from "~/components/vault/filter-chips";
-import { SaveGrid } from "~/components/vault/save-grid";
+import { SaveGrid, type RawSave } from "~/components/vault/save-grid";
 import { SaveFAB } from "~/components/vault/save-fab";
 import { colors } from "~/styles/colors";
 
 type FilterType = "all" | "article" | "image";
-
-type RawSave = {
-  id: string;
-  source_type: "article" | "image";
-  source_title?: string | null;
-  source_url?: string | null;
-  source_thumbnail_url?: string | null;
-  summary?: string | null;
-  tags?: string[] | null;
-  media_key?: string | null;
-  processing_status: string;
-  created_at: string;
-};
 
 const PAGE_SIZE = 20;
 

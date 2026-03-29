@@ -1,9 +1,9 @@
 import { useCallback } from "react";
-import { FlatList, View, RefreshControl } from "react-native";
+import { FlatList, View, RefreshControl, StyleSheet } from "react-native";
 import { SaveCard } from "./save-card";
 import { colors } from "~/styles/colors";
 
-type RawSave = {
+export type RawSave = {
   id: string;
   source_type: "article" | "image";
   source_title?: string | null;
@@ -37,7 +37,7 @@ export function SaveGrid({
 }: SaveGridProps) {
   const renderItem = useCallback(
     ({ item }: { item: RawSave }) => (
-      <View style={{ flex: 1 }}>
+      <View style={styles.cell}>
         <SaveCard
           id={item.id}
           sourceType={item.source_type}
@@ -62,8 +62,8 @@ export function SaveGrid({
       renderItem={renderItem}
       keyExtractor={keyExtractor}
       numColumns={2}
-      columnWrapperStyle={{ gap: 10 }}
-      contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 100 }}
+      columnWrapperStyle={styles.row}
+      contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
       onEndReached={onLoadMore}
       onEndReachedThreshold={0.5}
@@ -80,3 +80,16 @@ export function SaveGrid({
     />
   );
 }
+
+const styles = StyleSheet.create({
+  content: {
+    paddingHorizontal: 12,
+    paddingBottom: 100,
+  },
+  row: {
+    gap: 10,
+  },
+  cell: {
+    flex: 1,
+  },
+});
