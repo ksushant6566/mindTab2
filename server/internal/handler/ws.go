@@ -13,6 +13,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/ksushant6566/mindtab/server/internal/auth"
 	"github.com/ksushant6566/mindtab/server/internal/chat"
+	"github.com/ksushant6566/mindtab/server/internal/store"
 )
 
 const (
@@ -34,15 +35,17 @@ type WSHandler struct {
 	orchestrator   *chat.Orchestrator
 	jwtSecret      string
 	allowedOrigins []string
+	queries        store.Querier
 	upgrader       websocket.Upgrader
 }
 
 // NewWSHandler creates a new WSHandler.
-func NewWSHandler(orchestrator *chat.Orchestrator, jwtSecret string, allowedOrigins []string) *WSHandler {
+func NewWSHandler(orchestrator *chat.Orchestrator, jwtSecret string, allowedOrigins []string, queries store.Querier) *WSHandler {
 	h := &WSHandler{
 		orchestrator:   orchestrator,
 		jwtSecret:      jwtSecret,
 		allowedOrigins: allowedOrigins,
+		queries:        queries,
 	}
 	h.upgrader = websocket.Upgrader{
 		ReadBufferSize:  1024,
@@ -76,19 +79,30 @@ func NewWSHandler(orchestrator *chat.Orchestrator, jwtSecret string, allowedOrig
 
 // HandleChat upgrades the HTTP connection to WebSocket and manages the chat session.
 func (h *WSHandler) HandleChat(w http.ResponseWriter, r *http.Request) {
-	// 1. Extract and validate JWT from query param
-	token := r.URL.Query().Get("token")
-	if token == "" {
-		http.Error(w, `{"error":"missing token query parameter"}`, http.StatusUnauthorized)
-		return
-	}
+	// 1. Extract and validate auth — prefer ticket, fall back to token.
+	var userID string
 
-	claims, err := auth.ValidateAccessToken(h.jwtSecret, token)
-	if err != nil {
-		http.Error(w, `{"error":"invalid or expired token"}`, http.StatusUnauthorized)
+	if ticket := r.URL.Query().Get("ticket"); ticket != "" {
+		// Consume single-use ticket.
+		ticketHash := auth.HashToken(ticket)
+		row, err := h.queries.ConsumeWSTicket(r.Context(), ticketHash)
+		if err != nil {
+			http.Error(w, `{"error":"invalid or expired ticket"}`, http.StatusUnauthorized)
+			return
+		}
+		userID = row.UserID
+	} else if token := r.URL.Query().Get("token"); token != "" {
+		// Legacy: direct JWT in query param.
+		claims, err := auth.ValidateAccessToken(h.jwtSecret, token)
+		if err != nil {
+			http.Error(w, `{"error":"invalid or expired token"}`, http.StatusUnauthorized)
+			return
+		}
+		userID = claims.UserID
+	} else {
+		http.Error(w, `{"error":"missing authentication"}`, http.StatusUnauthorized)
 		return
 	}
-	userID := claims.UserID
 
 	// 2. Upgrade to WebSocket
 	conn, err := h.upgrader.Upgrade(w, r, nil)

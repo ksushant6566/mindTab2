@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/ksushant6566/mindtab/server/internal/auth"
+	"github.com/ksushant6566/mindtab/server/internal/middleware"
 	"github.com/ksushant6566/mindtab/server/internal/store"
 )
 
@@ -329,4 +330,32 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	}
 
 	WriteJSON(w, http.StatusOK, map[string]string{"message": "logged out"})
+}
+
+// WSTicket handles POST /auth/ws-ticket.
+// Issues a short-lived single-use ticket for WebSocket authentication.
+// Requires a valid access token (called from protected route group).
+func (h *AuthHandler) WSTicket(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.UserIDFromContext(r.Context())
+
+	raw, hash, err := auth.GenerateRefreshToken() // reuse random token generator
+	if err != nil {
+		slog.Error("failed to generate ws ticket", "error", err)
+		WriteError(w, http.StatusInternalServerError, "failed to generate ticket")
+		return
+	}
+
+	expiresAt := time.Now().Add(30 * time.Second)
+	err = h.queries.CreateRefreshToken(r.Context(), store.CreateRefreshTokenParams{
+		UserID:    userID,
+		TokenHash: hash,
+		ExpiresAt: pgtype.Timestamptz{Time: expiresAt, Valid: true},
+	})
+	if err != nil {
+		slog.Error("failed to store ws ticket", "error", err)
+		WriteError(w, http.StatusInternalServerError, "failed to generate ticket")
+		return
+	}
+
+	WriteJSON(w, http.StatusOK, map[string]string{"ticket": raw})
 }

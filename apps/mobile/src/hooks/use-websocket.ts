@@ -2,7 +2,8 @@ import { useEffect, useRef, useCallback, useState } from "react";
 import { AppState } from "react-native";
 import { useChatStore } from "./use-chat-store";
 import { useQueryClient } from "@tanstack/react-query";
-import { getAccessToken, refreshTokens } from "~/lib/auth";
+import { refreshTokens } from "~/lib/auth";
+import { api } from "~/lib/api-client";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:8080";
 
@@ -42,13 +43,13 @@ export function useWebSocket() {
 
     intentionalDisconnectRef.current = false;
 
-    // Proactively refresh the access token before connecting so a stale
-    // 15-minute token does not cause an immediate 401 and reconnect loop.
+    // Ensure we have a fresh access token.
     await refreshTokens();
 
-    const token = await getAccessToken();
-    if (!token) {
-      console.warn("[useWebSocket] No access token available, retrying in 3s");
+    // Request a short-lived single-use ticket.
+    const { data, error } = await api.POST("/auth/ws-ticket" as any, {});
+    if (error || !(data as any)?.ticket) {
+      console.warn("[useWebSocket] Failed to get WS ticket, retrying in 3s");
       if (!intentionalDisconnectRef.current) {
         reconnectTimerRef.current = setTimeout(() => {
           connect();
@@ -57,7 +58,7 @@ export function useWebSocket() {
       return;
     }
 
-    const url = `${WS_URL}/ws/chat?token=${encodeURIComponent(token)}`;
+    const url = `${WS_URL}/ws/chat?ticket=${encodeURIComponent((data as any).ticket)}`;
     const ws = new WebSocket(url);
     wsRef.current = ws;
 

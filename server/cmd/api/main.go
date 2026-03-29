@@ -203,12 +203,14 @@ func main() {
 	registry.Register(chat.NewComparePeriodsTool(queries))
 	registry.Register(chat.NewGetStaleItemsTool(queries))
 	orchestrator := chat.NewOrchestrator(queries, llmChain, registry)
-	wsHandler := handler.NewWSHandler(orchestrator, cfg.JWTSecret, cfg.AllowedOrigins)
+	wsHandler := handler.NewWSHandler(orchestrator, cfg.JWTSecret, cfg.AllowedOrigins, queries)
 	r.Get("/ws/chat", wsHandler.HandleChat)
 
 	// Protected routes.
 	r.Group(func(r chi.Router) {
 		r.Use(mw.Auth(cfg.JWTSecret))
+
+		r.Post("/auth/ws-ticket", authHandler.WSTicket)
 
 		r.Get("/activity", activityHandler.GetUserActivity)
 

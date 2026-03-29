@@ -11,6 +11,25 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const consumeWSTicket = `-- name: ConsumeWSTicket :one
+DELETE FROM mindmap_refresh_token
+WHERE token_hash = $1 AND expires_at > CURRENT_TIMESTAMP
+RETURNING id, user_id, token_hash, expires_at, created_at
+`
+
+func (q *Queries) ConsumeWSTicket(ctx context.Context, tokenHash string) (MindmapRefreshToken, error) {
+	row := q.db.QueryRow(ctx, consumeWSTicket, tokenHash)
+	var i MindmapRefreshToken
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.TokenHash,
+		&i.ExpiresAt,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const createRefreshToken = `-- name: CreateRefreshToken :exec
 INSERT INTO mindmap_refresh_token (user_id, token_hash, expires_at) VALUES ($1, $2, $3)
 `

@@ -19,6 +19,7 @@ type Querier interface {
 	CheckJournalTitleExists(ctx context.Context, arg CheckJournalTitleExistsParams) (bool, error)
 	CompleteJob(ctx context.Context, id pgtype.UUID) error
 	CompleteOnboarding(ctx context.Context, id string) error
+	ConsumeWSTicket(ctx context.Context, tokenHash string) (MindmapRefreshToken, error)
 	CountContent(ctx context.Context, userID string) (int64, error)
 	CountConversations(ctx context.Context, userID string) (int64, error)
 	CountGoals(ctx context.Context, arg CountGoalsParams) (int32, error)
