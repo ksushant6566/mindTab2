@@ -10,6 +10,16 @@ export async function getAccessToken(): Promise<string | null> {
   return SecureStore.getItemAsync(ACCESS_TOKEN_KEY);
 }
 
+/** Returns true if the JWT's exp claim is within 60s of now or already past. */
+export function isTokenExpired(token: string): boolean {
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    return payload.exp * 1000 <= Date.now() + 60_000;
+  } catch {
+    return true;
+  }
+}
+
 export async function setAccessToken(token: string | null): Promise<void> {
   if (token) {
     await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, token);

@@ -1,6 +1,6 @@
 import createClient from "openapi-fetch";
 import type { paths } from "@mindtab/api-spec";
-import { getAccessToken, refreshTokens } from "./auth";
+import { getAccessToken, isTokenExpired, refreshTokens } from "./auth";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:8080";
 
@@ -21,7 +21,11 @@ export async function authedFetch(
   url: string,
   init?: RequestInit
 ): Promise<Response> {
-  const token = await getAccessToken();
+  let token = await getAccessToken();
+  if (token && isTokenExpired(token)) {
+    await refreshTokens();
+    token = await getAccessToken();
+  }
   const headers = new Headers(init?.headers);
   if (token) headers.set("Authorization", `Bearer ${token}`);
   headers.set("X-Platform", "mobile");
@@ -47,7 +51,11 @@ api.use({
     // Clone before body is consumed so we can retry on 401
     pendingRequests.set(request, request.clone());
 
-    const token = await getAccessToken();
+    let token = await getAccessToken();
+    if (token && isTokenExpired(token)) {
+      await refreshTokens();
+      token = await getAccessToken();
+    }
     if (token) {
       request.headers.set("Authorization", `Bearer ${token}`);
     }
