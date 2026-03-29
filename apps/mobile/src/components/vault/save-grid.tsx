@@ -1,33 +1,75 @@
-import { ScrollView, View, RefreshControl, type NativeSyntheticEvent, type NativeScrollEvent } from "react-native";
-import { SaveCard, type SaveCardProps } from "./save-card";
+import { useCallback } from "react";
+import { FlatList, View, RefreshControl } from "react-native";
+import { SaveCard } from "./save-card";
 import { colors } from "~/styles/colors";
 
+type RawSave = {
+  id: string;
+  source_type: "article" | "image";
+  source_title?: string | null;
+  source_url?: string | null;
+  source_thumbnail_url?: string | null;
+  summary?: string | null;
+  tags?: string[] | null;
+  media_key?: string | null;
+  processing_status: string;
+  created_at: string;
+};
+
 type SaveGridProps = {
-  saves: SaveCardProps[];
+  saves: RawSave[];
+  accessToken?: string | null;
   onSavePress: (id: string) => void;
   onRefresh: () => void;
   refreshing: boolean;
   onLoadMore: () => void;
 };
 
-export function SaveGrid({ saves, onSavePress, onRefresh, refreshing, onLoadMore }: SaveGridProps) {
-  const leftColumn = saves.filter((_, i) => i % 2 === 0);
-  const rightColumn = saves.filter((_, i) => i % 2 !== 0);
+const keyExtractor = (item: RawSave) => item.id;
 
-  const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
-    const isNearBottom = layoutMeasurement.height + contentOffset.y >= contentSize.height - 200;
-    if (isNearBottom) {
-      onLoadMore();
-    }
-  };
+export function SaveGrid({
+  saves,
+  accessToken,
+  onSavePress,
+  onRefresh,
+  refreshing,
+  onLoadMore,
+}: SaveGridProps) {
+  const renderItem = useCallback(
+    ({ item }: { item: RawSave }) => (
+      <View style={{ flex: 1 }}>
+        <SaveCard
+          id={item.id}
+          sourceType={item.source_type}
+          sourceTitle={item.source_title}
+          sourceUrl={item.source_url}
+          sourceThumbnailUrl={item.source_thumbnail_url}
+          summary={item.summary}
+          tags={item.tags}
+          mediaKey={item.media_key}
+          processingStatus={item.processing_status}
+          accessToken={accessToken}
+          onPress={onSavePress}
+        />
+      </View>
+    ),
+    [accessToken, onSavePress],
+  );
 
   return (
-    <ScrollView
+    <FlatList
+      data={saves}
+      renderItem={renderItem}
+      keyExtractor={keyExtractor}
+      numColumns={2}
+      columnWrapperStyle={{ gap: 10 }}
+      contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 100 }}
       showsVerticalScrollIndicator={false}
-      onScroll={handleScroll}
-      scrollEventThrottle={16}
-      contentContainerStyle={{ paddingBottom: 100 }}
+      onEndReached={onLoadMore}
+      onEndReachedThreshold={0.5}
+      removeClippedSubviews
+      maxToRenderPerBatch={6}
+      initialNumToRender={10}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
@@ -35,19 +77,6 @@ export function SaveGrid({ saves, onSavePress, onRefresh, refreshing, onLoadMore
           tintColor={colors.text.secondary}
         />
       }
-    >
-      <View style={{ flexDirection: "row", gap: 10, paddingHorizontal: 12 }}>
-        <View style={{ flex: 1 }}>
-          {leftColumn.map((save) => (
-            <SaveCard key={save.id} {...save} onPress={onSavePress} />
-          ))}
-        </View>
-        <View style={{ flex: 1 }}>
-          {rightColumn.map((save) => (
-            <SaveCard key={save.id} {...save} onPress={onSavePress} />
-          ))}
-        </View>
-      </View>
-    </ScrollView>
+    />
   );
 }

@@ -6,7 +6,6 @@ import { getAccessToken } from "~/lib/auth";
 import { api } from "~/lib/api-client";
 import { FilterChips } from "~/components/vault/filter-chips";
 import { SaveGrid } from "~/components/vault/save-grid";
-import { type SaveCardProps } from "~/components/vault/save-card";
 import { SaveFAB } from "~/components/vault/save-fab";
 import { colors } from "~/styles/colors";
 
@@ -78,20 +77,6 @@ export default function VaultTab() {
     (s) => filter === "all" || s.source_type === filter,
   );
 
-  const cardProps: SaveCardProps[] = filteredSaves.map((s) => ({
-    id: s.id,
-    sourceType: s.source_type,
-    sourceTitle: s.source_title,
-    sourceUrl: s.source_url,
-    sourceThumbnailUrl: s.source_thumbnail_url,
-    summary: s.summary,
-    tags: s.tags,
-    mediaKey: s.media_key,
-    processingStatus: s.processing_status,
-    accessToken: latestToken,
-    onPress: () => {},
-  }));
-
   const handleSavePress = useCallback(
     (id: string) => router.push(`/(main)/vault/${id}` as any),
     [router],
@@ -115,7 +100,8 @@ export default function VaultTab() {
     <View style={{ flex: 1, backgroundColor: colors.bg.primary }}>
       <FilterChips activeFilter={filter} onFilterChange={handleFilterChange} />
       <SaveGrid
-        saves={cardProps}
+        saves={filteredSaves}
+        accessToken={latestToken}
         onSavePress={handleSavePress}
         onRefresh={handleRefresh}
         refreshing={isRefetching && !isFetchingNextPage}
