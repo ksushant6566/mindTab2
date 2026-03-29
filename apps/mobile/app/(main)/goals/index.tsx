@@ -11,7 +11,6 @@ import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
 import { Target, Zap, Archive, ChevronDown } from "lucide-react-native";
-import Animated, { FadeInDown } from "react-native-reanimated";
 import {
   goalsQueryOptions,
   useUpdateGoal,
@@ -29,7 +28,6 @@ import { UndoToast } from "~/components/ui/undo-toast";
 import { ListHeader } from "~/components/list-header";
 import { FAB } from "~/components/dashboard/fab";
 import { api } from "~/lib/api-client";
-import { staggerDelay } from "~/lib/animations";
 import { XP_VALUES } from "~/lib/xp";
 import { colors } from "~/styles/colors";
 
@@ -101,6 +99,122 @@ type GoalSection = {
   data: any[];
   count: number;
 };
+
+const keyExtractor = (item: any) => item.id;
+
+// ---------- Memoized goal row ----------
+
+const GoalRow = React.memo(function GoalRow({
+  goal,
+  onPress,
+  onStatusChange,
+  onArchive,
+  isCelebrating,
+  xpDelta,
+  onXpComplete,
+}: {
+  goal: any;
+  onPress: (id: string) => void;
+  onStatusChange: (goal: any, newStatus: string) => void;
+  onArchive: (goal: any) => void;
+  isCelebrating: boolean;
+  xpDelta: number;
+  onXpComplete: () => void;
+}) {
+  const priorityKey = goal.priority as string | undefined;
+  const impactKey = goal.impact as string | undefined;
+
+  const handlePress = useCallback(() => onPress(goal.id), [goal.id, onPress]);
+
+  const leftAction = useMemo(() => {
+    const nextAction = getNextStatusAction(goal.status);
+    return nextAction
+      ? {
+          label: nextAction.label,
+          color: nextAction.color,
+          onAction: () => onStatusChange(goal, nextAction.nextStatus),
+        }
+      : undefined;
+  }, [goal, onStatusChange]);
+
+  const rightActions = useMemo(
+    () => [
+      {
+        label: "Archive",
+        color: colors.feedback.warning,
+        onAction: () => onArchive(goal),
+      },
+    ],
+    [goal, onArchive],
+  );
+
+  return (
+    <SwipeableRow leftAction={leftAction} rightActions={rightActions}>
+      <PressableCard
+        onPress={handlePress}
+        style={isCelebrating ? styles.goalCelebrationCard : undefined}
+      >
+        <Text style={styles.goalTitle} numberOfLines={1}>
+          {goal.title}
+        </Text>
+
+        <View style={styles.metaRow}>
+          {priorityKey && priorityLabels[priorityKey] && (
+            <View
+              style={[
+                styles.priorityPill,
+                {
+                  backgroundColor:
+                    (priorityColors[priorityKey] ?? colors.priority.p4) + "33",
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.priorityText,
+                  {
+                    color: priorityColors[priorityKey] ?? colors.priority.p4,
+                  },
+                ]}
+              >
+                {priorityLabels[priorityKey]}
+              </Text>
+            </View>
+          )}
+
+          {impactKey && impactLabels[impactKey] && (
+            <View style={styles.impactRow}>
+              <Zap
+                size={12}
+                color={impactColors[impactKey] ?? colors.impact.low}
+              />
+              <Text
+                style={[
+                  styles.impactText,
+                  {
+                    color: impactColors[impactKey] ?? colors.impact.low,
+                  },
+                ]}
+              >
+                {impactLabels[impactKey]}
+              </Text>
+            </View>
+          )}
+
+          {(goal as any).project?.name && (
+            <Text style={styles.projectName}>
+              {(goal as any).project.name}
+            </Text>
+          )}
+        </View>
+        {isCelebrating && <ConfettiBurst particleCount={20} />}
+        {isCelebrating && xpDelta > 0 && (
+          <XPFloat amount={xpDelta} onComplete={onXpComplete} />
+        )}
+      </PressableCard>
+    </SwipeableRow>
+  );
+});
 
 // ---------- Screen ----------
 
@@ -231,6 +345,13 @@ export default function GoalsScreen() {
     setRefreshing(false);
   }, [refetch]);
 
+  // Stable callbacks for GoalRow
+  const handleGoalPress = useCallback((id: string) => {
+    router.push(`/(main)/goals/${id}`);
+  }, [router]);
+
+  const handleXpComplete = useCallback(() => setXpDelta(0), []);
+
   // ---------- Renderers ----------
 
   const renderSectionHeader = useCallback(
@@ -251,13 +372,13 @@ export default function GoalsScreen() {
             <Text style={styles.sectionHeaderText}>
               {section.title} ({count})
             </Text>
-            <Animated.View
+            <View
               style={{
                 transform: [{ rotate: isCollapsed ? "-90deg" : "0deg" }],
               }}
             >
               <ChevronDown size={16} color={colors.text.muted} />
-            </Animated.View>
+            </View>
           </Pressable>
 
           {isCompleted && count > 0 && (
@@ -276,103 +397,18 @@ export default function GoalsScreen() {
   );
 
   const renderItem = useCallback(
-    ({ item: goal, index }: { item: any; index: number }) => {
-      const nextAction = getNextStatusAction(goal.status);
-      const priorityKey = goal.priority as string | undefined;
-      const impactKey = goal.impact as string | undefined;
-
-      return (
-        <Animated.View entering={FadeInDown.delay(staggerDelay(index)).duration(200)}>
-          <SwipeableRow
-            leftAction={
-              nextAction
-                ? {
-                    label: nextAction.label,
-                    color: nextAction.color,
-                    onAction: () =>
-                      handleStatusChange(goal, nextAction.nextStatus),
-                  }
-                : undefined
-            }
-            rightActions={[
-              {
-                label: "Archive",
-                color: colors.feedback.warning,
-                onAction: () => handleArchive(goal),
-              },
-            ]}
-        >
-          <PressableCard
-            onPress={() => router.push(`/(main)/goals/${goal.id}`)}
-            style={goal.id === celebrationGoalId ? styles.goalCelebrationCard : undefined}
-          >
-            {/* Title */}
-            <Text style={styles.goalTitle} numberOfLines={1}>
-              {goal.title}
-            </Text>
-
-            {/* Meta: priority pill + impact + project */}
-            <View style={styles.metaRow}>
-              {priorityKey && priorityLabels[priorityKey] && (
-                <View
-                  style={[
-                    styles.priorityPill,
-                    {
-                      backgroundColor:
-                        (priorityColors[priorityKey] ?? colors.priority.p4) +
-                        "33",
-                    },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.priorityText,
-                      {
-                        color:
-                          priorityColors[priorityKey] ?? colors.priority.p4,
-                      },
-                    ]}
-                  >
-                    {priorityLabels[priorityKey]}
-                  </Text>
-                </View>
-              )}
-
-              {impactKey && impactLabels[impactKey] && (
-                <View style={styles.impactRow}>
-                  <Zap
-                    size={12}
-                    color={impactColors[impactKey] ?? colors.impact.low}
-                  />
-                  <Text
-                    style={[
-                      styles.impactText,
-                      {
-                        color: impactColors[impactKey] ?? colors.impact.low,
-                      },
-                    ]}
-                  >
-                    {impactLabels[impactKey]}
-                  </Text>
-                </View>
-              )}
-
-              {(goal as any).project?.name && (
-                <Text style={styles.projectName}>
-                  {(goal as any).project.name}
-                </Text>
-              )}
-            </View>
-            {goal.id === celebrationGoalId && <ConfettiBurst particleCount={20} />}
-            {goal.id === celebrationGoalId && xpDelta > 0 && (
-              <XPFloat amount={xpDelta} onComplete={() => setXpDelta(0)} />
-            )}
-          </PressableCard>
-          </SwipeableRow>
-        </Animated.View>
-      );
-    },
-    [handleStatusChange, handleArchive, router, celebrationGoalId, xpDelta],
+    ({ item: goal }: { item: any }) => (
+      <GoalRow
+        goal={goal}
+        onPress={handleGoalPress}
+        onStatusChange={handleStatusChange}
+        onArchive={handleArchive}
+        isCelebrating={goal.id === celebrationGoalId}
+        xpDelta={goal.id === celebrationGoalId ? xpDelta : 0}
+        onXpComplete={handleXpComplete}
+      />
+    ),
+    [handleGoalPress, handleStatusChange, handleArchive, celebrationGoalId, xpDelta, handleXpComplete],
   );
 
   const renderEmpty = useCallback(() => {
@@ -403,9 +439,12 @@ export default function GoalsScreen() {
       <ListHeader title="Goals" subtitle={goalSubtitle} searchContext="goals" />
       <SectionList
         sections={sections}
-        keyExtractor={(item: any) => item.id}
+        keyExtractor={keyExtractor}
         renderItem={renderItem}
         renderSectionHeader={renderSectionHeader}
+        removeClippedSubviews
+        maxToRenderPerBatch={5}
+        initialNumToRender={8}
         ListHeaderComponent={
           <View style={styles.listHeader}>
             <ProjectPills
