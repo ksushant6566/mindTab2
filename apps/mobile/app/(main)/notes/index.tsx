@@ -101,6 +101,8 @@ function renderTypeIcon(type: string, color: string) {
   }
 }
 
+const keyExtractor = (item: any) => item.id;
+
 // ---------- Helpers ----------
 
 function stripHtml(html: string): string {
@@ -113,6 +115,101 @@ function formatDate(dateStr: string): string {
     day: "numeric",
   });
 }
+
+// ---------- Memoized note row ----------
+
+const NoteRow = React.memo(function NoteRow({
+  note,
+  onPress,
+  onEdit,
+  onDelete,
+}: {
+  note: any;
+  onPress: (id: string) => void;
+  onEdit: (id: string) => void;
+  onDelete: (id: string) => void;
+}) {
+  const preview = note.content ? stripHtml(note.content) : "";
+  const dateStr = note.updatedAt ?? note.createdAt;
+  const noteType = note.type as string | undefined;
+  const badgeColor = noteType
+    ? noteTypeBadgeColors[noteType] ?? colors.text.muted
+    : null;
+
+  const handlePress = useCallback(() => onPress(note.id), [note.id, onPress]);
+  const handleEdit = useCallback(() => onEdit(note.id), [note.id, onEdit]);
+  const handleDelete = useCallback(() => onDelete(note.id), [note.id, onDelete]);
+
+  const handleLongPress = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    const options = ["Edit", "Move to Project", "Delete", "Cancel"];
+    if (Platform.OS === "ios") {
+      ActionSheetIOS.showActionSheetWithOptions(
+        { options, destructiveButtonIndex: 2, cancelButtonIndex: 3 },
+        (index) => {
+          if (index === 0) onEdit(note.id);
+          else if (index === 2) onDelete(note.id);
+        },
+      );
+      return;
+    }
+    Alert.alert(note.title ?? "Note", undefined, [
+      { text: "Edit", onPress: () => onEdit(note.id) },
+      { text: "Move to Project" },
+      { text: "Delete", style: "destructive", onPress: () => onDelete(note.id) },
+      { text: "Cancel", style: "cancel" },
+    ]);
+  }, [note.id, note.title, onEdit, onDelete]);
+
+  const rightActions = useMemo(() => [
+    { label: "Edit", color: colors.status.active, onAction: handleEdit },
+    { label: "Delete", color: colors.feedback.error, onAction: handleDelete },
+  ], [handleEdit, handleDelete]);
+
+  return (
+    <SwipeableRow rightActions={rightActions}>
+      <PressableCard onPress={handlePress} onLongPress={handleLongPress}>
+        <Text style={styles.noteTitle} numberOfLines={1}>
+          {note.title || "Untitled"}
+        </Text>
+
+        {preview ? (
+          <Text style={styles.notePreview} numberOfLines={3}>
+            {preview}
+          </Text>
+        ) : null}
+
+        <View style={styles.metaRow}>
+          {noteType && badgeColor && (
+            <View
+              style={[
+                styles.typeBadge,
+                { backgroundColor: badgeColor + "26" },
+              ]}
+            >
+              {renderTypeIcon(noteType, badgeColor)}
+              <Text style={[styles.typeBadgeText, { color: badgeColor }]}>
+                {noteType.charAt(0).toUpperCase() + noteType.slice(1)}
+              </Text>
+            </View>
+          )}
+
+          {dateStr && (
+            <Text style={styles.dateText}>{formatDate(dateStr)}</Text>
+          )}
+
+          {(note as any).project?.name && (
+            <View style={styles.projectPill}>
+              <Text style={styles.projectPillText}>
+                {(note as any).project.name}
+              </Text>
+            </View>
+          )}
+        </View>
+      </PressableCard>
+    </SwipeableRow>
+  );
+});
 
 // ---------- Screen ----------
 
@@ -131,6 +228,19 @@ export default function NotesScreen() {
   );
 
   const deleteJournal = useDeleteJournal(api);
+
+  // Stable callbacks for NoteRow
+  const handleNotePress = useCallback((id: string) => {
+    router.push(`/(main)/notes/${id}`);
+  }, [router]);
+
+  const handleNoteEdit = useCallback((id: string) => {
+    router.push({ pathname: `/(main)/notes/[id]`, params: { id, editing: "true" } } as any);
+  }, [router]);
+
+  const handleNoteDelete = useCallback((id: string) => {
+    deleteJournal.mutate(id);
+  }, [deleteJournal]);
 
   // Filter by type + sort
   const filteredNotes = useMemo(() => {
@@ -154,100 +264,15 @@ export default function NotesScreen() {
   }, [refetch]);
 
   const renderItem = useCallback(
-    ({ item: note }: { item: any }) => {
-      const preview = note.content ? stripHtml(note.content) : "";
-      const dateStr = note.updatedAt ?? note.createdAt;
-      const noteType = note.type as string | undefined;
-      const badgeColor = noteType
-        ? noteTypeBadgeColors[noteType] ?? colors.text.muted
-        : null;
-
-      const handleLongPress = () => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-        const options = ["Edit", "Move to Project", "Delete", "Cancel"];
-        if (Platform.OS === "ios") {
-          ActionSheetIOS.showActionSheetWithOptions(
-            { options, destructiveButtonIndex: 2, cancelButtonIndex: 3 },
-            (index) => {
-              if (index === 0) router.push({ pathname: `/(main)/notes/[id]`, params: { id: note.id, editing: "true" } } as any);
-              else if (index === 2) deleteJournal.mutate(note.id);
-            },
-          );
-          return;
-        }
-        Alert.alert(note.title ?? "Note", undefined, [
-          { text: "Edit", onPress: () => router.push({ pathname: `/(main)/notes/[id]`, params: { id: note.id, editing: "true" } } as any) },
-          { text: "Move to Project" },
-          { text: "Delete", style: "destructive", onPress: () => deleteJournal.mutate(note.id) },
-          { text: "Cancel", style: "cancel" },
-        ]);
-      };
-
-      return (
-        <SwipeableRow
-          rightActions={[
-            {
-              label: "Edit",
-              color: colors.status.active,
-              onAction: () =>
-                router.push({ pathname: `/(main)/notes/[id]`, params: { id: note.id, editing: "true" } } as any),
-            },
-            {
-              label: "Delete",
-              color: colors.feedback.error,
-              onAction: () => deleteJournal.mutate(note.id),
-            },
-          ]}
-        >
-          <PressableCard
-            onPress={() => router.push(`/(main)/notes/${note.id}`)}
-            onLongPress={handleLongPress}
-          >
-            {/* Title */}
-            <Text style={styles.noteTitle} numberOfLines={1}>
-              {note.title || "Untitled"}
-            </Text>
-
-            {/* Preview */}
-            {preview ? (
-              <Text style={styles.notePreview} numberOfLines={3}>
-                {preview}
-              </Text>
-            ) : null}
-
-            {/* Meta: type badge + date + project */}
-            <View style={styles.metaRow}>
-              {noteType && badgeColor && (
-                <View
-                  style={[
-                    styles.typeBadge,
-                    { backgroundColor: badgeColor + "26" },
-                  ]}
-                >
-                  {renderTypeIcon(noteType, badgeColor)}
-                  <Text style={[styles.typeBadgeText, { color: badgeColor }]}>
-                    {noteType.charAt(0).toUpperCase() + noteType.slice(1)}
-                  </Text>
-                </View>
-              )}
-
-              {dateStr && (
-                <Text style={styles.dateText}>{formatDate(dateStr)}</Text>
-              )}
-
-              {(note as any).project?.name && (
-                <View style={styles.projectPill}>
-                  <Text style={styles.projectPillText}>
-                    {(note as any).project.name}
-                  </Text>
-                </View>
-              )}
-            </View>
-          </PressableCard>
-        </SwipeableRow>
-      );
-    },
-    [router, deleteJournal],
+    ({ item }: { item: any }) => (
+      <NoteRow
+        note={item}
+        onPress={handleNotePress}
+        onEdit={handleNoteEdit}
+        onDelete={handleNoteDelete}
+      />
+    ),
+    [handleNotePress, handleNoteEdit, handleNoteDelete],
   );
 
   const renderEmpty = useCallback(() => {
@@ -269,8 +294,11 @@ export default function NotesScreen() {
       <ListHeader title="Notes" subtitle={noteSubtitle} searchContext="notes" />
       <FlatList
         data={filteredNotes}
-        keyExtractor={(item: any) => item.id}
+        keyExtractor={keyExtractor}
         renderItem={renderItem}
+        removeClippedSubviews
+        maxToRenderPerBatch={5}
+        initialNumToRender={8}
         ListHeaderComponent={
           <View style={styles.listHeader}>
             <ProjectPills

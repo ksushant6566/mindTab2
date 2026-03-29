@@ -605,11 +605,13 @@ export default function NoteDetailScreen() {
       />
 
       {/* --- Mention search sheet (edit mode) --- */}
-      <MentionSearchSheet
-        ref={mentionSheetRef}
-        onSelect={handleMentionSelect}
-        onDismiss={handleMentionSearchDismiss}
-      />
+      {isEditing && (
+        <MentionSearchSheet
+          ref={mentionSheetRef}
+          onSelect={handleMentionSelect}
+          onDismiss={handleMentionSearchDismiss}
+        />
+      )}
     </SafeAreaView>
     </Animated.View>
   );

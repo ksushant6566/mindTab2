@@ -44,13 +44,13 @@ export function PressableCard({
         ? withTiming(1.02, { duration: 100 })
         : withSpring(0.97, springs.snappy);
       opacity.value = withTiming(scaleUp ? 0.85 : 0.8, { duration: 100 });
-      runOnJS(hapticFeedback)();
     })
     .onFinalize((_, success) => {
       scale.value = withSpring(1, springs.snappy);
       opacity.value = withTiming(1, { duration: 100 });
-      if (success && onPress) {
-        runOnJS(onPress)();
+      if (success) {
+        runOnJS(hapticFeedback)();
+        if (onPress) runOnJS(onPress)();
       }
     });
 
