@@ -129,6 +129,21 @@ func main() {
 	searchHandler := handler.NewSearchHandler(queries)
 	mentionsHandler := handler.NewMentionsHandler(queries)
 
+	// Periodic cleanup of expired tokens.
+	go func() {
+		ticker := time.NewTicker(1 * time.Hour)
+		defer ticker.Stop()
+		for {
+			<-ticker.C
+			if err := queries.DeleteExpiredRefreshTokens(context.Background()); err != nil {
+				slog.Error("failed to clean expired refresh tokens", "error", err)
+			}
+			if err := queries.DeleteExpiredVerificationTokens(context.Background()); err != nil {
+				slog.Error("failed to clean expired verification tokens", "error", err)
+			}
+		}
+	}()
+
 	r := chi.NewRouter()
 	r.Use(chimw.RequestID)
 	r.Use(chimw.RealIP)

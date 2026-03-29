@@ -19,7 +19,7 @@ import (
 	"github.com/ksushant6566/mindtab/server/internal/store"
 )
 
-const bcryptCost = 10
+const bcryptCost = 12
 
 type EmailAuthHandler struct {
 	queries   store.Querier
