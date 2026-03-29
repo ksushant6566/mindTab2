@@ -267,6 +267,25 @@ func (h *EmailAuthHandler) Verify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	isMobile := r.Header.Get("X-Platform") == "mobile"
+
+	if !isMobile {
+		http.SetCookie(w, &http.Cookie{
+			Name:     "mindtab_refresh",
+			Value:    rawRefresh,
+			Path:     "/",
+			MaxAge:   30 * 24 * 60 * 60,
+			HttpOnly: true,
+			Secure:   true,
+			SameSite: http.SameSiteLaxMode,
+		})
+		WriteJSON(w, http.StatusOK, authResponse{
+			AccessToken: accessToken,
+			User:        toUserJSON(user),
+		})
+		return
+	}
+
 	WriteJSON(w, http.StatusOK, mobileAuthResponse{
 		AccessToken:  accessToken,
 		RefreshToken: rawRefresh,
@@ -340,6 +359,25 @@ func (h *EmailAuthHandler) Signin(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		slog.Error("failed to store refresh token", "error", err)
 		WriteError(w, http.StatusInternalServerError, "failed to store token")
+		return
+	}
+
+	isMobile := r.Header.Get("X-Platform") == "mobile"
+
+	if !isMobile {
+		http.SetCookie(w, &http.Cookie{
+			Name:     "mindtab_refresh",
+			Value:    rawRefresh,
+			Path:     "/",
+			MaxAge:   30 * 24 * 60 * 60,
+			HttpOnly: true,
+			Secure:   true,
+			SameSite: http.SameSiteLaxMode,
+		})
+		WriteJSON(w, http.StatusOK, authResponse{
+			AccessToken: accessToken,
+			User:        toUserJSON(user),
+		})
 		return
 	}
 
