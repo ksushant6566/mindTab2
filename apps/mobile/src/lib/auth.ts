@@ -35,13 +35,11 @@ export async function setRefreshToken(token: string | null): Promise<void> {
 }
 
 /**
- * Notify the server to invalidate the current refresh token.
+ * Notify the server to invalidate a refresh token.
  * Best-effort — failures are ignored since the client clears tokens regardless.
+ * Accepts the token directly to avoid racing with clearTokens().
  */
-export async function logoutFromServer(): Promise<void> {
-  const refreshToken = await getRefreshToken();
-  if (!refreshToken) return;
-
+export async function logoutFromServer(token: string): Promise<void> {
   try {
     await fetch(`${API_URL}/auth/logout`, {
       method: "POST",
@@ -49,7 +47,7 @@ export async function logoutFromServer(): Promise<void> {
         "Content-Type": "application/json",
         "X-Platform": "mobile",
       },
-      body: JSON.stringify({ refreshToken }),
+      body: JSON.stringify({ refreshToken: token }),
     });
   } catch {
     // Best-effort — client will clear tokens regardless.

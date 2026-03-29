@@ -77,7 +77,8 @@ export const useAuthStore = create<AuthState>((set) => ({
         _hasChecked: true,
       });
     } catch {
-      await clearTokens();
+      // Don't clear tokens on transient errors — refreshTokens() handles
+      // definitive auth failures (401/403) internally.
       set({ user: null, isAuthenticated: false, isLoading: false, _hasChecked: true });
     }
   },
@@ -115,7 +116,10 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   logout: async () => {
-    logoutFromServer();
+    // Capture token before clearing — logoutFromServer is fire-and-forget
+    // so clearTokens() must not delete it before the fetch reads it.
+    const token = await getRefreshToken();
+    if (token) logoutFromServer(token);
     await clearTokens();
     try { await GoogleSignin.signOut(); } catch {}
     set({ user: null, isAuthenticated: false, _hasChecked: false });
