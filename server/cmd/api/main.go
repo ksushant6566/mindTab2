@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"golang.org/x/time/rate"
 	chimw "github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -140,16 +141,28 @@ func main() {
 		w.Write([]byte(`{"status":"ok"}`))
 	})
 
-	// Public routes.
+	// Rate limiters for auth endpoints.
+	authLimiter := mw.NewRateLimiter(rate.Every(12*time.Second), 5)   // 5 req/min burst 5
+	signupLimiter := mw.NewRateLimiter(rate.Every(20*time.Second), 3) // 3 req/min burst 3
+
+	// Public routes (no rate limiting).
 	r.Post("/auth/google", authHandler.Google)
 	r.Post("/auth/refresh", authHandler.Refresh)
 	r.Post("/auth/logout", authHandler.Logout)
 	r.Get("/users/{id}", usersHandler.GetByID)
-	r.Post("/auth/email/signup", emailAuthHandler.Signup)
-	r.Post("/auth/email/verify", emailAuthHandler.Verify)
-	r.Post("/auth/email/signin", emailAuthHandler.Signin)
-	r.Post("/auth/email/forgot-password", emailAuthHandler.ForgotPassword)
-	r.Post("/auth/email/reset-password", emailAuthHandler.ResetPassword)
+
+	// Rate-limited auth routes.
+	r.Group(func(r chi.Router) {
+		r.Use(authLimiter.Limit)
+		r.Post("/auth/email/signin", emailAuthHandler.Signin)
+		r.Post("/auth/email/verify", emailAuthHandler.Verify)
+		r.Post("/auth/email/forgot-password", emailAuthHandler.ForgotPassword)
+		r.Post("/auth/email/reset-password", emailAuthHandler.ResetPassword)
+	})
+	r.Group(func(r chi.Router) {
+		r.Use(signupLimiter.Limit)
+		r.Post("/auth/email/signup", emailAuthHandler.Signup)
+	})
 
 	// WebSocket chat — outside auth middleware (auth via query param token).
 	registry := chat.NewRegistry()
