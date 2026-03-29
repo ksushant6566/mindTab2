@@ -139,7 +139,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#1a1a1a",
     overflow: "hidden",
-    marginBottom: 10,
   },
   processingCard: {
     opacity: 0.6,
