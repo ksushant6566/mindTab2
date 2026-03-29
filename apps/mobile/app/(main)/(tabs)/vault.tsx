@@ -25,7 +25,7 @@ export default function VaultTab() {
     isRefetching,
     refetch,
   } = useInfiniteQuery({
-    queryKey: ["saves"],
+    queryKey: ["saves", "list"],
     queryFn: async ({ pageParam = 0 }) => {
       const [res, token] = await Promise.all([
         api.GET("/saves" as any, {
@@ -58,7 +58,7 @@ export default function VaultTab() {
 
   const pages = data?.pages ?? [];
   const latestToken = pages.length > 0 ? pages[pages.length - 1].accessToken : null;
-  const allSaves = pages.flatMap((p) => p.saves);
+  const allSaves = pages.flatMap((p) => p.saves ?? []);
 
   const filteredSaves = allSaves.filter(
     (s) => filter === "all" || s.source_type === filter,
