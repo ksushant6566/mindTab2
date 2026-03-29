@@ -41,12 +41,12 @@ export default function VaultTab() {
     },
     initialPageParam: 0,
     getNextPageParam: (lastPage) => {
-      if (lastPage.saves.length < PAGE_SIZE) return undefined;
+      if (!lastPage?.saves || lastPage.saves.length < PAGE_SIZE) return undefined;
       return lastPage.offset + PAGE_SIZE;
     },
     refetchInterval: (query) => {
       const pages = query.state.data?.pages ?? [];
-      const allSaves = pages.flatMap((p) => p.saves);
+      const allSaves = pages.flatMap((p) => p.saves ?? []);
       const hasProcessing = allSaves.some(
         (s) =>
           s.processing_status !== "completed" &&
