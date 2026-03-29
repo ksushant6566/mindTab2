@@ -1,7 +1,7 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { View } from "react-native";
 import { useRouter } from "expo-router";
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { getAccessToken } from "~/lib/auth";
 import { api } from "~/lib/api-client";
 import { FilterChips } from "~/components/vault/filter-chips";
@@ -25,44 +25,60 @@ type RawSave = {
   created_at: string;
 };
 
+const PAGE_SIZE = 20;
+
 export default function VaultTab() {
   const router = useRouter();
   const [filter, setFilter] = useState<FilterType>("all");
-  const [offset, setOffset] = useState(0);
-  const [accessToken, setAccessToken] = useState<string | null>(null);
-  const [isManualRefresh, setIsManualRefresh] = useState(false);
-  const PAGE_SIZE = 20;
 
-  useEffect(() => {
-    getAccessToken().then(setAccessToken);
-  }, []);
-
-  const { data, isFetching, refetch } = useQuery({
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isRefetching,
+    refetch,
+  } = useInfiniteQuery({
     queryKey: ["saves"],
-    queryFn: async () => {
-      const { data } = await api.GET("/saves" as any, {
-        params: { query: { limit: 100, offset: 0 } },
-      });
-      return (data as RawSave[]) ?? [];
+    queryFn: async ({ pageParam = 0 }) => {
+      const [res, token] = await Promise.all([
+        api.GET("/saves" as any, {
+          params: { query: { limit: PAGE_SIZE, offset: pageParam } },
+        }),
+        getAccessToken(),
+      ]);
+      return {
+        saves: (res.data as RawSave[]) ?? [],
+        accessToken: token,
+        offset: pageParam as number,
+      };
+    },
+    initialPageParam: 0,
+    getNextPageParam: (lastPage) => {
+      if (lastPage.saves.length < PAGE_SIZE) return undefined;
+      return lastPage.offset + PAGE_SIZE;
     },
     refetchInterval: (query) => {
-      const saves = (query.state.data as RawSave[] | undefined) ?? [];
-      const hasProcessing = saves.some(
-        (s) => s.processing_status !== "completed" && s.processing_status !== "failed"
+      const pages = query.state.data?.pages ?? [];
+      const allSaves = pages.flatMap((p) => p.saves);
+      const hasProcessing = allSaves.some(
+        (s) =>
+          s.processing_status !== "completed" &&
+          s.processing_status !== "failed",
       );
       return hasProcessing ? 3000 : false;
     },
   });
 
-  const allSaves: RawSave[] = data ?? [];
+  const pages = data?.pages ?? [];
+  const latestToken = pages.length > 0 ? pages[pages.length - 1].accessToken : null;
+  const allSaves = pages.flatMap((p) => p.saves);
 
   const filteredSaves = allSaves.filter(
-    (s) => filter === "all" || s.source_type === filter
+    (s) => filter === "all" || s.source_type === filter,
   );
 
-  const visibleSaves = filteredSaves.slice(0, offset + PAGE_SIZE);
-
-  const cardProps: SaveCardProps[] = visibleSaves.map((s) => ({
+  const cardProps: SaveCardProps[] = filteredSaves.map((s) => ({
     id: s.id,
     sourceType: s.source_type,
     sourceTitle: s.source_title,
@@ -72,26 +88,27 @@ export default function VaultTab() {
     tags: s.tags,
     mediaKey: s.media_key,
     processingStatus: s.processing_status,
-    accessToken,
-    onPress: (id: string) => router.push(`/(main)/vault/${id}` as any),
+    accessToken: latestToken,
+    onPress: () => {},
   }));
 
+  const handleSavePress = useCallback(
+    (id: string) => router.push(`/(main)/vault/${id}` as any),
+    [router],
+  );
+
   const handleRefresh = useCallback(async () => {
-    setOffset(0);
-    setIsManualRefresh(true);
     await refetch();
-    setIsManualRefresh(false);
   }, [refetch]);
 
   const handleLoadMore = useCallback(() => {
-    if (offset + PAGE_SIZE < filteredSaves.length) {
-      setOffset((prev) => prev + PAGE_SIZE);
+    if (hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
     }
-  }, [offset, filteredSaves.length]);
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const handleFilterChange = useCallback((newFilter: FilterType) => {
     setFilter(newFilter);
-    setOffset(0);
   }, []);
 
   return (
@@ -99,9 +116,9 @@ export default function VaultTab() {
       <FilterChips activeFilter={filter} onFilterChange={handleFilterChange} />
       <SaveGrid
         saves={cardProps}
-        onSavePress={(id) => router.push(`/(main)/vault/${id}` as any)}
+        onSavePress={handleSavePress}
         onRefresh={handleRefresh}
-        refreshing={isManualRefresh}
+        refreshing={isRefetching && !isFetchingNextPage}
         onLoadMore={handleLoadMore}
       />
       <SaveFAB />
