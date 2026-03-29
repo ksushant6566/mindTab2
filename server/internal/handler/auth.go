@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/ksushant6566/mindtab/server/internal/auth"
 	"github.com/ksushant6566/mindtab/server/internal/store"
@@ -14,14 +15,16 @@ import (
 // AuthHandler handles authentication endpoints.
 type AuthHandler struct {
 	queries        store.Querier
+	pool           *pgxpool.Pool
 	jwtSecret      string
 	googleClientID string
 }
 
 // NewAuthHandler creates a new AuthHandler.
-func NewAuthHandler(queries store.Querier, jwtSecret, googleClientID string) *AuthHandler {
+func NewAuthHandler(queries store.Querier, pool *pgxpool.Pool, jwtSecret, googleClientID string) *AuthHandler {
 	return &AuthHandler{
 		queries:        queries,
+		pool:           pool,
 		jwtSecret:      jwtSecret,
 		googleClientID: googleClientID,
 	}
@@ -198,12 +201,7 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Delete old refresh token (rotation).
-	if err := h.queries.DeleteRefreshToken(r.Context(), oldHash); err != nil {
-		slog.Error("failed to delete old refresh token", "error", err)
-	}
-
-	// Get user for the new access token.
+	// Get user for the new access token (read-only, outside transaction).
 	user, err := h.queries.GetUserByID(r.Context(), token.UserID)
 	if err != nil {
 		slog.Error("failed to get user", "error", err)
@@ -211,7 +209,7 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Generate new access token.
+	// Generate new access token (no DB, outside transaction).
 	accessToken, err := auth.GenerateAccessToken(h.jwtSecret, user.ID, user.Email)
 	if err != nil {
 		slog.Error("failed to generate access token", "error", err)
@@ -219,7 +217,7 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Generate new refresh token.
+	// Generate new refresh token material (no DB, outside transaction).
 	rawRefresh, hashRefresh, err := auth.GenerateRefreshToken()
 	if err != nil {
 		slog.Error("failed to generate refresh token", "error", err)
@@ -227,9 +225,25 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Store new refresh token.
+	// Rotate refresh token atomically.
+	tx, err := h.pool.Begin(r.Context())
+	if err != nil {
+		slog.Error("failed to begin transaction", "error", err)
+		WriteError(w, http.StatusInternalServerError, "failed to refresh token")
+		return
+	}
+	defer tx.Rollback(r.Context())
+
+	qtx := h.queries.(*store.Queries).WithTx(tx)
+
+	if err := qtx.DeleteRefreshToken(r.Context(), oldHash); err != nil {
+		slog.Error("failed to delete old refresh token", "error", err)
+		WriteError(w, http.StatusInternalServerError, "failed to refresh token")
+		return
+	}
+
 	expiresAt := time.Now().Add(30 * 24 * time.Hour)
-	err = h.queries.CreateRefreshToken(r.Context(), store.CreateRefreshTokenParams{
+	err = qtx.CreateRefreshToken(r.Context(), store.CreateRefreshTokenParams{
 		UserID:    user.ID,
 		TokenHash: hashRefresh,
 		ExpiresAt: pgtype.Timestamptz{Time: expiresAt, Valid: true},
@@ -237,6 +251,12 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		slog.Error("failed to store refresh token", "error", err)
 		WriteError(w, http.StatusInternalServerError, "failed to store token")
+		return
+	}
+
+	if err := tx.Commit(r.Context()); err != nil {
+		slog.Error("failed to commit refresh token rotation", "error", err)
+		WriteError(w, http.StatusInternalServerError, "failed to refresh token")
 		return
 	}
 
