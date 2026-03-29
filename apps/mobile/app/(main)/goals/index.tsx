@@ -6,12 +6,11 @@ import {
   Pressable,
   RefreshControl,
   StyleSheet,
-  TextInput,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
-import { Target, Zap, Archive, ChevronDown, Search, Settings } from "lucide-react-native";
+import { Target, Zap, Archive, ChevronDown } from "lucide-react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import {
   goalsQueryOptions,
@@ -41,6 +40,7 @@ const STATUS_FILTERS = [
   { key: "pending", label: "Pending" },
   { key: "in_progress", label: "Active" },
   { key: "completed", label: "Done" },
+  { key: "archived", label: "Archived" },
 ] as const;
 
 type StatusFilter = (typeof STATUS_FILTERS)[number]["key"];
@@ -102,15 +102,6 @@ type GoalSection = {
   count: number;
 };
 
-function useDebounce(value: string, delay: number) {
-  const [debounced, setDebounced] = useState(value);
-  useEffect(() => {
-    const timer = setTimeout(() => setDebounced(value), delay);
-    return () => clearTimeout(timer);
-  }, [value, delay]);
-  return debounced;
-}
-
 // ---------- Screen ----------
 
 export default function GoalsScreen() {
@@ -119,8 +110,6 @@ export default function GoalsScreen() {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
-  const [searchQuery, setSearchQuery] = useState("");
-  const [showArchived, setShowArchived] = useState(false);
   const [celebrationGoalId, setCelebrationGoalId] = useState<string | null>(null);
   const [xpDelta, setXpDelta] = useState(0);
   const [undoState, setUndoState] = useState<{
@@ -128,28 +117,25 @@ export default function GoalsScreen() {
     goalId?: string;
     previousStatus?: string;
   }>({ visible: false });
-  const debouncedSearch = useDebounce(searchQuery, 300);
 
   const projectId = selectedProjectId ?? undefined;
+  const includeArchived = statusFilter === "archived";
   const { data: goals, isLoading, refetch } = useQuery(
-    goalsQueryOptions(api, { projectId }),
+    goalsQueryOptions(api, { projectId, includeArchived }),
   );
 
   const updateGoal = useUpdateGoal(api);
   const archiveCompleted = useArchiveCompletedGoals(api);
 
-  // Filter by status
+  // Filter by status (archived goals are excluded unless explicitly filtered)
   const filteredGoals = useMemo(() => {
     const list = goals ?? [];
     return list.filter((g: any) => {
       const matchesStatus = statusFilter === "all" ? true : g.status === statusFilter;
-      const matchesArchive = showArchived || g.status !== "archived";
-      const matchesSearch = debouncedSearch
-        ? g.title?.toLowerCase().includes(debouncedSearch.toLowerCase())
-        : true;
-      return matchesStatus && matchesArchive && matchesSearch;
+      const hideArchived = statusFilter === "all" && g.status === "archived";
+      return matchesStatus && !hideArchived;
     });
-  }, [goals, statusFilter, showArchived, debouncedSearch]);
+  }, [goals, statusFilter]);
 
   useEffect(() => {
     if (!celebrationGoalId) return;
@@ -426,27 +412,6 @@ export default function GoalsScreen() {
               selectedProjectId={selectedProjectId}
               onSelect={setSelectedProjectId}
             />
-            <View style={styles.toolsRow}>
-              <View style={styles.searchRow}>
-                <Search size={16} color={colors.text.muted} />
-                <TextInput
-                  value={searchQuery}
-                  onChangeText={setSearchQuery}
-                  placeholder="Search goals..."
-                  placeholderTextColor={colors.text.muted}
-                  style={styles.searchInput}
-                />
-              </View>
-              <Pressable
-                style={styles.settingsButton}
-                onPress={() => setShowArchived((value) => !value)}
-              >
-                <Settings size={16} color={colors.text.secondary} />
-                <Text style={styles.settingsText}>
-                  {showArchived ? "Hide archived" : "Show archived"}
-                </Text>
-              </Pressable>
-            </View>
             <View style={styles.filterRow}>
               {STATUS_FILTERS.map((f) => (
                 <Chip
@@ -498,42 +463,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg.primary,
   },
   listHeader: {
-    paddingHorizontal: 20,
     paddingTop: 8,
   },
   filterRow: {
     flexDirection: "row",
     gap: 8,
     marginBottom: 16,
-  },
-  toolsRow: {
-    gap: 10,
-    marginBottom: 12,
-  },
-  searchRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    borderWidth: 1,
-    borderColor: colors.border.default,
-    borderRadius: 12,
-    backgroundColor: colors.bg.elevated,
-    paddingHorizontal: 12,
-  },
-  searchInput: {
-    flex: 1,
-    color: colors.text.primary,
-    fontSize: 15,
-    paddingVertical: 10,
-  },
-  settingsButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  settingsText: {
-    fontSize: 12,
-    color: colors.text.secondary,
   },
   listContent: {
     paddingHorizontal: 20,
