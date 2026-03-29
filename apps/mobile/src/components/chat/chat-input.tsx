@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { Paperclip, Mic, Send, X } from "lucide-react-native";
 import * as ImagePicker from "expo-image-picker";
-import { getAccessToken } from "~/lib/auth";
+import { authedFetch } from "~/lib/api-client";
 import { colors } from "~/styles/colors";
 
 type ChatInputProps = {
@@ -19,17 +19,17 @@ type ChatInputProps = {
 };
 
 const uploadAttachment = async (uri: string): Promise<string> => {
-  const token = await getAccessToken();
   const filename = uri.split("/").pop() || "attachment.jpg";
   const formData = new FormData();
   formData.append("file", { uri, name: filename, type: "image/jpeg" } as any);
 
   const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:8080";
-  const res = await fetch(`${API_URL}/chat/attachments`, {
+  const res = await authedFetch(`${API_URL}/chat/attachments`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${token}` },
     body: formData,
   });
+
+  if (!res.ok) throw new Error("Upload failed");
   const data = await res.json();
   return data.media_key;
 };

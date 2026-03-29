@@ -17,8 +17,7 @@ import * as ImagePicker from "expo-image-picker";
 import { useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react-native";
 import { toast } from "sonner-native";
-import { api } from "~/lib/api-client";
-import { getAccessToken } from "~/lib/auth";
+import { api, authedFetch } from "~/lib/api-client";
 import { colors } from "~/styles/colors";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:8080";
@@ -99,13 +98,8 @@ export function SaveFAB() {
     } as any);
 
     try {
-      const token = await getAccessToken();
-      const response = await fetch(`${API_URL}/saves`, {
+      const response = await authedFetch(`${API_URL}/saves`, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${token ?? ""}`,
-          "X-Platform": "mobile",
-        },
         body: formData,
       });
       if (!response.ok) throw new Error("Upload failed");

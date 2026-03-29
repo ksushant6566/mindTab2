@@ -20,7 +20,7 @@ import {
 } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { colors } from "~/styles/colors";
-import { getAccessToken, refreshTokens } from "~/lib/auth";
+import { authedFetch } from "~/lib/api-client";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -69,25 +69,6 @@ type ConnectedItem =
 // ---------------------------------------------------------------------------
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:8080";
-
-async function authedFetch(url: string): Promise<Response> {
-  const token = await getAccessToken();
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${token}`, "X-Platform": "mobile" },
-  });
-  if (res.status === 401) {
-    const refreshed = await refreshTokens();
-    if (!refreshed) return res;
-    const newToken = await getAccessToken();
-    return fetch(url, {
-      headers: {
-        Authorization: `Bearer ${newToken}`,
-        "X-Platform": "mobile",
-      },
-    });
-  }
-  return res;
-}
 
 async function fetchConnectedNotes(
   entityType: string,
