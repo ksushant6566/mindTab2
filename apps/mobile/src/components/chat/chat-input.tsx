@@ -170,6 +170,7 @@ const styles = StyleSheet.create({
   textInput: {
     color: colors.text.primary,
     fontSize: 16,
+    minHeight: 28,
     maxHeight: 120,
     marginBottom: 12,
     padding: 0,
