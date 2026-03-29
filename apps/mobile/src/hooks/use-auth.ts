@@ -7,6 +7,7 @@ import {
   setRefreshToken,
   clearTokens,
   refreshTokens,
+  logoutFromServer,
   emailSignup as emailSignupApi,
   emailVerify as emailVerifyApi,
   emailSignin as emailSigninApi,
@@ -114,6 +115,7 @@ const useAuthStore = create<AuthState>((set) => ({
   },
 
   logout: async () => {
+    logoutFromServer();
     await clearTokens();
     try { await GoogleSignin.signOut(); } catch {}
     set({ user: null, isAuthenticated: false, _hasChecked: false });

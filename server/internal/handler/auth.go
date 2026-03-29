@@ -283,3 +283,50 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 		"accessToken": accessToken,
 	})
 }
+
+// Logout handles POST /auth/logout.
+// Deletes the refresh token from DB so it can no longer be used.
+func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
+	isMobile := r.Header.Get("X-Platform") == "mobile"
+
+	var rawToken string
+	if isMobile {
+		var req struct {
+			RefreshToken string `json:"refreshToken"`
+		}
+		if err := ReadJSON(r, &req); err != nil || req.RefreshToken == "" {
+			// Still return 200 — client already intends to log out.
+			WriteJSON(w, http.StatusOK, map[string]string{"message": "logged out"})
+			return
+		}
+		rawToken = req.RefreshToken
+	} else {
+		cookie, err := r.Cookie("mindtab_refresh")
+		if err != nil {
+			WriteJSON(w, http.StatusOK, map[string]string{"message": "logged out"})
+			return
+		}
+		rawToken = cookie.Value
+	}
+
+	// Delete the specific refresh token.
+	tokenHash := auth.HashToken(rawToken)
+	if err := h.queries.DeleteRefreshToken(r.Context(), tokenHash); err != nil {
+		slog.Error("failed to delete refresh token on logout", "error", err)
+	}
+
+	// Clear cookie for web clients.
+	if !isMobile {
+		http.SetCookie(w, &http.Cookie{
+			Name:     "mindtab_refresh",
+			Value:    "",
+			Path:     "/",
+			MaxAge:   -1,
+			HttpOnly: true,
+			Secure:   true,
+			SameSite: http.SameSiteLaxMode,
+		})
+	}
+
+	WriteJSON(w, http.StatusOK, map[string]string{"message": "logged out"})
+}

@@ -143,6 +143,7 @@ func main() {
 	// Public routes.
 	r.Post("/auth/google", authHandler.Google)
 	r.Post("/auth/refresh", authHandler.Refresh)
+	r.Post("/auth/logout", authHandler.Logout)
 	r.Get("/users/{id}", usersHandler.GetByID)
 	r.Post("/auth/email/signup", emailAuthHandler.Signup)
 	r.Post("/auth/email/verify", emailAuthHandler.Verify)
