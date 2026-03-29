@@ -64,32 +64,50 @@ export async function clearTokens(): Promise<void> {
   ]);
 }
 
+/** Timestamp of last successful refresh — used to skip redundant calls. */
+let lastRefreshAt = 0;
+
 /**
  * Refresh the access token using the stored refresh token.
- * Returns true if refresh succeeded, false otherwise.
- * On failure, clears all stored tokens.
+ * Skips if a successful refresh happened within the last 30 seconds.
+ * Returns true if refresh succeeded (or was skipped), false otherwise.
+ * Only clears tokens on definitive auth rejection (401/403).
  */
 export async function refreshTokens(): Promise<boolean> {
+  // Skip if we refreshed recently (prevents double-rotation on foreground).
+  if (Date.now() - lastRefreshAt < 30_000) return true;
+
   const refreshToken = await getRefreshToken();
   if (!refreshToken) return false;
 
-  const res = await fetch(`${API_URL}/auth/refresh`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Platform": "mobile",
-    },
-    body: JSON.stringify({ refreshToken }),
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}/auth/refresh`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Platform": "mobile",
+      },
+      body: JSON.stringify({ refreshToken }),
+    });
+  } catch {
+    // Network error — don't clear tokens, let the user retry.
+    return false;
+  }
 
   if (res.ok) {
     const data = await res.json();
     await setAccessToken(data.accessToken);
     await setRefreshToken(data.refreshToken);
+    lastRefreshAt = Date.now();
     return true;
   }
 
-  await clearTokens();
+  // Only clear tokens on definitive auth rejection.
+  if (res.status === 401 || res.status === 403) {
+    await clearTokens();
+  }
+
   return false;
 }
 
