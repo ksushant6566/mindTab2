@@ -1,5 +1,6 @@
 import { useCallback } from "react";
-import { FlatList, View, RefreshControl, StyleSheet } from "react-native";
+import { View, RefreshControl, StyleSheet } from "react-native";
+import { MasonryFlashList } from "@shopify/flash-list";
 import { SaveCard } from "./save-card";
 import { colors } from "~/styles/colors";
 
@@ -26,8 +27,6 @@ type SaveGridProps = {
   refreshing: boolean;
   onLoadMore: () => void;
 };
-
-const keyExtractor = (item: RawSave) => item.id;
 
 export function SaveGrid({
   saves,
@@ -60,19 +59,16 @@ export function SaveGrid({
   );
 
   return (
-    <FlatList
+    <MasonryFlashList
       data={saves}
       renderItem={renderItem}
-      keyExtractor={keyExtractor}
+      keyExtractor={(item) => item.id}
       numColumns={2}
-      columnWrapperStyle={styles.row}
+      estimatedItemSize={180}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
       onEndReached={onLoadMore}
       onEndReachedThreshold={0.5}
-      removeClippedSubviews={false}
-      maxToRenderPerBatch={6}
-      initialNumToRender={10}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
@@ -89,12 +85,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingBottom: 100,
   },
-  row: {
-    gap: 10,
-  },
   cell: {
-    flex: 1,
-    maxWidth: "50%",
-    marginBottom: 10,
+    paddingHorizontal: 5,
+    paddingBottom: 10,
   },
 });
