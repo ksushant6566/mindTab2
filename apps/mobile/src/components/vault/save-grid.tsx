@@ -97,6 +97,7 @@ const styles = StyleSheet.create({
   },
   cell: {
     flex: 1,
+    maxWidth: "50%",
     marginBottom: 10,
   },
 });

@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { View } from "react-native";
 import { useRouter } from "expo-router";
 import { useInfiniteQuery } from "@tanstack/react-query";
@@ -16,13 +16,18 @@ const PAGE_SIZE = 20;
 export default function VaultTab() {
   const router = useRouter();
   const [filter, setFilter] = useState<FilterType>("all");
+  const [isManualRefresh, setIsManualRefresh] = useState(false);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+
+  useEffect(() => {
+    getAccessToken().then(setAccessToken);
+  }, []);
 
   const {
     data,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-    isRefetching,
     refetch,
   } = useInfiniteQuery({
     queryKey: ["saves", "list"],
@@ -57,8 +62,13 @@ export default function VaultTab() {
   });
 
   const pages = data?.pages ?? [];
-  const latestToken = pages.length > 0 ? pages[pages.length - 1].accessToken : null;
   const allSaves = pages.flatMap((p) => p.saves ?? []);
+
+  // Keep accessToken fresh from latest query result
+  const latestToken = pages.length > 0 ? pages[pages.length - 1].accessToken : null;
+  useEffect(() => {
+    if (latestToken) setAccessToken(latestToken);
+  }, [latestToken]);
 
   const filteredSaves = allSaves.filter(
     (s) => filter === "all" || s.source_type === filter,
@@ -70,7 +80,9 @@ export default function VaultTab() {
   );
 
   const handleRefresh = useCallback(async () => {
+    setIsManualRefresh(true);
     await refetch();
+    setIsManualRefresh(false);
   }, [refetch]);
 
   const handleLoadMore = useCallback(() => {
@@ -88,10 +100,10 @@ export default function VaultTab() {
       <FilterChips activeFilter={filter} onFilterChange={handleFilterChange} />
       <SaveGrid
         saves={filteredSaves}
-        accessToken={latestToken}
+        accessToken={accessToken}
         onSavePress={handleSavePress}
         onRefresh={handleRefresh}
-        refreshing={isRefetching && !isFetchingNextPage}
+        refreshing={isManualRefresh}
         onLoadMore={handleLoadMore}
       />
       <SaveFAB />
