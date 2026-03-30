@@ -9,7 +9,7 @@ import { SaveGrid, type RawSave } from "~/components/vault/save-grid";
 import { SaveFAB } from "~/components/vault/save-fab";
 import { colors } from "~/styles/colors";
 
-type FilterType = "all" | "article" | "image";
+type FilterType = "all" | "article" | "image" | "youtube";
 
 const PAGE_SIZE = 20;
 

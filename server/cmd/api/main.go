@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -21,6 +22,7 @@ import (
 	mw "github.com/ksushant6566/mindtab/server/internal/middleware"
 	"github.com/ksushant6566/mindtab/server/internal/providers"
 	"github.com/ksushant6566/mindtab/server/internal/providers/llm"
+	"github.com/ksushant6566/mindtab/server/internal/providers/transcription"
 	"github.com/ksushant6566/mindtab/server/internal/queue"
 	"github.com/ksushant6566/mindtab/server/internal/search"
 	"github.com/ksushant6566/mindtab/server/internal/services"
@@ -105,6 +107,43 @@ func main() {
 		dispatcher = worker.NewDispatcher(consumer, retryScheduler, queries, slog.Default(), cfg.WorkerConcurrency)
 		dispatcher.Register(processors.NewArticleProcessor(jina, registry.LLM, registry.Embedding, queries, pool))
 		dispatcher.Register(processors.NewImageProcessor(storage, registry.LLM, registry.Embedding, queries, pool))
+
+		if cfg.GroqAPIKey != "" {
+			transcriptionChain := providers.NewChain[transcription.TranscriptionProvider](logger)
+			transcriptionChain.Add("groq-whisper", transcription.NewGroqProvider(cfg.GroqAPIKey))
+			ytdlp := services.NewYTDLP(cfg.YTDLPPath, logger)
+			ffmpeg := services.NewFFmpeg(cfg.FFmpegPath, logger)
+			dispatcher.Register(processors.NewYoutubeProcessor(
+				ytdlp, ffmpeg, transcriptionChain,
+				registry.LLM, registry.Embedding,
+				queries, pool, cfg,
+			))
+			logger.Info("youtube processor registered")
+		}
+
+		// Startup cleanup of orphaned YouTube temp dirs (older than 1 hour).
+		if cfg.GroqAPIKey != "" {
+			go func() {
+				entries, err := os.ReadDir(cfg.YoutubeTempPath)
+				if err != nil {
+					return
+				}
+				cutoff := time.Now().Add(-1 * time.Hour)
+				for _, entry := range entries {
+					if !entry.IsDir() {
+						continue
+					}
+					info, err := entry.Info()
+					if err != nil {
+						continue
+					}
+					if info.ModTime().Before(cutoff) {
+						os.RemoveAll(filepath.Join(cfg.YoutubeTempPath, entry.Name()))
+						logger.Info("cleaned orphaned youtube temp dir", "dir", entry.Name())
+					}
+				}
+			}()
+		}
 
 		// Startup recovery
 		retryScheduler.RecoverOrphans(context.Background())

@@ -6,11 +6,13 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/ksushant6566/mindtab/server/internal/providers"
 	"github.com/ksushant6566/mindtab/server/internal/queue"
 	"github.com/ksushant6566/mindtab/server/internal/store"
 )
@@ -135,8 +137,16 @@ func (d *Dispatcher) processJob(ctx context.Context, payload *queue.JobPayload) 
 	jobIDStr := payload.JobID.String()
 	log := d.logger.With("job_id", jobIDStr, "content_type", payload.ContentType)
 
-	// Acquire distributed lock (5-minute TTL).
-	locked, err := d.consumer.AcquireLock(ctx, jobIDStr, 5*time.Minute)
+	// Find the processor for this content type.
+	proc, ok := d.processors[payload.ContentType]
+	if !ok {
+		log.Error("no processor registered for content type")
+		d.handleFailure(ctx, payload, fmt.Errorf("no processor for content_type %q", payload.ContentType), true)
+		return
+	}
+
+	// Acquire distributed lock using the processor's declared TTL.
+	locked, err := d.consumer.AcquireLock(ctx, jobIDStr, proc.LockTTL())
 	if err != nil {
 		log.Error("lock acquire error", "error", err)
 		return
@@ -146,14 +156,6 @@ func (d *Dispatcher) processJob(ctx context.Context, payload *queue.JobPayload) 
 		return
 	}
 	defer d.consumer.ReleaseLock(ctx, jobIDStr)
-
-	// Find the processor for this content type.
-	proc, ok := d.processors[payload.ContentType]
-	if !ok {
-		log.Error("no processor registered for content type")
-		d.handleFailure(ctx, payload, fmt.Errorf("no processor for content_type %q", payload.ContentType), true)
-		return
-	}
 
 	// Mark job as started in DB.
 	if err := d.queries.StartJob(ctx, toPgUUID(payload.JobID)); err != nil {
@@ -206,7 +208,9 @@ func (d *Dispatcher) processJob(ctx context.Context, payload *queue.JobPayload) 
 		result, err := proc.Execute(ctx, step, job, prevResults)
 		if err != nil {
 			log.Error("step failed", "step", step, "error", err)
-			d.handleFailure(ctx, payload, fmt.Errorf("step %q: %w", step, err), false)
+			permanent := !providers.IsRetriable(err)
+			d.handleFailure(ctx, payload, fmt.Errorf("step %q: %w", step, err), permanent)
+			d.cleanupYoutubeTempDir(payload)
 			return
 		}
 
@@ -216,6 +220,7 @@ func (d *Dispatcher) processJob(ctx context.Context, payload *queue.JobPayload) 
 		if err := d.checkpointStepResults(ctx, payload.JobID, prevResults, step); err != nil {
 			log.Error("failed to checkpoint step results", "step", step, "error", err)
 			d.handleFailure(ctx, payload, fmt.Errorf("checkpoint step %q: %w", step, err), false)
+			d.cleanupYoutubeTempDir(payload)
 			return
 		}
 	}
@@ -302,6 +307,17 @@ func (d *Dispatcher) handleFailure(ctx context.Context, payload *queue.JobPayloa
 
 	if err := d.retry.ScheduleRetry(ctx, updated, 30*time.Second); err != nil {
 		log.Error("failed to schedule retry", "error", err)
+	}
+}
+
+// cleanupYoutubeTempDir removes the temp directory used for YouTube job processing.
+func (d *Dispatcher) cleanupYoutubeTempDir(payload *queue.JobPayload) {
+	if payload.ContentType != "youtube" {
+		return
+	}
+	ytTempDir := filepath.Join("/tmp/mindtab/youtube", payload.JobID.String())
+	if err := os.RemoveAll(ytTempDir); err != nil {
+		d.logger.Warn("failed to clean youtube temp dir", "dir", ytTempDir, "error", err)
 	}
 }
 

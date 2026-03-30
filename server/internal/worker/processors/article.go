@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/ksushant6566/mindtab/server/internal/providers"
@@ -51,6 +52,11 @@ func (p *ArticleProcessor) ContentType() string {
 // Steps returns the ordered list of step names for this pipeline.
 func (p *ArticleProcessor) Steps() []string {
 	return []string{"extract", "summarize", "embed", "store"}
+}
+
+// LockTTL returns the distributed lock duration for this processor.
+func (p *ArticleProcessor) LockTTL() time.Duration {
+	return 5 * time.Minute
 }
 
 // Execute runs the named step and returns its result.

@@ -8,168 +8,193 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
+// Package-level compiled regexes for VTT parsing (compiled once, reused on every call).
+var (
+	vttTimestampRe = regexp.MustCompile(`^\d{2}:\d{2}:\d{2}\.\d{3}\s*-->\s*\d{2}:\d{2}:\d{2}\.\d{3}`)
+	vttHeaderRe    = regexp.MustCompile(`^WEBVTT|^NOTE|^STYLE|^REGION`)
+	vttSequenceRe  = regexp.MustCompile(`^\d+$`)
+	vttHTMLTagRe   = regexp.MustCompile(`<[^>]*>`)
+)
+
+// VideoMetadata holds extracted metadata for a YouTube video.
 type VideoMetadata struct {
-	ID           string `json:"id"`
-	Title        string `json:"title"`
-	Duration     int    `json:"duration"`
-	ThumbnailURL string `json:"thumbnail"`
-	Channel      string `json:"channel"`
+	ID           string
+	Title        string
+	Duration     int
+	ThumbnailURL string
+	Channel      string
 	HasCaptions  bool
 }
 
+// YTDLP wraps the yt-dlp binary.
 type YTDLP struct {
 	binPath string
 	logger  *slog.Logger
 }
 
+// NewYTDLP creates a new YTDLP service.
 func NewYTDLP(binPath string, logger *slog.Logger) *YTDLP {
 	return &YTDLP{binPath: binPath, logger: logger}
 }
 
-// GetMetadata extracts video metadata without downloading.
+// ytdlpJSON is the subset of yt-dlp JSON output we care about.
+type ytdlpJSON struct {
+	ID         string  `json:"id"`
+	Title      string  `json:"title"`
+	Duration   float64 `json:"duration"`
+	Thumbnail  string  `json:"thumbnail"`
+	Channel    string  `json:"channel"`
+	Subtitles  map[string]interface{} `json:"subtitles"`
+	AutoCaptions map[string]interface{} `json:"automatic_captions"`
+}
+
+// GetMetadata runs yt-dlp --dump-json --no-download and returns VideoMetadata.
 func (y *YTDLP) GetMetadata(ctx context.Context, url string) (*VideoMetadata, error) {
-	cmd := exec.CommandContext(ctx, y.binPath, "--dump-json", "--no-download", url)
+	args := []string{"--dump-json", "--no-download", url}
+	cmd := exec.CommandContext(ctx, y.binPath, args...)
+
+	y.logger.Debug("running yt-dlp metadata", "url", url)
+
 	out, err := cmd.Output()
 	if err != nil {
-		return nil, fmt.Errorf("yt-dlp metadata failed: %w", err)
+		return nil, fmt.Errorf("yt-dlp metadata: %w", err)
 	}
 
-	var raw struct {
-		ID                string         `json:"id"`
-		Title             string         `json:"title"`
-		Duration          int            `json:"duration"`
-		Thumbnail         string         `json:"thumbnail"`
-		Channel           string         `json:"channel"`
-		Subtitles         map[string]any `json:"subtitles"`
-		AutomaticCaptions map[string]any `json:"automatic_captions"`
-	}
+	var raw ytdlpJSON
 	if err := json.Unmarshal(out, &raw); err != nil {
-		return nil, fmt.Errorf("yt-dlp metadata parse failed: %w", err)
+		return nil, fmt.Errorf("yt-dlp parse json: %w", err)
 	}
 
-	hasCaptions := len(raw.Subtitles) > 0 || len(raw.AutomaticCaptions) > 0
+	hasCaptions := len(raw.Subtitles) > 0 || len(raw.AutoCaptions) > 0
 
 	return &VideoMetadata{
 		ID:           raw.ID,
 		Title:        raw.Title,
-		Duration:     raw.Duration,
+		Duration:     int(raw.Duration),
 		ThumbnailURL: raw.Thumbnail,
 		Channel:      raw.Channel,
 		HasCaptions:  hasCaptions,
 	}, nil
 }
 
-// Download downloads the video at the specified max quality.
-func (y *YTDLP) Download(ctx context.Context, url string, outputDir string, maxHeight int) (string, error) {
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
-		return "", fmt.Errorf("create output dir: %w", err)
-	}
+// Download downloads the video at the given URL to outputDir, limited to maxHeight.
+// Returns the path to the downloaded file.
+func (y *YTDLP) Download(ctx context.Context, url, outputDir string, maxHeight int) (string, error) {
+	format := fmt.Sprintf("bestvideo[height<=%d][ext=mp4]+bestaudio[ext=m4a]/best[height<=%d][ext=mp4]/best[height<=%d]/best", maxHeight, maxHeight, maxHeight)
+	outputTemplate := filepath.Join(outputDir, "%(id)s.%(ext)s")
 
-	outputTemplate := filepath.Join(outputDir, "video.%(ext)s")
-	formatStr := fmt.Sprintf("bestvideo[height<=%d]+bestaudio/best[height<=%d]", maxHeight, maxHeight)
-
-	cmd := exec.CommandContext(ctx, y.binPath,
-		"-f", formatStr,
-		"--merge-output-format", "mp4",
+	args := []string{
+		"-f", format,
 		"-o", outputTemplate,
 		"--no-playlist",
 		url,
-	)
+	}
+
+	cmd := exec.CommandContext(ctx, y.binPath, args...)
+	y.logger.Debug("running yt-dlp download", "url", url, "maxHeight", maxHeight)
+
 	if out, err := cmd.CombinedOutput(); err != nil {
-		return "", fmt.Errorf("yt-dlp download failed: %w\noutput: %s", err, string(out))
+		return "", fmt.Errorf("yt-dlp download: %w\noutput: %s", err, string(out))
 	}
 
 	// Find the downloaded file
-	matches, err := filepath.Glob(filepath.Join(outputDir, "video.*"))
-	if err != nil || len(matches) == 0 {
-		return "", fmt.Errorf("downloaded video file not found in %s", outputDir)
+	matches, err := filepath.Glob(filepath.Join(outputDir, "*.mp4"))
+	if err != nil {
+		return "", fmt.Errorf("glob output dir: %w", err)
 	}
+	if len(matches) == 0 {
+		// Try any video extension
+		for _, ext := range []string{"*.mkv", "*.webm", "*.mov", "*.avi"} {
+			m, _ := filepath.Glob(filepath.Join(outputDir, ext))
+			matches = append(matches, m...)
+		}
+	}
+	if len(matches) == 0 {
+		return "", fmt.Errorf("yt-dlp download: no output file found in %s", outputDir)
+	}
+
 	return matches[0], nil
 }
 
-// GetCaptions extracts captions/subtitles for the given language.
-// Returns the caption text, or empty string if no captions available.
-func (y *YTDLP) GetCaptions(ctx context.Context, url string, lang string, outputDir string) (string, error) {
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
-		return "", fmt.Errorf("create output dir: %w", err)
-	}
-
-	outputTemplate := filepath.Join(outputDir, "subs")
-	cmd := exec.CommandContext(ctx, y.binPath,
+// GetCaptions extracts captions for the given URL and language, returns plain text.
+func (y *YTDLP) GetCaptions(ctx context.Context, url, lang, outputDir string) (string, error) {
+	args := []string{
 		"--write-auto-sub",
 		"--write-sub",
 		"--sub-lang", lang,
 		"--sub-format", "vtt",
 		"--skip-download",
-		"-o", outputTemplate,
+		"-o", filepath.Join(outputDir, "%(id)s.%(ext)s"),
 		url,
-	)
+	}
+
+	cmd := exec.CommandContext(ctx, y.binPath, args...)
+	y.logger.Debug("running yt-dlp captions", "url", url, "lang", lang)
+
 	if out, err := cmd.CombinedOutput(); err != nil {
 		y.logger.Warn("yt-dlp caption extraction failed", "error", err, "output", string(out))
 		return "", nil // Not an error — fallback to Whisper
 	}
 
-	// Find the subtitle file
-	matches, err := filepath.Glob(filepath.Join(outputDir, "subs*.vtt"))
+	// Find the VTT file
+	matches, err := filepath.Glob(filepath.Join(outputDir, "*.vtt"))
 	if err != nil || len(matches) == 0 {
 		return "", nil // No captions found
 	}
 
 	data, err := os.ReadFile(matches[0])
 	if err != nil {
-		return "", fmt.Errorf("read caption file: %w", err)
+		return "", fmt.Errorf("read vtt file: %w", err)
 	}
 
 	return cleanVTT(string(data)), nil
 }
 
-// cleanVTT strips VTT headers and timestamps, returning plain text.
+// cleanVTT strips VTT headers, timestamps, and HTML tags, then deduplicates lines.
 func cleanVTT(vtt string) string {
 	lines := strings.Split(vtt, "\n")
-	var text []string
 	seen := make(map[string]bool)
+	var result []string
 
 	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		// Skip VTT headers, timestamps, and empty lines
-		if line == "" || line == "WEBVTT" || strings.Contains(line, "-->") ||
-			strings.HasPrefix(line, "Kind:") || strings.HasPrefix(line, "Language:") ||
-			strings.HasPrefix(line, "NOTE") {
+		trimmed := strings.TrimSpace(line)
+
+		// Skip empty lines, headers, timestamps, and sequence numbers
+		if trimmed == "" {
 			continue
 		}
-		// Skip numeric cue identifiers
-		if _, err := fmt.Sscanf(line, "%d", new(int)); err == nil && !strings.Contains(line, " ") {
+		if vttHeaderRe.MatchString(trimmed) {
 			continue
 		}
-		// Strip HTML tags from captions
-		cleaned := stripHTMLTags(line)
-		if cleaned != "" && !seen[cleaned] {
+		if vttTimestampRe.MatchString(trimmed) {
+			continue
+		}
+		if vttSequenceRe.MatchString(trimmed) {
+			continue
+		}
+
+		// Strip HTML tags
+		cleaned := stripHTMLTags(trimmed)
+		cleaned = strings.TrimSpace(cleaned)
+		if cleaned == "" {
+			continue
+		}
+
+		// Deduplicate
+		if !seen[cleaned] {
 			seen[cleaned] = true
-			text = append(text, cleaned)
+			result = append(result, cleaned)
 		}
 	}
-	return strings.Join(text, " ")
+
+	return strings.Join(result, " ")
 }
 
-// stripHTMLTags removes HTML tags from a string.
+// stripHTMLTags removes HTML/XML tags from s.
 func stripHTMLTags(s string) string {
-	var result strings.Builder
-	inTag := false
-	for _, r := range s {
-		if r == '<' {
-			inTag = true
-			continue
-		}
-		if r == '>' {
-			inTag = false
-			continue
-		}
-		if !inTag {
-			result.WriteRune(r)
-		}
-	}
-	return strings.TrimSpace(result.String())
+	return vttHTMLTagRe.ReplaceAllString(s, "")
 }

@@ -38,13 +38,13 @@ type Config struct {
 	MaxFileSizeMB        int
 
 	// YouTube (Phase 2)
-	GroqAPIKey         string
-	YTDLPPath          string
-	FFmpegPath         string
-	YoutubeTempPath    string
-	YoutubeMaxDuration int
+	GroqAPIKey          string
+	YTDLPPath           string
+	FFmpegPath          string
+	YoutubeTempPath     string
+	YoutubeMaxDuration  int
 	YoutubeVideoQuality int
-	YoutubeFramesCap   int
+	YoutubeFramesCap    int
 }
 
 func Load() (*Config, error) {

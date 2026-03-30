@@ -11,6 +11,14 @@ import (
 	"github.com/ksushant6566/mindtab/server/internal/worker"
 )
 
+// pgint4From converts an int to pgtype.Int4. Zero value means not set.
+func pgint4From(n int) pgtype.Int4 {
+	if n == 0 {
+		return pgtype.Int4{}
+	}
+	return pgtype.Int4{Int32: int32(n), Valid: true}
+}
+
 func Store(
 	ctx context.Context,
 	queries store.Querier,
@@ -33,6 +41,8 @@ func Store(
 	var visionResult VisionResult
 	var summarizeResult SummarizeResult
 	var embedResult EmbedResult
+	var metadataResult MetadataResult
+	var transcribeResult TranscribeResult
 	var mediaKey string
 
 	if r, ok := prevResults["extract"]; ok && r != nil {
@@ -47,20 +57,35 @@ func Store(
 	if r, ok := prevResults["embed"]; ok && r != nil {
 		json.Unmarshal(r.Data, &embedResult)
 	}
+	if r, ok := prevResults["metadata"]; ok && r != nil {
+		json.Unmarshal(r.Data, &metadataResult)
+	}
+	if r, ok := prevResults["transcribe"]; ok && r != nil {
+		json.Unmarshal(r.Data, &transcribeResult)
+	}
 	if r, ok := prevResults["save"]; ok && r != nil {
 		var saveResult map[string]string
 		json.Unmarshal(r.Data, &saveResult)
 		mediaKey = saveResult["media_key"]
 	}
 
-	// Build extracted text: prefer article text, fall back to vision OCR text
+	// Build extracted text: prefer article text, fall back to transcript, then vision OCR text.
 	extractedText := extractResult.Text
+	if extractedText == "" && transcribeResult.Transcript != "" {
+		extractedText = transcribeResult.Transcript
+	}
 	if extractedText == "" {
 		extractedText = visionResult.ExtractedText
 	}
 
-	// Prefer extract title (articles), fall back to summarize title (images)
+	// Build visual description from vision result (handles both single-image and YouTube batch frames).
+	visualDescription := visionResult.VisualDescription
+
+	// Prefer extract title (articles), fall back to metadata title, then summarize title.
 	title := extractResult.Title
+	if title == "" {
+		title = metadataResult.Title
+	}
 	if title == "" {
 		title = summarizeResult.Title
 	}
@@ -69,7 +94,7 @@ func Store(
 	err = queries.UpdateContentResults(ctx, store.UpdateContentResultsParams{
 		ID:                contentID,
 		ExtractedText:     pgtextFrom(extractedText),
-		VisualDescription: pgtextFrom(visionResult.VisualDescription),
+		VisualDescription: pgtextFrom(visualDescription),
 		Summary:           pgtextFrom(summarizeResult.Summary),
 		Tags:              summarizeResult.Tags,
 		KeyTopics:         summarizeResult.KeyTopics,
@@ -92,6 +117,20 @@ func Store(
 		})
 		if err != nil {
 			return nil, fmt.Errorf("update embedding: %w", err)
+		}
+	}
+
+	// Update YouTube-specific fields when video metadata is present.
+	if metadataResult.VideoID != "" {
+		err = queries.UpdateContentYoutubeFields(ctx, store.UpdateContentYoutubeFieldsParams{
+			ID:                contentID,
+			VideoDuration:     pgint4From(metadataResult.Duration),
+			VideoThumbnailUrl: pgtextFrom(metadataResult.ThumbnailURL),
+			VideoChannel:      pgtextFrom(metadataResult.Channel),
+			TranscriptSource:  pgtextFrom(transcribeResult.TranscriptSource),
+		})
+		if err != nil {
+			return nil, fmt.Errorf("update youtube fields: %w", err)
 		}
 	}
 
