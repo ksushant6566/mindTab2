@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/ksushant6566/mindtab/server/internal/providers"
 	"github.com/ksushant6566/mindtab/server/internal/services"
 	"github.com/ksushant6566/mindtab/server/internal/worker"
 )
@@ -32,7 +33,7 @@ func Metadata(ctx context.Context, ytdlp *services.YTDLP, sourceURL string, maxD
 	}
 
 	if maxDuration > 0 && meta.Duration > maxDuration {
-		return nil, fmt.Errorf("metadata: video duration %ds exceeds maximum %ds", meta.Duration, maxDuration)
+		return nil, providers.NewPermanentError("metadata", fmt.Errorf("video duration %ds exceeds maximum %ds", meta.Duration, maxDuration))
 	}
 
 	result := MetadataResult{

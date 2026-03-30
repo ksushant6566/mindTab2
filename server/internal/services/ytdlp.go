@@ -12,6 +12,14 @@ import (
 	"strings"
 )
 
+// Package-level compiled regexes for VTT parsing (compiled once, reused on every call).
+var (
+	vttTimestampRe = regexp.MustCompile(`^\d{2}:\d{2}:\d{2}\.\d{3}\s*-->\s*\d{2}:\d{2}:\d{2}\.\d{3}`)
+	vttHeaderRe    = regexp.MustCompile(`^WEBVTT|^NOTE|^STYLE|^REGION`)
+	vttSequenceRe  = regexp.MustCompile(`^\d+$`)
+	vttHTMLTagRe   = regexp.MustCompile(`<[^>]*>`)
+)
+
 // VideoMetadata holds extracted metadata for a YouTube video.
 type VideoMetadata struct {
 	ID           string
@@ -149,11 +157,6 @@ func (y *YTDLP) GetCaptions(ctx context.Context, url, lang, outputDir string) (s
 // cleanVTT strips VTT headers, timestamps, and HTML tags, then deduplicates lines.
 func cleanVTT(vtt string) string {
 	lines := strings.Split(vtt, "\n")
-	// Regex patterns
-	timestampRe := regexp.MustCompile(`^\d{2}:\d{2}:\d{2}\.\d{3}\s*-->\s*\d{2}:\d{2}:\d{2}\.\d{3}`)
-	headerRe := regexp.MustCompile(`^WEBVTT|^NOTE|^STYLE|^REGION`)
-	sequenceRe := regexp.MustCompile(`^\d+$`)
-
 	seen := make(map[string]bool)
 	var result []string
 
@@ -164,13 +167,13 @@ func cleanVTT(vtt string) string {
 		if trimmed == "" {
 			continue
 		}
-		if headerRe.MatchString(trimmed) {
+		if vttHeaderRe.MatchString(trimmed) {
 			continue
 		}
-		if timestampRe.MatchString(trimmed) {
+		if vttTimestampRe.MatchString(trimmed) {
 			continue
 		}
-		if sequenceRe.MatchString(trimmed) {
+		if vttSequenceRe.MatchString(trimmed) {
 			continue
 		}
 
@@ -193,6 +196,5 @@ func cleanVTT(vtt string) string {
 
 // stripHTMLTags removes HTML/XML tags from s.
 func stripHTMLTags(s string) string {
-	tagRe := regexp.MustCompile(`<[^>]+>`)
-	return tagRe.ReplaceAllString(s, "")
+	return vttHTMLTagRe.ReplaceAllString(s, "")
 }

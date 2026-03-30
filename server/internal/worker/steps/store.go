@@ -39,7 +39,6 @@ func Store(
 	// Parse step results
 	var extractResult ExtractResult
 	var visionResult VisionResult
-	var batchVisionResult BatchVisionResult
 	var summarizeResult SummarizeResult
 	var embedResult EmbedResult
 	var metadataResult MetadataResult
@@ -51,9 +50,6 @@ func Store(
 	}
 	if r, ok := prevResults["vision"]; ok && r != nil {
 		json.Unmarshal(r.Data, &visionResult)
-	}
-	if r, ok := prevResults["batch_vision"]; ok && r != nil {
-		json.Unmarshal(r.Data, &batchVisionResult)
 	}
 	if r, ok := prevResults["summarize"]; ok && r != nil {
 		json.Unmarshal(r.Data, &summarizeResult)
@@ -82,11 +78,8 @@ func Store(
 		extractedText = visionResult.ExtractedText
 	}
 
-	// Build visual description: prefer batch vision (YouTube frames) over single image vision.
+	// Build visual description from vision result (handles both single-image and YouTube batch frames).
 	visualDescription := visionResult.VisualDescription
-	if batchVisionResult.VisualDescription != "" {
-		visualDescription = batchVisionResult.VisualDescription
-	}
 
 	// Prefer extract title (articles), fall back to metadata title, then summarize title.
 	title := extractResult.Title
