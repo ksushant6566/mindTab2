@@ -128,16 +128,14 @@ func (y *YTDLP) GetCaptions(ctx context.Context, url, lang, outputDir string) (s
 	y.logger.Debug("running yt-dlp captions", "url", url, "lang", lang)
 
 	if out, err := cmd.CombinedOutput(); err != nil {
-		return "", fmt.Errorf("yt-dlp captions: %w\noutput: %s", err, string(out))
+		y.logger.Warn("yt-dlp caption extraction failed", "error", err, "output", string(out))
+		return "", nil // Not an error — fallback to Whisper
 	}
 
 	// Find the VTT file
 	matches, err := filepath.Glob(filepath.Join(outputDir, "*.vtt"))
-	if err != nil {
-		return "", fmt.Errorf("glob vtt files: %w", err)
-	}
-	if len(matches) == 0 {
-		return "", fmt.Errorf("no vtt file found in %s", outputDir)
+	if err != nil || len(matches) == 0 {
+		return "", nil // No captions found
 	}
 
 	data, err := os.ReadFile(matches[0])
