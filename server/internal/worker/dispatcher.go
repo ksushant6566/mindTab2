@@ -135,8 +135,16 @@ func (d *Dispatcher) processJob(ctx context.Context, payload *queue.JobPayload) 
 	jobIDStr := payload.JobID.String()
 	log := d.logger.With("job_id", jobIDStr, "content_type", payload.ContentType)
 
-	// Acquire distributed lock (5-minute TTL).
-	locked, err := d.consumer.AcquireLock(ctx, jobIDStr, 5*time.Minute)
+	// Find the processor for this content type.
+	proc, ok := d.processors[payload.ContentType]
+	if !ok {
+		log.Error("no processor registered for content type")
+		d.handleFailure(ctx, payload, fmt.Errorf("no processor for content_type %q", payload.ContentType), true)
+		return
+	}
+
+	// Acquire distributed lock using the processor's declared TTL.
+	locked, err := d.consumer.AcquireLock(ctx, jobIDStr, proc.LockTTL())
 	if err != nil {
 		log.Error("lock acquire error", "error", err)
 		return
@@ -146,14 +154,6 @@ func (d *Dispatcher) processJob(ctx context.Context, payload *queue.JobPayload) 
 		return
 	}
 	defer d.consumer.ReleaseLock(ctx, jobIDStr)
-
-	// Find the processor for this content type.
-	proc, ok := d.processors[payload.ContentType]
-	if !ok {
-		log.Error("no processor registered for content type")
-		d.handleFailure(ctx, payload, fmt.Errorf("no processor for content_type %q", payload.ContentType), true)
-		return
-	}
 
 	// Mark job as started in DB.
 	if err := d.queries.StartJob(ctx, toPgUUID(payload.JobID)); err != nil {

@@ -3,6 +3,7 @@ package worker
 import (
 	"context"
 	"encoding/json"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -30,5 +31,6 @@ type Job struct {
 type Processor interface {
 	ContentType() string
 	Steps() []string
+	LockTTL() time.Duration
 	Execute(ctx context.Context, step string, job *Job, prevResults StepResults) (*StepResult, error)
 }

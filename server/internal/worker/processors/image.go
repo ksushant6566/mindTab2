@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -52,6 +53,11 @@ func (p *ImageProcessor) ContentType() string {
 // Steps returns the ordered list of step names for this pipeline.
 func (p *ImageProcessor) Steps() []string {
 	return []string{"save", "vision", "summarize", "embed", "store"}
+}
+
+// LockTTL returns the distributed lock duration for this processor.
+func (p *ImageProcessor) LockTTL() time.Duration {
+	return 5 * time.Minute
 }
 
 // Execute runs the named step and returns its result.
