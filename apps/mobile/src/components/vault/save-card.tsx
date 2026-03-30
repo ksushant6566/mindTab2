@@ -1,8 +1,16 @@
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
-import { Link, Loader } from "lucide-react-native";
+import { Link, Loader, Play } from "lucide-react-native";
 import { colors } from "~/styles/colors";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:8080";
+
+function formatDuration(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  if (h > 0) return `${h}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
 
 const getDomain = (url: string) => {
   try {
@@ -14,7 +22,7 @@ const getDomain = (url: string) => {
 
 export type SaveCardProps = {
   id: string;
-  sourceType: "article" | "image";
+  sourceType: "article" | "image" | "youtube";
   sourceTitle?: string | null;
   sourceUrl?: string | null;
   sourceThumbnailUrl?: string | null;
@@ -24,6 +32,9 @@ export type SaveCardProps = {
   processingStatus: string;
   accessToken?: string | null;
   onPress: (id: string) => void;
+  videoDuration?: number;
+  videoThumbnailUrl?: string;
+  videoChannel?: string;
 };
 
 export function SaveCard({
@@ -38,6 +49,9 @@ export function SaveCard({
   processingStatus,
   accessToken,
   onPress,
+  videoDuration,
+  videoThumbnailUrl,
+  videoChannel,
 }: SaveCardProps) {
   const isProcessing = processingStatus !== "completed" && processingStatus !== "failed";
 
@@ -71,6 +85,61 @@ export function SaveCard({
           {sourceTitle ? (
             <Text style={styles.title} numberOfLines={2}>
               {sourceTitle}
+            </Text>
+          ) : null}
+          {summary ? (
+            <Text style={styles.snippet} numberOfLines={2}>
+              {summary}
+            </Text>
+          ) : null}
+          {tags && tags.length > 0 ? (
+            <View style={styles.tagsRow}>
+              {tags.map((tag) => (
+                <View key={tag} style={styles.tag}>
+                  <Text style={styles.tagText}>{tag}</Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
+        </View>
+      </Pressable>
+    );
+  }
+
+  if (sourceType === "youtube") {
+    return (
+      <Pressable onPress={() => onPress(id)} style={styles.card}>
+        <View style={styles.youtubeThumbnailWrapper}>
+          {videoThumbnailUrl ? (
+            <Image
+              source={{ uri: videoThumbnailUrl }}
+              style={styles.youtubeThumbnail}
+              resizeMode="cover"
+            />
+          ) : (
+            <View style={[styles.youtubeThumbnail, styles.youtubeThumbnailPlaceholder]} />
+          )}
+          <View style={styles.ytBadge}>
+            <Text style={styles.ytBadgeText}>YT</Text>
+          </View>
+          <View style={styles.playOverlay}>
+            <Play size={18} color="#ffffff" fill="#ffffff" />
+          </View>
+          {videoDuration != null ? (
+            <View style={styles.durationBadge}>
+              <Text style={styles.durationText}>{formatDuration(videoDuration)}</Text>
+            </View>
+          ) : null}
+        </View>
+        <View style={styles.content}>
+          {sourceTitle ? (
+            <Text style={styles.title} numberOfLines={2}>
+              {sourceTitle}
+            </Text>
+          ) : null}
+          {videoChannel ? (
+            <Text style={styles.channelText} numberOfLines={1}>
+              {videoChannel}
             </Text>
           ) : null}
           {summary ? (
@@ -161,6 +230,61 @@ const styles = StyleSheet.create({
   articleThumbnail: {
     width: "100%",
     height: 110,
+  },
+  youtubeThumbnailWrapper: {
+    position: "relative",
+    width: "100%",
+    height: 110,
+  },
+  youtubeThumbnail: {
+    width: "100%",
+    height: 110,
+  },
+  youtubeThumbnailPlaceholder: {
+    backgroundColor: "#1a1a1a",
+  },
+  ytBadge: {
+    position: "absolute",
+    top: 6,
+    left: 6,
+    backgroundColor: "#ff0000",
+    borderRadius: 3,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+  },
+  ytBadgeText: {
+    color: "#ffffff",
+    fontSize: 9,
+    fontWeight: "700",
+    letterSpacing: 0.3,
+  },
+  playOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(0,0,0,0.25)",
+  },
+  durationBadge: {
+    position: "absolute",
+    bottom: 6,
+    right: 6,
+    backgroundColor: "rgba(0,0,0,0.75)",
+    borderRadius: 4,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+  },
+  durationText: {
+    color: "#ffffff",
+    fontSize: 10,
+    fontWeight: "600",
+  },
+  channelText: {
+    color: colors.text.dim,
+    fontSize: 11,
   },
   imageThumbnail: {
     width: "100%",

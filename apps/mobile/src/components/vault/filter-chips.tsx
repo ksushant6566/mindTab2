@@ -1,15 +1,18 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { colors } from "~/styles/colors";
 
+type FilterType = "all" | "article" | "image" | "youtube";
+
 type FilterChipsProps = {
-  activeFilter: "all" | "article" | "image";
-  onFilterChange: (filter: "all" | "article" | "image") => void;
+  activeFilter: FilterType;
+  onFilterChange: (filter: FilterType) => void;
 };
 
-const CHIPS: { key: "all" | "article" | "image"; label: string }[] = [
+const CHIPS: { key: FilterType; label: string }[] = [
   { key: "all", label: "All" },
   { key: "article", label: "Articles" },
   { key: "image", label: "Images" },
+  { key: "youtube", label: "Videos" },
 ];
 
 export function FilterChips({ activeFilter, onFilterChange }: FilterChipsProps) {

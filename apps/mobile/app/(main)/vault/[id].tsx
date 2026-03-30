@@ -11,7 +11,7 @@ import {
 import { useState, useEffect } from "react";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Share2, Trash2 } from "lucide-react-native";
+import { Share2, Trash2, Play } from "lucide-react-native";
 import { toast } from "sonner-native";
 import { api } from "~/lib/api-client";
 import { getAccessToken } from "~/lib/auth";
@@ -23,7 +23,7 @@ import { colors } from "~/styles/colors";
 type SaveDetail = {
   id: string;
   source_url?: string | null;
-  source_type: "article" | "image";
+  source_type: "article" | "image" | "youtube";
   source_title?: string | null;
   summary?: string | null;
   tags?: string[] | null;
@@ -35,9 +35,21 @@ type SaveDetail = {
   visual_description?: string | null;
   created_at: string;
   updated_at: string;
+  video_duration?: number | null;
+  video_thumbnail_url?: string | null;
+  video_channel?: string | null;
+  transcript_source?: string | null;
 };
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
+
+function formatDuration(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  if (h > 0) return `${h}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
 
 function extractDomain(url?: string | null): string {
   if (!url) return "";
@@ -133,6 +145,29 @@ export default function VaultDetailScreen() {
               />
             ) : null}
 
+            {/* ── YouTube cover ── */}
+            {save.source_type === "youtube" ? (
+              <View style={styles.ytCoverWrapper}>
+                {save.video_thumbnail_url ? (
+                  <Image
+                    source={{ uri: save.video_thumbnail_url }}
+                    style={styles.ytCoverImage}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <View style={[styles.ytCoverImage, styles.ytCoverPlaceholder]} />
+                )}
+                <View style={styles.ytPlayOverlay}>
+                  <Play size={28} color="#ffffff" fill="#ffffff" />
+                </View>
+                {save.video_duration != null ? (
+                  <View style={styles.ytDurationBadge}>
+                    <Text style={styles.ytDurationText}>{formatDuration(save.video_duration)}</Text>
+                  </View>
+                ) : null}
+              </View>
+            ) : null}
+
             {/* ── Source row (articles only) ── */}
             {save.source_type === "article" && save.source_url ? (
               <View style={styles.sourceRow}>
@@ -146,6 +181,11 @@ export default function VaultDetailScreen() {
             {/* ── Title ── */}
             {save.source_title ? (
               <Text style={styles.title}>{save.source_title}</Text>
+            ) : null}
+
+            {/* ── Channel (YouTube) ── */}
+            {save.source_type === "youtube" && save.video_channel ? (
+              <Text style={styles.channelName}>{save.video_channel}</Text>
             ) : null}
 
             {/* ── Key topics ── */}
@@ -182,13 +222,15 @@ export default function VaultDetailScreen() {
               </View>
             ) : null}
 
-            {/* ── Open Original Article button ── */}
-            {save.source_type === "article" && save.source_url ? (
+            {/* ── Open Original / Watch on YouTube button ── */}
+            {(save.source_type === "article" || save.source_type === "youtube") && save.source_url ? (
               <Pressable
                 style={styles.openBtn}
                 onPress={() => Linking.openURL(save.source_url!)}
               >
-                <Text style={styles.openBtnText}>Open Original Article ↗</Text>
+                <Text style={styles.openBtnText}>
+                  {save.source_type === "youtube" ? "Watch on YouTube ↗" : "Open Original Article ↗"}
+                </Text>
               </Pressable>
             ) : null}
 
@@ -206,6 +248,16 @@ export default function VaultDetailScreen() {
                 <Text style={styles.sectionLabel}>DESCRIPTION</Text>
                 <Text style={styles.extractedText}>{save.visual_description}</Text>
               </View>
+            ) : null}
+
+            {/* ── Transcript source footer (YouTube) ── */}
+            {save.source_type === "youtube" ? (
+              <Text style={styles.transcriptFooter}>
+                Transcript:{" "}
+                {save.transcript_source === "whisper"
+                  ? "Whisper transcription"
+                  : "YouTube captions"}
+              </Text>
             ) : null}
           </ScrollView>
         )}
@@ -337,6 +389,61 @@ const styles = StyleSheet.create({
     color: "#999999",
     fontSize: 12,
     lineHeight: 22.1,
+  },
+  // YouTube cover
+  ytCoverWrapper: {
+    position: "relative",
+    width: "100%",
+    height: 210,
+    borderRadius: 12,
+    marginBottom: 16,
+    overflow: "hidden",
+    backgroundColor: "#1a1a1a",
+  },
+  ytCoverImage: {
+    width: "100%",
+    height: 210,
+  },
+  ytCoverPlaceholder: {
+    backgroundColor: "#1a1a1a",
+  },
+  ytPlayOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(0,0,0,0.3)",
+  },
+  ytDurationBadge: {
+    position: "absolute",
+    bottom: 10,
+    right: 10,
+    backgroundColor: "rgba(0,0,0,0.8)",
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+  },
+  ytDurationText: {
+    color: "#ffffff",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  // Channel name
+  channelName: {
+    color: colors.text.dim,
+    fontSize: 13,
+    marginTop: -10,
+    marginBottom: 14,
+  },
+  // Transcript footer
+  transcriptFooter: {
+    color: colors.text.dim,
+    fontSize: 11,
+    textAlign: "center",
+    marginTop: 8,
   },
   // Open button
   openBtn: {
