@@ -239,13 +239,13 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: "#ffffff",
+    backgroundColor: colors.white,
     alignItems: "center",
     justifyContent: "center",
   },
   avatarFallbackText: {
-    color: "#0a0a0a",
-    fontSize: 13,
+    color: colors.black,
+    fontSize: 12,
     fontWeight: "bold",
   },
   userName: {
@@ -277,7 +277,7 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     color: colors.text.muted,
-    fontSize: 11,
+    fontSize: 12,
     letterSpacing: 0.5,
     textTransform: "uppercase",
     paddingHorizontal: 16,
@@ -306,11 +306,11 @@ const styles = StyleSheet.create({
   },
   conversationTime: {
     color: colors.text.muted,
-    fontSize: 11,
+    fontSize: 12,
   },
   scrim: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "#000000",
+    backgroundColor: colors.black,
     zIndex: 99,
   },
   content: {

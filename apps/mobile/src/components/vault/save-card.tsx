@@ -1,5 +1,6 @@
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { Link, Loader } from "lucide-react-native";
+import { colors } from "~/styles/colors";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:8080";
 
@@ -44,7 +45,7 @@ export function SaveCard({
     return (
       <Pressable onPress={() => onPress(id)} style={[styles.card, styles.processingCard]}>
         <View style={styles.processingRow}>
-          <Loader size={12} color="#555555" />
+          <Loader size={12} color={colors.text.dim} />
           <Text style={styles.processingText}>Processing...</Text>
         </View>
         {sourceUrl ? (
@@ -102,7 +103,7 @@ export function SaveCard({
         />
       ) : sourceUrl ? (
         <View style={styles.domainRow}>
-          <Link size={10} color="#555555" />
+          <Link size={10} color={colors.text.dim} />
           <Text style={styles.domainText}>{getDomain(sourceUrl)}</Text>
         </View>
       ) : null}
@@ -138,7 +139,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#1a1a1a",
     overflow: "hidden",
-    marginBottom: 10,
   },
   processingCard: {
     opacity: 0.6,
@@ -151,12 +151,12 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   processingText: {
-    color: "#555555",
-    fontSize: 11,
+    color: colors.text.dim,
+    fontSize: 12,
   },
   processingUrl: {
-    color: "#888888",
-    fontSize: 13,
+    color: colors.text.secondary,
+    fontSize: 12,
   },
   articleThumbnail: {
     width: "100%",
@@ -175,7 +175,7 @@ const styles = StyleSheet.create({
     paddingBottom: 4,
   },
   domainText: {
-    color: "#555555",
+    color: colors.text.dim,
     fontSize: 10,
   },
   content: {
@@ -184,13 +184,13 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   title: {
-    color: "#e0e0e0",
-    fontSize: 13,
+    color: colors.text.reader,
+    fontSize: 14,
     fontWeight: "500",
   },
   snippet: {
-    color: "#555555",
-    fontSize: 11,
+    color: colors.text.secondary,
+    fontSize: 14,
   },
   tagsRow: {
     flexDirection: "row",
@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   tagText: {
-    color: "#666666",
+    color: colors.text.muted,
     fontSize: 10,
   },
 });

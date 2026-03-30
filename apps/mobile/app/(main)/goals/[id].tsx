@@ -242,7 +242,7 @@ export default function GoalDetailScreen() {
                 <Text
                   style={[
                     styles.statusBtnText,
-                    { color: selected ? "#fff" : colors.text.muted },
+                    { color: selected ? colors.white : colors.text.muted },
                   ]}
                 >
                   {cfg.label}
@@ -394,7 +394,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border.default,
   },
   deleteCancelText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "500",
     color: colors.text.secondary,
   },
@@ -405,9 +405,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.feedback.error,
   },
   deleteConfirmText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "600",
-    color: "#fff",
+    color: colors.white,
   },
 
   // Content
@@ -447,7 +447,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   statusBtnText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "600",
   },
   xpHintContainer: {
@@ -480,7 +480,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   sectionLabel: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "600",
     letterSpacing: 1.2,
     color: colors.text.muted,

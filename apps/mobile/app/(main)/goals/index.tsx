@@ -6,13 +6,11 @@ import {
   Pressable,
   RefreshControl,
   StyleSheet,
-  TextInput,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
-import { Target, Zap, Archive, ChevronDown, Search, Settings } from "lucide-react-native";
-import Animated, { FadeInDown } from "react-native-reanimated";
+import { Target, Zap, Archive, ChevronDown } from "lucide-react-native";
 import {
   goalsQueryOptions,
   useUpdateGoal,
@@ -30,7 +28,6 @@ import { UndoToast } from "~/components/ui/undo-toast";
 import { ListHeader } from "~/components/list-header";
 import { FAB } from "~/components/dashboard/fab";
 import { api } from "~/lib/api-client";
-import { staggerDelay } from "~/lib/animations";
 import { XP_VALUES } from "~/lib/xp";
 import { colors } from "~/styles/colors";
 
@@ -41,6 +38,7 @@ const STATUS_FILTERS = [
   { key: "pending", label: "Pending" },
   { key: "in_progress", label: "Active" },
   { key: "completed", label: "Done" },
+  { key: "archived", label: "Archived" },
 ] as const;
 
 type StatusFilter = (typeof STATUS_FILTERS)[number]["key"];
@@ -102,14 +100,121 @@ type GoalSection = {
   count: number;
 };
 
-function useDebounce(value: string, delay: number) {
-  const [debounced, setDebounced] = useState(value);
-  useEffect(() => {
-    const timer = setTimeout(() => setDebounced(value), delay);
-    return () => clearTimeout(timer);
-  }, [value, delay]);
-  return debounced;
-}
+const keyExtractor = (item: any) => item.id;
+
+// ---------- Memoized goal row ----------
+
+const GoalRow = React.memo(function GoalRow({
+  goal,
+  onPress,
+  onStatusChange,
+  onArchive,
+  isCelebrating,
+  xpDelta,
+  onXpComplete,
+}: {
+  goal: any;
+  onPress: (id: string) => void;
+  onStatusChange: (goal: any, newStatus: string) => void;
+  onArchive: (goal: any) => void;
+  isCelebrating: boolean;
+  xpDelta: number;
+  onXpComplete: () => void;
+}) {
+  const priorityKey = goal.priority as string | undefined;
+  const impactKey = goal.impact as string | undefined;
+
+  const handlePress = useCallback(() => onPress(goal.id), [goal.id, onPress]);
+
+  const leftAction = useMemo(() => {
+    const nextAction = getNextStatusAction(goal.status);
+    return nextAction
+      ? {
+          label: nextAction.label,
+          color: nextAction.color,
+          onAction: () => onStatusChange(goal, nextAction.nextStatus),
+        }
+      : undefined;
+  }, [goal, onStatusChange]);
+
+  const rightActions = useMemo(
+    () => [
+      {
+        label: "Archive",
+        color: colors.feedback.warning,
+        onAction: () => onArchive(goal),
+      },
+    ],
+    [goal, onArchive],
+  );
+
+  return (
+    <SwipeableRow leftAction={leftAction} rightActions={rightActions}>
+      <PressableCard
+        onPress={handlePress}
+        style={isCelebrating ? styles.goalCelebrationCard : undefined}
+      >
+        <Text style={styles.goalTitle} numberOfLines={1}>
+          {goal.title}
+        </Text>
+
+        <View style={styles.metaRow}>
+          {priorityKey && priorityLabels[priorityKey] && (
+            <View
+              style={[
+                styles.priorityPill,
+                {
+                  backgroundColor:
+                    (priorityColors[priorityKey] ?? colors.priority.p4) + "33",
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.priorityText,
+                  {
+                    color: priorityColors[priorityKey] ?? colors.priority.p4,
+                  },
+                ]}
+              >
+                {priorityLabels[priorityKey]}
+              </Text>
+            </View>
+          )}
+
+          {impactKey && impactLabels[impactKey] && (
+            <View style={styles.impactRow}>
+              <Zap
+                size={12}
+                color={impactColors[impactKey] ?? colors.impact.low}
+              />
+              <Text
+                style={[
+                  styles.impactText,
+                  {
+                    color: impactColors[impactKey] ?? colors.impact.low,
+                  },
+                ]}
+              >
+                {impactLabels[impactKey]}
+              </Text>
+            </View>
+          )}
+
+          {(goal as any).project?.name && (
+            <Text style={styles.projectName}>
+              {(goal as any).project.name}
+            </Text>
+          )}
+        </View>
+        {isCelebrating && <ConfettiBurst particleCount={20} />}
+        {isCelebrating && xpDelta > 0 && (
+          <XPFloat amount={xpDelta} onComplete={onXpComplete} />
+        )}
+      </PressableCard>
+    </SwipeableRow>
+  );
+});
 
 // ---------- Screen ----------
 
@@ -119,8 +224,6 @@ export default function GoalsScreen() {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
-  const [searchQuery, setSearchQuery] = useState("");
-  const [showArchived, setShowArchived] = useState(false);
   const [celebrationGoalId, setCelebrationGoalId] = useState<string | null>(null);
   const [xpDelta, setXpDelta] = useState(0);
   const [undoState, setUndoState] = useState<{
@@ -128,28 +231,25 @@ export default function GoalsScreen() {
     goalId?: string;
     previousStatus?: string;
   }>({ visible: false });
-  const debouncedSearch = useDebounce(searchQuery, 300);
 
   const projectId = selectedProjectId ?? undefined;
+  const includeArchived = statusFilter === "archived";
   const { data: goals, isLoading, refetch } = useQuery(
-    goalsQueryOptions(api, { projectId }),
+    goalsQueryOptions(api, { projectId, includeArchived }),
   );
 
   const updateGoal = useUpdateGoal(api);
   const archiveCompleted = useArchiveCompletedGoals(api);
 
-  // Filter by status
+  // Filter by status (archived goals are excluded unless explicitly filtered)
   const filteredGoals = useMemo(() => {
     const list = goals ?? [];
     return list.filter((g: any) => {
       const matchesStatus = statusFilter === "all" ? true : g.status === statusFilter;
-      const matchesArchive = showArchived || g.status !== "archived";
-      const matchesSearch = debouncedSearch
-        ? g.title?.toLowerCase().includes(debouncedSearch.toLowerCase())
-        : true;
-      return matchesStatus && matchesArchive && matchesSearch;
+      const hideArchived = statusFilter === "all" && g.status === "archived";
+      return matchesStatus && !hideArchived;
     });
-  }, [goals, statusFilter, showArchived, debouncedSearch]);
+  }, [goals, statusFilter]);
 
   useEffect(() => {
     if (!celebrationGoalId) return;
@@ -245,6 +345,13 @@ export default function GoalsScreen() {
     setRefreshing(false);
   }, [refetch]);
 
+  // Stable callbacks for GoalRow
+  const handleGoalPress = useCallback((id: string) => {
+    router.push(`/(main)/goals/${id}`);
+  }, [router]);
+
+  const handleXpComplete = useCallback(() => setXpDelta(0), []);
+
   // ---------- Renderers ----------
 
   const renderSectionHeader = useCallback(
@@ -265,13 +372,13 @@ export default function GoalsScreen() {
             <Text style={styles.sectionHeaderText}>
               {section.title} ({count})
             </Text>
-            <Animated.View
+            <View
               style={{
                 transform: [{ rotate: isCollapsed ? "-90deg" : "0deg" }],
               }}
             >
               <ChevronDown size={16} color={colors.text.muted} />
-            </Animated.View>
+            </View>
           </Pressable>
 
           {isCompleted && count > 0 && (
@@ -290,103 +397,18 @@ export default function GoalsScreen() {
   );
 
   const renderItem = useCallback(
-    ({ item: goal, index }: { item: any; index: number }) => {
-      const nextAction = getNextStatusAction(goal.status);
-      const priorityKey = goal.priority as string | undefined;
-      const impactKey = goal.impact as string | undefined;
-
-      return (
-        <Animated.View entering={FadeInDown.delay(staggerDelay(index)).duration(200)}>
-          <SwipeableRow
-            leftAction={
-              nextAction
-                ? {
-                    label: nextAction.label,
-                    color: nextAction.color,
-                    onAction: () =>
-                      handleStatusChange(goal, nextAction.nextStatus),
-                  }
-                : undefined
-            }
-            rightActions={[
-              {
-                label: "Archive",
-                color: colors.feedback.warning,
-                onAction: () => handleArchive(goal),
-              },
-            ]}
-        >
-          <PressableCard
-            onPress={() => router.push(`/(main)/goals/${goal.id}`)}
-            style={goal.id === celebrationGoalId ? styles.goalCelebrationCard : undefined}
-          >
-            {/* Title */}
-            <Text style={styles.goalTitle} numberOfLines={1}>
-              {goal.title}
-            </Text>
-
-            {/* Meta: priority pill + impact + project */}
-            <View style={styles.metaRow}>
-              {priorityKey && priorityLabels[priorityKey] && (
-                <View
-                  style={[
-                    styles.priorityPill,
-                    {
-                      backgroundColor:
-                        (priorityColors[priorityKey] ?? colors.priority.p4) +
-                        "33",
-                    },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.priorityText,
-                      {
-                        color:
-                          priorityColors[priorityKey] ?? colors.priority.p4,
-                      },
-                    ]}
-                  >
-                    {priorityLabels[priorityKey]}
-                  </Text>
-                </View>
-              )}
-
-              {impactKey && impactLabels[impactKey] && (
-                <View style={styles.impactRow}>
-                  <Zap
-                    size={12}
-                    color={impactColors[impactKey] ?? colors.impact.low}
-                  />
-                  <Text
-                    style={[
-                      styles.impactText,
-                      {
-                        color: impactColors[impactKey] ?? colors.impact.low,
-                      },
-                    ]}
-                  >
-                    {impactLabels[impactKey]}
-                  </Text>
-                </View>
-              )}
-
-              {(goal as any).project?.name && (
-                <Text style={styles.projectName}>
-                  {(goal as any).project.name}
-                </Text>
-              )}
-            </View>
-            {goal.id === celebrationGoalId && <ConfettiBurst particleCount={20} />}
-            {goal.id === celebrationGoalId && xpDelta > 0 && (
-              <XPFloat amount={xpDelta} onComplete={() => setXpDelta(0)} />
-            )}
-          </PressableCard>
-          </SwipeableRow>
-        </Animated.View>
-      );
-    },
-    [handleStatusChange, handleArchive, router, celebrationGoalId, xpDelta],
+    ({ item: goal }: { item: any }) => (
+      <GoalRow
+        goal={goal}
+        onPress={handleGoalPress}
+        onStatusChange={handleStatusChange}
+        onArchive={handleArchive}
+        isCelebrating={goal.id === celebrationGoalId}
+        xpDelta={goal.id === celebrationGoalId ? xpDelta : 0}
+        onXpComplete={handleXpComplete}
+      />
+    ),
+    [handleGoalPress, handleStatusChange, handleArchive, celebrationGoalId, xpDelta, handleXpComplete],
   );
 
   const renderEmpty = useCallback(() => {
@@ -417,36 +439,18 @@ export default function GoalsScreen() {
       <ListHeader title="Goals" subtitle={goalSubtitle} searchContext="goals" />
       <SectionList
         sections={sections}
-        keyExtractor={(item: any) => item.id}
+        keyExtractor={keyExtractor}
         renderItem={renderItem}
         renderSectionHeader={renderSectionHeader}
+        removeClippedSubviews
+        maxToRenderPerBatch={5}
+        initialNumToRender={8}
         ListHeaderComponent={
           <View style={styles.listHeader}>
             <ProjectPills
               selectedProjectId={selectedProjectId}
               onSelect={setSelectedProjectId}
             />
-            <View style={styles.toolsRow}>
-              <View style={styles.searchRow}>
-                <Search size={16} color={colors.text.muted} />
-                <TextInput
-                  value={searchQuery}
-                  onChangeText={setSearchQuery}
-                  placeholder="Search goals..."
-                  placeholderTextColor={colors.text.muted}
-                  style={styles.searchInput}
-                />
-              </View>
-              <Pressable
-                style={styles.settingsButton}
-                onPress={() => setShowArchived((value) => !value)}
-              >
-                <Settings size={16} color={colors.text.secondary} />
-                <Text style={styles.settingsText}>
-                  {showArchived ? "Hide archived" : "Show archived"}
-                </Text>
-              </Pressable>
-            </View>
             <View style={styles.filterRow}>
               {STATUS_FILTERS.map((f) => (
                 <Chip
@@ -498,42 +502,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg.primary,
   },
   listHeader: {
-    paddingHorizontal: 20,
     paddingTop: 8,
   },
   filterRow: {
     flexDirection: "row",
     gap: 8,
     marginBottom: 16,
-  },
-  toolsRow: {
-    gap: 10,
-    marginBottom: 12,
-  },
-  searchRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    borderWidth: 1,
-    borderColor: colors.border.default,
-    borderRadius: 12,
-    backgroundColor: colors.bg.elevated,
-    paddingHorizontal: 12,
-  },
-  searchInput: {
-    flex: 1,
-    color: colors.text.primary,
-    fontSize: 15,
-    paddingVertical: 10,
-  },
-  settingsButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  settingsText: {
-    fontSize: 12,
-    color: colors.text.secondary,
   },
   listContent: {
     paddingHorizontal: 20,
@@ -604,7 +578,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   priorityText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "600",
   },
   impactRow: {
@@ -613,7 +587,7 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   impactText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "500",
   },
   projectName: {

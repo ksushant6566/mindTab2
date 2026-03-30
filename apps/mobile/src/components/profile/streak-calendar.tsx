@@ -284,7 +284,7 @@ const styles = StyleSheet.create({
     color: colors.text.muted,
   },
   dayNumberActive: {
-    color: "#ffffff",
+    color: colors.white,
     fontWeight: "600",
   },
   dayTooltip: {

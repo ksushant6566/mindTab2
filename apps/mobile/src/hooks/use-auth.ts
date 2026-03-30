@@ -7,6 +7,7 @@ import {
   setRefreshToken,
   clearTokens,
   refreshTokens,
+  logoutFromServer,
   emailSignup as emailSignupApi,
   emailVerify as emailVerifyApi,
   emailSignin as emailSigninApi,
@@ -45,7 +46,7 @@ GoogleSignin.configure({
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:8080";
 
-const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   isAuthenticated: false,
   isLoading: true,
@@ -76,7 +77,8 @@ const useAuthStore = create<AuthState>((set) => ({
         _hasChecked: true,
       });
     } catch {
-      await clearTokens();
+      // Don't clear tokens on transient errors — refreshTokens() handles
+      // definitive auth failures (401/403) internally.
       set({ user: null, isAuthenticated: false, isLoading: false, _hasChecked: true });
     }
   },
@@ -114,6 +116,10 @@ const useAuthStore = create<AuthState>((set) => ({
   },
 
   logout: async () => {
+    // Capture token before clearing — logoutFromServer is fire-and-forget
+    // so clearTokens() must not delete it before the fetch reads it.
+    const token = await getRefreshToken();
+    if (token) logoutFromServer(token);
     await clearTokens();
     try { await GoogleSignin.signOut(); } catch {}
     set({ user: null, isAuthenticated: false, _hasChecked: false });

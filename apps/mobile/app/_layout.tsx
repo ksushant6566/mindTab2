@@ -4,7 +4,7 @@ import { Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { View, ActivityIndicator } from "react-native";
 import { Providers } from "~/providers";
-import { useAuth } from "~/hooks/use-auth";
+import { useAuth, useAuthStore } from "~/hooks/use-auth";
 import { OfflineBanner } from "~/components/offline-banner";
 import { colors } from "~/styles/colors";
 
@@ -15,7 +15,14 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!hasChecked) {
-      refreshSession();
+      // Timeout after 10s — treat as unauthenticated so user sees login.
+      const timeout = setTimeout(() => {
+        if (!useAuthStore.getState()._hasChecked) {
+          useAuthStore.setState({ isLoading: false, _hasChecked: true });
+        }
+      }, 10_000);
+
+      refreshSession().finally(() => clearTimeout(timeout));
     }
   }, [hasChecked]);
 

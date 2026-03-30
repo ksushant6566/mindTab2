@@ -55,7 +55,7 @@ const sizeStyles: Record<ButtonSize, ViewStyle> = {
 const textColorMap: Record<ButtonVariant, string> = {
   default: colors.bg.primary,
   secondary: colors.text.primary,
-  destructive: "#ffffff",
+  destructive: colors.white,
   ghost: colors.text.primary,
   outline: colors.text.primary,
 };
@@ -196,7 +196,7 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   disabled: {
-    backgroundColor: "#262626",
+    backgroundColor: colors.border.default,
     opacity: 1,
   },
 });

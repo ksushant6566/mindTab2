@@ -605,11 +605,13 @@ export default function NoteDetailScreen() {
       />
 
       {/* --- Mention search sheet (edit mode) --- */}
-      <MentionSearchSheet
-        ref={mentionSheetRef}
-        onSelect={handleMentionSelect}
-        onDismiss={handleMentionSearchDismiss}
-      />
+      {isEditing && (
+        <MentionSearchSheet
+          ref={mentionSheetRef}
+          onSelect={handleMentionSelect}
+          onDismiss={handleMentionSearchDismiss}
+        />
+      )}
     </SafeAreaView>
     </Animated.View>
   );
@@ -657,7 +659,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border.default,
     paddingVertical: 6,
     minWidth: 160,
-    shadowColor: "#000",
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,

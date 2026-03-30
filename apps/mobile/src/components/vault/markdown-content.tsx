@@ -71,7 +71,7 @@ const markdownStyles = StyleSheet.create({
   },
   heading5: {
     color: colors.text.primary,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "600",
     lineHeight: 19,
     marginTop: 2,
@@ -93,7 +93,7 @@ const markdownStyles = StyleSheet.create({
   },
   strong: {
     fontWeight: "700",
-    color: "#d0d0d0",
+    color: colors.text.reader,
   },
   em: {
     fontStyle: "italic",
@@ -113,14 +113,14 @@ const markdownStyles = StyleSheet.create({
   code_inline: {
     fontFamily: "monospace",
     backgroundColor: "#1c1c1c",
-    color: "#d0d0d0",
-    fontSize: 13,
+    color: colors.text.reader,
+    fontSize: 12,
     paddingHorizontal: 3,
   },
   code_block: {
     fontFamily: "monospace",
     backgroundColor: "#1c1c1c",
-    color: "#d0d0d0",
+    color: colors.text.reader,
     fontSize: 12,
     lineHeight: 18,
     padding: 12,
@@ -131,7 +131,7 @@ const markdownStyles = StyleSheet.create({
   fence: {
     fontFamily: "monospace",
     backgroundColor: "#1c1c1c",
-    color: "#d0d0d0",
+    color: colors.text.reader,
     fontSize: 12,
     lineHeight: 18,
     padding: 12,
@@ -149,12 +149,12 @@ const markdownStyles = StyleSheet.create({
     marginBottom: 4,
   },
   bullet_list_icon: {
-    color: "#666666",
+    color: colors.text.muted,
     fontSize: 14,
     lineHeight: 23,
   },
   ordered_list_icon: {
-    color: "#666666",
+    color: colors.text.muted,
     fontSize: 14,
     lineHeight: 23,
   },

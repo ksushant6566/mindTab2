@@ -17,8 +17,7 @@ import * as ImagePicker from "expo-image-picker";
 import { useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react-native";
 import { toast } from "sonner-native";
-import { api } from "~/lib/api-client";
-import { getAccessToken } from "~/lib/auth";
+import { api, authedFetch } from "~/lib/api-client";
 import { colors } from "~/styles/colors";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:8080";
@@ -99,13 +98,8 @@ export function SaveFAB() {
     } as any);
 
     try {
-      const token = await getAccessToken();
-      const response = await fetch(`${API_URL}/saves`, {
+      const response = await authedFetch(`${API_URL}/saves`, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${token ?? ""}`,
-          "X-Platform": "mobile",
-        },
         body: formData,
       });
       if (!response.ok) throw new Error("Upload failed");
@@ -123,7 +117,7 @@ export function SaveFAB() {
     <>
       {/* FAB button */}
       <Pressable style={styles.fab} onPress={openSheet}>
-        <Plus size={24} color="#000000" strokeWidth={2.5} />
+        <Plus size={24} color={colors.black} strokeWidth={2.5} />
       </Pressable>
 
       {/* Bottom sheet */}
@@ -146,7 +140,7 @@ export function SaveFAB() {
               value={urlInput}
               onChangeText={setUrlInput}
               placeholder="Paste article URL..."
-              placeholderTextColor="#555555"
+              placeholderTextColor={colors.text.dim}
               style={styles.urlInput}
               autoCapitalize="none"
               autoCorrect={false}
@@ -190,10 +184,10 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: "#ffffff",
+    backgroundColor: colors.white,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#000000",
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.5,
     shadowRadius: 20,
@@ -205,7 +199,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#0a0a0a",
   },
   sheetHandle: {
-    backgroundColor: "#333333",
+    backgroundColor: colors.bg.input,
     width: 36,
     height: 4,
   },
@@ -217,8 +211,8 @@ const styles = StyleSheet.create({
   },
   // Section label
   sectionLabel: {
-    color: "#888888",
-    fontSize: 13,
+    color: colors.text.secondary,
+    fontSize: 12,
     fontWeight: "600",
     marginBottom: 12,
     marginTop: 8,
@@ -228,7 +222,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#141414",
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#222222",
+    borderColor: colors.border.input,
     color: "#fafafa",
     padding: 12,
     fontSize: 14,
@@ -236,7 +230,7 @@ const styles = StyleSheet.create({
   },
   // Save button
   saveBtn: {
-    backgroundColor: "#ffffff",
+    backgroundColor: colors.white,
     borderRadius: 12,
     paddingVertical: 12,
     alignItems: "center",
@@ -261,7 +255,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#141414",
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#222222",
+    borderColor: colors.border.input,
     paddingVertical: 14,
     alignItems: "center",
   },

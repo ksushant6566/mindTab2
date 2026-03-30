@@ -1,5 +1,6 @@
 import { type ReactNode, useCallback } from "react";
 import { View, Text, StyleSheet, Dimensions } from "react-native";
+import { colors } from "~/styles/colors";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   useSharedValue,
@@ -164,7 +165,7 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   actionLabel: {
-    color: "#fff",
+    color: colors.white,
     fontWeight: "600",
     fontSize: 14,
   },

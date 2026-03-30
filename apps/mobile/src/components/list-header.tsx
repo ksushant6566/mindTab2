@@ -100,7 +100,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
   },
   subtitle: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "500",
     color: colors.text.muted,
   },

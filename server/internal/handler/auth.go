@@ -6,22 +6,26 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/ksushant6566/mindtab/server/internal/auth"
+	"github.com/ksushant6566/mindtab/server/internal/middleware"
 	"github.com/ksushant6566/mindtab/server/internal/store"
 )
 
 // AuthHandler handles authentication endpoints.
 type AuthHandler struct {
 	queries        store.Querier
+	pool           *pgxpool.Pool
 	jwtSecret      string
 	googleClientID string
 }
 
 // NewAuthHandler creates a new AuthHandler.
-func NewAuthHandler(queries store.Querier, jwtSecret, googleClientID string) *AuthHandler {
+func NewAuthHandler(queries store.Querier, pool *pgxpool.Pool, jwtSecret, googleClientID string) *AuthHandler {
 	return &AuthHandler{
 		queries:        queries,
+		pool:           pool,
 		jwtSecret:      jwtSecret,
 		googleClientID: googleClientID,
 	}
@@ -198,12 +202,7 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Delete old refresh token (rotation).
-	if err := h.queries.DeleteRefreshToken(r.Context(), oldHash); err != nil {
-		slog.Error("failed to delete old refresh token", "error", err)
-	}
-
-	// Get user for the new access token.
+	// Get user for the new access token (read-only, outside transaction).
 	user, err := h.queries.GetUserByID(r.Context(), token.UserID)
 	if err != nil {
 		slog.Error("failed to get user", "error", err)
@@ -211,7 +210,7 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Generate new access token.
+	// Generate new access token (no DB, outside transaction).
 	accessToken, err := auth.GenerateAccessToken(h.jwtSecret, user.ID, user.Email)
 	if err != nil {
 		slog.Error("failed to generate access token", "error", err)
@@ -219,7 +218,7 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Generate new refresh token.
+	// Generate new refresh token material (no DB, outside transaction).
 	rawRefresh, hashRefresh, err := auth.GenerateRefreshToken()
 	if err != nil {
 		slog.Error("failed to generate refresh token", "error", err)
@@ -227,9 +226,25 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Store new refresh token.
+	// Rotate refresh token atomically.
+	tx, err := h.pool.Begin(r.Context())
+	if err != nil {
+		slog.Error("failed to begin transaction", "error", err)
+		WriteError(w, http.StatusInternalServerError, "failed to refresh token")
+		return
+	}
+	defer tx.Rollback(r.Context())
+
+	qtx := h.queries.(*store.Queries).WithTx(tx)
+
+	if err := qtx.DeleteRefreshToken(r.Context(), oldHash); err != nil {
+		slog.Error("failed to delete old refresh token", "error", err)
+		WriteError(w, http.StatusInternalServerError, "failed to refresh token")
+		return
+	}
+
 	expiresAt := time.Now().Add(30 * 24 * time.Hour)
-	err = h.queries.CreateRefreshToken(r.Context(), store.CreateRefreshTokenParams{
+	err = qtx.CreateRefreshToken(r.Context(), store.CreateRefreshTokenParams{
 		UserID:    user.ID,
 		TokenHash: hashRefresh,
 		ExpiresAt: pgtype.Timestamptz{Time: expiresAt, Valid: true},
@@ -237,6 +252,12 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		slog.Error("failed to store refresh token", "error", err)
 		WriteError(w, http.StatusInternalServerError, "failed to store token")
+		return
+	}
+
+	if err := tx.Commit(r.Context()); err != nil {
+		slog.Error("failed to commit refresh token rotation", "error", err)
+		WriteError(w, http.StatusInternalServerError, "failed to refresh token")
 		return
 	}
 
@@ -262,4 +283,79 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 	WriteJSON(w, http.StatusOK, map[string]string{
 		"accessToken": accessToken,
 	})
+}
+
+// Logout handles POST /auth/logout.
+// Deletes the refresh token from DB so it can no longer be used.
+func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
+	isMobile := r.Header.Get("X-Platform") == "mobile"
+
+	var rawToken string
+	if isMobile {
+		var req struct {
+			RefreshToken string `json:"refreshToken"`
+		}
+		if err := ReadJSON(r, &req); err != nil || req.RefreshToken == "" {
+			// Still return 200 — client already intends to log out.
+			WriteJSON(w, http.StatusOK, map[string]string{"message": "logged out"})
+			return
+		}
+		rawToken = req.RefreshToken
+	} else {
+		cookie, err := r.Cookie("mindtab_refresh")
+		if err != nil {
+			WriteJSON(w, http.StatusOK, map[string]string{"message": "logged out"})
+			return
+		}
+		rawToken = cookie.Value
+	}
+
+	// Delete the specific refresh token.
+	tokenHash := auth.HashToken(rawToken)
+	if err := h.queries.DeleteRefreshToken(r.Context(), tokenHash); err != nil {
+		slog.Error("failed to delete refresh token on logout", "error", err)
+	}
+
+	// Clear cookie for web clients.
+	if !isMobile {
+		http.SetCookie(w, &http.Cookie{
+			Name:     "mindtab_refresh",
+			Value:    "",
+			Path:     "/",
+			MaxAge:   -1,
+			HttpOnly: true,
+			Secure:   true,
+			SameSite: http.SameSiteLaxMode,
+		})
+	}
+
+	WriteJSON(w, http.StatusOK, map[string]string{"message": "logged out"})
+}
+
+// WSTicket handles POST /auth/ws-ticket.
+// Issues a short-lived single-use ticket for WebSocket authentication.
+// Requires a valid access token (called from protected route group).
+func (h *AuthHandler) WSTicket(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.UserIDFromContext(r.Context())
+
+	raw, hash, err := auth.GenerateRefreshToken() // reuse random token generator
+	if err != nil {
+		slog.Error("failed to generate ws ticket", "error", err)
+		WriteError(w, http.StatusInternalServerError, "failed to generate ticket")
+		return
+	}
+
+	expiresAt := time.Now().Add(30 * time.Second)
+	err = h.queries.CreateRefreshToken(r.Context(), store.CreateRefreshTokenParams{
+		UserID:    userID,
+		TokenHash: hash,
+		ExpiresAt: pgtype.Timestamptz{Time: expiresAt, Valid: true},
+	})
+	if err != nil {
+		slog.Error("failed to store ws ticket", "error", err)
+		WriteError(w, http.StatusInternalServerError, "failed to generate ticket")
+		return
+	}
+
+	WriteJSON(w, http.StatusOK, map[string]string{"ticket": raw})
 }

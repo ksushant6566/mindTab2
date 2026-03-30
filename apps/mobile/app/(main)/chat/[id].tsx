@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback, useMemo } from "react";
+import React, { useEffect, useRef, useCallback, useMemo, useState } from "react";
 import {
   View,
   FlatList,
@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Text,
   Alert,
+  Keyboard,
 } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
@@ -103,6 +104,15 @@ export default function ConversationDetail() {
 
   const { sendMessage, connect, isConnected } = useWebSocket();
   const openSidebar = useChatSidebar((s) => s.open);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const showSub = Keyboard.addListener(showEvent, () => setKeyboardVisible(true));
+    const hideSub = Keyboard.addListener(hideEvent, () => setKeyboardVisible(false));
+    return () => { showSub.remove(); hideSub.remove(); };
+  }, []);
   // Only subscribe to the fields needed for list composition — NOT streamBuffer
   const isStreaming = useChatStore((s) => s.isStreaming);
   const activeConversationId = useChatStore((s) => s.activeConversationId);
@@ -269,7 +279,7 @@ export default function ConversationDetail() {
           keyboardShouldPersistTaps="handled"
         />
 
-        <View style={styles.inputContainer}>
+        <View style={[styles.inputContainer, !keyboardVisible && styles.inputContainerResting]}>
           <ChatInput
             onSend={(text, attachments) => {
               // Optimistically add user message to the list immediately
@@ -314,6 +324,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: Platform.OS === "ios" ? 12 : 16,
     paddingTop: 8,
+  },
+  inputContainerResting: {
+    paddingBottom: 32,
   },
   headerButton: {
     marginRight: 4,

@@ -8,9 +8,17 @@ import Animated, {
   Easing,
   runOnJS,
 } from "react-native-reanimated";
+import { colors } from "~/styles/colors";
 
 const PARTICLE_COUNT = 12;
-const COLORS = ["#34d399", "#fbbf24", "#f472b6", "#60a5fa", "#a78bfa", "#fb923c"];
+const COLORS = [
+  colors.status.checked,
+  colors.feedback.warning,
+  "#f472b6",
+  colors.status.active,
+  colors.streak.purple,
+  colors.streak.orange,
+];
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 type ConfettiProps = {

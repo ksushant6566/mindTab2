@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   quickActionsTitle: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "600",
     color: colors.text.muted,
     textTransform: "uppercase",

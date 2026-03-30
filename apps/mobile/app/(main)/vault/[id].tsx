@@ -261,13 +261,13 @@ const styles = StyleSheet.create({
     backgroundColor: "#1a1a1a",
   },
   sourceDomain: {
-    color: "#555555",
+    color: colors.text.dim,
     fontSize: 12,
   },
   // Title
   title: {
     color: "#fafafa",
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: "600",
     lineHeight: 28.6,
     marginBottom: 14,
@@ -288,7 +288,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   tagText: {
-    color: "#888888",
+    color: colors.text.secondary,
     fontSize: 12,
   },
   // Sections
@@ -296,15 +296,15 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   sectionLabel: {
-    color: "#555555",
-    fontSize: 11,
+    color: colors.text.dim,
+    fontSize: 12,
     textTransform: "uppercase",
     letterSpacing: 0.5,
     marginBottom: 10,
   },
   // Summary card
   summaryCard: {
-    backgroundColor: "#111111",
+    backgroundColor: colors.bg.elevated,
     borderRadius: 12,
     padding: 14,
   },
@@ -324,7 +324,7 @@ const styles = StyleSheet.create({
     width: 4,
     height: 4,
     borderRadius: 2,
-    backgroundColor: "#555555",
+    backgroundColor: colors.text.dim,
     marginTop: 8,
   },
   bulletText: {
@@ -335,12 +335,12 @@ const styles = StyleSheet.create({
   // Extracted content
   extractedText: {
     color: "#999999",
-    fontSize: 13,
+    fontSize: 12,
     lineHeight: 22.1,
   },
   // Open button
   openBtn: {
-    backgroundColor: "#ffffff",
+    backgroundColor: colors.white,
     borderRadius: 12,
     padding: 12,
     alignItems: "center",

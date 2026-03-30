@@ -358,7 +358,7 @@ const styles = StyleSheet.create({
     borderRadius: 3.5,
   },
   statusLabel: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "600",
   },
 
@@ -383,7 +383,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   countValue: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "600",
     color: colors.text.primary,
   },
@@ -409,7 +409,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   progressPercent: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "600",
     color: colors.text.muted,
     minWidth: 30,

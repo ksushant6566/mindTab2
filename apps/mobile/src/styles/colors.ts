@@ -5,6 +5,8 @@ export const colors = {
     elevated: "#141414",
     surface: "#1c1c1c",
     overlay: "rgba(0,0,0,0.5)",
+    input: "#333333",
+    bubble: "#e5e5e5",
   },
   // Text
   text: {
@@ -12,12 +14,15 @@ export const colors = {
     secondary: "#a3a3a3",
     muted: "#737373",
     reader: "#e5e5e5",
+    dim: "#555555",
+    inverse: "#0a0a0a",
   },
   // Borders
   border: {
     default: "#262626",
     subtle: "#1a1a1a",
     focus: "#818cf8",
+    input: "#222222",
   },
   // Accent
   accent: {
@@ -31,6 +36,7 @@ export const colors = {
     completed: "#22c55e",
     archived: "#78716c",
     paused: "#fbbf24",
+    checked: "#34d399",
   },
   // Priority
   priority: {
@@ -73,6 +79,9 @@ export const colors = {
     podcast: "#22c55e",
     website: "#60a5fa",
   },
+
+  white: "#ffffff",
+  black: "#000000",
 
   // Legacy flat tokens (for NativeWind/existing component compat)
   background: "#0a0a0a",

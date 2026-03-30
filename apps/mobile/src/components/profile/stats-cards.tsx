@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
     minWidth: "100%",
   },
   statValue: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: "800",
     color: colors.text.primary,
   },

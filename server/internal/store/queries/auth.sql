@@ -12,3 +12,8 @@ DELETE FROM mindmap_refresh_token WHERE expires_at <= CURRENT_TIMESTAMP;
 
 -- name: DeleteUserRefreshTokens :exec
 DELETE FROM mindmap_refresh_token WHERE user_id = $1;
+
+-- name: ConsumeWSTicket :one
+DELETE FROM mindmap_refresh_token
+WHERE token_hash = $1 AND expires_at > CURRENT_TIMESTAMP
+RETURNING *;

@@ -1,4 +1,4 @@
-import { forwardRef, useCallback, useEffect, useMemo, useState } from "react";
+import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -46,6 +46,7 @@ export const MentionSearchSheet = forwardRef<BottomSheet, MentionSearchSheetProp
     const snapPoints = useMemo(() => ["50%", "80%"], []);
     const [query, setQuery] = useState("");
     const [debouncedQuery, setDebouncedQuery] = useState("");
+    const inputRef = useRef<TextInput>(null);
 
     useEffect(() => {
       const t = setTimeout(() => setDebouncedQuery(query), 300);
@@ -128,6 +129,9 @@ export const MentionSearchSheet = forwardRef<BottomSheet, MentionSearchSheetProp
           if (index === -1) {
             setQuery("");
             onDismiss();
+          } else {
+            // Focus the search input when the sheet opens
+            setTimeout(() => inputRef.current?.focus(), 50);
           }
         }}
       >
@@ -136,12 +140,12 @@ export const MentionSearchSheet = forwardRef<BottomSheet, MentionSearchSheetProp
           <View style={styles.searchRow}>
             <Search size={18} color={colors.text.muted} />
             <TextInput
+              ref={inputRef}
               value={query}
               onChangeText={setQuery}
               placeholder="Search goals, habits, notes..."
               placeholderTextColor={colors.text.muted}
               style={styles.searchInput}
-              autoFocus
             />
           </View>
 

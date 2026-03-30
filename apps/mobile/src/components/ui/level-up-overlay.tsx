@@ -108,7 +108,7 @@ export function LevelUpOverlay({
     color: interpolateColor(
       shimmer.value,
       [0, 0.5, 1],
-      ["#facc15", "#fef08a", "#facc15"],
+      [colors.xp.gold, colors.xp.gold, colors.xp.gold],
     ),
   }));
 
@@ -132,7 +132,7 @@ export function LevelUpOverlay({
       </Animated.Text>
 
       {/* Confetti */}
-      <ConfettiBurst particleCount={24} colors={["#facc15", "#818cf8", "#ffffff"]} />
+      <ConfettiBurst particleCount={24} colors={[colors.xp.gold, colors.accent.indigo, colors.white]} />
     </Animated.View>
   );
 }

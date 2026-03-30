@@ -818,7 +818,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     minWidth: 180,
     zIndex: 21,
-    shadowColor: "#000",
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -875,7 +875,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border.default,
   },
   deleteCancelText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "500",
     color: colors.text.secondary,
   },
@@ -886,9 +886,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.feedback.error,
   },
   deleteConfirmText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "600",
-    color: "#fff",
+    color: colors.white,
   },
 
   // Content
@@ -932,7 +932,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   statusBadgeText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "600",
   },
 
@@ -941,7 +941,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   sectionLabel: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "600",
     letterSpacing: 1.2,
     color: colors.text.muted,
@@ -991,7 +991,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   statNumber: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: "700",
     color: colors.text.primary,
   },
@@ -1018,7 +1018,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   progressPercentage: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "600",
     color: colors.status.completed,
   },
@@ -1095,7 +1095,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   metaPillText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "600",
   },
 
@@ -1106,7 +1106,7 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   impactText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "500",
   },
 

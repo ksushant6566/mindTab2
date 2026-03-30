@@ -1,4 +1,5 @@
 import { View, Text, Pressable, StyleSheet } from "react-native";
+import { colors } from "~/styles/colors";
 
 type ConversationRowProps = {
   id: string;
@@ -41,7 +42,7 @@ export function ConversationRow({ id, title, updatedAt, onPress }: ConversationR
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: "#111111",
+    backgroundColor: colors.bg.elevated,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -54,15 +55,15 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   title: {
-    color: "#e0e0e0",
+    color: colors.text.reader,
     fontSize: 14,
   },
   timestamp: {
-    color: "#444444",
+    color: colors.text.dim,
     fontSize: 12,
   },
   chevron: {
-    color: "#444444",
+    color: colors.text.dim,
     fontSize: 18,
     marginLeft: 8,
   },

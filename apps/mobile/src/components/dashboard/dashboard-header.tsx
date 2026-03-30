@@ -97,7 +97,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: "#ffffff",
+    backgroundColor: colors.white,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -107,14 +107,14 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   chipActive: {
-    backgroundColor: "#ffffff",
+    backgroundColor: colors.white,
     paddingHorizontal: 16,
     paddingVertical: 6,
     borderRadius: 999,
   },
   chipTextActive: {
     color: "#0a0a0a",
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "600",
   },
   chipInactive: {
@@ -126,8 +126,8 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   chipTextInactive: {
-    color: "#666666",
-    fontSize: 13,
+    color: colors.text.muted,
+    fontSize: 12,
   },
   searchButton: {
     padding: 6,

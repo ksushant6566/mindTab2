@@ -1,6 +1,6 @@
 import createClient from "openapi-fetch";
 import type { paths } from "@mindtab/api-spec";
-import { getAccessToken, refreshTokens } from "./auth";
+import { getAccessToken, isTokenExpired, refreshTokens } from "./auth";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:8080";
 
@@ -12,12 +12,50 @@ let refreshPromise: Promise<boolean> | null = null;
 // Store a cloned request before the body is consumed, keyed by URL+method
 const pendingRequests = new WeakMap<Request, Request>();
 
+/**
+ * Fetch with automatic Bearer token injection and 401 retry.
+ * Use for direct fetch calls that bypass the openapi-fetch client
+ * (e.g. FormData uploads, custom endpoints).
+ */
+export async function authedFetch(
+  url: string,
+  init?: RequestInit
+): Promise<Response> {
+  let token = await getAccessToken();
+  if (token && isTokenExpired(token)) {
+    await refreshTokens();
+    token = await getAccessToken();
+  }
+  const headers = new Headers(init?.headers);
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  headers.set("X-Platform", "mobile");
+
+  const res = await fetch(url, { ...init, headers });
+
+  if (res.status === 401 && !url.includes("/auth/")) {
+    const refreshed = await refreshTokens();
+    if (!refreshed) return res;
+
+    const newToken = await getAccessToken();
+    const retryHeaders = new Headers(init?.headers);
+    if (newToken) retryHeaders.set("Authorization", `Bearer ${newToken}`);
+    retryHeaders.set("X-Platform", "mobile");
+    return fetch(url, { ...init, headers: retryHeaders });
+  }
+
+  return res;
+}
+
 api.use({
   async onRequest({ request }) {
     // Clone before body is consumed so we can retry on 401
     pendingRequests.set(request, request.clone());
 
-    const token = await getAccessToken();
+    let token = await getAccessToken();
+    if (token && isTokenExpired(token)) {
+      await refreshTokens();
+      token = await getAccessToken();
+    }
     if (token) {
       request.headers.set("Authorization", `Bearer ${token}`);
     }

@@ -1,5 +1,6 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
+import { colors } from "~/styles/colors";
 
 type ToolIndicatorProps = {
   tool: string;
@@ -65,9 +66,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     alignSelf: "flex-start",
-    backgroundColor: "#111111",
+    backgroundColor: colors.bg.elevated,
     borderWidth: 1,
-    borderColor: "#1a1a1a",
+    borderColor: colors.border.subtle,
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 6,
@@ -75,11 +76,11 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   icon: {
-    fontSize: 11,
-    color: "#666666",
+    fontSize: 12,
+    color: colors.text.muted,
   },
   label: {
-    color: "#666666",
+    color: colors.text.muted,
     fontSize: 12,
   },
 });

@@ -167,7 +167,7 @@ export function FAB({ visible, contextFilter }: FABProps) {
         <GestureDetector gesture={fabGesture}>
           <Animated.View style={styles.fab}>
             <Animated.View style={plusRotationStyle}>
-              <Plus size={28} color="#ffffff" strokeWidth={2.5} />
+              <Plus size={28} color={colors.white} strokeWidth={2.5} />
             </Animated.View>
           </Animated.View>
         </GestureDetector>
@@ -251,7 +251,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     // iOS shadow
-    shadowColor: "#000",
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -272,7 +272,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     // iOS shadow
-    shadowColor: "#000",
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,

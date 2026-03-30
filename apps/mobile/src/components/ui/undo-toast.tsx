@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border.default,
     overflow: "hidden",
-    shadowColor: "#000",
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -143,7 +143,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent.indigoMuted,
   },
   undoText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "700",
     color: colors.accent.indigo,
     letterSpacing: 0.5,

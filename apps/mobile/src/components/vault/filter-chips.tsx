@@ -1,4 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { colors } from "~/styles/colors";
 
 type FilterChipsProps = {
   activeFilter: "all" | "article" | "image";
@@ -40,7 +41,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   chipActive: {
-    backgroundColor: "#ffffff",
+    backgroundColor: colors.white,
     paddingHorizontal: 14,
     paddingVertical: 6,
     borderRadius: 999,
@@ -53,13 +54,13 @@ const styles = StyleSheet.create({
   chipInactive: {
     backgroundColor: "transparent",
     borderWidth: 1,
-    borderColor: "#222222",
+    borderColor: colors.border.input,
     paddingHorizontal: 14,
     paddingVertical: 6,
     borderRadius: 999,
   },
   chipTextInactive: {
-    color: "#777777",
+    color: colors.text.muted,
     fontSize: 12,
   },
 });
