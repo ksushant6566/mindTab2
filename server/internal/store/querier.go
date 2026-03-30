@@ -106,6 +106,7 @@ type Querier interface {
 	UpdateContentEmbedding(ctx context.Context, arg UpdateContentEmbeddingParams) error
 	UpdateContentResults(ctx context.Context, arg UpdateContentResultsParams) error
 	UpdateContentStatus(ctx context.Context, arg UpdateContentStatusParams) error
+	UpdateContentYoutubeFields(ctx context.Context, arg UpdateContentYoutubeFieldsParams) error
 	UpdateConversationTitle(ctx context.Context, arg UpdateConversationTitleParams) error
 	UpdateGoal(ctx context.Context, arg UpdateGoalParams) error
 	UpdateGoalPosition(ctx context.Context, arg UpdateGoalPositionParams) error

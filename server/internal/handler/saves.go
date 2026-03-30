@@ -62,6 +62,10 @@ type contentJSON struct {
 	EmbeddingProvider  *string    `json:"embedding_provider,omitempty"`
 	EmbeddingModel     *string    `json:"embedding_model,omitempty"`
 	MediaKey           *string    `json:"media_key,omitempty"`
+	VideoDuration      *int32     `json:"video_duration"`
+	VideoThumbnailURL  *string    `json:"video_thumbnail_url"`
+	VideoChannel       *string    `json:"video_channel"`
+	TranscriptSource   *string    `json:"transcript_source"`
 	ProcessingStatus   string     `json:"processing_status"`
 	ProcessingError    *string    `json:"processing_error,omitempty"`
 	CreatedAt          *time.Time `json:"created_at,omitempty"`
@@ -80,6 +84,9 @@ type contentListJSON struct {
 	Tags               []string   `json:"tags"`
 	KeyTopics          []string   `json:"key_topics"`
 	MediaKey           *string    `json:"media_key,omitempty"`
+	VideoDuration      *int32     `json:"video_duration"`
+	VideoThumbnailURL  *string    `json:"video_thumbnail_url"`
+	VideoChannel       *string    `json:"video_channel"`
 	ProcessingStatus   string     `json:"processing_status"`
 	ProcessingError    *string    `json:"processing_error,omitempty"`
 	CreatedAt          *time.Time `json:"created_at,omitempty"`
@@ -386,6 +393,9 @@ func (h *SavesHandler) List(w http.ResponseWriter, r *http.Request) {
 			Tags:               nullableStringSlice(row.Tags),
 			KeyTopics:          nullableStringSlice(row.KeyTopics),
 			MediaKey:           textToPtr(row.MediaKey),
+			VideoDuration:      int4ToPtr(row.VideoDuration),
+			VideoThumbnailURL:  textToPtr(row.VideoThumbnailUrl),
+			VideoChannel:       textToPtr(row.VideoChannel),
 			ProcessingStatus:   row.ProcessingStatus,
 			ProcessingError:    textToPtr(row.ProcessingError),
 			CreatedAt:          timestamptzToPtr(row.CreatedAt),
@@ -436,6 +446,10 @@ func (h *SavesHandler) Get(w http.ResponseWriter, r *http.Request) {
 		EmbeddingProvider:  textToPtr(row.EmbeddingProvider),
 		EmbeddingModel:     textToPtr(row.EmbeddingModel),
 		MediaKey:           textToPtr(row.MediaKey),
+		VideoDuration:      int4ToPtr(row.VideoDuration),
+		VideoThumbnailURL:  textToPtr(row.VideoThumbnailUrl),
+		VideoChannel:       textToPtr(row.VideoChannel),
+		TranscriptSource:   textToPtr(row.TranscriptSource),
 		ProcessingStatus:   row.ProcessingStatus,
 		ProcessingError:    textToPtr(row.ProcessingError),
 		CreatedAt:          timestamptzToPtr(row.CreatedAt),

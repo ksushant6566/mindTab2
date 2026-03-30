@@ -96,3 +96,11 @@ func ifaceToString(v interface{}) string {
 	}
 	return ""
 }
+
+func int4ToPtr(i pgtype.Int4) *int32 {
+	if !i.Valid {
+		return nil
+	}
+	v := i.Int32
+	return &v
+}

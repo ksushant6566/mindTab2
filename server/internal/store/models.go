@@ -31,6 +31,14 @@ type MindmapContent struct {
 	CreatedAt          pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
 	DeletedAt          pgtype.Timestamptz `json:"deleted_at"`
+	// Video duration in seconds, YouTube only
+	VideoDuration pgtype.Int4 `json:"video_duration"`
+	// YouTube thumbnail URL from yt-dlp metadata
+	VideoThumbnailUrl pgtype.Text `json:"video_thumbnail_url"`
+	// YouTube channel name
+	VideoChannel pgtype.Text `json:"video_channel"`
+	// captions or whisper — how the transcript was obtained
+	TranscriptSource pgtype.Text `json:"transcript_source"`
 }
 
 type MindmapConversation struct {
