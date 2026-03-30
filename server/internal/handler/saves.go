@@ -153,6 +153,11 @@ func (h *SavesHandler) createURL(w http.ResponseWriter, r *http.Request, userID 
 		return
 	}
 
+	contentType := "article"
+	if isYouTubeURL(req.URL) {
+		contentType = "youtube"
+	}
+
 	// Create content record.
 	var contentID pgtype.UUID
 
@@ -161,7 +166,7 @@ func (h *SavesHandler) createURL(w http.ResponseWriter, r *http.Request, userID 
 		content, err := h.queries.CreateContentWithExtracted(r.Context(), store.CreateContentWithExtractedParams{
 			UserID:        userID,
 			SourceUrl:     pgtextFrom(req.URL),
-			SourceType:    "article",
+			SourceType:    contentType,
 			SourceTitle:   pgtextFrom(req.Title),
 			ExtractedText: pgtextFrom(req.Content),
 		})
@@ -175,7 +180,7 @@ func (h *SavesHandler) createURL(w http.ResponseWriter, r *http.Request, userID 
 		content, err := h.queries.CreateContent(r.Context(), store.CreateContentParams{
 			UserID:      userID,
 			SourceUrl:   pgtextFrom(req.URL),
-			SourceType:  "article",
+			SourceType:  contentType,
 			SourceTitle: pgtextFrom(req.Title),
 		})
 		if err != nil {
@@ -190,7 +195,7 @@ func (h *SavesHandler) createURL(w http.ResponseWriter, r *http.Request, userID 
 	jobID, err := h.queries.CreateJob(r.Context(), store.CreateJobParams{
 		ContentID:   contentID,
 		UserID:      userID,
-		ContentType: "article",
+		ContentType: contentType,
 	})
 	if err != nil {
 		slog.Error("failed to create job record", "error", err, "contentID", uuidToString(contentID))
@@ -203,7 +208,7 @@ func (h *SavesHandler) createURL(w http.ResponseWriter, r *http.Request, userID 
 		JobID:       uuidFromPgtype(jobID),
 		ContentID:   uuidFromPgtype(contentID),
 		UserID:      userID,
-		ContentType: "article",
+		ContentType: contentType,
 		SourceURL:   req.URL,
 		MaxAttempts: 5,
 	}
@@ -552,6 +557,29 @@ func nullableStringSlice(s []string) []string {
 		return []string{}
 	}
 	return s
+}
+
+// isYouTubeURL reports whether rawURL points to a YouTube video.
+func isYouTubeURL(rawURL string) bool {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return false
+	}
+	host := strings.ToLower(u.Hostname())
+	path := u.Path
+
+	switch host {
+	case "youtu.be":
+		// Short link — path must be more than just "/"
+		return len(path) > 1
+	case "youtube.com", "www.youtube.com", "m.youtube.com",
+		"youtube-nocookie.com", "www.youtube-nocookie.com":
+		return strings.HasPrefix(path, "/watch") ||
+			strings.HasPrefix(path, "/shorts/") ||
+			strings.HasPrefix(path, "/embed/") ||
+			strings.HasPrefix(path, "/v/")
+	}
+	return false
 }
 
 // imageExtFromMIME returns the file extension for a given image MIME type.
