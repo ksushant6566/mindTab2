@@ -11,7 +11,7 @@ export type RawSave = {
   source_thumbnail_url?: string | null;
   summary?: string | null;
   tags?: string[] | null;
-  media_key?: string | null;
+  source_media_url?: string | null;
   processing_status: string;
   created_at: string;
   video_duration?: number | null;
@@ -21,7 +21,6 @@ export type RawSave = {
 
 type SaveGridProps = {
   saves: RawSave[];
-  accessToken?: string | null;
   onSavePress: (id: string) => void;
   onRefresh: () => void;
   refreshing: boolean;
@@ -32,7 +31,6 @@ const keyExtractor = (item: RawSave) => item.id;
 
 export function SaveGrid({
   saves,
-  accessToken,
   onSavePress,
   onRefresh,
   refreshing,
@@ -49,9 +47,8 @@ export function SaveGrid({
           sourceThumbnailUrl={item.source_thumbnail_url}
           summary={item.summary}
           tags={item.tags}
-          mediaKey={item.media_key}
+          sourceMediaUrl={item.source_media_url}
           processingStatus={item.processing_status}
-          accessToken={accessToken}
           onPress={onSavePress}
           videoDuration={item.video_duration ?? undefined}
           videoThumbnailUrl={item.video_thumbnail_url ?? undefined}
@@ -59,7 +56,7 @@ export function SaveGrid({
         />
       </View>
     ),
-    [accessToken, onSavePress],
+    [onSavePress],
   );
 
   return (

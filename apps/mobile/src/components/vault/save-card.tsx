@@ -28,9 +28,8 @@ export type SaveCardProps = {
   sourceThumbnailUrl?: string | null;
   summary?: string | null;
   tags?: string[] | null;
-  mediaKey?: string | null;
+  sourceMediaUrl?: string | null;
   processingStatus: string;
-  accessToken?: string | null;
   onPress: (id: string) => void;
   videoDuration?: number;
   videoThumbnailUrl?: string;
@@ -45,9 +44,8 @@ export function SaveCard({
   sourceThumbnailUrl,
   summary,
   tags,
-  mediaKey,
+  sourceMediaUrl,
   processingStatus,
-  accessToken,
   onPress,
   videoDuration,
   videoThumbnailUrl,
@@ -72,14 +70,11 @@ export function SaveCard({
   }
 
   if (sourceType === "image") {
-    const imageUri = mediaKey ? `${API_URL}/media/${mediaKey}` : null;
-    const imageSource = imageUri
-      ? { uri: imageUri, headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined }
-      : null;
+    const imageUri = sourceMediaUrl ? `${API_URL}${sourceMediaUrl}` : null;
     return (
       <Pressable onPress={() => onPress(id)} style={styles.card}>
-        {imageSource ? (
-          <Image source={imageSource} style={styles.imageThumbnail} resizeMode="cover" />
+        {imageUri ? (
+          <Image source={{ uri: imageUri }} style={styles.imageThumbnail} resizeMode="cover" />
         ) : null}
         <View style={styles.content}>
           {sourceTitle ? (

@@ -101,7 +101,7 @@ func main() {
 		llmChain = registry.LLM
 
 		// Saves handler
-		savesHandler = handler.NewSavesHandler(queries, producer, semanticSearch, int64(cfg.MaxFileSizeMB))
+		savesHandler = handler.NewSavesHandler(queries, producer, semanticSearch, int64(cfg.MaxFileSizeMB), cfg.JWTSecret)
 
 		// Worker dispatcher
 		dispatcher = worker.NewDispatcher(consumer, retryScheduler, queries, slog.Default(), cfg.WorkerConcurrency)
@@ -331,7 +331,6 @@ func main() {
 			r.Post("/saves/search", savesHandler.Search)
 			r.Get("/saves/{id}", savesHandler.Get)
 			r.Delete("/saves/{id}", savesHandler.Delete)
-			r.Get("/media/*", savesHandler.ServeMedia(storage))
 		}
 
 		// Chat.
@@ -341,6 +340,11 @@ func main() {
 		r.Delete("/conversations/{id}", chatHandler.DeleteConversation)
 		r.Post("/chat/attachments", chatHandler.UploadAttachment)
 	})
+
+	// Media serving — outside auth group (handles its own auth via signed URLs or Bearer)
+	if savesHandler != nil {
+		r.Get("/media/*", savesHandler.ServeMedia(storage))
+	}
 
 	// SPA fallback — must be last
 	spaHandler := handler.NewSPAHandler(cfg.StaticDir)

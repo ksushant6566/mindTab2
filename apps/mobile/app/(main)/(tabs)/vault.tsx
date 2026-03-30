@@ -1,8 +1,7 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { View } from "react-native";
 import { useRouter } from "expo-router";
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { getAccessToken } from "~/lib/auth";
 import { api } from "~/lib/api-client";
 import { FilterChips } from "~/components/vault/filter-chips";
 import { SaveGrid, type RawSave } from "~/components/vault/save-grid";
@@ -17,11 +16,6 @@ export default function VaultTab() {
   const router = useRouter();
   const [filter, setFilter] = useState<FilterType>("all");
   const [isManualRefresh, setIsManualRefresh] = useState(false);
-  const [accessToken, setAccessToken] = useState<string | null>(null);
-
-  useEffect(() => {
-    getAccessToken().then(setAccessToken);
-  }, []);
 
   const {
     data,
@@ -32,15 +26,11 @@ export default function VaultTab() {
   } = useInfiniteQuery({
     queryKey: ["saves", "list"],
     queryFn: async ({ pageParam = 0 }) => {
-      const [res, token] = await Promise.all([
-        api.GET("/saves" as any, {
-          params: { query: { limit: PAGE_SIZE, offset: pageParam } },
-        }),
-        getAccessToken(),
-      ]);
+      const res = await api.GET("/saves" as any, {
+        params: { query: { limit: PAGE_SIZE, offset: pageParam } },
+      });
       return {
         saves: (res.data as RawSave[]) ?? [],
-        accessToken: token,
         offset: pageParam as number,
       };
     },
@@ -63,12 +53,6 @@ export default function VaultTab() {
 
   const pages = data?.pages ?? [];
   const allSaves = pages.flatMap((p) => p.saves ?? []);
-
-  // Keep accessToken fresh from latest query result
-  const latestToken = pages.length > 0 ? pages[pages.length - 1].accessToken : null;
-  useEffect(() => {
-    if (latestToken) setAccessToken(latestToken);
-  }, [latestToken]);
 
   const filteredSaves = allSaves.filter(
     (s) => filter === "all" || s.source_type === filter,
@@ -100,7 +84,6 @@ export default function VaultTab() {
       <FilterChips activeFilter={filter} onFilterChange={handleFilterChange} />
       <SaveGrid
         saves={filteredSaves}
-        accessToken={accessToken}
         onSavePress={handleSavePress}
         onRefresh={handleRefresh}
         refreshing={isManualRefresh}

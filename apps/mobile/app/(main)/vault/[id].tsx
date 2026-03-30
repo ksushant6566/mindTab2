@@ -8,13 +8,12 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from "react-native";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Share2, Trash2, Play } from "lucide-react-native";
 import { toast } from "sonner-native";
 import { api } from "~/lib/api-client";
-import { getAccessToken } from "~/lib/auth";
 import { MarkdownContent } from "~/components/vault/markdown-content";
 import { colors } from "~/styles/colors";
 
@@ -28,7 +27,7 @@ type SaveDetail = {
   summary?: string | null;
   tags?: string[] | null;
   key_topics?: string[] | null;
-  media_key?: string | null;
+  source_media_url?: string | null;
   processing_status: "pending" | "processing" | "completed" | "failed";
   processing_error?: string | null;
   extracted_text?: string | null;
@@ -62,21 +61,12 @@ function extractDomain(url?: string | null): string {
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:8080";
 
-function getMediaUrl(mediaKey: string): string {
-  return `${API_URL}/media/${mediaKey}`;
-}
-
 // ── Screen ─────────────────────────────────────────────────────────────────────
 
 export default function VaultDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const [accessToken, setAccessToken] = useState<string | null>(null);
-
-  useEffect(() => {
-    getAccessToken().then(setAccessToken);
-  }, []);
 
   const { data: save, isLoading } = useQuery<SaveDetail>({
     queryKey: ["saves", id],
@@ -134,12 +124,9 @@ export default function VaultDetailScreen() {
             showsVerticalScrollIndicator={false}
           >
             {/* ── Image (image saves) ── */}
-            {save.source_type === "image" && save.media_key ? (
+            {save.source_type === "image" && save.source_media_url ? (
               <Image
-                source={{
-                  uri: getMediaUrl(save.media_key),
-                  headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
-                }}
+                source={{ uri: `${API_URL}${save.source_media_url}` }}
                 style={styles.coverImage}
                 resizeMode="contain"
               />

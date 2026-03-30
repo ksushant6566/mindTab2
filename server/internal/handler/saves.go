@@ -1,6 +1,9 @@
 package handler
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"log/slog"
@@ -23,19 +26,21 @@ import (
 
 // SavesHandler handles save CRUD and search endpoints.
 type SavesHandler struct {
-	queries  store.Querier
-	producer *queue.Producer
-	search   *search.SemanticSearch
-	maxSize  int64
+	queries   store.Querier
+	producer  *queue.Producer
+	search    *search.SemanticSearch
+	maxSize   int64
+	jwtSecret string
 }
 
 // NewSavesHandler creates a new SavesHandler.
-func NewSavesHandler(queries store.Querier, producer *queue.Producer, search *search.SemanticSearch, maxSize int64) *SavesHandler {
+func NewSavesHandler(queries store.Querier, producer *queue.Producer, search *search.SemanticSearch, maxSize int64, jwtSecret string) *SavesHandler {
 	return &SavesHandler{
-		queries:  queries,
-		producer: producer,
-		search:   search,
-		maxSize:  maxSize,
+		queries:   queries,
+		producer:  producer,
+		search:    search,
+		maxSize:   maxSize,
+		jwtSecret: jwtSecret,
 	}
 }
 
@@ -62,6 +67,7 @@ type contentJSON struct {
 	EmbeddingProvider  *string    `json:"embedding_provider,omitempty"`
 	EmbeddingModel     *string    `json:"embedding_model,omitempty"`
 	MediaKey           *string    `json:"media_key,omitempty"`
+	SourceMediaURL     *string    `json:"source_media_url,omitempty"`
 	VideoDuration      *int32     `json:"video_duration,omitempty"`
 	VideoThumbnailURL  *string    `json:"video_thumbnail_url,omitempty"`
 	VideoChannel       *string    `json:"video_channel,omitempty"`
@@ -84,6 +90,7 @@ type contentListJSON struct {
 	Tags               []string   `json:"tags"`
 	KeyTopics          []string   `json:"key_topics"`
 	MediaKey           *string    `json:"media_key,omitempty"`
+	SourceMediaURL     *string    `json:"source_media_url,omitempty"`
 	VideoDuration      *int32     `json:"video_duration,omitempty"`
 	VideoThumbnailURL  *string    `json:"video_thumbnail_url,omitempty"`
 	VideoChannel       *string    `json:"video_channel,omitempty"`
@@ -387,7 +394,7 @@ func (h *SavesHandler) List(w http.ResponseWriter, r *http.Request) {
 
 	items := make([]contentListJSON, 0, len(rows))
 	for _, row := range rows {
-		items = append(items, contentListJSON{
+		item := contentListJSON{
 			ID:                 uuidToString(row.ID),
 			UserID:             row.UserID,
 			SourceURL:          textToPtr(row.SourceUrl),
@@ -405,7 +412,12 @@ func (h *SavesHandler) List(w http.ResponseWriter, r *http.Request) {
 			ProcessingError:    textToPtr(row.ProcessingError),
 			CreatedAt:          timestamptzToPtr(row.CreatedAt),
 			UpdatedAt:          timestamptzToPtr(row.UpdatedAt),
-		})
+		}
+		if row.MediaKey.Valid {
+			signed := h.signMediaURL(row.MediaKey.String, 1*time.Hour)
+			item.SourceMediaURL = &signed
+		}
+		items = append(items, item)
 	}
 
 	WriteJSON(w, http.StatusOK, items)
@@ -435,7 +447,7 @@ func (h *SavesHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	WriteJSON(w, http.StatusOK, contentJSON{
+	item := contentJSON{
 		ID:                 uuidToString(row.ID),
 		UserID:             row.UserID,
 		SourceURL:          textToPtr(row.SourceUrl),
@@ -459,7 +471,12 @@ func (h *SavesHandler) Get(w http.ResponseWriter, r *http.Request) {
 		ProcessingError:    textToPtr(row.ProcessingError),
 		CreatedAt:          timestamptzToPtr(row.CreatedAt),
 		UpdatedAt:          timestamptzToPtr(row.UpdatedAt),
-	})
+	}
+	if row.MediaKey.Valid {
+		signed := h.signMediaURL(row.MediaKey.String, 1*time.Hour)
+		item.SourceMediaURL = &signed
+	}
+	WriteJSON(w, http.StatusOK, item)
 }
 
 // Delete handles DELETE /saves/{id}.
@@ -526,16 +543,55 @@ func (h *SavesHandler) Search(w http.ResponseWriter, r *http.Request) {
 	WriteJSON(w, http.StatusOK, results)
 }
 
-// ServeMedia handles GET /media/* — serves stored media files behind auth.
+// signMediaURL generates an HMAC-signed URL for a media key with the given TTL.
+func (h *SavesHandler) signMediaURL(key string, ttl time.Duration) string {
+	exp := time.Now().Add(ttl).Unix()
+	mac := hmac.New(sha256.New, []byte(h.jwtSecret))
+	fmt.Fprintf(mac, "%s:%d", key, exp)
+	sig := base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+	return fmt.Sprintf("/media/%s?sig=%s&exp=%d", key, sig, exp)
+}
+
+// verifyMediaSignature checks that the HMAC signature and expiry are valid.
+func (h *SavesHandler) verifyMediaSignature(key, sig string, exp int64) bool {
+	if time.Now().Unix() > exp {
+		return false
+	}
+	mac := hmac.New(sha256.New, []byte(h.jwtSecret))
+	fmt.Fprintf(mac, "%s:%d", key, exp)
+	expected := base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+	return hmac.Equal([]byte(sig), []byte(expected))
+}
+
+// ServeMedia handles GET /media/* — serves stored media files.
+// Supports two auth methods:
+//  1. Signed URL: ?sig={hmac}&exp={timestamp} — self-authenticating, no middleware needed
+//  2. Bearer token: Authorization header — requires auth middleware (backward compat)
 func (h *SavesHandler) ServeMedia(storage services.StorageProvider) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		userID := middleware.UserIDFromContext(r.Context())
 		key := chi.URLParam(r, "*")
 
-		// Verify the key belongs to this user
-		if !strings.HasPrefix(key, userID+"/") {
-			WriteError(w, http.StatusForbidden, "access denied")
-			return
+		sig := r.URL.Query().Get("sig")
+		expStr := r.URL.Query().Get("exp")
+
+		if sig != "" && expStr != "" {
+			// Path 1: Signed URL verification
+			exp, err := strconv.ParseInt(expStr, 10, 64)
+			if err != nil || !h.verifyMediaSignature(key, sig, exp) {
+				WriteError(w, http.StatusForbidden, "invalid or expired signature")
+				return
+			}
+		} else {
+			// Path 2: Bearer token — user ID from auth middleware
+			userID := middleware.UserIDFromContext(r.Context())
+			if userID == "" {
+				WriteError(w, http.StatusUnauthorized, "authentication required")
+				return
+			}
+			if !strings.HasPrefix(key, userID+"/") {
+				WriteError(w, http.StatusForbidden, "access denied")
+				return
+			}
 		}
 
 		rc, err := storage.Get(r.Context(), key)
