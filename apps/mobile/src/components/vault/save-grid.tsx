@@ -70,7 +70,7 @@ export function SaveGrid({
       showsVerticalScrollIndicator={false}
       onEndReached={onLoadMore}
       onEndReachedThreshold={0.5}
-      removeClippedSubviews
+      removeClippedSubviews={false}
       maxToRenderPerBatch={6}
       initialNumToRender={10}
       refreshControl={
