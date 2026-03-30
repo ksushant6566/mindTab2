@@ -6,7 +6,8 @@ COPY . .
 RUN CGO_ENABLED=0 go build -o /bin/api ./cmd/api/
 
 FROM alpine:3.19
-RUN apk --no-cache add ca-certificates
+RUN apk --no-cache add ca-certificates ffmpeg python3 py3-pip \
+    && pip3 install --break-system-packages yt-dlp
 COPY --from=builder /bin/api /bin/api
 COPY --from=builder /app/migrations /migrations
 # Static files will be mounted or copied in at deploy time
