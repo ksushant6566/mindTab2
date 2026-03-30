@@ -62,10 +62,10 @@ type contentJSON struct {
 	EmbeddingProvider  *string    `json:"embedding_provider,omitempty"`
 	EmbeddingModel     *string    `json:"embedding_model,omitempty"`
 	MediaKey           *string    `json:"media_key,omitempty"`
-	VideoDuration      *int32     `json:"video_duration"`
-	VideoThumbnailURL  *string    `json:"video_thumbnail_url"`
-	VideoChannel       *string    `json:"video_channel"`
-	TranscriptSource   *string    `json:"transcript_source"`
+	VideoDuration      *int32     `json:"video_duration,omitempty"`
+	VideoThumbnailURL  *string    `json:"video_thumbnail_url,omitempty"`
+	VideoChannel       *string    `json:"video_channel,omitempty"`
+	TranscriptSource   *string    `json:"transcript_source,omitempty"`
 	ProcessingStatus   string     `json:"processing_status"`
 	ProcessingError    *string    `json:"processing_error,omitempty"`
 	CreatedAt          *time.Time `json:"created_at,omitempty"`
@@ -84,9 +84,9 @@ type contentListJSON struct {
 	Tags               []string   `json:"tags"`
 	KeyTopics          []string   `json:"key_topics"`
 	MediaKey           *string    `json:"media_key,omitempty"`
-	VideoDuration      *int32     `json:"video_duration"`
-	VideoThumbnailURL  *string    `json:"video_thumbnail_url"`
-	VideoChannel       *string    `json:"video_channel"`
+	VideoDuration      *int32     `json:"video_duration,omitempty"`
+	VideoThumbnailURL  *string    `json:"video_thumbnail_url,omitempty"`
+	VideoChannel       *string    `json:"video_channel,omitempty"`
 	ProcessingStatus   string     `json:"processing_status"`
 	ProcessingError    *string    `json:"processing_error,omitempty"`
 	CreatedAt          *time.Time `json:"created_at,omitempty"`

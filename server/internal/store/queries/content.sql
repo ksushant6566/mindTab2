@@ -72,7 +72,7 @@ SET video_duration = $2,
     video_channel = $4,
     transcript_source = $5,
     updated_at = NOW()
-WHERE id = $1;
+WHERE id = $1 AND deleted_at IS NULL;
 
 -- name: IsContentDeleted :one
 SELECT (deleted_at IS NOT NULL)::bool AS is_deleted
