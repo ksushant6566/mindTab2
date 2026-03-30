@@ -36,6 +36,15 @@ type Config struct {
 	WorkerConcurrency    int
 	WorkerShutdownTimeout time.Duration
 	MaxFileSizeMB        int
+
+	// YouTube (Phase 2)
+	GroqAPIKey         string
+	YTDLPPath          string
+	FFmpegPath         string
+	YoutubeTempPath    string
+	YoutubeMaxDuration int
+	YoutubeVideoQuality int
+	YoutubeFramesCap   int
 }
 
 func Load() (*Config, error) {
@@ -84,6 +93,39 @@ func Load() (*Config, error) {
 	cfg.MaxFileSizeMB, _ = strconv.Atoi(maxSizeStr)
 	if cfg.MaxFileSizeMB == 0 {
 		cfg.MaxFileSizeMB = 20
+	}
+
+	// YouTube
+	cfg.GroqAPIKey = os.Getenv("GROQ_API_KEY")
+	cfg.YTDLPPath = os.Getenv("YTDLP_PATH")
+	if cfg.YTDLPPath == "" {
+		cfg.YTDLPPath = "yt-dlp"
+	}
+	cfg.FFmpegPath = os.Getenv("FFMPEG_PATH")
+	if cfg.FFmpegPath == "" {
+		cfg.FFmpegPath = "ffmpeg"
+	}
+	cfg.YoutubeTempPath = os.Getenv("YOUTUBE_TEMP_PATH")
+	if cfg.YoutubeTempPath == "" {
+		cfg.YoutubeTempPath = "/tmp/mindtab/youtube"
+	}
+	if v := os.Getenv("YOUTUBE_MAX_DURATION_SEC"); v != "" {
+		cfg.YoutubeMaxDuration, _ = strconv.Atoi(v)
+	}
+	if cfg.YoutubeMaxDuration == 0 {
+		cfg.YoutubeMaxDuration = 7200
+	}
+	if v := os.Getenv("YOUTUBE_VIDEO_QUALITY"); v != "" {
+		cfg.YoutubeVideoQuality, _ = strconv.Atoi(v)
+	}
+	if cfg.YoutubeVideoQuality == 0 {
+		cfg.YoutubeVideoQuality = 360
+	}
+	if v := os.Getenv("YOUTUBE_FRAMES_PER_MIN_CAP"); v != "" {
+		cfg.YoutubeFramesCap, _ = strconv.Atoi(v)
+	}
+	if cfg.YoutubeFramesCap == 0 {
+		cfg.YoutubeFramesCap = 5
 	}
 
 	if cfg.DatabaseURL == "" {
