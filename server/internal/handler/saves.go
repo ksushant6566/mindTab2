@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
@@ -24,17 +25,27 @@ import (
 	"github.com/ksushant6566/mindtab/server/internal/store"
 )
 
+// enqueuer abstracts the job queue producer for testability.
+type enqueuer interface {
+	Enqueue(ctx context.Context, payload queue.JobPayload) error
+}
+
+// searcher abstracts semantic search for testability.
+type searcher interface {
+	Search(ctx context.Context, userID string, query string, limit int) ([]search.SearchResult, error)
+}
+
 // SavesHandler handles save CRUD and search endpoints.
 type SavesHandler struct {
 	queries   store.Querier
-	producer  *queue.Producer
-	search    *search.SemanticSearch
+	producer  enqueuer
+	search    searcher
 	maxSize   int64
 	jwtSecret string
 }
 
 // NewSavesHandler creates a new SavesHandler.
-func NewSavesHandler(queries store.Querier, producer *queue.Producer, search *search.SemanticSearch, maxSize int64, jwtSecret string) *SavesHandler {
+func NewSavesHandler(queries store.Querier, producer enqueuer, search searcher, maxSize int64, jwtSecret string) *SavesHandler {
 	return &SavesHandler{
 		queries:   queries,
 		producer:  producer,
