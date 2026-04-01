@@ -29,8 +29,13 @@ type CreateContentOption func(*store.CreateContentRow)
 
 func NewCreateContentRow(opts ...CreateContentOption) store.CreateContentRow {
 	id := uuid.New()
+	now := time.Now()
 	row := store.CreateContentRow{
-		ID: PgUUID(id),
+		ID:               PgUUID(id),
+		UserID:           "test-user",
+		SourceType:       "article",
+		ProcessingStatus: "pending",
+		CreatedAt:        PgTimestamptz(now),
 	}
 	for _, o := range opts {
 		o(&row)

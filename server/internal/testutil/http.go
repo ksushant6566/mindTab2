@@ -3,10 +3,12 @@ package testutil
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"net/textproto"
 	"testing"
 )
 
@@ -25,7 +27,13 @@ func JSONRequest(method, path string, body any) *http.Request {
 func MultipartRequest(path, fieldName, fileName string, fileData []byte, mimeType string) *http.Request {
 	var buf bytes.Buffer
 	w := multipart.NewWriter(&buf)
-	part, _ := w.CreateFormFile(fieldName, fileName)
+	h := make(textproto.MIMEHeader)
+	h.Set("Content-Disposition", fmt.Sprintf(`form-data; name="%s"; filename="%s"`, fieldName, fileName))
+	h.Set("Content-Type", mimeType)
+	part, err := w.CreatePart(h)
+	if err != nil {
+		panic(fmt.Sprintf("testutil.MultipartRequest: CreatePart failed: %v", err))
+	}
 	part.Write(fileData)
 	w.Close()
 	req := httptest.NewRequest(http.MethodPost, path, &buf)
@@ -52,6 +60,8 @@ func DecodeJSON[T any](t *testing.T, resp *httptest.ResponseRecorder) T {
 }
 
 // ReadBody reads the full response body as a string.
+// The error from io.ReadAll is intentionally ignored: httptest.ResponseRecorder
+// uses an in-memory bytes.Buffer whose Read never returns an error.
 func ReadBody(resp *httptest.ResponseRecorder) string {
 	b, _ := io.ReadAll(resp.Body)
 	return string(b)
