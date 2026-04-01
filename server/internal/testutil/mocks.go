@@ -79,10 +79,13 @@ type MockTranscriptionProvider struct {
 	Transcript string
 	Err        error
 	CallCount  int
+	mu         sync.Mutex
 }
 
 func (m *MockTranscriptionProvider) Transcribe(ctx context.Context, audioPath string) (*transcription.TranscriptionResult, error) {
+	m.mu.Lock()
 	m.CallCount++
+	m.mu.Unlock()
 	if m.Err != nil {
 		return nil, m.Err
 	}
@@ -143,12 +146,12 @@ type MockProducer struct {
 }
 
 func (m *MockProducer) Enqueue(ctx context.Context, payload queue.JobPayload) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if m.Err != nil {
 		return m.Err
 	}
-	m.mu.Lock()
 	m.Enqueued = append(m.Enqueued, payload)
-	m.mu.Unlock()
 	return nil
 }
 
