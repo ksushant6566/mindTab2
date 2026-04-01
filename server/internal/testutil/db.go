@@ -80,21 +80,33 @@ func SetupTestDB(t *testing.T) *pgxpool.Pool {
 	return pool
 }
 
-// TruncateAllTables truncates all mindmap_ tables in FK-safe order for test isolation.
+// TruncateAllTables discovers all mindmap_ tables dynamically and truncates them
+// with CASCADE for test isolation. This avoids a hardcoded list that falls out of
+// sync when new migrations add tables.
 func TruncateAllTables(t *testing.T, pool *pgxpool.Pool) {
 	t.Helper()
 
-	tables := []string{
-		"mindmap_jobs", "mindmap_content", "mindmap_message", "mindmap_conversation",
-		"mindmap_habit_tracker", "mindmap_habit", "mindmap_journal", "mindmap_goal",
-		"mindmap_project", "mindmap_refresh_token", "mindmap_verification_token", "mindmap_user",
+	ctx := context.Background()
+
+	rows, err := pool.Query(ctx,
+		`SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename LIKE 'mindmap_%'`,
+	)
+	if err != nil {
+		t.Fatalf("failed to discover mindmap_ tables: %v", err)
+	}
+	defer rows.Close()
+
+	var tables []string
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			t.Fatalf("failed to scan table name: %v", err)
+		}
+		tables = append(tables, name)
 	}
 
-	ctx := context.Background()
 	for _, table := range tables {
-		_, err := pool.Exec(ctx, fmt.Sprintf("TRUNCATE TABLE %s CASCADE", table))
-		if err != nil {
-			// Table may not exist yet (not all migrations present); log and continue.
+		if _, err := pool.Exec(ctx, fmt.Sprintf("TRUNCATE TABLE %s CASCADE", table)); err != nil {
 			t.Logf("truncate %s: %v", table, err)
 		}
 	}
