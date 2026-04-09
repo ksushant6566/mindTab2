@@ -148,8 +148,3 @@ func TestSummarize_LLMError(t *testing.T) {
 		t.Fatal("Summarize: expected error when LLM fails")
 	}
 }
-
-// errTest is a simple error for use in tests.
-type errTest string
-
-func (e errTest) Error() string { return string(e) }
