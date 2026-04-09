@@ -3,6 +3,7 @@ package steps
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"testing"
 
@@ -129,5 +130,9 @@ func TestEmbed_RetriableErrorFallsThrough(t *testing.T) {
 	_, err := Embed(context.Background(), chain, "Some text.")
 	if err == nil {
 		t.Fatal("Embed: expected error when all providers exhausted")
+	}
+	var exhausted *providers.AllProvidersExhaustedError
+	if !errors.As(err, &exhausted) {
+		t.Fatalf("expected AllProvidersExhaustedError, got %T: %v", err, err)
 	}
 }

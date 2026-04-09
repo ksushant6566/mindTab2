@@ -79,8 +79,7 @@ func TestSearch_ReturnsRankedResults(t *testing.T) {
 
 	upsertTestUser(t, ctx, store.New(pool), userID)
 
-	// vec1: all zeros — cosine similarity to any unit vector is undefined/0.
-	// To keep cosine ops well-defined, use near-zero but non-zero for vec1.
+	// vec1: unit vector pointing along dimension 1.
 	vec1 := make([]float32, 1536)
 	vec1[1] = 1.0 // points along dimension 1
 

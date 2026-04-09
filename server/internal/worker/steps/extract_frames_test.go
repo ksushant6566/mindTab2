@@ -92,8 +92,8 @@ func TestExtractFrames_CreateFramesDirectory(t *testing.T) {
 // directory is derived as filepath.Dir(videoFilePath)/frames, matching the
 // step's path construction logic.
 func TestExtractFrames_FramesDirDerivation(t *testing.T) {
-	videoPath := "/tmp/jobs/abc123/video.mp4"
-	wantFramesDir := "/tmp/jobs/abc123/frames"
+	videoPath := filepath.Join("/tmp", "jobs", "abc123", "video.mp4")
+	wantFramesDir := filepath.Join(filepath.Dir(videoPath), "frames")
 
 	// Reproduce the path logic from the step.
 	gotFramesDir := filepath.Join(filepath.Dir(videoPath), "frames")

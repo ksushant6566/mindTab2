@@ -16,7 +16,9 @@ import (
 func JSONRequest(method, path string, body any) *http.Request {
 	var buf bytes.Buffer
 	if body != nil {
-		json.NewEncoder(&buf).Encode(body)
+		if err := json.NewEncoder(&buf).Encode(body); err != nil {
+			panic(fmt.Sprintf("testutil.JSONRequest: JSON encode failed: %v", err))
+		}
 	}
 	req := httptest.NewRequest(method, path, &buf)
 	req.Header.Set("Content-Type", "application/json")
@@ -34,8 +36,12 @@ func MultipartRequest(path, fieldName, fileName string, fileData []byte, mimeTyp
 	if err != nil {
 		panic(fmt.Sprintf("testutil.MultipartRequest: CreatePart failed: %v", err))
 	}
-	part.Write(fileData)
-	w.Close()
+	if _, err = part.Write(fileData); err != nil {
+		panic(fmt.Sprintf("testutil.MultipartRequest: part.Write failed: %v", err))
+	}
+	if err = w.Close(); err != nil {
+		panic(fmt.Sprintf("testutil.MultipartRequest: multipart Close failed: %v", err))
+	}
 	req := httptest.NewRequest(http.MethodPost, path, &buf)
 	req.Header.Set("Content-Type", w.FormDataContentType())
 	return req

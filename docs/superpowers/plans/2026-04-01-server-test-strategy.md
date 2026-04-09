@@ -59,7 +59,8 @@
 
 ### Modified Files
 
-None — all test files are new, no production code changes needed.
+| `server/internal/services/jina.go` | Added `SetBaseURL` method for test URL override |
+| `server/internal/handler/saves.go` | Extracted `enqueuer` and `searcher` interfaces; changed `SavesHandler` fields and `NewSavesHandler` params to use interfaces for testability |
 
 ---
 

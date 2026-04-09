@@ -278,7 +278,18 @@ func TestStore_UpdateContentEmbedding(t *testing.T) {
 		ID:        content.ID,
 		Embedding: embedding,
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
+
+	// Read back via raw SQL since no sqlc query returns the embedding column.
+	var got pgvector.Vector
+	err = pool.QueryRow(ctx,
+		"SELECT embedding FROM mindmap_content WHERE id = $1", content.ID,
+	).Scan(&got)
+	require.NoError(t, err, "failed to read back embedding")
+	require.Equal(t, len(dims), len(got.Slice()), "embedding dimension mismatch")
+	for i, v := range got.Slice() {
+		assert.InDelta(t, dims[i], v, 1e-6, "embedding[%d] mismatch", i)
+	}
 }
 
 // TestStore_IsContentDeleted verifies the IsContentDeleted helper returns
