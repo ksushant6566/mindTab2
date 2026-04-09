@@ -22,6 +22,11 @@ func NewJinaReader(apiKey string) *JinaReader {
 	}
 }
 
+// SetBaseURL overrides the Jina API base URL. Intended for testing.
+func (j *JinaReader) SetBaseURL(u string) {
+	j.baseURL = u
+}
+
 // Extract fetches the article content at the given URL and returns clean markdown.
 func (j *JinaReader) Extract(ctx context.Context, articleURL string) (string, error) {
 	reqURL := j.baseURL + "/" + articleURL

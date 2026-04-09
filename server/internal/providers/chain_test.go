@@ -85,3 +85,33 @@ func TestChain_AllExhausted(t *testing.T) {
 		t.Fatalf("expected AllProvidersExhaustedError, got %T", err)
 	}
 }
+
+func TestChain_SingleProvider_Success(t *testing.T) {
+	chain := NewChain[*mockProvider](slog.Default())
+	chain.Add("only", &mockProvider{name: "only"})
+
+	err := chain.Execute(func(name string, _ *mockProvider) error {
+		return nil
+	})
+
+	if err != nil {
+		t.Fatalf("expected nil error, got %v", err)
+	}
+}
+
+func TestChain_SingleProvider_Failure(t *testing.T) {
+	chain := NewChain[*mockProvider](slog.Default())
+	chain.Add("only", &mockProvider{name: "only"})
+
+	err := chain.Execute(func(name string, _ *mockProvider) error {
+		return NewRetriableError(name, errors.New("timeout"))
+	})
+
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	var exhausted *AllProvidersExhaustedError
+	if !errors.As(err, &exhausted) {
+		t.Fatalf("expected AllProvidersExhaustedError, got %T", err)
+	}
+}
