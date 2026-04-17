@@ -1,0 +1,36 @@
+/**
+ * MindTab design tokens — source of truth.
+ * Extracted verbatim from the finalised landing-page design (Apr 2026).
+ * Keep this file in lockstep with the design; promote to a shared package
+ * when web/mobile/extension start consuming it.
+ */
+:root {
+  --bg:         #0a0a0b;
+  --bg-elev:    #101012;
+  --bg-soft:    #15161a;
+  --bg-hover:   #1c1d22;
+  --border:     #232429;
+  --border-2:   #2e3036;
+  --text:       #f0f1f3;
+  --text-2:     #a1a3aa;
+  --text-3:     #60636c;
+  --text-4:     #3a3d45;
+
+  --ink:        #c5f82a;
+  --ink-soft:   #c5f82a18;
+  --ink-line:   #c5f82a55;
+  --ink-2:      #dbff5d;
+
+  --violet:     #7c6df2;
+  --amber:      #f5b344;
+  --rose:       #ff4d6d;
+  --cyan:       #52d9ff;
+
+  --sans: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --r-1: 3px;  --r-2: 5px;  --r-3: 7px;  --r-4: 10px;  --r-5: 14px;
+  --r-pill: 999px;
+
+  --ease-out: cubic-bezier(.16,.84,.32,1);
+}
