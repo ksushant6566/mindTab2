@@ -110,6 +110,7 @@ type Querier interface {
 	UpdateContentProcessingStatusToPending(ctx context.Context, id pgtype.UUID) error
 	UpdateContentResults(ctx context.Context, arg UpdateContentResultsParams) error
 	UpdateContentStatus(ctx context.Context, arg UpdateContentStatusParams) error
+	UpdateContentTranscriptSource(ctx context.Context, arg UpdateContentTranscriptSourceParams) error
 	UpdateContentYoutubeFields(ctx context.Context, arg UpdateContentYoutubeFieldsParams) error
 	UpdateConversationTitle(ctx context.Context, arg UpdateConversationTitleParams) error
 	UpdateGoal(ctx context.Context, arg UpdateGoalParams) error

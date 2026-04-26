@@ -599,6 +599,23 @@ func (q *Queries) UpdateContentStatus(ctx context.Context, arg UpdateContentStat
 	return err
 }
 
+const updateContentTranscriptSource = `-- name: UpdateContentTranscriptSource :exec
+UPDATE mindmap_content
+SET transcript_source = $2,
+    updated_at = NOW()
+WHERE id = $1 AND deleted_at IS NULL
+`
+
+type UpdateContentTranscriptSourceParams struct {
+	ID               pgtype.UUID `json:"id"`
+	TranscriptSource pgtype.Text `json:"transcript_source"`
+}
+
+func (q *Queries) UpdateContentTranscriptSource(ctx context.Context, arg UpdateContentTranscriptSourceParams) error {
+	_, err := q.db.Exec(ctx, updateContentTranscriptSource, arg.ID, arg.TranscriptSource)
+	return err
+}
+
 const updateContentYoutubeFields = `-- name: UpdateContentYoutubeFields :exec
 UPDATE mindmap_content
 SET duration_seconds = $2,

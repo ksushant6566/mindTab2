@@ -64,10 +64,10 @@ var _ Querier = &QuerierMock{}
 //			CountMessagesFunc: func(ctx context.Context, conversationID pgtype.UUID) (int64, error) {
 //				panic("mock out the CountMessages method")
 //			},
-//			CreateContentFunc: func(ctx context.Context, arg CreateContentParams) (MindmapContent, error) {
+//			CreateContentFunc: func(ctx context.Context, arg CreateContentParams) (CreateContentRow, error) {
 //				panic("mock out the CreateContent method")
 //			},
-//			CreateContentWithExtractedFunc: func(ctx context.Context, arg CreateContentWithExtractedParams) (MindmapContent, error) {
+//			CreateContentWithExtractedFunc: func(ctx context.Context, arg CreateContentWithExtractedParams) (CreateContentWithExtractedRow, error) {
 //				panic("mock out the CreateContentWithExtracted method")
 //			},
 //			CreateConversationFunc: func(ctx context.Context, userID string) (CreateConversationRow, error) {
@@ -145,9 +145,6 @@ var _ Querier = &QuerierMock{}
 //			GetGoalActivityFunc: func(ctx context.Context, arg GetGoalActivityParams) ([]GetGoalActivityRow, error) {
 //				panic("mock out the GetGoalActivity method")
 //			},
-//			GetMediaKeysForExpiredDraftsFunc: func(ctx context.Context, updatedAt pgtype.Timestamptz) ([]GetMediaKeysForExpiredDraftsRow, error) {
-//				panic("mock out the GetMediaKeysForExpiredDrafts method")
-//			},
 //			GetGoalByIDFunc: func(ctx context.Context, arg GetGoalByIDParams) (GetGoalByIDRow, error) {
 //				panic("mock out the GetGoalByID method")
 //			},
@@ -174,6 +171,9 @@ var _ Querier = &QuerierMock{}
 //			},
 //			GetJournalByIDFunc: func(ctx context.Context, arg GetJournalByIDParams) (GetJournalByIDRow, error) {
 //				panic("mock out the GetJournalByID method")
+//			},
+//			GetMediaKeysForExpiredDraftsFunc: func(ctx context.Context, updatedAt pgtype.Timestamptz) ([]GetMediaKeysForExpiredDraftsRow, error) {
+//				panic("mock out the GetMediaKeysForExpiredDrafts method")
 //			},
 //			GetMessageFunc: func(ctx context.Context, id pgtype.UUID) (MindmapMessage, error) {
 //				panic("mock out the GetMessage method")
@@ -289,14 +289,17 @@ var _ Querier = &QuerierMock{}
 //			UpdateContentEmbeddingFunc: func(ctx context.Context, arg UpdateContentEmbeddingParams) error {
 //				panic("mock out the UpdateContentEmbedding method")
 //			},
-//			UpdateContentResultsFunc: func(ctx context.Context, arg UpdateContentResultsParams) error {
-//				panic("mock out the UpdateContentResults method")
-//			},
 //			UpdateContentProcessingStatusToPendingFunc: func(ctx context.Context, id pgtype.UUID) error {
 //				panic("mock out the UpdateContentProcessingStatusToPending method")
 //			},
+//			UpdateContentResultsFunc: func(ctx context.Context, arg UpdateContentResultsParams) error {
+//				panic("mock out the UpdateContentResults method")
+//			},
 //			UpdateContentStatusFunc: func(ctx context.Context, arg UpdateContentStatusParams) error {
 //				panic("mock out the UpdateContentStatus method")
+//			},
+//			UpdateContentTranscriptSourceFunc: func(ctx context.Context, arg UpdateContentTranscriptSourceParams) error {
+//				panic("mock out the UpdateContentTranscriptSource method")
 //			},
 //			UpdateContentYoutubeFieldsFunc: func(ctx context.Context, arg UpdateContentYoutubeFieldsParams) error {
 //				panic("mock out the UpdateContentYoutubeFields method")
@@ -467,9 +470,6 @@ type QuerierMock struct {
 	// GetGoalActivityFunc mocks the GetGoalActivity method.
 	GetGoalActivityFunc func(ctx context.Context, arg GetGoalActivityParams) ([]GetGoalActivityRow, error)
 
-	// GetMediaKeysForExpiredDraftsFunc mocks the GetMediaKeysForExpiredDrafts method.
-	GetMediaKeysForExpiredDraftsFunc func(ctx context.Context, updatedAt pgtype.Timestamptz) ([]GetMediaKeysForExpiredDraftsRow, error)
-
 	// GetGoalByIDFunc mocks the GetGoalByID method.
 	GetGoalByIDFunc func(ctx context.Context, arg GetGoalByIDParams) (GetGoalByIDRow, error)
 
@@ -496,6 +496,9 @@ type QuerierMock struct {
 
 	// GetJournalByIDFunc mocks the GetJournalByID method.
 	GetJournalByIDFunc func(ctx context.Context, arg GetJournalByIDParams) (GetJournalByIDRow, error)
+
+	// GetMediaKeysForExpiredDraftsFunc mocks the GetMediaKeysForExpiredDrafts method.
+	GetMediaKeysForExpiredDraftsFunc func(ctx context.Context, updatedAt pgtype.Timestamptz) ([]GetMediaKeysForExpiredDraftsRow, error)
 
 	// GetMessageFunc mocks the GetMessage method.
 	GetMessageFunc func(ctx context.Context, id pgtype.UUID) (MindmapMessage, error)
@@ -611,14 +614,17 @@ type QuerierMock struct {
 	// UpdateContentEmbeddingFunc mocks the UpdateContentEmbedding method.
 	UpdateContentEmbeddingFunc func(ctx context.Context, arg UpdateContentEmbeddingParams) error
 
-	// UpdateContentResultsFunc mocks the UpdateContentResults method.
-	UpdateContentResultsFunc func(ctx context.Context, arg UpdateContentResultsParams) error
-
 	// UpdateContentProcessingStatusToPendingFunc mocks the UpdateContentProcessingStatusToPending method.
 	UpdateContentProcessingStatusToPendingFunc func(ctx context.Context, id pgtype.UUID) error
 
+	// UpdateContentResultsFunc mocks the UpdateContentResults method.
+	UpdateContentResultsFunc func(ctx context.Context, arg UpdateContentResultsParams) error
+
 	// UpdateContentStatusFunc mocks the UpdateContentStatus method.
 	UpdateContentStatusFunc func(ctx context.Context, arg UpdateContentStatusParams) error
+
+	// UpdateContentTranscriptSourceFunc mocks the UpdateContentTranscriptSource method.
+	UpdateContentTranscriptSourceFunc func(ctx context.Context, arg UpdateContentTranscriptSourceParams) error
 
 	// UpdateContentYoutubeFieldsFunc mocks the UpdateContentYoutubeFields method.
 	UpdateContentYoutubeFieldsFunc func(ctx context.Context, arg UpdateContentYoutubeFieldsParams) error
@@ -948,13 +954,6 @@ type QuerierMock struct {
 			// Arg is the arg argument value.
 			Arg GetGoalActivityParams
 		}
-		// GetMediaKeysForExpiredDrafts holds details about calls to the GetMediaKeysForExpiredDrafts method.
-		GetMediaKeysForExpiredDrafts []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// UpdatedAt is the updatedAt argument value.
-			UpdatedAt pgtype.Timestamptz
-		}
 		// GetGoalByID holds details about calls to the GetGoalByID method.
 		GetGoalByID []struct {
 			// Ctx is the ctx argument value.
@@ -1017,6 +1016,13 @@ type QuerierMock struct {
 			Ctx context.Context
 			// Arg is the arg argument value.
 			Arg GetJournalByIDParams
+		}
+		// GetMediaKeysForExpiredDrafts holds details about calls to the GetMediaKeysForExpiredDrafts method.
+		GetMediaKeysForExpiredDrafts []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// UpdatedAt is the updatedAt argument value.
+			UpdatedAt pgtype.Timestamptz
 		}
 		// GetMessage holds details about calls to the GetMessage method.
 		GetMessage []struct {
@@ -1284,13 +1290,6 @@ type QuerierMock struct {
 			// Arg is the arg argument value.
 			Arg UpdateContentEmbeddingParams
 		}
-		// UpdateContentResults holds details about calls to the UpdateContentResults method.
-		UpdateContentResults []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// Arg is the arg argument value.
-			Arg UpdateContentResultsParams
-		}
 		// UpdateContentProcessingStatusToPending holds details about calls to the UpdateContentProcessingStatusToPending method.
 		UpdateContentProcessingStatusToPending []struct {
 			// Ctx is the ctx argument value.
@@ -1298,12 +1297,26 @@ type QuerierMock struct {
 			// ID is the id argument value.
 			ID pgtype.UUID
 		}
+		// UpdateContentResults holds details about calls to the UpdateContentResults method.
+		UpdateContentResults []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Arg is the arg argument value.
+			Arg UpdateContentResultsParams
+		}
 		// UpdateContentStatus holds details about calls to the UpdateContentStatus method.
 		UpdateContentStatus []struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
 			// Arg is the arg argument value.
 			Arg UpdateContentStatusParams
+		}
+		// UpdateContentTranscriptSource holds details about calls to the UpdateContentTranscriptSource method.
+		UpdateContentTranscriptSource []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Arg is the arg argument value.
+			Arg UpdateContentTranscriptSourceParams
 		}
 		// UpdateContentYoutubeFields holds details about calls to the UpdateContentYoutubeFields method.
 		UpdateContentYoutubeFields []struct {
@@ -1390,111 +1403,112 @@ type QuerierMock struct {
 			Arg UpsertUserParams
 		}
 	}
-	lockArchiveCompletedGoals                 sync.RWMutex
-	lockArchiveGoalsByProject                 sync.RWMutex
-	lockArchiveJournalsByProject              sync.RWMutex
-	lockArchiveProject                        sync.RWMutex
-	lockCheckHabitTitleExists                 sync.RWMutex
-	lockCheckJournalTitleExists               sync.RWMutex
-	lockCompleteJob                           sync.RWMutex
-	lockCompleteOnboarding                    sync.RWMutex
-	lockConsumeWSTicket                       sync.RWMutex
-	lockCountContent                          sync.RWMutex
-	lockCountConversations                    sync.RWMutex
-	lockCountGoals                            sync.RWMutex
-	lockCountJournals                         sync.RWMutex
-	lockCountJournalsByProject                sync.RWMutex
-	lockCountMessages                         sync.RWMutex
-	lockCreateContent                         sync.RWMutex
-	lockCreateContentWithExtracted            sync.RWMutex
-	lockCreateConversation                    sync.RWMutex
-	lockCreateEmailUser                       sync.RWMutex
-	lockCreateGoal                            sync.RWMutex
-	lockCreateHabit                           sync.RWMutex
-	lockCreateJob                             sync.RWMutex
-	lockCreateJournal                         sync.RWMutex
-	lockCreateMessage                         sync.RWMutex
-	lockCreateProject                         sync.RWMutex
-	lockCreateRefreshToken                    sync.RWMutex
-	lockCreateVerificationToken               sync.RWMutex
-	lockDeleteExpiredDrafts                   sync.RWMutex
-	lockDeleteExpiredRefreshTokens            sync.RWMutex
-	lockDeleteExpiredVerificationTokens       sync.RWMutex
-	lockDeleteHabit                           sync.RWMutex
-	lockDeleteJournal                         sync.RWMutex
-	lockDeleteRefreshToken                    sync.RWMutex
-	lockDeleteUserRefreshTokens               sync.RWMutex
-	lockDeleteVerificationToken               sync.RWMutex
-	lockDeleteVerificationTokensByUserAndType sync.RWMutex
-	lockFailJob                               sync.RWMutex
-	lockGetConnectedHabitIDs                  sync.RWMutex
-	lockGetConnectedNotes                     sync.RWMutex
-	lockGetContentByID                        sync.RWMutex
-	lockGetConversation                       sync.RWMutex
-	lockGetGoalActivity                       sync.RWMutex
-	lockGetMediaKeysForExpiredDrafts          sync.RWMutex
-	lockGetGoalByID                           sync.RWMutex
-	lockGetHabitActivity                      sync.RWMutex
-	lockGetHabitByID                          sync.RWMutex
-	lockGetHabitCompletionStats               sync.RWMutex
-	lockGetHabitTrackerActivity               sync.RWMutex
-	lockGetHabitsByIDs                        sync.RWMutex
-	lockGetJobByContentID                     sync.RWMutex
-	lockGetJournalActivity                    sync.RWMutex
-	lockGetJournalByID                        sync.RWMutex
-	lockGetMessage                            sync.RWMutex
-	lockGetProjectByID                        sync.RWMutex
-	lockGetRefreshToken                       sync.RWMutex
-	lockGetUserByEmail                        sync.RWMutex
-	lockGetUserByID                           sync.RWMutex
-	lockGetVerificationToken                  sync.RWMutex
-	lockGetVerificationTokenByUserAndType     sync.RWMutex
-	lockIncrementVerificationAttempts         sync.RWMutex
-	lockIsContentDeleted                      sync.RWMutex
-	lockIsHabitTrackedOnDate                  sync.RWMutex
-	lockListContent                           sync.RWMutex
-	lockListConversations                     sync.RWMutex
-	lockListGoalStatsByProject                sync.RWMutex
-	lockListGoals                             sync.RWMutex
-	lockListGoalsByProject                    sync.RWMutex
-	lockListHabitTrackerRecords               sync.RWMutex
-	lockListHabits                            sync.RWMutex
-	lockListJournals                          sync.RWMutex
-	lockListMessages                          sync.RWMutex
-	lockListProjects                          sync.RWMutex
-	lockListUnassignedGoals                   sync.RWMutex
-	lockSearchGoals                           sync.RWMutex
-	lockSearchHabits                          sync.RWMutex
-	lockSearchJournals                        sync.RWMutex
-	lockSetEmailVerified                      sync.RWMutex
-	lockSetPasswordHash                       sync.RWMutex
-	lockSoftDeleteContent                     sync.RWMutex
-	lockSoftDeleteConversation                sync.RWMutex
-	lockSoftDeleteGoal                        sync.RWMutex
-	lockSoftDeleteGoalsByProject              sync.RWMutex
-	lockSoftDeleteJournalsByProject           sync.RWMutex
-	lockSoftDeleteProject                     sync.RWMutex
-	lockStartJob                              sync.RWMutex
-	lockTouchConversation                     sync.RWMutex
-	lockTrackHabit                            sync.RWMutex
-	lockUntrackHabit                          sync.RWMutex
-	lockUpdateContentCommitStatus             sync.RWMutex
-	lockUpdateContentEmbedding                sync.RWMutex
-	lockUpdateContentResults                  sync.RWMutex
+	lockArchiveCompletedGoals                  sync.RWMutex
+	lockArchiveGoalsByProject                  sync.RWMutex
+	lockArchiveJournalsByProject               sync.RWMutex
+	lockArchiveProject                         sync.RWMutex
+	lockCheckHabitTitleExists                  sync.RWMutex
+	lockCheckJournalTitleExists                sync.RWMutex
+	lockCompleteJob                            sync.RWMutex
+	lockCompleteOnboarding                     sync.RWMutex
+	lockConsumeWSTicket                        sync.RWMutex
+	lockCountContent                           sync.RWMutex
+	lockCountConversations                     sync.RWMutex
+	lockCountGoals                             sync.RWMutex
+	lockCountJournals                          sync.RWMutex
+	lockCountJournalsByProject                 sync.RWMutex
+	lockCountMessages                          sync.RWMutex
+	lockCreateContent                          sync.RWMutex
+	lockCreateContentWithExtracted             sync.RWMutex
+	lockCreateConversation                     sync.RWMutex
+	lockCreateEmailUser                        sync.RWMutex
+	lockCreateGoal                             sync.RWMutex
+	lockCreateHabit                            sync.RWMutex
+	lockCreateJob                              sync.RWMutex
+	lockCreateJournal                          sync.RWMutex
+	lockCreateMessage                          sync.RWMutex
+	lockCreateProject                          sync.RWMutex
+	lockCreateRefreshToken                     sync.RWMutex
+	lockCreateVerificationToken                sync.RWMutex
+	lockDeleteExpiredDrafts                    sync.RWMutex
+	lockDeleteExpiredRefreshTokens             sync.RWMutex
+	lockDeleteExpiredVerificationTokens        sync.RWMutex
+	lockDeleteHabit                            sync.RWMutex
+	lockDeleteJournal                          sync.RWMutex
+	lockDeleteRefreshToken                     sync.RWMutex
+	lockDeleteUserRefreshTokens                sync.RWMutex
+	lockDeleteVerificationToken                sync.RWMutex
+	lockDeleteVerificationTokensByUserAndType  sync.RWMutex
+	lockFailJob                                sync.RWMutex
+	lockGetConnectedHabitIDs                   sync.RWMutex
+	lockGetConnectedNotes                      sync.RWMutex
+	lockGetContentByID                         sync.RWMutex
+	lockGetConversation                        sync.RWMutex
+	lockGetGoalActivity                        sync.RWMutex
+	lockGetGoalByID                            sync.RWMutex
+	lockGetHabitActivity                       sync.RWMutex
+	lockGetHabitByID                           sync.RWMutex
+	lockGetHabitCompletionStats                sync.RWMutex
+	lockGetHabitTrackerActivity                sync.RWMutex
+	lockGetHabitsByIDs                         sync.RWMutex
+	lockGetJobByContentID                      sync.RWMutex
+	lockGetJournalActivity                     sync.RWMutex
+	lockGetJournalByID                         sync.RWMutex
+	lockGetMediaKeysForExpiredDrafts           sync.RWMutex
+	lockGetMessage                             sync.RWMutex
+	lockGetProjectByID                         sync.RWMutex
+	lockGetRefreshToken                        sync.RWMutex
+	lockGetUserByEmail                         sync.RWMutex
+	lockGetUserByID                            sync.RWMutex
+	lockGetVerificationToken                   sync.RWMutex
+	lockGetVerificationTokenByUserAndType      sync.RWMutex
+	lockIncrementVerificationAttempts          sync.RWMutex
+	lockIsContentDeleted                       sync.RWMutex
+	lockIsHabitTrackedOnDate                   sync.RWMutex
+	lockListContent                            sync.RWMutex
+	lockListConversations                      sync.RWMutex
+	lockListGoalStatsByProject                 sync.RWMutex
+	lockListGoals                              sync.RWMutex
+	lockListGoalsByProject                     sync.RWMutex
+	lockListHabitTrackerRecords                sync.RWMutex
+	lockListHabits                             sync.RWMutex
+	lockListJournals                           sync.RWMutex
+	lockListMessages                           sync.RWMutex
+	lockListProjects                           sync.RWMutex
+	lockListUnassignedGoals                    sync.RWMutex
+	lockSearchGoals                            sync.RWMutex
+	lockSearchHabits                           sync.RWMutex
+	lockSearchJournals                         sync.RWMutex
+	lockSetEmailVerified                       sync.RWMutex
+	lockSetPasswordHash                        sync.RWMutex
+	lockSoftDeleteContent                      sync.RWMutex
+	lockSoftDeleteConversation                 sync.RWMutex
+	lockSoftDeleteGoal                         sync.RWMutex
+	lockSoftDeleteGoalsByProject               sync.RWMutex
+	lockSoftDeleteJournalsByProject            sync.RWMutex
+	lockSoftDeleteProject                      sync.RWMutex
+	lockStartJob                               sync.RWMutex
+	lockTouchConversation                      sync.RWMutex
+	lockTrackHabit                             sync.RWMutex
+	lockUntrackHabit                           sync.RWMutex
+	lockUpdateContentCommitStatus              sync.RWMutex
+	lockUpdateContentEmbedding                 sync.RWMutex
 	lockUpdateContentProcessingStatusToPending sync.RWMutex
-	lockUpdateContentStatus                   sync.RWMutex
-	lockUpdateContentYoutubeFields            sync.RWMutex
-	lockUpdateConversationTitle               sync.RWMutex
-	lockUpdateGoal                            sync.RWMutex
-	lockUpdateGoalPosition                    sync.RWMutex
-	lockUpdateHabit                           sync.RWMutex
-	lockUpdateJobStatus                       sync.RWMutex
-	lockUpdateJobStepResults                  sync.RWMutex
-	lockUpdateJournal                         sync.RWMutex
-	lockUpdateProject                         sync.RWMutex
-	lockUpdateUserXP                          sync.RWMutex
-	lockUpsertJournalFromSync                 sync.RWMutex
-	lockUpsertUser                            sync.RWMutex
+	lockUpdateContentResults                   sync.RWMutex
+	lockUpdateContentStatus                    sync.RWMutex
+	lockUpdateContentTranscriptSource          sync.RWMutex
+	lockUpdateContentYoutubeFields             sync.RWMutex
+	lockUpdateConversationTitle                sync.RWMutex
+	lockUpdateGoal                             sync.RWMutex
+	lockUpdateGoalPosition                     sync.RWMutex
+	lockUpdateHabit                            sync.RWMutex
+	lockUpdateJobStatus                        sync.RWMutex
+	lockUpdateJobStepResults                   sync.RWMutex
+	lockUpdateJournal                          sync.RWMutex
+	lockUpdateProject                          sync.RWMutex
+	lockUpdateUserXP                           sync.RWMutex
+	lockUpsertJournalFromSync                  sync.RWMutex
+	lockUpsertUser                             sync.RWMutex
 }
 
 // ArchiveCompletedGoals calls ArchiveCompletedGoalsFunc.
@@ -3001,42 +3015,6 @@ func (mock *QuerierMock) GetGoalActivityCalls() []struct {
 	return calls
 }
 
-// GetMediaKeysForExpiredDrafts calls GetMediaKeysForExpiredDraftsFunc.
-func (mock *QuerierMock) GetMediaKeysForExpiredDrafts(ctx context.Context, updatedAt pgtype.Timestamptz) ([]GetMediaKeysForExpiredDraftsRow, error) {
-	if mock.GetMediaKeysForExpiredDraftsFunc == nil {
-		panic("QuerierMock.GetMediaKeysForExpiredDraftsFunc: method is nil but Querier.GetMediaKeysForExpiredDrafts was just called")
-	}
-	callInfo := struct {
-		Ctx       context.Context
-		UpdatedAt pgtype.Timestamptz
-	}{
-		Ctx:       ctx,
-		UpdatedAt: updatedAt,
-	}
-	mock.lockGetMediaKeysForExpiredDrafts.Lock()
-	mock.calls.GetMediaKeysForExpiredDrafts = append(mock.calls.GetMediaKeysForExpiredDrafts, callInfo)
-	mock.lockGetMediaKeysForExpiredDrafts.Unlock()
-	return mock.GetMediaKeysForExpiredDraftsFunc(ctx, updatedAt)
-}
-
-// GetMediaKeysForExpiredDraftsCalls gets all the calls that were made to GetMediaKeysForExpiredDrafts.
-// Check the length with:
-//
-//	len(mockedQuerier.GetMediaKeysForExpiredDraftsCalls())
-func (mock *QuerierMock) GetMediaKeysForExpiredDraftsCalls() []struct {
-	Ctx       context.Context
-	UpdatedAt pgtype.Timestamptz
-} {
-	var calls []struct {
-		Ctx       context.Context
-		UpdatedAt pgtype.Timestamptz
-	}
-	mock.lockGetMediaKeysForExpiredDrafts.RLock()
-	calls = mock.calls.GetMediaKeysForExpiredDrafts
-	mock.lockGetMediaKeysForExpiredDrafts.RUnlock()
-	return calls
-}
-
 // GetGoalByID calls GetGoalByIDFunc.
 func (mock *QuerierMock) GetGoalByID(ctx context.Context, arg GetGoalByIDParams) (GetGoalByIDRow, error) {
 	if mock.GetGoalByIDFunc == nil {
@@ -3358,6 +3336,42 @@ func (mock *QuerierMock) GetJournalByIDCalls() []struct {
 	mock.lockGetJournalByID.RLock()
 	calls = mock.calls.GetJournalByID
 	mock.lockGetJournalByID.RUnlock()
+	return calls
+}
+
+// GetMediaKeysForExpiredDrafts calls GetMediaKeysForExpiredDraftsFunc.
+func (mock *QuerierMock) GetMediaKeysForExpiredDrafts(ctx context.Context, updatedAt pgtype.Timestamptz) ([]GetMediaKeysForExpiredDraftsRow, error) {
+	if mock.GetMediaKeysForExpiredDraftsFunc == nil {
+		panic("QuerierMock.GetMediaKeysForExpiredDraftsFunc: method is nil but Querier.GetMediaKeysForExpiredDrafts was just called")
+	}
+	callInfo := struct {
+		Ctx       context.Context
+		UpdatedAt pgtype.Timestamptz
+	}{
+		Ctx:       ctx,
+		UpdatedAt: updatedAt,
+	}
+	mock.lockGetMediaKeysForExpiredDrafts.Lock()
+	mock.calls.GetMediaKeysForExpiredDrafts = append(mock.calls.GetMediaKeysForExpiredDrafts, callInfo)
+	mock.lockGetMediaKeysForExpiredDrafts.Unlock()
+	return mock.GetMediaKeysForExpiredDraftsFunc(ctx, updatedAt)
+}
+
+// GetMediaKeysForExpiredDraftsCalls gets all the calls that were made to GetMediaKeysForExpiredDrafts.
+// Check the length with:
+//
+//	len(mockedQuerier.GetMediaKeysForExpiredDraftsCalls())
+func (mock *QuerierMock) GetMediaKeysForExpiredDraftsCalls() []struct {
+	Ctx       context.Context
+	UpdatedAt pgtype.Timestamptz
+} {
+	var calls []struct {
+		Ctx       context.Context
+		UpdatedAt pgtype.Timestamptz
+	}
+	mock.lockGetMediaKeysForExpiredDrafts.RLock()
+	calls = mock.calls.GetMediaKeysForExpiredDrafts
+	mock.lockGetMediaKeysForExpiredDrafts.RUnlock()
 	return calls
 }
 
@@ -4729,42 +4743,6 @@ func (mock *QuerierMock) UpdateContentEmbeddingCalls() []struct {
 	return calls
 }
 
-// UpdateContentResults calls UpdateContentResultsFunc.
-func (mock *QuerierMock) UpdateContentResults(ctx context.Context, arg UpdateContentResultsParams) error {
-	if mock.UpdateContentResultsFunc == nil {
-		panic("QuerierMock.UpdateContentResultsFunc: method is nil but Querier.UpdateContentResults was just called")
-	}
-	callInfo := struct {
-		Ctx context.Context
-		Arg UpdateContentResultsParams
-	}{
-		Ctx: ctx,
-		Arg: arg,
-	}
-	mock.lockUpdateContentResults.Lock()
-	mock.calls.UpdateContentResults = append(mock.calls.UpdateContentResults, callInfo)
-	mock.lockUpdateContentResults.Unlock()
-	return mock.UpdateContentResultsFunc(ctx, arg)
-}
-
-// UpdateContentResultsCalls gets all the calls that were made to UpdateContentResults.
-// Check the length with:
-//
-//	len(mockedQuerier.UpdateContentResultsCalls())
-func (mock *QuerierMock) UpdateContentResultsCalls() []struct {
-	Ctx context.Context
-	Arg UpdateContentResultsParams
-} {
-	var calls []struct {
-		Ctx context.Context
-		Arg UpdateContentResultsParams
-	}
-	mock.lockUpdateContentResults.RLock()
-	calls = mock.calls.UpdateContentResults
-	mock.lockUpdateContentResults.RUnlock()
-	return calls
-}
-
 // UpdateContentProcessingStatusToPending calls UpdateContentProcessingStatusToPendingFunc.
 func (mock *QuerierMock) UpdateContentProcessingStatusToPending(ctx context.Context, id pgtype.UUID) error {
 	if mock.UpdateContentProcessingStatusToPendingFunc == nil {
@@ -4801,6 +4779,42 @@ func (mock *QuerierMock) UpdateContentProcessingStatusToPendingCalls() []struct 
 	return calls
 }
 
+// UpdateContentResults calls UpdateContentResultsFunc.
+func (mock *QuerierMock) UpdateContentResults(ctx context.Context, arg UpdateContentResultsParams) error {
+	if mock.UpdateContentResultsFunc == nil {
+		panic("QuerierMock.UpdateContentResultsFunc: method is nil but Querier.UpdateContentResults was just called")
+	}
+	callInfo := struct {
+		Ctx context.Context
+		Arg UpdateContentResultsParams
+	}{
+		Ctx: ctx,
+		Arg: arg,
+	}
+	mock.lockUpdateContentResults.Lock()
+	mock.calls.UpdateContentResults = append(mock.calls.UpdateContentResults, callInfo)
+	mock.lockUpdateContentResults.Unlock()
+	return mock.UpdateContentResultsFunc(ctx, arg)
+}
+
+// UpdateContentResultsCalls gets all the calls that were made to UpdateContentResults.
+// Check the length with:
+//
+//	len(mockedQuerier.UpdateContentResultsCalls())
+func (mock *QuerierMock) UpdateContentResultsCalls() []struct {
+	Ctx context.Context
+	Arg UpdateContentResultsParams
+} {
+	var calls []struct {
+		Ctx context.Context
+		Arg UpdateContentResultsParams
+	}
+	mock.lockUpdateContentResults.RLock()
+	calls = mock.calls.UpdateContentResults
+	mock.lockUpdateContentResults.RUnlock()
+	return calls
+}
+
 // UpdateContentStatus calls UpdateContentStatusFunc.
 func (mock *QuerierMock) UpdateContentStatus(ctx context.Context, arg UpdateContentStatusParams) error {
 	if mock.UpdateContentStatusFunc == nil {
@@ -4834,6 +4848,42 @@ func (mock *QuerierMock) UpdateContentStatusCalls() []struct {
 	mock.lockUpdateContentStatus.RLock()
 	calls = mock.calls.UpdateContentStatus
 	mock.lockUpdateContentStatus.RUnlock()
+	return calls
+}
+
+// UpdateContentTranscriptSource calls UpdateContentTranscriptSourceFunc.
+func (mock *QuerierMock) UpdateContentTranscriptSource(ctx context.Context, arg UpdateContentTranscriptSourceParams) error {
+	if mock.UpdateContentTranscriptSourceFunc == nil {
+		panic("QuerierMock.UpdateContentTranscriptSourceFunc: method is nil but Querier.UpdateContentTranscriptSource was just called")
+	}
+	callInfo := struct {
+		Ctx context.Context
+		Arg UpdateContentTranscriptSourceParams
+	}{
+		Ctx: ctx,
+		Arg: arg,
+	}
+	mock.lockUpdateContentTranscriptSource.Lock()
+	mock.calls.UpdateContentTranscriptSource = append(mock.calls.UpdateContentTranscriptSource, callInfo)
+	mock.lockUpdateContentTranscriptSource.Unlock()
+	return mock.UpdateContentTranscriptSourceFunc(ctx, arg)
+}
+
+// UpdateContentTranscriptSourceCalls gets all the calls that were made to UpdateContentTranscriptSource.
+// Check the length with:
+//
+//	len(mockedQuerier.UpdateContentTranscriptSourceCalls())
+func (mock *QuerierMock) UpdateContentTranscriptSourceCalls() []struct {
+	Ctx context.Context
+	Arg UpdateContentTranscriptSourceParams
+} {
+	var calls []struct {
+		Ctx context.Context
+		Arg UpdateContentTranscriptSourceParams
+	}
+	mock.lockUpdateContentTranscriptSource.RLock()
+	calls = mock.calls.UpdateContentTranscriptSource
+	mock.lockUpdateContentTranscriptSource.RUnlock()
 	return calls
 }
 

@@ -107,6 +107,12 @@ SET duration_seconds = $2,
     updated_at = NOW()
 WHERE id = $1 AND deleted_at IS NULL;
 
+-- name: UpdateContentTranscriptSource :exec
+UPDATE mindmap_content
+SET transcript_source = $2,
+    updated_at = NOW()
+WHERE id = $1 AND deleted_at IS NULL;
+
 -- name: IsContentDeleted :one
 SELECT (deleted_at IS NOT NULL)::bool AS is_deleted
 FROM mindmap_content

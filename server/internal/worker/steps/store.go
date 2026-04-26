@@ -140,8 +140,10 @@ func Store(
 	}
 
 	// Update transcript_source for audio content (no video metadata, but has audio transcript).
+	// Use the dedicated query so we don't overwrite duration_seconds (set at upload time)
+	// or the unrelated video_* columns with NULLs.
 	if metadataResult.VideoID == "" && transcribeAudioResult.TranscriptSource != "" {
-		err = queries.UpdateContentYoutubeFields(ctx, store.UpdateContentYoutubeFieldsParams{
+		err = queries.UpdateContentTranscriptSource(ctx, store.UpdateContentTranscriptSourceParams{
 			ID:               contentID,
 			TranscriptSource: pgtextFrom(transcribeAudioResult.TranscriptSource),
 		})
