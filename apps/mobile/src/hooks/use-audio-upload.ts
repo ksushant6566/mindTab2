@@ -118,7 +118,10 @@ export function useAudioUpload() {
     onError: () => {
       setUploadState("failed");
     },
-    retry: 3,
-    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 30000),
+    // POST /saves is not idempotent server-side, so a TanStack-level retry
+    // re-runs mutationFn and creates a duplicate content row for a single
+    // user action. The 401 path inside mutationFn already covers the only
+    // transient case worth retrying (stale access token).
+    retry: 0,
   });
 }
