@@ -564,6 +564,102 @@ func (h *SavesHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+type commitRequest struct {
+	Title string `json:"title,omitempty"`
+}
+
+// Commit handles POST /saves/{id}/commit.
+// Flips a draft save to committed and, if processing was deferred, enqueues it.
+func (h *SavesHandler) Commit(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.UserIDFromContext(r.Context())
+
+	id, err := GetUUIDParam(r, "id")
+	if err != nil {
+		WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	var body commitRequest
+	if r.ContentLength > 0 {
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			WriteError(w, http.StatusBadRequest, "bad body")
+			return
+		}
+	}
+
+	row, err := h.queries.GetContentByID(r.Context(), store.GetContentByIDParams{
+		ID:     uuidFromGoogle(id),
+		UserID: userID,
+	})
+	if err != nil {
+		if isNotFound(err) {
+			WriteError(w, http.StatusNotFound, "save not found")
+			return
+		}
+		slog.Error("failed to get content for commit", "error", err, "id", id, "userID", userID)
+		WriteError(w, http.StatusInternalServerError, "failed to get save")
+		return
+	}
+
+	type commitResponse struct {
+		ID               string `json:"id"`
+		CommitStatus     string `json:"commit_status"`
+		ProcessingStatus string `json:"processing_status"`
+	}
+
+	// Idempotent no-op: already committed and not deferred.
+	if row.CommitStatus == "committed" && row.ProcessingStatus != "deferred" {
+		WriteJSON(w, http.StatusOK, commitResponse{
+			ID:               uuidToString(row.ID),
+			CommitStatus:     row.CommitStatus,
+			ProcessingStatus: row.ProcessingStatus,
+		})
+		return
+	}
+
+	// Flip commit_status (and optional title via COALESCE).
+	if err := h.queries.UpdateContentCommitStatus(r.Context(), store.UpdateContentCommitStatusParams{
+		ID:           row.ID,
+		CommitStatus: "committed",
+		SourceTitle:  pgtextFrom(body.Title),
+	}); err != nil {
+		slog.Error("failed to update commit status", "error", err, "id", id)
+		WriteError(w, http.StatusInternalServerError, "failed to commit save")
+		return
+	}
+
+	// If processing was deferred, flip to pending and enqueue.
+	if row.ProcessingStatus == "deferred" {
+		if err := h.queries.UpdateContentProcessingStatusToPending(r.Context(), row.ID); err != nil {
+			slog.Error("failed to update processing status", "error", err, "id", id)
+			WriteError(w, http.StatusInternalServerError, "failed to update processing status")
+			return
+		}
+		if err := h.producer.Enqueue(r.Context(), queue.JobPayload{
+			JobID:       uuid.New(),
+			ContentID:   uuidFromPgtype(row.ID),
+			UserID:      userID,
+			ContentType: row.SourceType,
+			MaxAttempts: 5,
+		}); err != nil {
+			slog.Error("failed to enqueue commit job", "error", err, "id", id)
+			WriteError(w, http.StatusInternalServerError, "failed to enqueue processing job")
+			return
+		}
+	}
+
+	finalProcessing := row.ProcessingStatus
+	if row.ProcessingStatus == "deferred" {
+		finalProcessing = "pending"
+	}
+
+	WriteJSON(w, http.StatusOK, commitResponse{
+		ID:               uuidToString(row.ID),
+		CommitStatus:     "committed",
+		ProcessingStatus: finalProcessing,
+	})
+}
+
 type searchRequest struct {
 	Query string `json:"query"`
 	Limit int    `json:"limit"`

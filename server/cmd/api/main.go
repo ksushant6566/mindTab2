@@ -341,6 +341,7 @@ func main() {
 			r.Post("/saves/search", savesHandler.Search)
 			r.Get("/saves/{id}", savesHandler.Get)
 			r.Delete("/saves/{id}", savesHandler.Delete)
+			r.Post("/saves/{id}/commit", savesHandler.Commit)
 		}
 
 		// Chat.
