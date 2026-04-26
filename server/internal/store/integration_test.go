@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/pgvector/pgvector-go"
 	"github.com/stretchr/testify/assert"
@@ -33,6 +34,7 @@ func createTestUser(t *testing.T, ctx context.Context, q *store.Queries) store.M
 func createTestContent(t *testing.T, ctx context.Context, q *store.Queries, userID string) store.MindmapContent {
 	t.Helper()
 	content, err := q.CreateContent(ctx, store.CreateContentParams{
+		ID:               pgtype.UUID{Bytes: uuid.New(), Valid: true},
 		UserID:           userID,
 		SourceUrl:        pgtype.Text{String: "https://example.com/article", Valid: true},
 		SourceType:       "article",
@@ -86,6 +88,7 @@ func TestStore_ListContent(t *testing.T) {
 
 	for i := 0; i < 3; i++ {
 		_, err := q.CreateContent(ctx, store.CreateContentParams{
+			ID:               pgtype.UUID{Bytes: uuid.New(), Valid: true},
 			UserID:           user.ID,
 			SourceUrl:        pgtype.Text{String: "https://example.com/item", Valid: true},
 			SourceType:       "article",
