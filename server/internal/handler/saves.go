@@ -227,7 +227,6 @@ func (h *SavesHandler) createURL(w http.ResponseWriter, r *http.Request, userID 
 		ContentID:   uuidFromPgtype(contentID),
 		UserID:      userID,
 		ContentType: contentType,
-		SourceURL:   req.URL,
 		MaxAttempts: 5,
 	}
 	if err := h.producer.Enqueue(r.Context(), payload); err != nil {
@@ -341,15 +340,13 @@ func (h *SavesHandler) createImage(w http.ResponseWriter, r *http.Request, userI
 		return
 	}
 
-	// Enqueue to Redis with temp path.
+	// Enqueue to Redis.
 	payload := queue.JobPayload{
-		JobID:         uuidFromPgtype(jobID),
-		ContentID:     uuidFromPgtype(content.ID),
-		UserID:        userID,
-		ContentType:   "image",
-		TempImagePath: tempPath,
-		ImageMIME:     mimeType,
-		MaxAttempts:   5,
+		JobID:       uuidFromPgtype(jobID),
+		ContentID:   uuidFromPgtype(content.ID),
+		UserID:      userID,
+		ContentType: "image",
+		MaxAttempts: 5,
 	}
 	if err := h.producer.Enqueue(r.Context(), payload); err != nil {
 		os.RemoveAll(dirPath)

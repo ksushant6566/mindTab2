@@ -163,25 +163,26 @@ func (d *Dispatcher) processJob(ctx context.Context, payload *queue.JobPayload) 
 		return
 	}
 
+	// Fetch source-specific data from the database row.
+	row, err := d.queries.GetContentByID(ctx, store.GetContentByIDParams{
+		ID:     toPgUUID(payload.ContentID),
+		UserID: payload.UserID,
+	})
+	if err != nil {
+		log.Error("dispatcher: failed to load content row", "error", err)
+		d.handleFailure(ctx, payload, fmt.Errorf("dispatcher: load content row: %w", err), false)
+		return
+	}
+
 	// Build the job struct.
 	job := &Job{
 		ID:          payload.JobID,
 		ContentID:   payload.ContentID,
 		UserID:      payload.UserID,
 		ContentType: payload.ContentType,
-		SourceURL:   payload.SourceURL,
 	}
-
-	// Load image data from temp file if this is an image job.
-	if payload.TempImagePath != "" {
-		data, err := os.ReadFile(payload.TempImagePath)
-		if err != nil {
-			log.Error("failed to read temp image file", "path", payload.TempImagePath, "error", err)
-			d.handleFailure(ctx, payload, fmt.Errorf("read temp image: %w", err), false)
-			return
-		}
-		job.ImageData = data
-		job.ImageType = payload.ImageMIME
+	if row.SourceUrl.Valid {
+		job.SourceURL = row.SourceUrl.String
 	}
 
 	// Load previous step results from the payload.
@@ -239,13 +240,6 @@ func (d *Dispatcher) processJob(ctx context.Context, payload *queue.JobPayload) 
 	// Remove from processing list.
 	if err := d.consumer.Complete(ctx, *payload); err != nil {
 		log.Error("failed to remove job from processing list", "error", err)
-	}
-
-	// Clean up temp image file.
-	if payload.TempImagePath != "" {
-		if err := os.Remove(payload.TempImagePath); err != nil && !os.IsNotExist(err) {
-			log.Warn("failed to remove temp image file", "path", payload.TempImagePath, "error", err)
-		}
 	}
 
 	log.Info("job completed successfully")

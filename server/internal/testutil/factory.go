@@ -126,7 +126,6 @@ func NewJobPayload(opts ...PayloadOption) queue.JobPayload {
 		ContentID:   uuid.New(),
 		UserID:      "test-user",
 		ContentType: "article",
-		SourceURL:   "https://example.com/article",
 		MaxAttempts: 5,
 	}
 	for _, o := range opts {
@@ -139,22 +138,10 @@ func WithContentType(ct string) PayloadOption {
 	return func(p *queue.JobPayload) { p.ContentType = ct }
 }
 
-func WithSourceURL(url string) PayloadOption {
-	return func(p *queue.JobPayload) { p.SourceURL = url }
-}
-
 func WithAttemptCount(n int) PayloadOption {
 	return func(p *queue.JobPayload) { p.AttemptCount = n }
 }
 
 func WithMaxAttempts(n int) PayloadOption {
 	return func(p *queue.JobPayload) { p.MaxAttempts = n }
-}
-
-func WithTempImagePath(path string) PayloadOption {
-	return func(p *queue.JobPayload) { p.TempImagePath = path }
-}
-
-func WithImageMIME(mime string) PayloadOption {
-	return func(p *queue.JobPayload) { p.ImageMIME = mime }
 }

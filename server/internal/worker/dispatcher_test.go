@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"os"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -106,6 +105,9 @@ func noopQuerierMock() *store.QuerierMock {
 		},
 		UpdateJobStatusFunc: func(ctx context.Context, arg store.UpdateJobStatusParams) error {
 			return nil
+		},
+		GetContentByIDFunc: func(ctx context.Context, arg store.GetContentByIDParams) (store.GetContentByIDRow, error) {
+			return store.GetContentByIDRow{}, nil
 		},
 	}
 }
@@ -593,9 +595,10 @@ func TestDispatcher_GracefulShutdown(t *testing.T) {
 	}
 }
 
-// 10. TestDispatcher_TempFileCleanup — image job with temp file, verify it is
-// cleaned up after processing.
-func TestDispatcher_TempFileCleanup(t *testing.T) {
+// 10. TestDispatcher_ImageJob — image job is dispatched and completed successfully.
+// NOTE: Temp-file loading is intentionally removed from the payload in Task 5.
+// Tasks 6-7 will introduce the permanent-storage image flow.
+func TestDispatcher_ImageJob(t *testing.T) {
 	_, client := newTestRedis(t)
 	queries := noopQuerierMock()
 
@@ -611,31 +614,12 @@ func TestDispatcher_TempFileCleanup(t *testing.T) {
 		contentType: "image",
 		steps:       []string{"vision", "embed"},
 		executeFn: func(ctx context.Context, step string, job *Job, prev StepResults) (*StepResult, error) {
-			if step == "vision" {
-				// Verify the image data was loaded from the temp file.
-				if len(job.ImageData) == 0 {
-					return nil, fmt.Errorf("expected image data to be loaded")
-				}
-			}
 			return &StepResult{Data: json.RawMessage(`{"ok":true}`)}, nil
 		},
 	}
 	d.Register(proc)
 
-	// Create a real temp file to verify cleanup.
-	tmpFile, err := os.CreateTemp("", "dispatcher-test-*.jpg")
-	if err != nil {
-		t.Fatalf("create temp file: %v", err)
-	}
-	tmpPath := tmpFile.Name()
-	if _, err := tmpFile.Write([]byte("fake-image-data")); err != nil {
-		t.Fatalf("write temp file: %v", err)
-	}
-	tmpFile.Close()
-
 	payload := newPayload("image")
-	payload.TempImagePath = tmpPath
-	payload.ImageMIME = "image/jpeg"
 	enqueuePayload(t, client, payload)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -645,16 +629,6 @@ func TestDispatcher_TempFileCleanup(t *testing.T) {
 		return completedJobCalled.Load()
 	})
 
-	// Give a brief moment for cleanup to execute after CompleteJob.
-	time.Sleep(200 * time.Millisecond)
-
 	cancel()
 	d.Stop()
-
-	// Verify the temp file has been removed.
-	if _, err := os.Stat(tmpPath); !os.IsNotExist(err) {
-		t.Errorf("expected temp file %s to be deleted, but it still exists", tmpPath)
-		// Clean up manually if test fails.
-		os.Remove(tmpPath)
-	}
 }

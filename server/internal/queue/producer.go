@@ -10,18 +10,17 @@ import (
 )
 
 // JobPayload is the JSON structure stored in Redis.
+// It is a thin pointer envelope — source-specific data (SourceURL, image bytes, etc.)
+// are fetched from the database row by the dispatcher, not carried in the payload.
 type JobPayload struct {
-	JobID         uuid.UUID      `json:"job_id"`
-	ContentID     uuid.UUID      `json:"content_id"`
-	UserID        string         `json:"user_id"`
-	ContentType   string         `json:"content_type"`
-	SourceURL     string         `json:"source_url,omitempty"`
-	TempImagePath string         `json:"temp_image_path,omitempty"`
-	ImageMIME     string         `json:"image_mime,omitempty"`
-	AttemptCount  int            `json:"attempt_count"`
-	MaxAttempts   int            `json:"max_attempts"`
-	CurrentStep   string         `json:"current_step,omitempty"`
-	StepResults   map[string]any `json:"step_results,omitempty"`
+	JobID        uuid.UUID      `json:"job_id"`
+	ContentID    uuid.UUID      `json:"content_id"`
+	UserID       string         `json:"user_id"`
+	ContentType  string         `json:"content_type"`
+	AttemptCount int            `json:"attempt_count"`
+	MaxAttempts  int            `json:"max_attempts"`
+	CurrentStep  string         `json:"current_step,omitempty"`
+	StepResults  map[string]any `json:"step_results,omitempty"`
 }
 
 // Producer enqueues jobs to the Redis pending list.
