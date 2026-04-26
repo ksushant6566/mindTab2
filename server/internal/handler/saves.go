@@ -667,7 +667,7 @@ func isAllowedImageMIME(m string) bool {
 }
 
 // writeSaveResponse encodes the newly created content row as a JSON response.
-func writeSaveResponse(w http.ResponseWriter, row store.MindmapContent, storage services.StorageProvider) {
+func writeSaveResponse(w http.ResponseWriter, row store.CreateContentRow, storage services.StorageProvider) {
 	resp := struct {
 		ID               string `json:"id"`
 		CommitStatus     string `json:"commit_status"`

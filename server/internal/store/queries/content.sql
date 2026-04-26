@@ -12,7 +12,12 @@ INSERT INTO mindmap_content (
     $10,
     $11, $12
 )
-RETURNING *;
+RETURNING id, user_id, source_url, source_type, source_title, source_thumbnail_url,
+          extracted_text, visual_description, summary, tags, key_topics,
+          summary_provider, embedding_provider, embedding_model,
+          media_key, media_mime, media_file_bytes, processing_status, processing_error,
+          duration_seconds, video_thumbnail_url, video_channel, transcript_source,
+          commit_status, created_at, updated_at;
 
 -- name: CreateContentWithExtracted :one
 INSERT INTO mindmap_content (
@@ -28,7 +33,12 @@ INSERT INTO mindmap_content (
     $10,
     $11, $12
 )
-RETURNING *;
+RETURNING id, user_id, source_url, source_type, source_title, source_thumbnail_url,
+          extracted_text, visual_description, summary, tags, key_topics,
+          summary_provider, embedding_provider, embedding_model,
+          media_key, media_mime, media_file_bytes, processing_status, processing_error,
+          duration_seconds, video_thumbnail_url, video_channel, transcript_source,
+          commit_status, created_at, updated_at;
 
 -- name: GetContentByID :one
 SELECT id, user_id, source_url, source_type, source_title, source_thumbnail_url,

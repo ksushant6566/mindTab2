@@ -39,7 +39,12 @@ INSERT INTO mindmap_content (
     $10,
     $11, $12
 )
-RETURNING id, user_id, source_url, source_type, source_title, source_thumbnail_url, extracted_text, visual_description, summary, tags, key_topics, embedding, summary_provider, embedding_provider, embedding_model, media_key, processing_status, processing_error, created_at, updated_at, deleted_at, duration_seconds, video_thumbnail_url, video_channel, transcript_source, commit_status, media_mime, media_file_bytes
+RETURNING id, user_id, source_url, source_type, source_title, source_thumbnail_url,
+          extracted_text, visual_description, summary, tags, key_topics,
+          summary_provider, embedding_provider, embedding_model,
+          media_key, media_mime, media_file_bytes, processing_status, processing_error,
+          duration_seconds, video_thumbnail_url, video_channel, transcript_source,
+          commit_status, created_at, updated_at
 `
 
 type CreateContentParams struct {
@@ -57,7 +62,36 @@ type CreateContentParams struct {
 	CommitStatus     string      `json:"commit_status"`
 }
 
-func (q *Queries) CreateContent(ctx context.Context, arg CreateContentParams) (MindmapContent, error) {
+type CreateContentRow struct {
+	ID                 pgtype.UUID        `json:"id"`
+	UserID             string             `json:"user_id"`
+	SourceUrl          pgtype.Text        `json:"source_url"`
+	SourceType         string             `json:"source_type"`
+	SourceTitle        pgtype.Text        `json:"source_title"`
+	SourceThumbnailUrl pgtype.Text        `json:"source_thumbnail_url"`
+	ExtractedText      pgtype.Text        `json:"extracted_text"`
+	VisualDescription  pgtype.Text        `json:"visual_description"`
+	Summary            pgtype.Text        `json:"summary"`
+	Tags               []string           `json:"tags"`
+	KeyTopics          []string           `json:"key_topics"`
+	SummaryProvider    pgtype.Text        `json:"summary_provider"`
+	EmbeddingProvider  pgtype.Text        `json:"embedding_provider"`
+	EmbeddingModel     pgtype.Text        `json:"embedding_model"`
+	MediaKey           pgtype.Text        `json:"media_key"`
+	MediaMime          pgtype.Text        `json:"media_mime"`
+	MediaFileBytes     pgtype.Int8        `json:"media_file_bytes"`
+	ProcessingStatus   string             `json:"processing_status"`
+	ProcessingError    pgtype.Text        `json:"processing_error"`
+	DurationSeconds    pgtype.Int4        `json:"duration_seconds"`
+	VideoThumbnailUrl  pgtype.Text        `json:"video_thumbnail_url"`
+	VideoChannel       pgtype.Text        `json:"video_channel"`
+	TranscriptSource   pgtype.Text        `json:"transcript_source"`
+	CommitStatus       string             `json:"commit_status"`
+	CreatedAt          pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
+}
+
+func (q *Queries) CreateContent(ctx context.Context, arg CreateContentParams) (CreateContentRow, error) {
 	row := q.db.QueryRow(ctx, createContent,
 		arg.ID,
 		arg.UserID,
@@ -72,7 +106,7 @@ func (q *Queries) CreateContent(ctx context.Context, arg CreateContentParams) (M
 		arg.ProcessingStatus,
 		arg.CommitStatus,
 	)
-	var i MindmapContent
+	var i CreateContentRow
 	err := row.Scan(
 		&i.ID,
 		&i.UserID,
@@ -85,23 +119,21 @@ func (q *Queries) CreateContent(ctx context.Context, arg CreateContentParams) (M
 		&i.Summary,
 		&i.Tags,
 		&i.KeyTopics,
-		&i.Embedding,
 		&i.SummaryProvider,
 		&i.EmbeddingProvider,
 		&i.EmbeddingModel,
 		&i.MediaKey,
+		&i.MediaMime,
+		&i.MediaFileBytes,
 		&i.ProcessingStatus,
 		&i.ProcessingError,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-		&i.DeletedAt,
 		&i.DurationSeconds,
 		&i.VideoThumbnailUrl,
 		&i.VideoChannel,
 		&i.TranscriptSource,
 		&i.CommitStatus,
-		&i.MediaMime,
-		&i.MediaFileBytes,
+		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
@@ -120,7 +152,12 @@ INSERT INTO mindmap_content (
     $10,
     $11, $12
 )
-RETURNING id, user_id, source_url, source_type, source_title, source_thumbnail_url, extracted_text, visual_description, summary, tags, key_topics, embedding, summary_provider, embedding_provider, embedding_model, media_key, processing_status, processing_error, created_at, updated_at, deleted_at, duration_seconds, video_thumbnail_url, video_channel, transcript_source, commit_status, media_mime, media_file_bytes
+RETURNING id, user_id, source_url, source_type, source_title, source_thumbnail_url,
+          extracted_text, visual_description, summary, tags, key_topics,
+          summary_provider, embedding_provider, embedding_model,
+          media_key, media_mime, media_file_bytes, processing_status, processing_error,
+          duration_seconds, video_thumbnail_url, video_channel, transcript_source,
+          commit_status, created_at, updated_at
 `
 
 type CreateContentWithExtractedParams struct {
@@ -138,7 +175,36 @@ type CreateContentWithExtractedParams struct {
 	CommitStatus     string      `json:"commit_status"`
 }
 
-func (q *Queries) CreateContentWithExtracted(ctx context.Context, arg CreateContentWithExtractedParams) (MindmapContent, error) {
+type CreateContentWithExtractedRow struct {
+	ID                 pgtype.UUID        `json:"id"`
+	UserID             string             `json:"user_id"`
+	SourceUrl          pgtype.Text        `json:"source_url"`
+	SourceType         string             `json:"source_type"`
+	SourceTitle        pgtype.Text        `json:"source_title"`
+	SourceThumbnailUrl pgtype.Text        `json:"source_thumbnail_url"`
+	ExtractedText      pgtype.Text        `json:"extracted_text"`
+	VisualDescription  pgtype.Text        `json:"visual_description"`
+	Summary            pgtype.Text        `json:"summary"`
+	Tags               []string           `json:"tags"`
+	KeyTopics          []string           `json:"key_topics"`
+	SummaryProvider    pgtype.Text        `json:"summary_provider"`
+	EmbeddingProvider  pgtype.Text        `json:"embedding_provider"`
+	EmbeddingModel     pgtype.Text        `json:"embedding_model"`
+	MediaKey           pgtype.Text        `json:"media_key"`
+	MediaMime          pgtype.Text        `json:"media_mime"`
+	MediaFileBytes     pgtype.Int8        `json:"media_file_bytes"`
+	ProcessingStatus   string             `json:"processing_status"`
+	ProcessingError    pgtype.Text        `json:"processing_error"`
+	DurationSeconds    pgtype.Int4        `json:"duration_seconds"`
+	VideoThumbnailUrl  pgtype.Text        `json:"video_thumbnail_url"`
+	VideoChannel       pgtype.Text        `json:"video_channel"`
+	TranscriptSource   pgtype.Text        `json:"transcript_source"`
+	CommitStatus       string             `json:"commit_status"`
+	CreatedAt          pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
+}
+
+func (q *Queries) CreateContentWithExtracted(ctx context.Context, arg CreateContentWithExtractedParams) (CreateContentWithExtractedRow, error) {
 	row := q.db.QueryRow(ctx, createContentWithExtracted,
 		arg.ID,
 		arg.UserID,
@@ -153,7 +219,7 @@ func (q *Queries) CreateContentWithExtracted(ctx context.Context, arg CreateCont
 		arg.ProcessingStatus,
 		arg.CommitStatus,
 	)
-	var i MindmapContent
+	var i CreateContentWithExtractedRow
 	err := row.Scan(
 		&i.ID,
 		&i.UserID,
@@ -166,23 +232,21 @@ func (q *Queries) CreateContentWithExtracted(ctx context.Context, arg CreateCont
 		&i.Summary,
 		&i.Tags,
 		&i.KeyTopics,
-		&i.Embedding,
 		&i.SummaryProvider,
 		&i.EmbeddingProvider,
 		&i.EmbeddingModel,
 		&i.MediaKey,
+		&i.MediaMime,
+		&i.MediaFileBytes,
 		&i.ProcessingStatus,
 		&i.ProcessingError,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-		&i.DeletedAt,
 		&i.DurationSeconds,
 		&i.VideoThumbnailUrl,
 		&i.VideoChannel,
 		&i.TranscriptSource,
 		&i.CommitStatus,
-		&i.MediaMime,
-		&i.MediaFileBytes,
+		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }

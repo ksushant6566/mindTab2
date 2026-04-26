@@ -387,10 +387,10 @@ type QuerierMock struct {
 	CountMessagesFunc func(ctx context.Context, conversationID pgtype.UUID) (int64, error)
 
 	// CreateContentFunc mocks the CreateContent method.
-	CreateContentFunc func(ctx context.Context, arg CreateContentParams) (MindmapContent, error)
+	CreateContentFunc func(ctx context.Context, arg CreateContentParams) (CreateContentRow, error)
 
 	// CreateContentWithExtractedFunc mocks the CreateContentWithExtracted method.
-	CreateContentWithExtractedFunc func(ctx context.Context, arg CreateContentWithExtractedParams) (MindmapContent, error)
+	CreateContentWithExtractedFunc func(ctx context.Context, arg CreateContentWithExtractedParams) (CreateContentWithExtractedRow, error)
 
 	// CreateConversationFunc mocks the CreateConversation method.
 	CreateConversationFunc func(ctx context.Context, userID string) (CreateConversationRow, error)
@@ -2038,7 +2038,7 @@ func (mock *QuerierMock) CountMessagesCalls() []struct {
 }
 
 // CreateContent calls CreateContentFunc.
-func (mock *QuerierMock) CreateContent(ctx context.Context, arg CreateContentParams) (MindmapContent, error) {
+func (mock *QuerierMock) CreateContent(ctx context.Context, arg CreateContentParams) (CreateContentRow, error) {
 	if mock.CreateContentFunc == nil {
 		panic("QuerierMock.CreateContentFunc: method is nil but Querier.CreateContent was just called")
 	}
@@ -2074,7 +2074,7 @@ func (mock *QuerierMock) CreateContentCalls() []struct {
 }
 
 // CreateContentWithExtracted calls CreateContentWithExtractedFunc.
-func (mock *QuerierMock) CreateContentWithExtracted(ctx context.Context, arg CreateContentWithExtractedParams) (MindmapContent, error) {
+func (mock *QuerierMock) CreateContentWithExtracted(ctx context.Context, arg CreateContentWithExtractedParams) (CreateContentWithExtractedRow, error) {
 	if mock.CreateContentWithExtractedFunc == nil {
 		panic("QuerierMock.CreateContentWithExtractedFunc: method is nil but Querier.CreateContentWithExtracted was just called")
 	}

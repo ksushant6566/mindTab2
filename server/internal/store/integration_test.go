@@ -31,7 +31,7 @@ func createTestUser(t *testing.T, ctx context.Context, q *store.Queries) store.M
 }
 
 // createTestContent inserts a minimal content row for the given userID.
-func createTestContent(t *testing.T, ctx context.Context, q *store.Queries, userID string) store.MindmapContent {
+func createTestContent(t *testing.T, ctx context.Context, q *store.Queries, userID string) store.CreateContentRow {
 	t.Helper()
 	content, err := q.CreateContent(ctx, store.CreateContentParams{
 		ID:               pgtype.UUID{Bytes: uuid.New(), Valid: true},
