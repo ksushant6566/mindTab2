@@ -1,12 +1,30 @@
 -- name: CreateContent :one
-INSERT INTO mindmap_content (user_id, source_url, source_type, source_title, processing_status)
-VALUES ($1, $2, $3, $4, 'pending')
-RETURNING id, user_id, source_url, source_type, source_title, processing_status, created_at;
+INSERT INTO mindmap_content (
+    user_id, source_url, source_type, source_title,
+    extracted_text, media_key, media_mime, media_file_bytes,
+    duration_seconds,
+    processing_status, commit_status
+) VALUES (
+    $1, $2, $3, $4,
+    $5, $6, $7, $8,
+    $9,
+    $10, $11
+)
+RETURNING *;
 
 -- name: CreateContentWithExtracted :one
-INSERT INTO mindmap_content (user_id, source_url, source_type, source_title, extracted_text, processing_status)
-VALUES ($1, $2, $3, $4, $5, 'pending')
-RETURNING id, user_id, source_url, source_type, source_title, processing_status, created_at;
+INSERT INTO mindmap_content (
+    user_id, source_url, source_type, source_title,
+    extracted_text, media_key, media_mime, media_file_bytes,
+    duration_seconds,
+    processing_status, commit_status
+) VALUES (
+    $1, $2, $3, $4,
+    $5, $6, $7, $8,
+    $9,
+    $10, $11
+)
+RETURNING *;
 
 -- name: GetContentByID :one
 SELECT id, user_id, source_url, source_type, source_title, source_thumbnail_url,
@@ -84,3 +102,31 @@ WHERE id = $1;
 SELECT count(*) FROM mindmap_content
 WHERE user_id = $1 AND deleted_at IS NULL
   AND commit_status = 'committed';
+
+-- name: UpdateContentCommitStatus :exec
+UPDATE mindmap_content
+SET commit_status = $2,
+    source_title  = COALESCE($3, source_title),
+    updated_at    = CURRENT_TIMESTAMP
+WHERE id = $1
+  AND deleted_at IS NULL;
+
+-- name: UpdateContentProcessingStatusToPending :exec
+UPDATE mindmap_content
+SET processing_status = 'pending',
+    updated_at        = CURRENT_TIMESTAMP
+WHERE id = $1
+  AND processing_status = 'deferred'
+  AND deleted_at IS NULL;
+
+-- name: DeleteExpiredDrafts :execrows
+DELETE FROM mindmap_content
+WHERE commit_status = 'draft'
+  AND updated_at < $1;
+
+-- name: GetMediaKeysForExpiredDrafts :many
+SELECT id, media_key
+FROM mindmap_content
+WHERE commit_status = 'draft'
+  AND updated_at < $1
+  AND media_key IS NOT NULL;

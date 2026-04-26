@@ -26,8 +26,8 @@ type Querier interface {
 	CountJournals(ctx context.Context, userID string) (int32, error)
 	CountJournalsByProject(ctx context.Context, arg CountJournalsByProjectParams) (int32, error)
 	CountMessages(ctx context.Context, conversationID pgtype.UUID) (int64, error)
-	CreateContent(ctx context.Context, arg CreateContentParams) (CreateContentRow, error)
-	CreateContentWithExtracted(ctx context.Context, arg CreateContentWithExtractedParams) (CreateContentWithExtractedRow, error)
+	CreateContent(ctx context.Context, arg CreateContentParams) (MindmapContent, error)
+	CreateContentWithExtracted(ctx context.Context, arg CreateContentWithExtractedParams) (MindmapContent, error)
 	CreateConversation(ctx context.Context, userID string) (CreateConversationRow, error)
 	CreateEmailUser(ctx context.Context, arg CreateEmailUserParams) (MindmapUser, error)
 	CreateGoal(ctx context.Context, arg CreateGoalParams) error
@@ -38,6 +38,7 @@ type Querier interface {
 	CreateProject(ctx context.Context, arg CreateProjectParams) (MindmapProject, error)
 	CreateRefreshToken(ctx context.Context, arg CreateRefreshTokenParams) error
 	CreateVerificationToken(ctx context.Context, arg CreateVerificationTokenParams) error
+	DeleteExpiredDrafts(ctx context.Context, updatedAt pgtype.Timestamptz) (int64, error)
 	DeleteExpiredRefreshTokens(ctx context.Context) error
 	DeleteExpiredVerificationTokens(ctx context.Context) error
 	DeleteHabit(ctx context.Context, arg DeleteHabitParams) error
@@ -67,6 +68,7 @@ type Querier interface {
 	GetJobByContentID(ctx context.Context, contentID pgtype.UUID) (MindmapJob, error)
 	GetJournalActivity(ctx context.Context, arg GetJournalActivityParams) ([]GetJournalActivityRow, error)
 	GetJournalByID(ctx context.Context, arg GetJournalByIDParams) (GetJournalByIDRow, error)
+	GetMediaKeysForExpiredDrafts(ctx context.Context, updatedAt pgtype.Timestamptz) ([]GetMediaKeysForExpiredDraftsRow, error)
 	GetMessage(ctx context.Context, id pgtype.UUID) (MindmapMessage, error)
 	GetProjectByID(ctx context.Context, arg GetProjectByIDParams) (MindmapProject, error)
 	GetRefreshToken(ctx context.Context, tokenHash string) (MindmapRefreshToken, error)
@@ -103,7 +105,9 @@ type Querier interface {
 	TouchConversation(ctx context.Context, id pgtype.UUID) error
 	TrackHabit(ctx context.Context, arg TrackHabitParams) (pgtype.UUID, error)
 	UntrackHabit(ctx context.Context, arg UntrackHabitParams) error
+	UpdateContentCommitStatus(ctx context.Context, arg UpdateContentCommitStatusParams) error
 	UpdateContentEmbedding(ctx context.Context, arg UpdateContentEmbeddingParams) error
+	UpdateContentProcessingStatusToPending(ctx context.Context, id pgtype.UUID) error
 	UpdateContentResults(ctx context.Context, arg UpdateContentResultsParams) error
 	UpdateContentStatus(ctx context.Context, arg UpdateContentStatusParams) error
 	UpdateContentYoutubeFields(ctx context.Context, arg UpdateContentYoutubeFieldsParams) error

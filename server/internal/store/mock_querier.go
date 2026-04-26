@@ -64,10 +64,10 @@ var _ Querier = &QuerierMock{}
 //			CountMessagesFunc: func(ctx context.Context, conversationID pgtype.UUID) (int64, error) {
 //				panic("mock out the CountMessages method")
 //			},
-//			CreateContentFunc: func(ctx context.Context, arg CreateContentParams) (CreateContentRow, error) {
+//			CreateContentFunc: func(ctx context.Context, arg CreateContentParams) (MindmapContent, error) {
 //				panic("mock out the CreateContent method")
 //			},
-//			CreateContentWithExtractedFunc: func(ctx context.Context, arg CreateContentWithExtractedParams) (CreateContentWithExtractedRow, error) {
+//			CreateContentWithExtractedFunc: func(ctx context.Context, arg CreateContentWithExtractedParams) (MindmapContent, error) {
 //				panic("mock out the CreateContentWithExtracted method")
 //			},
 //			CreateConversationFunc: func(ctx context.Context, userID string) (CreateConversationRow, error) {
@@ -99,6 +99,9 @@ var _ Querier = &QuerierMock{}
 //			},
 //			CreateVerificationTokenFunc: func(ctx context.Context, arg CreateVerificationTokenParams) error {
 //				panic("mock out the CreateVerificationToken method")
+//			},
+//			DeleteExpiredDraftsFunc: func(ctx context.Context, updatedAt pgtype.Timestamptz) (int64, error) {
+//				panic("mock out the DeleteExpiredDrafts method")
 //			},
 //			DeleteExpiredRefreshTokensFunc: func(ctx context.Context) error {
 //				panic("mock out the DeleteExpiredRefreshTokens method")
@@ -141,6 +144,9 @@ var _ Querier = &QuerierMock{}
 //			},
 //			GetGoalActivityFunc: func(ctx context.Context, arg GetGoalActivityParams) ([]GetGoalActivityRow, error) {
 //				panic("mock out the GetGoalActivity method")
+//			},
+//			GetMediaKeysForExpiredDraftsFunc: func(ctx context.Context, updatedAt pgtype.Timestamptz) ([]GetMediaKeysForExpiredDraftsRow, error) {
+//				panic("mock out the GetMediaKeysForExpiredDrafts method")
 //			},
 //			GetGoalByIDFunc: func(ctx context.Context, arg GetGoalByIDParams) (GetGoalByIDRow, error) {
 //				panic("mock out the GetGoalByID method")
@@ -277,11 +283,17 @@ var _ Querier = &QuerierMock{}
 //			UntrackHabitFunc: func(ctx context.Context, arg UntrackHabitParams) error {
 //				panic("mock out the UntrackHabit method")
 //			},
+//			UpdateContentCommitStatusFunc: func(ctx context.Context, arg UpdateContentCommitStatusParams) error {
+//				panic("mock out the UpdateContentCommitStatus method")
+//			},
 //			UpdateContentEmbeddingFunc: func(ctx context.Context, arg UpdateContentEmbeddingParams) error {
 //				panic("mock out the UpdateContentEmbedding method")
 //			},
 //			UpdateContentResultsFunc: func(ctx context.Context, arg UpdateContentResultsParams) error {
 //				panic("mock out the UpdateContentResults method")
+//			},
+//			UpdateContentProcessingStatusToPendingFunc: func(ctx context.Context, id pgtype.UUID) error {
+//				panic("mock out the UpdateContentProcessingStatusToPending method")
 //			},
 //			UpdateContentStatusFunc: func(ctx context.Context, arg UpdateContentStatusParams) error {
 //				panic("mock out the UpdateContentStatus method")
@@ -375,10 +387,10 @@ type QuerierMock struct {
 	CountMessagesFunc func(ctx context.Context, conversationID pgtype.UUID) (int64, error)
 
 	// CreateContentFunc mocks the CreateContent method.
-	CreateContentFunc func(ctx context.Context, arg CreateContentParams) (CreateContentRow, error)
+	CreateContentFunc func(ctx context.Context, arg CreateContentParams) (MindmapContent, error)
 
 	// CreateContentWithExtractedFunc mocks the CreateContentWithExtracted method.
-	CreateContentWithExtractedFunc func(ctx context.Context, arg CreateContentWithExtractedParams) (CreateContentWithExtractedRow, error)
+	CreateContentWithExtractedFunc func(ctx context.Context, arg CreateContentWithExtractedParams) (MindmapContent, error)
 
 	// CreateConversationFunc mocks the CreateConversation method.
 	CreateConversationFunc func(ctx context.Context, userID string) (CreateConversationRow, error)
@@ -409,6 +421,9 @@ type QuerierMock struct {
 
 	// CreateVerificationTokenFunc mocks the CreateVerificationToken method.
 	CreateVerificationTokenFunc func(ctx context.Context, arg CreateVerificationTokenParams) error
+
+	// DeleteExpiredDraftsFunc mocks the DeleteExpiredDrafts method.
+	DeleteExpiredDraftsFunc func(ctx context.Context, updatedAt pgtype.Timestamptz) (int64, error)
 
 	// DeleteExpiredRefreshTokensFunc mocks the DeleteExpiredRefreshTokens method.
 	DeleteExpiredRefreshTokensFunc func(ctx context.Context) error
@@ -451,6 +466,9 @@ type QuerierMock struct {
 
 	// GetGoalActivityFunc mocks the GetGoalActivity method.
 	GetGoalActivityFunc func(ctx context.Context, arg GetGoalActivityParams) ([]GetGoalActivityRow, error)
+
+	// GetMediaKeysForExpiredDraftsFunc mocks the GetMediaKeysForExpiredDrafts method.
+	GetMediaKeysForExpiredDraftsFunc func(ctx context.Context, updatedAt pgtype.Timestamptz) ([]GetMediaKeysForExpiredDraftsRow, error)
 
 	// GetGoalByIDFunc mocks the GetGoalByID method.
 	GetGoalByIDFunc func(ctx context.Context, arg GetGoalByIDParams) (GetGoalByIDRow, error)
@@ -587,11 +605,17 @@ type QuerierMock struct {
 	// UntrackHabitFunc mocks the UntrackHabit method.
 	UntrackHabitFunc func(ctx context.Context, arg UntrackHabitParams) error
 
+	// UpdateContentCommitStatusFunc mocks the UpdateContentCommitStatus method.
+	UpdateContentCommitStatusFunc func(ctx context.Context, arg UpdateContentCommitStatusParams) error
+
 	// UpdateContentEmbeddingFunc mocks the UpdateContentEmbedding method.
 	UpdateContentEmbeddingFunc func(ctx context.Context, arg UpdateContentEmbeddingParams) error
 
 	// UpdateContentResultsFunc mocks the UpdateContentResults method.
 	UpdateContentResultsFunc func(ctx context.Context, arg UpdateContentResultsParams) error
+
+	// UpdateContentProcessingStatusToPendingFunc mocks the UpdateContentProcessingStatusToPending method.
+	UpdateContentProcessingStatusToPendingFunc func(ctx context.Context, id pgtype.UUID) error
 
 	// UpdateContentStatusFunc mocks the UpdateContentStatus method.
 	UpdateContentStatusFunc func(ctx context.Context, arg UpdateContentStatusParams) error
@@ -823,6 +847,13 @@ type QuerierMock struct {
 			// Arg is the arg argument value.
 			Arg CreateVerificationTokenParams
 		}
+		// DeleteExpiredDrafts holds details about calls to the DeleteExpiredDrafts method.
+		DeleteExpiredDrafts []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// UpdatedAt is the updatedAt argument value.
+			UpdatedAt pgtype.Timestamptz
+		}
 		// DeleteExpiredRefreshTokens holds details about calls to the DeleteExpiredRefreshTokens method.
 		DeleteExpiredRefreshTokens []struct {
 			// Ctx is the ctx argument value.
@@ -916,6 +947,13 @@ type QuerierMock struct {
 			Ctx context.Context
 			// Arg is the arg argument value.
 			Arg GetGoalActivityParams
+		}
+		// GetMediaKeysForExpiredDrafts holds details about calls to the GetMediaKeysForExpiredDrafts method.
+		GetMediaKeysForExpiredDrafts []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// UpdatedAt is the updatedAt argument value.
+			UpdatedAt pgtype.Timestamptz
 		}
 		// GetGoalByID holds details about calls to the GetGoalByID method.
 		GetGoalByID []struct {
@@ -1232,6 +1270,13 @@ type QuerierMock struct {
 			// Arg is the arg argument value.
 			Arg UntrackHabitParams
 		}
+		// UpdateContentCommitStatus holds details about calls to the UpdateContentCommitStatus method.
+		UpdateContentCommitStatus []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Arg is the arg argument value.
+			Arg UpdateContentCommitStatusParams
+		}
 		// UpdateContentEmbedding holds details about calls to the UpdateContentEmbedding method.
 		UpdateContentEmbedding []struct {
 			// Ctx is the ctx argument value.
@@ -1245,6 +1290,13 @@ type QuerierMock struct {
 			Ctx context.Context
 			// Arg is the arg argument value.
 			Arg UpdateContentResultsParams
+		}
+		// UpdateContentProcessingStatusToPending holds details about calls to the UpdateContentProcessingStatusToPending method.
+		UpdateContentProcessingStatusToPending []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// ID is the id argument value.
+			ID pgtype.UUID
 		}
 		// UpdateContentStatus holds details about calls to the UpdateContentStatus method.
 		UpdateContentStatus []struct {
@@ -1365,6 +1417,7 @@ type QuerierMock struct {
 	lockCreateProject                         sync.RWMutex
 	lockCreateRefreshToken                    sync.RWMutex
 	lockCreateVerificationToken               sync.RWMutex
+	lockDeleteExpiredDrafts                   sync.RWMutex
 	lockDeleteExpiredRefreshTokens            sync.RWMutex
 	lockDeleteExpiredVerificationTokens       sync.RWMutex
 	lockDeleteHabit                           sync.RWMutex
@@ -1379,6 +1432,7 @@ type QuerierMock struct {
 	lockGetContentByID                        sync.RWMutex
 	lockGetConversation                       sync.RWMutex
 	lockGetGoalActivity                       sync.RWMutex
+	lockGetMediaKeysForExpiredDrafts          sync.RWMutex
 	lockGetGoalByID                           sync.RWMutex
 	lockGetHabitActivity                      sync.RWMutex
 	lockGetHabitByID                          sync.RWMutex
@@ -1424,8 +1478,10 @@ type QuerierMock struct {
 	lockTouchConversation                     sync.RWMutex
 	lockTrackHabit                            sync.RWMutex
 	lockUntrackHabit                          sync.RWMutex
+	lockUpdateContentCommitStatus             sync.RWMutex
 	lockUpdateContentEmbedding                sync.RWMutex
 	lockUpdateContentResults                  sync.RWMutex
+	lockUpdateContentProcessingStatusToPending sync.RWMutex
 	lockUpdateContentStatus                   sync.RWMutex
 	lockUpdateContentYoutubeFields            sync.RWMutex
 	lockUpdateConversationTitle               sync.RWMutex
@@ -1982,7 +2038,7 @@ func (mock *QuerierMock) CountMessagesCalls() []struct {
 }
 
 // CreateContent calls CreateContentFunc.
-func (mock *QuerierMock) CreateContent(ctx context.Context, arg CreateContentParams) (CreateContentRow, error) {
+func (mock *QuerierMock) CreateContent(ctx context.Context, arg CreateContentParams) (MindmapContent, error) {
 	if mock.CreateContentFunc == nil {
 		panic("QuerierMock.CreateContentFunc: method is nil but Querier.CreateContent was just called")
 	}
@@ -2018,7 +2074,7 @@ func (mock *QuerierMock) CreateContentCalls() []struct {
 }
 
 // CreateContentWithExtracted calls CreateContentWithExtractedFunc.
-func (mock *QuerierMock) CreateContentWithExtracted(ctx context.Context, arg CreateContentWithExtractedParams) (CreateContentWithExtractedRow, error) {
+func (mock *QuerierMock) CreateContentWithExtracted(ctx context.Context, arg CreateContentWithExtractedParams) (MindmapContent, error) {
 	if mock.CreateContentWithExtractedFunc == nil {
 		panic("QuerierMock.CreateContentWithExtractedFunc: method is nil but Querier.CreateContentWithExtracted was just called")
 	}
@@ -2410,6 +2466,42 @@ func (mock *QuerierMock) CreateVerificationTokenCalls() []struct {
 	mock.lockCreateVerificationToken.RLock()
 	calls = mock.calls.CreateVerificationToken
 	mock.lockCreateVerificationToken.RUnlock()
+	return calls
+}
+
+// DeleteExpiredDrafts calls DeleteExpiredDraftsFunc.
+func (mock *QuerierMock) DeleteExpiredDrafts(ctx context.Context, updatedAt pgtype.Timestamptz) (int64, error) {
+	if mock.DeleteExpiredDraftsFunc == nil {
+		panic("QuerierMock.DeleteExpiredDraftsFunc: method is nil but Querier.DeleteExpiredDrafts was just called")
+	}
+	callInfo := struct {
+		Ctx       context.Context
+		UpdatedAt pgtype.Timestamptz
+	}{
+		Ctx:       ctx,
+		UpdatedAt: updatedAt,
+	}
+	mock.lockDeleteExpiredDrafts.Lock()
+	mock.calls.DeleteExpiredDrafts = append(mock.calls.DeleteExpiredDrafts, callInfo)
+	mock.lockDeleteExpiredDrafts.Unlock()
+	return mock.DeleteExpiredDraftsFunc(ctx, updatedAt)
+}
+
+// DeleteExpiredDraftsCalls gets all the calls that were made to DeleteExpiredDrafts.
+// Check the length with:
+//
+//	len(mockedQuerier.DeleteExpiredDraftsCalls())
+func (mock *QuerierMock) DeleteExpiredDraftsCalls() []struct {
+	Ctx       context.Context
+	UpdatedAt pgtype.Timestamptz
+} {
+	var calls []struct {
+		Ctx       context.Context
+		UpdatedAt pgtype.Timestamptz
+	}
+	mock.lockDeleteExpiredDrafts.RLock()
+	calls = mock.calls.DeleteExpiredDrafts
+	mock.lockDeleteExpiredDrafts.RUnlock()
 	return calls
 }
 
@@ -2906,6 +2998,42 @@ func (mock *QuerierMock) GetGoalActivityCalls() []struct {
 	mock.lockGetGoalActivity.RLock()
 	calls = mock.calls.GetGoalActivity
 	mock.lockGetGoalActivity.RUnlock()
+	return calls
+}
+
+// GetMediaKeysForExpiredDrafts calls GetMediaKeysForExpiredDraftsFunc.
+func (mock *QuerierMock) GetMediaKeysForExpiredDrafts(ctx context.Context, updatedAt pgtype.Timestamptz) ([]GetMediaKeysForExpiredDraftsRow, error) {
+	if mock.GetMediaKeysForExpiredDraftsFunc == nil {
+		panic("QuerierMock.GetMediaKeysForExpiredDraftsFunc: method is nil but Querier.GetMediaKeysForExpiredDrafts was just called")
+	}
+	callInfo := struct {
+		Ctx       context.Context
+		UpdatedAt pgtype.Timestamptz
+	}{
+		Ctx:       ctx,
+		UpdatedAt: updatedAt,
+	}
+	mock.lockGetMediaKeysForExpiredDrafts.Lock()
+	mock.calls.GetMediaKeysForExpiredDrafts = append(mock.calls.GetMediaKeysForExpiredDrafts, callInfo)
+	mock.lockGetMediaKeysForExpiredDrafts.Unlock()
+	return mock.GetMediaKeysForExpiredDraftsFunc(ctx, updatedAt)
+}
+
+// GetMediaKeysForExpiredDraftsCalls gets all the calls that were made to GetMediaKeysForExpiredDrafts.
+// Check the length with:
+//
+//	len(mockedQuerier.GetMediaKeysForExpiredDraftsCalls())
+func (mock *QuerierMock) GetMediaKeysForExpiredDraftsCalls() []struct {
+	Ctx       context.Context
+	UpdatedAt pgtype.Timestamptz
+} {
+	var calls []struct {
+		Ctx       context.Context
+		UpdatedAt pgtype.Timestamptz
+	}
+	mock.lockGetMediaKeysForExpiredDrafts.RLock()
+	calls = mock.calls.GetMediaKeysForExpiredDrafts
+	mock.lockGetMediaKeysForExpiredDrafts.RUnlock()
 	return calls
 }
 
@@ -4529,6 +4657,42 @@ func (mock *QuerierMock) UntrackHabitCalls() []struct {
 	return calls
 }
 
+// UpdateContentCommitStatus calls UpdateContentCommitStatusFunc.
+func (mock *QuerierMock) UpdateContentCommitStatus(ctx context.Context, arg UpdateContentCommitStatusParams) error {
+	if mock.UpdateContentCommitStatusFunc == nil {
+		panic("QuerierMock.UpdateContentCommitStatusFunc: method is nil but Querier.UpdateContentCommitStatus was just called")
+	}
+	callInfo := struct {
+		Ctx context.Context
+		Arg UpdateContentCommitStatusParams
+	}{
+		Ctx: ctx,
+		Arg: arg,
+	}
+	mock.lockUpdateContentCommitStatus.Lock()
+	mock.calls.UpdateContentCommitStatus = append(mock.calls.UpdateContentCommitStatus, callInfo)
+	mock.lockUpdateContentCommitStatus.Unlock()
+	return mock.UpdateContentCommitStatusFunc(ctx, arg)
+}
+
+// UpdateContentCommitStatusCalls gets all the calls that were made to UpdateContentCommitStatus.
+// Check the length with:
+//
+//	len(mockedQuerier.UpdateContentCommitStatusCalls())
+func (mock *QuerierMock) UpdateContentCommitStatusCalls() []struct {
+	Ctx context.Context
+	Arg UpdateContentCommitStatusParams
+} {
+	var calls []struct {
+		Ctx context.Context
+		Arg UpdateContentCommitStatusParams
+	}
+	mock.lockUpdateContentCommitStatus.RLock()
+	calls = mock.calls.UpdateContentCommitStatus
+	mock.lockUpdateContentCommitStatus.RUnlock()
+	return calls
+}
+
 // UpdateContentEmbedding calls UpdateContentEmbeddingFunc.
 func (mock *QuerierMock) UpdateContentEmbedding(ctx context.Context, arg UpdateContentEmbeddingParams) error {
 	if mock.UpdateContentEmbeddingFunc == nil {
@@ -4598,6 +4762,42 @@ func (mock *QuerierMock) UpdateContentResultsCalls() []struct {
 	mock.lockUpdateContentResults.RLock()
 	calls = mock.calls.UpdateContentResults
 	mock.lockUpdateContentResults.RUnlock()
+	return calls
+}
+
+// UpdateContentProcessingStatusToPending calls UpdateContentProcessingStatusToPendingFunc.
+func (mock *QuerierMock) UpdateContentProcessingStatusToPending(ctx context.Context, id pgtype.UUID) error {
+	if mock.UpdateContentProcessingStatusToPendingFunc == nil {
+		panic("QuerierMock.UpdateContentProcessingStatusToPendingFunc: method is nil but Querier.UpdateContentProcessingStatusToPending was just called")
+	}
+	callInfo := struct {
+		Ctx context.Context
+		ID  pgtype.UUID
+	}{
+		Ctx: ctx,
+		ID:  id,
+	}
+	mock.lockUpdateContentProcessingStatusToPending.Lock()
+	mock.calls.UpdateContentProcessingStatusToPending = append(mock.calls.UpdateContentProcessingStatusToPending, callInfo)
+	mock.lockUpdateContentProcessingStatusToPending.Unlock()
+	return mock.UpdateContentProcessingStatusToPendingFunc(ctx, id)
+}
+
+// UpdateContentProcessingStatusToPendingCalls gets all the calls that were made to UpdateContentProcessingStatusToPending.
+// Check the length with:
+//
+//	len(mockedQuerier.UpdateContentProcessingStatusToPendingCalls())
+func (mock *QuerierMock) UpdateContentProcessingStatusToPendingCalls() []struct {
+	Ctx context.Context
+	ID  pgtype.UUID
+} {
+	var calls []struct {
+		Ctx context.Context
+		ID  pgtype.UUID
+	}
+	mock.lockUpdateContentProcessingStatusToPending.RLock()
+	calls = mock.calls.UpdateContentProcessingStatusToPending
+	mock.lockUpdateContentProcessingStatusToPending.RUnlock()
 	return calls
 }
 

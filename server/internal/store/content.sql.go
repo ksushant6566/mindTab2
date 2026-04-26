@@ -26,91 +26,171 @@ func (q *Queries) CountContent(ctx context.Context, userID string) (int64, error
 }
 
 const createContent = `-- name: CreateContent :one
-INSERT INTO mindmap_content (user_id, source_url, source_type, source_title, processing_status)
-VALUES ($1, $2, $3, $4, 'pending')
-RETURNING id, user_id, source_url, source_type, source_title, processing_status, created_at
+INSERT INTO mindmap_content (
+    user_id, source_url, source_type, source_title,
+    extracted_text, media_key, media_mime, media_file_bytes,
+    duration_seconds,
+    processing_status, commit_status
+) VALUES (
+    $1, $2, $3, $4,
+    $5, $6, $7, $8,
+    $9,
+    $10, $11
+)
+RETURNING id, user_id, source_url, source_type, source_title, source_thumbnail_url, extracted_text, visual_description, summary, tags, key_topics, embedding, summary_provider, embedding_provider, embedding_model, media_key, processing_status, processing_error, created_at, updated_at, deleted_at, duration_seconds, video_thumbnail_url, video_channel, transcript_source, commit_status, media_mime, media_file_bytes
 `
 
 type CreateContentParams struct {
-	UserID      string      `json:"user_id"`
-	SourceUrl   pgtype.Text `json:"source_url"`
-	SourceType  string      `json:"source_type"`
-	SourceTitle pgtype.Text `json:"source_title"`
+	UserID           string      `json:"user_id"`
+	SourceUrl        pgtype.Text `json:"source_url"`
+	SourceType       string      `json:"source_type"`
+	SourceTitle      pgtype.Text `json:"source_title"`
+	ExtractedText    pgtype.Text `json:"extracted_text"`
+	MediaKey         pgtype.Text `json:"media_key"`
+	MediaMime        pgtype.Text `json:"media_mime"`
+	MediaFileBytes   pgtype.Int8 `json:"media_file_bytes"`
+	DurationSeconds  pgtype.Int4 `json:"duration_seconds"`
+	ProcessingStatus string      `json:"processing_status"`
+	CommitStatus     string      `json:"commit_status"`
 }
 
-type CreateContentRow struct {
-	ID               pgtype.UUID        `json:"id"`
-	UserID           string             `json:"user_id"`
-	SourceUrl        pgtype.Text        `json:"source_url"`
-	SourceType       string             `json:"source_type"`
-	SourceTitle      pgtype.Text        `json:"source_title"`
-	ProcessingStatus string             `json:"processing_status"`
-	CreatedAt        pgtype.Timestamptz `json:"created_at"`
-}
-
-func (q *Queries) CreateContent(ctx context.Context, arg CreateContentParams) (CreateContentRow, error) {
+func (q *Queries) CreateContent(ctx context.Context, arg CreateContentParams) (MindmapContent, error) {
 	row := q.db.QueryRow(ctx, createContent,
 		arg.UserID,
 		arg.SourceUrl,
 		arg.SourceType,
 		arg.SourceTitle,
+		arg.ExtractedText,
+		arg.MediaKey,
+		arg.MediaMime,
+		arg.MediaFileBytes,
+		arg.DurationSeconds,
+		arg.ProcessingStatus,
+		arg.CommitStatus,
 	)
-	var i CreateContentRow
+	var i MindmapContent
 	err := row.Scan(
 		&i.ID,
 		&i.UserID,
 		&i.SourceUrl,
 		&i.SourceType,
 		&i.SourceTitle,
+		&i.SourceThumbnailUrl,
+		&i.ExtractedText,
+		&i.VisualDescription,
+		&i.Summary,
+		&i.Tags,
+		&i.KeyTopics,
+		&i.Embedding,
+		&i.SummaryProvider,
+		&i.EmbeddingProvider,
+		&i.EmbeddingModel,
+		&i.MediaKey,
 		&i.ProcessingStatus,
+		&i.ProcessingError,
 		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+		&i.DurationSeconds,
+		&i.VideoThumbnailUrl,
+		&i.VideoChannel,
+		&i.TranscriptSource,
+		&i.CommitStatus,
+		&i.MediaMime,
+		&i.MediaFileBytes,
 	)
 	return i, err
 }
 
 const createContentWithExtracted = `-- name: CreateContentWithExtracted :one
-INSERT INTO mindmap_content (user_id, source_url, source_type, source_title, extracted_text, processing_status)
-VALUES ($1, $2, $3, $4, $5, 'pending')
-RETURNING id, user_id, source_url, source_type, source_title, processing_status, created_at
+INSERT INTO mindmap_content (
+    user_id, source_url, source_type, source_title,
+    extracted_text, media_key, media_mime, media_file_bytes,
+    duration_seconds,
+    processing_status, commit_status
+) VALUES (
+    $1, $2, $3, $4,
+    $5, $6, $7, $8,
+    $9,
+    $10, $11
+)
+RETURNING id, user_id, source_url, source_type, source_title, source_thumbnail_url, extracted_text, visual_description, summary, tags, key_topics, embedding, summary_provider, embedding_provider, embedding_model, media_key, processing_status, processing_error, created_at, updated_at, deleted_at, duration_seconds, video_thumbnail_url, video_channel, transcript_source, commit_status, media_mime, media_file_bytes
 `
 
 type CreateContentWithExtractedParams struct {
-	UserID        string      `json:"user_id"`
-	SourceUrl     pgtype.Text `json:"source_url"`
-	SourceType    string      `json:"source_type"`
-	SourceTitle   pgtype.Text `json:"source_title"`
-	ExtractedText pgtype.Text `json:"extracted_text"`
+	UserID           string      `json:"user_id"`
+	SourceUrl        pgtype.Text `json:"source_url"`
+	SourceType       string      `json:"source_type"`
+	SourceTitle      pgtype.Text `json:"source_title"`
+	ExtractedText    pgtype.Text `json:"extracted_text"`
+	MediaKey         pgtype.Text `json:"media_key"`
+	MediaMime        pgtype.Text `json:"media_mime"`
+	MediaFileBytes   pgtype.Int8 `json:"media_file_bytes"`
+	DurationSeconds  pgtype.Int4 `json:"duration_seconds"`
+	ProcessingStatus string      `json:"processing_status"`
+	CommitStatus     string      `json:"commit_status"`
 }
 
-type CreateContentWithExtractedRow struct {
-	ID               pgtype.UUID        `json:"id"`
-	UserID           string             `json:"user_id"`
-	SourceUrl        pgtype.Text        `json:"source_url"`
-	SourceType       string             `json:"source_type"`
-	SourceTitle      pgtype.Text        `json:"source_title"`
-	ProcessingStatus string             `json:"processing_status"`
-	CreatedAt        pgtype.Timestamptz `json:"created_at"`
-}
-
-func (q *Queries) CreateContentWithExtracted(ctx context.Context, arg CreateContentWithExtractedParams) (CreateContentWithExtractedRow, error) {
+func (q *Queries) CreateContentWithExtracted(ctx context.Context, arg CreateContentWithExtractedParams) (MindmapContent, error) {
 	row := q.db.QueryRow(ctx, createContentWithExtracted,
 		arg.UserID,
 		arg.SourceUrl,
 		arg.SourceType,
 		arg.SourceTitle,
 		arg.ExtractedText,
+		arg.MediaKey,
+		arg.MediaMime,
+		arg.MediaFileBytes,
+		arg.DurationSeconds,
+		arg.ProcessingStatus,
+		arg.CommitStatus,
 	)
-	var i CreateContentWithExtractedRow
+	var i MindmapContent
 	err := row.Scan(
 		&i.ID,
 		&i.UserID,
 		&i.SourceUrl,
 		&i.SourceType,
 		&i.SourceTitle,
+		&i.SourceThumbnailUrl,
+		&i.ExtractedText,
+		&i.VisualDescription,
+		&i.Summary,
+		&i.Tags,
+		&i.KeyTopics,
+		&i.Embedding,
+		&i.SummaryProvider,
+		&i.EmbeddingProvider,
+		&i.EmbeddingModel,
+		&i.MediaKey,
 		&i.ProcessingStatus,
+		&i.ProcessingError,
 		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+		&i.DurationSeconds,
+		&i.VideoThumbnailUrl,
+		&i.VideoChannel,
+		&i.TranscriptSource,
+		&i.CommitStatus,
+		&i.MediaMime,
+		&i.MediaFileBytes,
 	)
 	return i, err
+}
+
+const deleteExpiredDrafts = `-- name: DeleteExpiredDrafts :execrows
+DELETE FROM mindmap_content
+WHERE commit_status = 'draft'
+  AND updated_at < $1
+`
+
+func (q *Queries) DeleteExpiredDrafts(ctx context.Context, updatedAt pgtype.Timestamptz) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteExpiredDrafts, updatedAt)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const getContentByID = `-- name: GetContentByID :one
@@ -184,6 +264,39 @@ func (q *Queries) GetContentByID(ctx context.Context, arg GetContentByIDParams) 
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const getMediaKeysForExpiredDrafts = `-- name: GetMediaKeysForExpiredDrafts :many
+SELECT id, media_key
+FROM mindmap_content
+WHERE commit_status = 'draft'
+  AND updated_at < $1
+  AND media_key IS NOT NULL
+`
+
+type GetMediaKeysForExpiredDraftsRow struct {
+	ID       pgtype.UUID `json:"id"`
+	MediaKey pgtype.Text `json:"media_key"`
+}
+
+func (q *Queries) GetMediaKeysForExpiredDrafts(ctx context.Context, updatedAt pgtype.Timestamptz) ([]GetMediaKeysForExpiredDraftsRow, error) {
+	rows, err := q.db.Query(ctx, getMediaKeysForExpiredDrafts, updatedAt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetMediaKeysForExpiredDraftsRow
+	for rows.Next() {
+		var i GetMediaKeysForExpiredDraftsRow
+		if err := rows.Scan(&i.ID, &i.MediaKey); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const isContentDeleted = `-- name: IsContentDeleted :one
@@ -293,6 +406,26 @@ func (q *Queries) SoftDeleteContent(ctx context.Context, arg SoftDeleteContentPa
 	return err
 }
 
+const updateContentCommitStatus = `-- name: UpdateContentCommitStatus :exec
+UPDATE mindmap_content
+SET commit_status = $2,
+    source_title  = COALESCE($3, source_title),
+    updated_at    = CURRENT_TIMESTAMP
+WHERE id = $1
+  AND deleted_at IS NULL
+`
+
+type UpdateContentCommitStatusParams struct {
+	ID           pgtype.UUID `json:"id"`
+	CommitStatus string      `json:"commit_status"`
+	SourceTitle  pgtype.Text `json:"source_title"`
+}
+
+func (q *Queries) UpdateContentCommitStatus(ctx context.Context, arg UpdateContentCommitStatusParams) error {
+	_, err := q.db.Exec(ctx, updateContentCommitStatus, arg.ID, arg.CommitStatus, arg.SourceTitle)
+	return err
+}
+
 const updateContentEmbedding = `-- name: UpdateContentEmbedding :exec
 UPDATE mindmap_content
 SET embedding = $2,
@@ -307,6 +440,20 @@ type UpdateContentEmbeddingParams struct {
 
 func (q *Queries) UpdateContentEmbedding(ctx context.Context, arg UpdateContentEmbeddingParams) error {
 	_, err := q.db.Exec(ctx, updateContentEmbedding, arg.ID, arg.Embedding)
+	return err
+}
+
+const updateContentProcessingStatusToPending = `-- name: UpdateContentProcessingStatusToPending :exec
+UPDATE mindmap_content
+SET processing_status = 'pending',
+    updated_at        = CURRENT_TIMESTAMP
+WHERE id = $1
+  AND processing_status = 'deferred'
+  AND deleted_at IS NULL
+`
+
+func (q *Queries) UpdateContentProcessingStatusToPending(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, updateContentProcessingStatusToPending, id)
 	return err
 }
 

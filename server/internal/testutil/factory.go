@@ -25,16 +25,17 @@ func PgTimestamptz(t time.Time) pgtype.Timestamptz {
 
 // --- Content factories ---
 
-type CreateContentOption func(*store.CreateContentRow)
+type CreateContentOption func(*store.MindmapContent)
 
-func NewCreateContentRow(opts ...CreateContentOption) store.CreateContentRow {
+func NewCreateContentRow(opts ...CreateContentOption) store.MindmapContent {
 	id := uuid.New()
 	now := time.Now()
-	row := store.CreateContentRow{
+	row := store.MindmapContent{
 		ID:               PgUUID(id),
 		UserID:           "test-user",
 		SourceType:       "article",
 		ProcessingStatus: "pending",
+		CommitStatus:     "committed",
 		CreatedAt:        PgTimestamptz(now),
 	}
 	for _, o := range opts {
@@ -44,7 +45,7 @@ func NewCreateContentRow(opts ...CreateContentOption) store.CreateContentRow {
 }
 
 func WithContentID(id uuid.UUID) CreateContentOption {
-	return func(r *store.CreateContentRow) {
+	return func(r *store.MindmapContent) {
 		r.ID = PgUUID(id)
 	}
 }
