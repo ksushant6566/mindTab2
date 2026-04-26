@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/ksushant6566/mindtab/server/internal/providers"
 	"github.com/ksushant6566/mindtab/server/internal/providers/transcription"
+	"github.com/ksushant6566/mindtab/server/internal/services"
 	"github.com/ksushant6566/mindtab/server/internal/store"
 	"github.com/ksushant6566/mindtab/server/internal/testutil"
 	"github.com/ksushant6566/mindtab/server/internal/worker"
@@ -195,5 +196,69 @@ func TestTranscribeAudio_ChainError(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "chain failed") {
 		t.Errorf("error message: expected to contain %q, got %q", "chain failed", err.Error())
+	}
+}
+
+// ---------------------------------------------------------------------------
+// pickSplitPoints unit tests
+// ---------------------------------------------------------------------------
+
+func TestPickSplitPoints_RespectsSilenceWithinTolerance(t *testing.T) {
+	// 3000s file, target=1200s, tolerance=120s.
+	// Silences at ~1200s and ~2401s — both within ±120s of the ideal cursor
+	// positions (1200s and 2400s).
+	silences := []services.SilenceMarker{
+		{StartSec: 1195, EndSec: 1205}, // midpoint 1200 — exactly at cursor 1200
+		{StartSec: 2395, EndSec: 2407}, // midpoint 2401 — within 120s of cursor 2400
+	}
+	segs := pickSplitPoints(3000, 1200, 120, silences)
+	if len(segs) != 3 {
+		t.Fatalf("expected 3 segments, got %d: %v", len(segs), segs)
+	}
+	// Segment 0 ends at silence midpoint 1200.
+	if segs[0][0] != 0 {
+		t.Errorf("seg[0] start: got %v, want 0", segs[0][0])
+	}
+	if segs[0][1] != 1200 {
+		t.Errorf("seg[0] end: got %v, want 1200", segs[0][1])
+	}
+	// Segment 1 ends at silence midpoint 2401.
+	if segs[1][0] != 1200 {
+		t.Errorf("seg[1] start: got %v, want 1200", segs[1][0])
+	}
+	if segs[1][1] != 2401 {
+		t.Errorf("seg[1] end: got %v, want 2401", segs[1][1])
+	}
+	// Segment 2 runs to the end.
+	if segs[2][0] != 2401 {
+		t.Errorf("seg[2] start: got %v, want 2401", segs[2][0])
+	}
+	if segs[2][1] != 3000 {
+		t.Errorf("seg[2] end: got %v, want 3000", segs[2][1])
+	}
+}
+
+func TestPickSplitPoints_FallsBackToExactWhenNoSilence(t *testing.T) {
+	// 3000s file, target=1200s, no silences — splits must fall exactly on multiples.
+	segs := pickSplitPoints(3000, 1200, 120, nil)
+	if len(segs) != 3 {
+		t.Fatalf("expected 3 segments, got %d: %v", len(segs), segs)
+	}
+	want := [][2]float64{{0, 1200}, {1200, 2400}, {2400, 3000}}
+	for i, w := range want {
+		if segs[i] != w {
+			t.Errorf("seg[%d]: got %v, want %v", i, segs[i], w)
+		}
+	}
+}
+
+func TestPickSplitPoints_ShortFileSingleChunk(t *testing.T) {
+	// 600s file with target 1200s — fits in a single segment.
+	segs := pickSplitPoints(600, 1200, 120, nil)
+	if len(segs) != 1 {
+		t.Fatalf("expected 1 segment, got %d: %v", len(segs), segs)
+	}
+	if segs[0] != ([2]float64{0, 600}) {
+		t.Errorf("seg[0]: got %v, want [0 600]", segs[0])
 	}
 }
