@@ -3,20 +3,31 @@ import { View, StyleSheet } from "react-native";
 import { useCallback } from "react";
 
 import { AudioRecorder } from "~/components/audio/audio-recorder";
+import { useAudioUpload } from "~/hooks/use-audio-upload";
 import { colors } from "~/styles/colors";
 
 export default function RecordScreen() {
   const router = useRouter();
+  const upload = useAudioUpload();
 
-  // Upload + draft creation will be wired in Chunk 11 via the upload hook.
-  // For now, the route just navigates back when the recorder reports stopped.
-  // Chunk 11 replaces this with router.replace(`/saves/review/${id}`).
   const onStop = useCallback(
-    (_out: { fileUri: string; durationSeconds: number }) => {
-      // TODO(Chunk 11): kick off upload and replace with /saves/review/[id]
-      router.back();
+    async ({ fileUri, durationSeconds }: { fileUri: string; durationSeconds: number }) => {
+      const startProcessing = durationSeconds <= 60;
+      try {
+        const result = await upload.mutateAsync({
+          fileUri,
+          durationSeconds,
+          autoCommit: false,
+          startProcessing,
+          source: "recorder",
+        });
+        router.replace(`/saves/review/${result.id}`);
+      } catch (err) {
+        console.warn("audio upload failed", err);
+        router.back();
+      }
     },
-    [router],
+    [router, upload],
   );
 
   return (
