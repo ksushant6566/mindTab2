@@ -124,7 +124,7 @@ func Store(
 	if metadataResult.VideoID != "" {
 		err = queries.UpdateContentYoutubeFields(ctx, store.UpdateContentYoutubeFieldsParams{
 			ID:                contentID,
-			VideoDuration:     pgint4From(metadataResult.Duration),
+			DurationSeconds:   pgint4From(metadataResult.Duration),
 			VideoThumbnailUrl: pgtextFrom(metadataResult.ThumbnailURL),
 			VideoChannel:      pgtextFrom(metadataResult.Channel),
 			TranscriptSource:  pgtextFrom(transcribeResult.TranscriptSource),

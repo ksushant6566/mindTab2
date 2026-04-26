@@ -79,7 +79,7 @@ type contentJSON struct {
 	EmbeddingModel     *string    `json:"embedding_model,omitempty"`
 	MediaKey           *string    `json:"media_key,omitempty"`
 	SourceMediaURL     *string    `json:"source_media_url,omitempty"`
-	VideoDuration      *int32     `json:"video_duration,omitempty"`
+	DurationSeconds    *int32     `json:"duration_seconds,omitempty"`
 	VideoThumbnailURL  *string    `json:"video_thumbnail_url,omitempty"`
 	VideoChannel       *string    `json:"video_channel,omitempty"`
 	TranscriptSource   *string    `json:"transcript_source,omitempty"`
@@ -102,7 +102,7 @@ type contentListJSON struct {
 	KeyTopics          []string   `json:"key_topics"`
 	MediaKey           *string    `json:"media_key,omitempty"`
 	SourceMediaURL     *string    `json:"source_media_url,omitempty"`
-	VideoDuration      *int32     `json:"video_duration,omitempty"`
+	DurationSeconds    *int32     `json:"duration_seconds,omitempty"`
 	VideoThumbnailURL  *string    `json:"video_thumbnail_url,omitempty"`
 	VideoChannel       *string    `json:"video_channel,omitempty"`
 	ProcessingStatus   string     `json:"processing_status"`
@@ -416,7 +416,7 @@ func (h *SavesHandler) List(w http.ResponseWriter, r *http.Request) {
 			Tags:               nullableStringSlice(row.Tags),
 			KeyTopics:          nullableStringSlice(row.KeyTopics),
 			MediaKey:           textToPtr(row.MediaKey),
-			VideoDuration:      int4ToPtr(row.VideoDuration),
+			DurationSeconds:    int4ToPtr(row.DurationSeconds),
 			VideoThumbnailURL:  textToPtr(row.VideoThumbnailUrl),
 			VideoChannel:       textToPtr(row.VideoChannel),
 			ProcessingStatus:   row.ProcessingStatus,
@@ -474,7 +474,7 @@ func (h *SavesHandler) Get(w http.ResponseWriter, r *http.Request) {
 		EmbeddingProvider:  textToPtr(row.EmbeddingProvider),
 		EmbeddingModel:     textToPtr(row.EmbeddingModel),
 		MediaKey:           textToPtr(row.MediaKey),
-		VideoDuration:      int4ToPtr(row.VideoDuration),
+		DurationSeconds:    int4ToPtr(row.DurationSeconds),
 		VideoThumbnailURL:  textToPtr(row.VideoThumbnailUrl),
 		VideoChannel:       textToPtr(row.VideoChannel),
 		TranscriptSource:   textToPtr(row.TranscriptSource),
