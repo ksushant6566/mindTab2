@@ -1160,34 +1160,16 @@ paths:
     post:
       operationId: createSave
       tags: [Saves]
-      summary: Save an article URL or image
+      summary: Save an article URL, image, or audio file
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              required: [url]
-              properties:
-                url:
-                  type: string
-                  format: uri
-                  description: URL of the article to save
-                content:
-                  type: string
-                  description: Pre-extracted text content (skips server-side extraction when provided)
-                title:
-                  type: string
-                  description: Source title (e.g., tweet author, page title)
+              $ref: "#/components/schemas/CreateSaveURLRequest"
           multipart/form-data:
             schema:
-              type: object
-              required: [image]
-              properties:
-                image:
-                  type: string
-                  format: binary
-                  description: Image file to save
+              $ref: "#/components/schemas/CreateSaveMultipartRequest"
       responses:
         "201":
           description: Save created and queued for processing
@@ -1295,6 +1277,40 @@ paths:
       responses:
         "204":
           description: Save deleted successfully
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /saves/{id}/commit:
+    post:
+      operationId: commitSave
+      tags: [Saves]
+      summary: Flip a draft save to committed (and enqueue if deferred)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  description: Optional override title for the save
+      responses:
+        "200":
+          description: Save committed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SaveCreateResponse"
         "404":
           $ref: "#/components/responses/NotFound"
         "401":
@@ -2038,17 +2054,72 @@ components:
     # ── Saves ───────────────────────────────────────────────────────────
     SaveSourceType:
       type: string
-      enum: [article, image]
+      enum: [article, image, youtube, audio]
       description: Type of saved content
 
     SaveProcessingStatus:
       type: string
-      enum: [pending, processing, completed, failed]
+      enum: [deferred, pending, processing, completed, failed]
       description: Current processing status of the saved content
+
+    SaveCommitStatus:
+      type: string
+      enum: [draft, committed]
+      description: Whether the save has been committed by the user
+
+    CreateSaveURLRequest:
+      type: object
+      required: [url]
+      properties:
+        url:
+          type: string
+          format: uri
+          description: URL of the article to save
+        content:
+          type: string
+          description: Pre-extracted text content (skips server-side extraction when provided)
+        title:
+          type: string
+          description: Source title (e.g., tweet author, page title)
+        auto_commit:
+          type: boolean
+          default: true
+          description: If false, save is created in draft state and requires explicit commit
+        start_processing:
+          type: boolean
+          default: true
+          description: If false, processing is deferred until explicitly started
+
+    CreateSaveMultipartRequest:
+      type: object
+      properties:
+        image:
+          type: string
+          format: binary
+          description: Image file to save
+        audio:
+          type: string
+          format: binary
+          description: Audio file to save
+        duration_seconds:
+          type: integer
+          description: Duration of the audio/video in seconds
+        source:
+          type: string
+          enum: [recorder, file_picker, share_extension, app]
+          description: How the audio was captured
+        auto_commit:
+          type: boolean
+          default: true
+          description: If false, save is created in draft state and requires explicit commit
+        start_processing:
+          type: boolean
+          default: true
+          description: If false, processing is deferred until explicitly started
 
     SaveCreateResponse:
       type: object
-      required: [id, status]
+      required: [id, status, commit_status, processing_status]
       properties:
         id:
           type: string
@@ -2056,11 +2127,19 @@ components:
           description: ID of the newly created save
         status:
           type: string
-          description: Initial processing status
+          description: Initial processing status (legacy field)
+        commit_status:
+          $ref: "#/components/schemas/SaveCommitStatus"
+        processing_status:
+          $ref: "#/components/schemas/SaveProcessingStatus"
+        media_url:
+          type: string
+          nullable: true
+          description: Authenticated URL to access the media file
 
     SaveListItem:
       type: object
-      required: [id, source_type, processing_status, created_at, updated_at]
+      required: [id, source_type, processing_status, commit_status, created_at, updated_at]
       properties:
         id:
           type: string
@@ -2096,6 +2175,25 @@ components:
           type: string
           nullable: true
           description: Storage key for associated media file
+        media_url:
+          type: string
+          nullable: true
+          description: Authenticated URL to access the media file
+        media_mime:
+          type: string
+          nullable: true
+          description: MIME type of the media file (e.g. audio/m4a, image/jpeg)
+        media_file_bytes:
+          type: integer
+          format: int64
+          nullable: true
+          description: Size of the media file in bytes
+        duration_seconds:
+          type: integer
+          nullable: true
+          description: Duration of the audio or video in seconds
+        commit_status:
+          $ref: "#/components/schemas/SaveCommitStatus"
         processing_status:
           $ref: "#/components/schemas/SaveProcessingStatus"
         processing_error:
