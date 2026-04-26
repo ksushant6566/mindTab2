@@ -27,6 +27,7 @@ type AudioProcessor struct {
 	storage            services.StorageProvider
 	queries            store.Querier
 	pool               *pgxpool.Pool
+	ffmpeg             *services.FFmpeg
 }
 
 // NewAudioProcessor constructs an AudioProcessor with all required dependencies.
@@ -37,6 +38,7 @@ func NewAudioProcessor(
 	storage services.StorageProvider,
 	queries store.Querier,
 	pool *pgxpool.Pool,
+	ffmpeg *services.FFmpeg,
 ) *AudioProcessor {
 	return &AudioProcessor{
 		transcriptionChain: transcriptionChain,
@@ -45,6 +47,7 @@ func NewAudioProcessor(
 		storage:            storage,
 		queries:            queries,
 		pool:               pool,
+		ffmpeg:             ffmpeg,
 	}
 }
 
@@ -63,7 +66,7 @@ func (p *AudioProcessor) Steps() []string {
 func (p *AudioProcessor) Execute(ctx context.Context, step string, job *worker.Job, prevResults worker.StepResults) (*worker.StepResult, error) {
 	switch step {
 	case "transcribe":
-		return steps.TranscribeAudio(ctx, p.transcriptionChain, p.storage, p.queries, job)
+		return steps.TranscribeAudio(ctx, p.transcriptionChain, p.storage, p.queries, job, p.ffmpeg)
 	case "summarize":
 		return p.summarize(ctx, prevResults)
 	case "embed":

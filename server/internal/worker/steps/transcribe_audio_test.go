@@ -46,7 +46,7 @@ func TestTranscribeAudio_HappyPath(t *testing.T) {
 
 	job := &worker.Job{ContentID: contentID, UserID: "u1", ContentType: "audio"}
 
-	res, err := TranscribeAudio(ctx, chain, storage, queries, job)
+	res, err := TranscribeAudio(ctx, chain, storage, queries, job, nil)
 	if err != nil {
 		t.Fatalf("TranscribeAudio: unexpected error: %v", err)
 	}
@@ -69,7 +69,7 @@ func TestTranscribeAudio_HappyPath(t *testing.T) {
 	}
 }
 
-func TestTranscribeAudio_OversizeRejected(t *testing.T) {
+func TestTranscribeAudio_OversizeRequiresDuration(t *testing.T) {
 	ctx := context.Background()
 	contentID := uuid.New()
 
@@ -79,11 +79,12 @@ func TestTranscribeAudio_OversizeRejected(t *testing.T) {
 				ID:       pgtype.UUID{Bytes: contentID, Valid: true},
 				UserID:   "u1",
 				MediaKey: pgtype.Text{String: "u1/c1/audio.m4a", Valid: true},
+				// DurationSeconds intentionally left as zero/invalid — chunking cannot proceed.
 			}, nil
 		},
 	}
 
-	// 30 MB payload — exceeds the 24 MB threshold.
+	// 30 MB payload — exceeds the 24 MB threshold, so chunking path is taken.
 	oversizeData := make([]byte, 30*1024*1024)
 	storage := testutil.NewMockStorage()
 	storage.Files["u1/c1/audio.m4a"] = oversizeData
@@ -93,12 +94,12 @@ func TestTranscribeAudio_OversizeRejected(t *testing.T) {
 
 	job := &worker.Job{ContentID: contentID, UserID: "u1", ContentType: "audio"}
 
-	_, err := TranscribeAudio(ctx, chain, storage, queries, job)
+	_, err := TranscribeAudio(ctx, chain, storage, queries, job, nil)
 	if err == nil {
-		t.Fatal("TranscribeAudio: expected error for oversize file, got nil")
+		t.Fatal("TranscribeAudio: expected error for oversize file without duration, got nil")
 	}
-	if !strings.Contains(err.Error(), "exceeds 24 MB") {
-		t.Errorf("error message: expected to contain %q, got %q", "exceeds 24 MB", err.Error())
+	if !strings.Contains(err.Error(), "cannot chunk without duration_seconds") {
+		t.Errorf("error message: expected to contain %q, got %q", "cannot chunk without duration_seconds", err.Error())
 	}
 	if mock.CallCount != 0 {
 		t.Errorf("expected 0 transcription calls for oversize file, got %d", mock.CallCount)
@@ -125,7 +126,7 @@ func TestTranscribeAudio_NoMediaKey(t *testing.T) {
 
 	job := &worker.Job{ContentID: contentID, UserID: "u1", ContentType: "audio"}
 
-	_, err := TranscribeAudio(ctx, chain, storage, queries, job)
+	_, err := TranscribeAudio(ctx, chain, storage, queries, job, nil)
 	if err == nil {
 		t.Fatal("TranscribeAudio: expected error when no media_key")
 	}
@@ -155,7 +156,7 @@ func TestTranscribeAudio_StorageGetFails(t *testing.T) {
 
 	job := &worker.Job{ContentID: contentID, UserID: "u1", ContentType: "audio"}
 
-	_, err := TranscribeAudio(ctx, chain, storage, queries, job)
+	_, err := TranscribeAudio(ctx, chain, storage, queries, job, nil)
 	if err == nil {
 		t.Fatal("TranscribeAudio: expected error when storage key missing")
 	}
@@ -188,7 +189,7 @@ func TestTranscribeAudio_ChainError(t *testing.T) {
 
 	job := &worker.Job{ContentID: contentID, UserID: "u1", ContentType: "audio"}
 
-	_, err := TranscribeAudio(ctx, chain, storage, queries, job)
+	_, err := TranscribeAudio(ctx, chain, storage, queries, job, nil)
 	if err == nil {
 		t.Fatal("TranscribeAudio: expected error when chain fails")
 	}

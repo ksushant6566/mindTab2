@@ -133,6 +133,7 @@ func main() {
 				transcriptionChain,
 				registry.LLM, registry.Embedding,
 				storage, queries, pool,
+				ffmpeg,
 			))
 			logger.Info("audio processor registered")
 		}
