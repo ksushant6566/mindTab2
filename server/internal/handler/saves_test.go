@@ -113,15 +113,16 @@ func TestSaves_Create(t *testing.T) {
 
 	baseQuerier := func() *store.QuerierMock {
 		return &store.QuerierMock{
-			CreateContentFunc: func(_ context.Context, arg store.CreateContentParams) (store.CreateContentRow, error) {
+			CreateContentFunc: func(_ context.Context, arg store.CreateContentParams) (store.MindmapContent, error) {
 				return testutil.NewCreateContentRow(testutil.WithContentID(contentID)), nil
 			},
-			CreateContentWithExtractedFunc: func(_ context.Context, arg store.CreateContentWithExtractedParams) (store.CreateContentWithExtractedRow, error) {
-				return store.CreateContentWithExtractedRow{
+			CreateContentWithExtractedFunc: func(_ context.Context, arg store.CreateContentWithExtractedParams) (store.MindmapContent, error) {
+				return store.MindmapContent{
 					ID:               testutil.PgUUID(contentID),
 					UserID:           arg.UserID,
 					SourceType:       arg.SourceType,
 					ProcessingStatus: "pending",
+					CommitStatus:     "committed",
 					CreatedAt:        testutil.PgTimestamptz(time.Now()),
 				}, nil
 			},
@@ -156,7 +157,7 @@ func TestSaves_Create(t *testing.T) {
 	t.Run("YouTubeURL", func(t *testing.T) {
 		var capturedType string
 		q := &store.QuerierMock{
-			CreateContentFunc: func(_ context.Context, arg store.CreateContentParams) (store.CreateContentRow, error) {
+			CreateContentFunc: func(_ context.Context, arg store.CreateContentParams) (store.MindmapContent, error) {
 				capturedType = arg.SourceType
 				return testutil.NewCreateContentRow(testutil.WithContentID(contentID)), nil
 			},
@@ -272,13 +273,14 @@ func TestSaves_Create(t *testing.T) {
 	t.Run("WithPreExtracted", func(t *testing.T) {
 		var createWithExtractedCalled bool
 		q := &store.QuerierMock{
-			CreateContentWithExtractedFunc: func(_ context.Context, arg store.CreateContentWithExtractedParams) (store.CreateContentWithExtractedRow, error) {
+			CreateContentWithExtractedFunc: func(_ context.Context, arg store.CreateContentWithExtractedParams) (store.MindmapContent, error) {
 				createWithExtractedCalled = true
-				return store.CreateContentWithExtractedRow{
+				return store.MindmapContent{
 					ID:               testutil.PgUUID(contentID),
 					UserID:           arg.UserID,
 					SourceType:       arg.SourceType,
 					ProcessingStatus: "pending",
+					CommitStatus:     "committed",
 					CreatedAt:        testutil.PgTimestamptz(time.Now()),
 				}, nil
 			},
@@ -305,8 +307,8 @@ func TestSaves_Create(t *testing.T) {
 
 	t.Run("DBError", func(t *testing.T) {
 		q := &store.QuerierMock{
-			CreateContentFunc: func(_ context.Context, _ store.CreateContentParams) (store.CreateContentRow, error) {
-				return store.CreateContentRow{}, fmt.Errorf("db connection lost")
+			CreateContentFunc: func(_ context.Context, _ store.CreateContentParams) (store.MindmapContent, error) {
+				return store.MindmapContent{}, fmt.Errorf("db connection lost")
 			},
 		}
 		h := newTestHandler(q, &testutil.MockProducer{}, &mockSearcher{})

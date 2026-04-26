@@ -30,13 +30,20 @@ func createTestUser(t *testing.T, ctx context.Context, q *store.Queries) store.M
 }
 
 // createTestContent inserts a minimal content row for the given userID.
-func createTestContent(t *testing.T, ctx context.Context, q *store.Queries, userID string) store.CreateContentRow {
+func createTestContent(t *testing.T, ctx context.Context, q *store.Queries, userID string) store.MindmapContent {
 	t.Helper()
 	content, err := q.CreateContent(ctx, store.CreateContentParams{
-		UserID:      userID,
-		SourceUrl:   pgtype.Text{String: "https://example.com/article", Valid: true},
-		SourceType:  "article",
-		SourceTitle: pgtype.Text{String: "Test Article", Valid: true},
+		UserID:           userID,
+		SourceUrl:        pgtype.Text{String: "https://example.com/article", Valid: true},
+		SourceType:       "article",
+		SourceTitle:      pgtype.Text{String: "Test Article", Valid: true},
+		ExtractedText:    pgtype.Text{},
+		MediaKey:         pgtype.Text{},
+		MediaMime:        pgtype.Text{},
+		MediaFileBytes:   pgtype.Int8{},
+		DurationSeconds:  pgtype.Int4{},
+		ProcessingStatus: "pending",
+		CommitStatus:     "committed",
 	})
 	require.NoError(t, err)
 	return content
@@ -79,10 +86,17 @@ func TestStore_ListContent(t *testing.T) {
 
 	for i := 0; i < 3; i++ {
 		_, err := q.CreateContent(ctx, store.CreateContentParams{
-			UserID:      user.ID,
-			SourceUrl:   pgtype.Text{String: "https://example.com/item", Valid: true},
-			SourceType:  "article",
-			SourceTitle: pgtype.Text{String: "Item", Valid: true},
+			UserID:           user.ID,
+			SourceUrl:        pgtype.Text{String: "https://example.com/item", Valid: true},
+			SourceType:       "article",
+			SourceTitle:      pgtype.Text{String: "Item", Valid: true},
+			ExtractedText:    pgtype.Text{},
+			MediaKey:         pgtype.Text{},
+			MediaMime:        pgtype.Text{},
+			MediaFileBytes:   pgtype.Int8{},
+			DurationSeconds:  pgtype.Int4{},
+			ProcessingStatus: "pending",
+			CommitStatus:     "committed",
 		})
 		require.NoError(t, err)
 	}
