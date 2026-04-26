@@ -475,6 +475,7 @@ SET commit_status = $2,
     source_title  = COALESCE($3, source_title),
     updated_at    = CURRENT_TIMESTAMP
 WHERE id = $1
+  AND user_id = $4
   AND deleted_at IS NULL
 `
 
@@ -482,10 +483,16 @@ type UpdateContentCommitStatusParams struct {
 	ID           pgtype.UUID `json:"id"`
 	CommitStatus string      `json:"commit_status"`
 	SourceTitle  pgtype.Text `json:"source_title"`
+	UserID       string      `json:"user_id"`
 }
 
 func (q *Queries) UpdateContentCommitStatus(ctx context.Context, arg UpdateContentCommitStatusParams) error {
-	_, err := q.db.Exec(ctx, updateContentCommitStatus, arg.ID, arg.CommitStatus, arg.SourceTitle)
+	_, err := q.db.Exec(ctx, updateContentCommitStatus,
+		arg.ID,
+		arg.CommitStatus,
+		arg.SourceTitle,
+		arg.UserID,
+	)
 	return err
 }
 

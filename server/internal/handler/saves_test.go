@@ -907,6 +907,9 @@ func TestSaves_Commit_TitleOverride(t *testing.T) {
 	if !capturedParams.SourceTitle.Valid || capturedParams.SourceTitle.String != "Renamed" {
 		t.Errorf("expected SourceTitle 'Renamed', got %+v", capturedParams.SourceTitle)
 	}
+	if capturedParams.UserID != "test-user" {
+		t.Errorf("expected UserID 'test-user' propagated to UpdateContentCommitStatus params, got %q", capturedParams.UserID)
+	}
 }
 
 func TestSaves_Commit_OtherUser_404(t *testing.T) {

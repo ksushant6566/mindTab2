@@ -3,6 +3,7 @@ package worker
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/ksushant6566/mindtab/server/internal/providers"
 	"github.com/ksushant6566/mindtab/server/internal/queue"
@@ -169,8 +171,17 @@ func (d *Dispatcher) processJob(ctx context.Context, payload *queue.JobPayload) 
 		UserID: payload.UserID,
 	})
 	if err != nil {
-		log.Error("dispatcher: failed to load content row", "error", err)
-		d.handleFailure(ctx, payload, fmt.Errorf("dispatcher: load content row: %w", err), false)
+		// Row missing means the content was deleted (soft-delete, expired
+		// draft cleanup, or never existed for this user). Retrying cannot
+		// recover it — treat as permanent so we DLQ instead of burning
+		// MaxAttempts.
+		permanent := errors.Is(err, pgx.ErrNoRows)
+		if permanent {
+			log.Warn("dispatcher: content row not found, dropping job", "error", err)
+		} else {
+			log.Error("dispatcher: failed to load content row", "error", err)
+		}
+		d.handleFailure(ctx, payload, fmt.Errorf("dispatcher: load content row: %w", err), permanent)
 		return
 	}
 

@@ -129,6 +129,7 @@ SET commit_status = $2,
     source_title  = COALESCE($3, source_title),
     updated_at    = CURRENT_TIMESTAMP
 WHERE id = $1
+  AND user_id = $4
   AND deleted_at IS NULL;
 
 -- name: UpdateContentProcessingStatusToPending :exec

@@ -744,6 +744,7 @@ func (h *SavesHandler) Commit(w http.ResponseWriter, r *http.Request) {
 		ID:           row.ID,
 		CommitStatus: "committed",
 		SourceTitle:  pgtextFrom(body.Title),
+		UserID:       userID,
 	}); err != nil {
 		slog.Error("failed to update commit status", "error", err, "id", id)
 		WriteError(w, http.StatusInternalServerError, "failed to commit save")
