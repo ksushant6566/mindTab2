@@ -1,16 +1,17 @@
 package handler
 
 import (
+	"bytes"
 	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -40,16 +41,18 @@ type SavesHandler struct {
 	queries   store.Querier
 	producer  enqueuer
 	search    searcher
+	storage   services.StorageProvider
 	maxSize   int64
 	jwtSecret string
 }
 
 // NewSavesHandler creates a new SavesHandler.
-func NewSavesHandler(queries store.Querier, producer enqueuer, search searcher, maxSize int64, jwtSecret string) *SavesHandler {
+func NewSavesHandler(queries store.Querier, producer enqueuer, search searcher, storage services.StorageProvider, maxSize int64, jwtSecret string) *SavesHandler {
 	return &SavesHandler{
 		queries:   queries,
 		producer:  producer,
 		search:    search,
+		storage:   storage,
 		maxSize:   maxSize,
 		jwtSecret: jwtSecret,
 	}
@@ -127,7 +130,7 @@ func (h *SavesHandler) Create(w http.ResponseWriter, r *http.Request) {
 	ct := r.Header.Get("Content-Type")
 
 	if strings.HasPrefix(ct, "multipart/form-data") {
-		h.createImage(w, r, userID)
+		h.createImage(w, r, userID, true, true)
 		return
 	}
 	h.createURL(w, r, userID)
@@ -182,6 +185,7 @@ func (h *SavesHandler) createURL(w http.ResponseWriter, r *http.Request, userID 
 	if req.Content != "" {
 		// Pre-extracted content provided — write extracted_text at create time.
 		content, err := h.queries.CreateContentWithExtracted(r.Context(), store.CreateContentWithExtractedParams{
+			ID:            uuidFromGoogle(uuid.New()),
 			UserID:        userID,
 			SourceUrl:     pgtextFrom(req.URL),
 			SourceType:    contentType,
@@ -196,6 +200,7 @@ func (h *SavesHandler) createURL(w http.ResponseWriter, r *http.Request, userID 
 		contentID = content.ID
 	} else {
 		content, err := h.queries.CreateContent(r.Context(), store.CreateContentParams{
+			ID:          uuidFromGoogle(uuid.New()),
 			UserID:      userID,
 			SourceUrl:   pgtextFrom(req.URL),
 			SourceType:  contentType,
@@ -241,7 +246,7 @@ func (h *SavesHandler) createURL(w http.ResponseWriter, r *http.Request, userID 
 	})
 }
 
-func (h *SavesHandler) createImage(w http.ResponseWriter, r *http.Request, userID string) {
+func (h *SavesHandler) createImage(w http.ResponseWriter, r *http.Request, userID string, autoCommit, startProcessing bool) {
 	maxSize := h.maxSize
 	if maxSize <= 0 {
 		maxSize = 10 << 20 // 10 MB default
@@ -259,106 +264,112 @@ func (h *SavesHandler) createImage(w http.ResponseWriter, r *http.Request, userI
 	}
 	defer file.Close()
 
-	// Validate MIME type.
-	buf := make([]byte, 512)
-	n, err := file.Read(buf)
-	if err != nil && err != io.EOF {
-		WriteError(w, http.StatusBadRequest, "failed to read image")
+	// Validate MIME type from the part's Content-Type header first;
+	// fall back to sniffing the first 512 bytes.
+	mime := header.Header.Get("Content-Type")
+	if !isAllowedImageMIME(mime) {
+		// Sniff bytes for cases where the client sends an incorrect or missing Content-Type.
+		sniff := make([]byte, 512)
+		n, readErr := file.Read(sniff)
+		if readErr != nil && readErr != io.EOF {
+			WriteError(w, http.StatusBadRequest, "failed to read image")
+			return
+		}
+		sniff = sniff[:n]
+		mime = http.DetectContentType(sniff)
+		if !isAllowedImageMIME(mime) {
+			WriteError(w, http.StatusBadRequest, fmt.Sprintf("unsupported image type: %s (must be jpeg, png, or webp)", mime))
+			return
+		}
+		// Re-create a reader from the sniffed bytes + remaining file content.
+		file2 := io.MultiReader(bytes.NewReader(sniff), file)
+		buf, readErr2 := io.ReadAll(file2)
+		if readErr2 != nil {
+			slog.Error("failed to read image body", "error", readErr2)
+			WriteError(w, http.StatusInternalServerError, "failed to read image")
+			return
+		}
+		h.writeImageRecord(w, r, userID, autoCommit, startProcessing, header.Filename, mime, buf)
 		return
 	}
-	buf = buf[:n]
-	mimeType := http.DetectContentType(buf)
 
-	allowed := map[string]bool{
-		"image/jpeg": true,
-		"image/png":  true,
-		"image/webp": true,
-	}
-	if !allowed[mimeType] {
-		WriteError(w, http.StatusBadRequest, fmt.Sprintf("unsupported image type: %s (must be jpeg, png, or webp)", mimeType))
-		return
-	}
-
-	// Save to temp file under /tmp/mindtab/{uuid}/.
-	dirID := uuid.New()
-	dirPath := fmt.Sprintf("/tmp/mindtab/%s", dirID.String())
-	if err := os.MkdirAll(dirPath, 0o755); err != nil {
-		slog.Error("failed to create temp dir", "error", err)
-		WriteError(w, http.StatusInternalServerError, "failed to prepare image storage")
-		return
-	}
-
-	ext := imageExtFromMIME(mimeType)
-	tempPath := fmt.Sprintf("%s/%s%s", dirPath, dirID.String(), ext)
-	f, err := os.Create(tempPath)
+	// Happy path: MIME was valid from Content-Type header.
+	buf, err := io.ReadAll(file)
 	if err != nil {
-		slog.Error("failed to create temp file", "error", err)
+		slog.Error("failed to read image body", "error", err)
+		WriteError(w, http.StatusInternalServerError, "failed to read image")
+		return
+	}
+	h.writeImageRecord(w, r, userID, autoCommit, startProcessing, header.Filename, mime, buf)
+}
+
+// writeImageRecord stores the image bytes to permanent storage, creates the DB record, and enqueues.
+func (h *SavesHandler) writeImageRecord(
+	w http.ResponseWriter, r *http.Request,
+	userID string, autoCommit, startProcessing bool,
+	filename, mime string, buf []byte,
+) {
+	contentID := uuid.New()
+	ext := imageExtFromMIME(mime)
+	mediaKey := fmt.Sprintf("%s/%s/image%s", userID, contentID.String(), ext)
+
+	if err := h.storage.Save(r.Context(), mediaKey, bytes.NewReader(buf), mime); err != nil {
+		slog.Error("failed to store image", "error", err, "mediaKey", mediaKey)
 		WriteError(w, http.StatusInternalServerError, "failed to store image")
 		return
 	}
-	defer f.Close()
 
-	// Write already-read bytes then the rest.
-	if _, err := f.Write(buf); err != nil {
-		slog.Error("failed to write image header to temp file", "error", err)
-		WriteError(w, http.StatusInternalServerError, "failed to store image")
-		return
+	procStatus := "pending"
+	if !startProcessing {
+		procStatus = "deferred"
 	}
-	if _, err := io.Copy(f, file); err != nil {
-		slog.Error("failed to write image body to temp file", "error", err)
-		WriteError(w, http.StatusInternalServerError, "failed to store image")
-		return
+	commitStatus := "committed"
+	if !autoCommit {
+		commitStatus = "draft"
 	}
 
-	// Determine a title from the original filename.
-	title := header.Filename
-
-	// Create content record.
-	content, err := h.queries.CreateContent(r.Context(), store.CreateContentParams{
-		UserID:      userID,
-		SourceUrl:   pgtype.Text{},
-		SourceType:  "image",
-		SourceTitle: pgtextFrom(title),
+	row, err := h.queries.CreateContent(r.Context(), store.CreateContentParams{
+		ID:               uuidFromGoogle(contentID),
+		UserID:           userID,
+		SourceType:       "image",
+		SourceTitle:      pgtextFrom(filename),
+		MediaKey:         pgtype.Text{String: mediaKey, Valid: true},
+		MediaMime:        pgtype.Text{String: mime, Valid: true},
+		MediaFileBytes:   pgtype.Int8{Int64: int64(len(buf)), Valid: true},
+		ProcessingStatus: procStatus,
+		CommitStatus:     commitStatus,
 	})
 	if err != nil {
-		os.RemoveAll(dirPath)
 		slog.Error("failed to create content record for image", "error", err, "userID", userID)
 		WriteError(w, http.StatusInternalServerError, "failed to create save")
 		return
 	}
 
-	// Create job record.
-	jobID, err := h.queries.CreateJob(r.Context(), store.CreateJobParams{
-		ContentID:   content.ID,
-		UserID:      userID,
-		ContentType: "image",
-	})
-	if err != nil {
-		os.RemoveAll(dirPath)
-		slog.Error("failed to create job record for image", "error", err, "contentID", uuidToString(content.ID))
-		WriteError(w, http.StatusInternalServerError, "failed to create processing job")
-		return
+	if startProcessing {
+		jobID, err := h.queries.CreateJob(r.Context(), store.CreateJobParams{
+			ContentID:   row.ID,
+			UserID:      userID,
+			ContentType: "image",
+		})
+		if err != nil {
+			slog.Error("failed to create job record for image", "error", err, "contentID", uuidToString(row.ID))
+			WriteError(w, http.StatusInternalServerError, "failed to create processing job")
+			return
+		}
+		if err := h.producer.Enqueue(r.Context(), queue.JobPayload{
+			JobID:       uuidFromPgtype(jobID),
+			ContentID:   uuidFromPgtype(row.ID),
+			UserID:      userID,
+			ContentType: "image",
+			MaxAttempts: 5,
+		}); err != nil {
+			slog.Error("failed to enqueue image job", "error", err, "jobID", uuidFromPgtype(jobID).String())
+			WriteError(w, http.StatusInternalServerError, "failed to enqueue processing job")
+			return
+		}
 	}
 
-	// Enqueue to Redis.
-	payload := queue.JobPayload{
-		JobID:       uuidFromPgtype(jobID),
-		ContentID:   uuidFromPgtype(content.ID),
-		UserID:      userID,
-		ContentType: "image",
-		MaxAttempts: 5,
-	}
-	if err := h.producer.Enqueue(r.Context(), payload); err != nil {
-		os.RemoveAll(dirPath)
-		slog.Error("failed to enqueue image job", "error", err, "jobID", uuidFromPgtype(jobID).String())
-		WriteError(w, http.StatusInternalServerError, "failed to enqueue processing job")
-		return
-	}
-
-	WriteJSON(w, http.StatusCreated, saveResponse{
-		ID:     uuidToString(content.ID),
-		Status: "pending",
-	})
+	writeSaveResponse(w, row, h.storage)
 }
 
 // List handles GET /saves.
@@ -644,6 +655,35 @@ func isYouTubeURL(rawURL string) bool {
 			strings.HasPrefix(path, "/v/")
 	}
 	return false
+}
+
+// isAllowedImageMIME reports whether the MIME type is a supported image format.
+func isAllowedImageMIME(m string) bool {
+	switch m {
+	case "image/jpeg", "image/png", "image/webp":
+		return true
+	}
+	return false
+}
+
+// writeSaveResponse encodes the newly created content row as a JSON response.
+func writeSaveResponse(w http.ResponseWriter, row store.MindmapContent, storage services.StorageProvider) {
+	resp := struct {
+		ID               string `json:"id"`
+		CommitStatus     string `json:"commit_status"`
+		ProcessingStatus string `json:"processing_status"`
+		MediaURL         string `json:"media_url,omitempty"`
+	}{
+		ID:               uuidToString(row.ID),
+		CommitStatus:     row.CommitStatus,
+		ProcessingStatus: row.ProcessingStatus,
+	}
+	if row.MediaKey.Valid {
+		resp.MediaURL = storage.URL(row.MediaKey.String)
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	_ = json.NewEncoder(w).Encode(resp)
 }
 
 // imageExtFromMIME returns the file extension for a given image MIME type.

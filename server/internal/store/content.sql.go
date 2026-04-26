@@ -27,20 +27,23 @@ func (q *Queries) CountContent(ctx context.Context, userID string) (int64, error
 
 const createContent = `-- name: CreateContent :one
 INSERT INTO mindmap_content (
+    id,
     user_id, source_url, source_type, source_title,
     extracted_text, media_key, media_mime, media_file_bytes,
     duration_seconds,
     processing_status, commit_status
 ) VALUES (
-    $1, $2, $3, $4,
-    $5, $6, $7, $8,
-    $9,
-    $10, $11
+    $1,
+    $2, $3, $4, $5,
+    $6, $7, $8, $9,
+    $10,
+    $11, $12
 )
 RETURNING id, user_id, source_url, source_type, source_title, source_thumbnail_url, extracted_text, visual_description, summary, tags, key_topics, embedding, summary_provider, embedding_provider, embedding_model, media_key, processing_status, processing_error, created_at, updated_at, deleted_at, duration_seconds, video_thumbnail_url, video_channel, transcript_source, commit_status, media_mime, media_file_bytes
 `
 
 type CreateContentParams struct {
+	ID               pgtype.UUID `json:"id"`
 	UserID           string      `json:"user_id"`
 	SourceUrl        pgtype.Text `json:"source_url"`
 	SourceType       string      `json:"source_type"`
@@ -56,6 +59,7 @@ type CreateContentParams struct {
 
 func (q *Queries) CreateContent(ctx context.Context, arg CreateContentParams) (MindmapContent, error) {
 	row := q.db.QueryRow(ctx, createContent,
+		arg.ID,
 		arg.UserID,
 		arg.SourceUrl,
 		arg.SourceType,
@@ -104,20 +108,23 @@ func (q *Queries) CreateContent(ctx context.Context, arg CreateContentParams) (M
 
 const createContentWithExtracted = `-- name: CreateContentWithExtracted :one
 INSERT INTO mindmap_content (
+    id,
     user_id, source_url, source_type, source_title,
     extracted_text, media_key, media_mime, media_file_bytes,
     duration_seconds,
     processing_status, commit_status
 ) VALUES (
-    $1, $2, $3, $4,
-    $5, $6, $7, $8,
-    $9,
-    $10, $11
+    $1,
+    $2, $3, $4, $5,
+    $6, $7, $8, $9,
+    $10,
+    $11, $12
 )
 RETURNING id, user_id, source_url, source_type, source_title, source_thumbnail_url, extracted_text, visual_description, summary, tags, key_topics, embedding, summary_provider, embedding_provider, embedding_model, media_key, processing_status, processing_error, created_at, updated_at, deleted_at, duration_seconds, video_thumbnail_url, video_channel, transcript_source, commit_status, media_mime, media_file_bytes
 `
 
 type CreateContentWithExtractedParams struct {
+	ID               pgtype.UUID `json:"id"`
 	UserID           string      `json:"user_id"`
 	SourceUrl        pgtype.Text `json:"source_url"`
 	SourceType       string      `json:"source_type"`
@@ -133,6 +140,7 @@ type CreateContentWithExtractedParams struct {
 
 func (q *Queries) CreateContentWithExtracted(ctx context.Context, arg CreateContentWithExtractedParams) (MindmapContent, error) {
 	row := q.db.QueryRow(ctx, createContentWithExtracted,
+		arg.ID,
 		arg.UserID,
 		arg.SourceUrl,
 		arg.SourceType,

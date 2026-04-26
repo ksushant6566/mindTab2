@@ -36,7 +36,7 @@ func (m *mockSearcher) Search(_ context.Context, _ string, _ string, _ int) ([]s
 
 // newTestHandler builds a SavesHandler with the provided mock dependencies.
 func newTestHandler(q store.Querier, e enqueuer, s searcher) *SavesHandler {
-	return NewSavesHandler(q, e, s, 10<<20, "test-secret")
+	return NewSavesHandler(q, e, s, testutil.NewMockStorage(), 10<<20, "test-secret")
 }
 
 // savesRouter mounts the saves handler on a chi router with user ID in context.
@@ -114,7 +114,14 @@ func TestSaves_Create(t *testing.T) {
 	baseQuerier := func() *store.QuerierMock {
 		return &store.QuerierMock{
 			CreateContentFunc: func(_ context.Context, arg store.CreateContentParams) (store.MindmapContent, error) {
-				return testutil.NewCreateContentRow(testutil.WithContentID(contentID)), nil
+				row := testutil.NewCreateContentRow(testutil.WithContentID(contentID))
+				// Mirror back media fields so the handler can build a correct response.
+				row.MediaKey = arg.MediaKey
+				row.MediaMime = arg.MediaMime
+				row.MediaFileBytes = arg.MediaFileBytes
+				row.ProcessingStatus = arg.ProcessingStatus
+				row.CommitStatus = arg.CommitStatus
+				return row, nil
 			},
 			CreateContentWithExtractedFunc: func(_ context.Context, arg store.CreateContentWithExtractedParams) (store.MindmapContent, error) {
 				return store.MindmapContent{
@@ -182,19 +189,56 @@ func TestSaves_Create(t *testing.T) {
 	})
 
 	t.Run("ImageUpload", func(t *testing.T) {
+		storage := testutil.NewMockStorage()
 		q := baseQuerier()
-		h := newTestHandler(q, &testutil.MockProducer{}, &mockSearcher{})
+		producer := &testutil.MockProducer{}
+		h := NewSavesHandler(q, producer, &mockSearcher{}, storage, 10<<20, "test-secret")
 		router := savesRouter(h)
 
-		req := testutil.MultipartRequest("/saves", "image", "photo.jpg", minimalJPEG(), "image/jpeg")
+		imageData := minimalJPEG()
+		req := testutil.MultipartRequest("/saves", "image", "photo.jpg", imageData, "image/jpeg")
 		req = testutil.AuthenticatedRequest(req, "test-user")
 
 		resp := fire(router, req)
 		testutil.AssertStatus(t, resp, http.StatusCreated)
 
-		body := testutil.DecodeJSON[saveResponse](t, resp)
-		if body.Status != "pending" {
-			t.Errorf("expected status 'pending', got %q", body.Status)
+		// Verify storage.Save was called (one file stored).
+		if len(storage.Files) != 1 {
+			t.Errorf("expected 1 file in storage, got %d", len(storage.Files))
+		}
+		for key := range storage.Files {
+			if !strings.HasPrefix(key, "test-user/") {
+				t.Errorf("expected storage key to start with 'test-user/', got %q", key)
+			}
+			if !strings.HasSuffix(key, ".jpg") {
+				t.Errorf("expected storage key to end with '.jpg', got %q", key)
+			}
+		}
+
+		// Verify the response shape: processing_status + media_url.
+		type imageCreateResponse struct {
+			ID               string `json:"id"`
+			CommitStatus     string `json:"commit_status"`
+			ProcessingStatus string `json:"processing_status"`
+			MediaURL         string `json:"media_url"`
+		}
+		body := testutil.DecodeJSON[imageCreateResponse](t, resp)
+		if body.ProcessingStatus != "pending" {
+			t.Errorf("expected processing_status 'pending', got %q", body.ProcessingStatus)
+		}
+		if body.MediaURL == "" {
+			t.Error("expected media_url to be set in image upload response")
+		}
+		if body.CommitStatus != "committed" {
+			t.Errorf("expected commit_status 'committed', got %q", body.CommitStatus)
+		}
+		if body.ID == "" {
+			t.Error("expected non-empty id in image upload response")
+		}
+
+		// Verify a job was enqueued.
+		if len(producer.Enqueued) != 1 {
+			t.Errorf("expected 1 enqueued job, got %d", len(producer.Enqueued))
 		}
 	})
 
@@ -255,7 +299,7 @@ func TestSaves_Create(t *testing.T) {
 		// We wrap the request body with MaxBytesReader to enforce the small limit,
 		// which causes ParseMultipartForm to fail.
 		q := baseQuerier()
-		h := NewSavesHandler(q, &testutil.MockProducer{}, &mockSearcher{}, 1, "test-secret")
+		h := NewSavesHandler(q, &testutil.MockProducer{}, &mockSearcher{}, testutil.NewMockStorage(), 1, "test-secret")
 		router := chi.NewRouter()
 		router.Post("/saves", func(w http.ResponseWriter, r *http.Request) {
 			// Wrap body with MaxBytesReader to enforce size limit before the handler runs.
@@ -681,7 +725,7 @@ func TestSaves_ServeMedia(t *testing.T) {
 		storage := testutil.NewMockStorage()
 		storage.Files[mediaKey] = []byte(fileContent)
 
-		h := NewSavesHandler(&store.QuerierMock{}, &testutil.MockProducer{}, &mockSearcher{}, 10<<20, jwtSecret)
+		h := NewSavesHandler(&store.QuerierMock{}, &testutil.MockProducer{}, &mockSearcher{}, testutil.NewMockStorage(), 10<<20, jwtSecret)
 		router := mediaRouter(h, storage)
 
 		exp := time.Now().Add(1 * time.Hour).Unix()
@@ -702,7 +746,7 @@ func TestSaves_ServeMedia(t *testing.T) {
 		storage := testutil.NewMockStorage()
 		storage.Files[mediaKey] = []byte(fileContent)
 
-		h := NewSavesHandler(&store.QuerierMock{}, &testutil.MockProducer{}, &mockSearcher{}, 10<<20, jwtSecret)
+		h := NewSavesHandler(&store.QuerierMock{}, &testutil.MockProducer{}, &mockSearcher{}, testutil.NewMockStorage(), 10<<20, jwtSecret)
 		router := mediaRouter(h, storage)
 
 		// Expired 1 hour ago.
@@ -719,7 +763,7 @@ func TestSaves_ServeMedia(t *testing.T) {
 		storage := testutil.NewMockStorage()
 		storage.Files[mediaKey] = []byte(fileContent)
 
-		h := NewSavesHandler(&store.QuerierMock{}, &testutil.MockProducer{}, &mockSearcher{}, 10<<20, jwtSecret)
+		h := NewSavesHandler(&store.QuerierMock{}, &testutil.MockProducer{}, &mockSearcher{}, testutil.NewMockStorage(), 10<<20, jwtSecret)
 		router := mediaRouter(h, storage)
 
 		exp := time.Now().Add(1 * time.Hour).Unix()
@@ -736,7 +780,7 @@ func TestSaves_ServeMedia(t *testing.T) {
 		storage := testutil.NewMockStorage()
 		storage.Files[mediaKey] = []byte(fileContent)
 
-		h := NewSavesHandler(&store.QuerierMock{}, &testutil.MockProducer{}, &mockSearcher{}, 10<<20, jwtSecret)
+		h := NewSavesHandler(&store.QuerierMock{}, &testutil.MockProducer{}, &mockSearcher{}, testutil.NewMockStorage(), 10<<20, jwtSecret)
 		router := mediaRouter(h, storage)
 
 		// No sig/exp params — falls through to bearer path.
@@ -756,7 +800,7 @@ func TestSaves_ServeMedia(t *testing.T) {
 		storage := testutil.NewMockStorage()
 		storage.Files[mediaKey] = []byte(fileContent)
 
-		h := NewSavesHandler(&store.QuerierMock{}, &testutil.MockProducer{}, &mockSearcher{}, 10<<20, jwtSecret)
+		h := NewSavesHandler(&store.QuerierMock{}, &testutil.MockProducer{}, &mockSearcher{}, testutil.NewMockStorage(), 10<<20, jwtSecret)
 		router := mediaRouter(h, storage)
 
 		// Authenticate as a different user.

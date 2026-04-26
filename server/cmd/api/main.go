@@ -101,7 +101,7 @@ func main() {
 		llmChain = registry.LLM
 
 		// Saves handler
-		savesHandler = handler.NewSavesHandler(queries, producer, semanticSearch, int64(cfg.MaxFileSizeMB), cfg.JWTSecret)
+		savesHandler = handler.NewSavesHandler(queries, producer, semanticSearch, storage, int64(cfg.MaxFileSizeMB)*1024*1024, cfg.JWTSecret)
 
 		// Worker dispatcher
 		dispatcher = worker.NewDispatcher(consumer, retryScheduler, queries, slog.Default(), cfg.WorkerConcurrency)

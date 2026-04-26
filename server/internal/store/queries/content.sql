@@ -1,28 +1,32 @@
 -- name: CreateContent :one
 INSERT INTO mindmap_content (
+    id,
     user_id, source_url, source_type, source_title,
     extracted_text, media_key, media_mime, media_file_bytes,
     duration_seconds,
     processing_status, commit_status
 ) VALUES (
-    $1, $2, $3, $4,
-    $5, $6, $7, $8,
-    $9,
-    $10, $11
+    $1,
+    $2, $3, $4, $5,
+    $6, $7, $8, $9,
+    $10,
+    $11, $12
 )
 RETURNING *;
 
 -- name: CreateContentWithExtracted :one
 INSERT INTO mindmap_content (
+    id,
     user_id, source_url, source_type, source_title,
     extracted_text, media_key, media_mime, media_file_bytes,
     duration_seconds,
     processing_status, commit_status
 ) VALUES (
-    $1, $2, $3, $4,
-    $5, $6, $7, $8,
-    $9,
-    $10, $11
+    $1,
+    $2, $3, $4, $5,
+    $6, $7, $8, $9,
+    $10,
+    $11, $12
 )
 RETURNING *;
 
