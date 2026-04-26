@@ -1,6 +1,7 @@
 package testutil
 
 import (
+	"testing"
 	"time"
 
 	"github.com/google/uuid"
@@ -13,6 +14,17 @@ import (
 
 func PgUUID(id uuid.UUID) pgtype.UUID {
 	return pgtype.UUID{Bytes: id, Valid: true}
+}
+
+// PgUUIDFromString parses a UUID string and returns a pgtype.UUID.
+// Fails the test if the string is not a valid UUID.
+func PgUUIDFromString(t *testing.T, s string) pgtype.UUID {
+	t.Helper()
+	id, err := uuid.Parse(s)
+	if err != nil {
+		t.Fatalf("PgUUIDFromString: invalid UUID %q: %v", s, err)
+	}
+	return PgUUID(id)
 }
 
 func PgText(s string) pgtype.Text {
