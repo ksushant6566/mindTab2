@@ -89,6 +89,70 @@ struct APIClient {
         throw APIError.serverError(httpResponse.statusCode, errorMessage)
     }
 
+    /// Save an audio recording from the share extension.
+    /// Posts multipart/form-data to POST /saves with auto_commit and start_processing set.
+    static func saveAudio(fileURL: URL, token: String) async throws -> String {
+        let boundary = UUID().uuidString
+        var formData = Data()
+
+        let mimeType = audioMIMEType(for: fileURL)
+        let filename = fileURL.lastPathComponent
+        let audioData = try Data(contentsOf: fileURL)
+
+        func appendField(_ name: String, _ value: String) {
+            formData.append("--\(boundary)\r\n".data(using: .utf8)!)
+            formData.append("Content-Disposition: form-data; name=\"\(name)\"\r\n\r\n".data(using: .utf8)!)
+            formData.append(value.data(using: .utf8)!)
+            formData.append("\r\n".data(using: .utf8)!)
+        }
+        appendField("auto_commit", "true")
+        appendField("start_processing", "true")
+        appendField("source", "share_extension")
+        appendField("duration_seconds", "1") // exact duration unknown; server requires >0
+
+        formData.append("--\(boundary)\r\n".data(using: .utf8)!)
+        formData.append("Content-Disposition: form-data; name=\"audio\"; filename=\"\(filename)\"\r\n".data(using: .utf8)!)
+        formData.append("Content-Type: \(mimeType)\r\n\r\n".data(using: .utf8)!)
+        formData.append(audioData)
+        formData.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
+
+        let (data, response) = try await makeRequest(
+            path: "/saves",
+            method: "POST",
+            contentType: "multipart/form-data; boundary=\(boundary)",
+            body: formData,
+            token: token
+        )
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw APIError.serverError(0, "Invalid response")
+        }
+
+        if httpResponse.statusCode == 201 {
+            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let id = json["id"] as? String {
+                return id
+            }
+            return ""
+        }
+
+        let errorMessage = (try? JSONSerialization.jsonObject(with: data) as? [String: String])?["error"]
+        throw APIError.serverError(httpResponse.statusCode, errorMessage)
+    }
+
+    private static func audioMIMEType(for url: URL) -> String {
+        switch url.pathExtension.lowercased() {
+        case "m4a", "mp4":  return "audio/mp4"
+        case "mp3":         return "audio/mpeg"
+        case "wav":         return "audio/wav"
+        case "ogg", "oga":  return "audio/ogg"
+        case "webm":        return "audio/webm"
+        case "flac":        return "audio/flac"
+        case "aac":         return "audio/aac"
+        default:            return "audio/mp4"
+        }
+    }
+
     // MARK: - Private
 
     private static func makeRequest(path: String, method: String, contentType: String, body: Data, token: String) async throws -> (Data, URLResponse) {
