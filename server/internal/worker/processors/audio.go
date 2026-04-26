@@ -93,7 +93,7 @@ func (p *AudioProcessor) summarize(ctx context.Context, prevResults worker.StepR
 	if t.ExtractedText == "" {
 		return nil, fmt.Errorf("audio processor: transcribe produced no text")
 	}
-	return steps.Summarize(ctx, p.llmChain, t.ExtractedText)
+	return steps.SummarizeForAudio(ctx, p.llmChain, t.ExtractedText)
 }
 
 func (p *AudioProcessor) embed(ctx context.Context, prevResults worker.StepResults) (*worker.StepResult, error) {
