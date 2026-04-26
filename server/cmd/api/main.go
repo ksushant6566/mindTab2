@@ -167,6 +167,16 @@ func main() {
 
 		// Start workers
 		dispatcher.Start(context.Background())
+
+		// Periodic cleanup of expired draft saves (every 3 hours, expire after 24 hours).
+		go worker.StartDraftCleanup(
+			context.Background(),
+			queries,
+			storage,
+			slog.Default().With("component", "draft_cleanup"),
+			3*time.Hour,
+			24*time.Hour,
+		)
 	}
 
 	// Initialize handlers.
