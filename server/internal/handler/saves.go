@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -25,6 +26,18 @@ import (
 	"github.com/ksushant6566/mindtab/server/internal/services"
 	"github.com/ksushant6566/mindtab/server/internal/store"
 )
+
+const maxAudioBytes int64 = 500 * 1024 * 1024
+const maxAudioDurationSeconds int32 = 5400 // 90 min
+
+var allowedAudioMIMEs = map[string]string{
+	"audio/mp4":  ".m4a",
+	"audio/mpeg": ".mp3",
+	"audio/wav":  ".wav",
+	"audio/ogg":  ".ogg",
+	"audio/webm": ".webm",
+	"audio/flac": ".flac",
+}
 
 // enqueuer abstracts the job queue producer for testability.
 type enqueuer interface {
@@ -130,7 +143,29 @@ func (h *SavesHandler) Create(w http.ResponseWriter, r *http.Request) {
 	ct := r.Header.Get("Content-Type")
 
 	if strings.HasPrefix(ct, "multipart/form-data") {
-		h.createImage(w, r, userID, parseFormFlag(r, "auto_commit"), parseFormFlag(r, "start_processing"))
+		// Apply size cap. We use the audio cap (500 MB) since it's larger than the image cap;
+		// image-specific size validation already happens inside createImage.
+		r.Body = http.MaxBytesReader(w, r.Body, maxAudioBytes)
+		if err := r.ParseMultipartForm(32 << 20); err != nil {
+			var maxErr *http.MaxBytesError
+			if errors.As(err, &maxErr) {
+				WriteError(w, http.StatusRequestEntityTooLarge, "file too large")
+				return
+			}
+			WriteError(w, http.StatusBadRequest, "invalid multipart body")
+			return
+		}
+		autoCommit := parseFormFlag(r, "auto_commit")
+		startProcessing := parseFormFlag(r, "start_processing")
+		if _, _, err := r.FormFile("audio"); err == nil {
+			h.createAudio(w, r, userID, autoCommit, startProcessing)
+			return
+		}
+		if _, _, err := r.FormFile("image"); err == nil {
+			h.createImage(w, r, userID, autoCommit, startProcessing)
+			return
+		}
+		WriteError(w, http.StatusBadRequest, "missing file (expected audio or image field)")
 		return
 	}
 	h.createURL(w, r, userID)
@@ -298,15 +333,8 @@ func (h *SavesHandler) createURL(w http.ResponseWriter, r *http.Request, userID 
 }
 
 func (h *SavesHandler) createImage(w http.ResponseWriter, r *http.Request, userID string, autoCommit, startProcessing *bool) {
-	maxSize := h.maxSize
-	if maxSize <= 0 {
-		maxSize = 10 << 20 // 10 MB default
-	}
-
-	if err := r.ParseMultipartForm(maxSize); err != nil {
-		WriteError(w, http.StatusRequestEntityTooLarge, fmt.Sprintf("file too large (max %dMB)", maxSize/(1024*1024)))
-		return
-	}
+	// r.ParseMultipartForm has already been called by Create before dispatching here.
+	// Calling it again is a no-op; we skip it.
 
 	file, header, err := r.FormFile("image")
 	if err != nil {
@@ -414,6 +442,10 @@ func (h *SavesHandler) writeImageRecord(
 	}
 
 	writeSaveResponse(w, row, h.storage)
+}
+
+func (h *SavesHandler) createAudio(w http.ResponseWriter, r *http.Request, userID string, autoCommit, startProcessing *bool) {
+	WriteError(w, http.StatusNotImplemented, "audio not implemented")
 }
 
 // List handles GET /saves.
