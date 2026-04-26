@@ -29,12 +29,14 @@ Two orthogonal axes on every save row:
                      (invisible        (visible in vault)
                       to vault)
 
-   processing_status: pending ──► processing ──► processed
-                                        │
-                                        └──► failed
+   processing_status: deferred ──► pending ──► processing ──► processed
+                                                                  │
+                                                                  └──► failed
 ```
 
 The two move independently. Vault filter is `WHERE commit_status='committed'`. The worker pipeline only cares about `processing_status`.
+
+`deferred` is a new initial value used **only** when a save is created with `start_processing=false`. It means "the row exists but no job has been enqueued yet, and won't be until something flips it." Existing values (`pending`, `processing`, `processed`, `failed`) are unchanged in meaning. Existing rows are unaffected — no row ever gets implicitly demoted to `deferred`.
 
 ### Audio user flow
 
@@ -155,20 +157,21 @@ Request fields (across forms):
 **Server behavior:**
 1. Validate.
 2. Insert `mindmap_content` row with `commit_status` per `auto_commit`. For multipart, stream the file body directly to `{user_id}/{content_id}/{audio|image}.{ext}` via `StorageProvider.Save`. Populate `media_*` columns and `duration_seconds`.
-3. If `start_processing=true`: enqueue a `JobPayload{ContentID, UserID, ContentType, …}`. Otherwise skip.
+3. If `start_processing=true`: set `processing_status='pending'` and enqueue a `JobPayload{ContentID, UserID, ContentType, …}`. If `start_processing=false`: set `processing_status='deferred'`, do not enqueue.
 4. Respond `{id, commit_status, processing_status, media_url?}`. `media_url` is a signed URL for the just-stored file (image or audio).
 
 **Backward compatibility:** existing article/image/YouTube callers (web app, Chrome extension, mobile, today's iOS share extension) send no new flags. They get `auto_commit=true, start_processing=true` defaults — exactly today's behavior. Image uploads continue working through the same endpoint; what changes is that the file lands in permanent storage immediately rather than via `/tmp` (see Backend section).
 
 ### `POST /saves/:id/commit`
 
-Body: `{ "title": "..." }` — both fields optional.
+Body: `{ "title": "..." }` — `title` is optional.
 
 Behavior:
 1. Auth — user must own the row.
 2. If `commit_status='draft'`: flip to `'committed'`. Apply title if provided.
-3. If `processing_status='pending'` and no job has been enqueued for this row yet (we know because the row was created with `start_processing=false`): enqueue now.
-4. Idempotent: subsequent calls on already-committed rows return 200 with no side effect.
+3. If `processing_status='deferred'`: flip to `'pending'` and enqueue a job. (No race: `deferred` only ever exists for rows created with `start_processing=false`, and is the only state that triggers an enqueue here.)
+4. If `processing_status` is any other value (`pending`, `processing`, `processed`, `failed`): do nothing — a job already exists or has run.
+5. Idempotent: subsequent calls on already-committed rows return 200 with no side effect.
 
 ### `DELETE /saves/:id`
 
@@ -184,6 +187,7 @@ All vault-listing sqlc queries gain `WHERE commit_status='committed'`. Drafts ne
 - Extend `POST /saves` request body schemas with `auto_commit`, `start_processing`, the multipart audio fields, and the `source` analytics tag.
 - Add `POST /saves/:id/commit` operation.
 - Expose `commit_status` on response shapes.
+- Add `'deferred'` to the enum of valid `processing_status` values returned from the API.
 
 Generated TypeScript types flow into `@mindtab/api-spec` via the existing `pnpm build` pipeline; mobile picks them up automatically.
 
@@ -388,7 +392,7 @@ Tracks the single currently-playing audio across the app. `<AudioCard/>`'s play 
 - `useDraftPoll(id)` — polls `GET /saves/:id` every 2s for the ≤60s eager path; stops when `extracted_text` non-null.
 - `useAudioUpload()` — multipart mutation with `onUploadProgress` callback feeding `recorderStore.uploadProgress`.
 - `useCommitSave(id)` — mutation calling `POST /saves/:id/commit`.
-- `useDeleteSave(id)` — mutation calling `DELETE /saves/:id`. Invalidates the vault list query on success.
+- `useDeleteSave(id)` — mutation calling `DELETE /saves/:id`. Reuses (and lightly extends if needed) the existing vault delete hook used by article / image / YouTube cards. Invalidates the vault list query on success.
 
 ### Recorder lifecycle (concrete)
 
@@ -503,7 +507,7 @@ Following the patterns established by the recently-shipped server-test PR (#12).
 |---|---|
 | Audio upload with `auto_commit=true, start_processing=true` (share-extension path) | Row created committed + pending; job enqueued; eventually `processed`. |
 | Audio upload with `auto_commit=false, start_processing=true` (≤60s eager path) | Row stays draft; processing populates `extracted_text` + summary; commit endpoint flips to committed without re-enqueueing. |
-| Audio upload with `auto_commit=false, start_processing=false` (>60s deferred path) | Row draft + pending; nothing in queue; commit endpoint flips status and enqueues. |
+| Audio upload with `auto_commit=false, start_processing=false` (>60s deferred path) | Row `draft` + `deferred`; nothing in queue; commit endpoint flips both (`committed` + `pending`) and enqueues. |
 | Discard mid-process | Row + file deleted; in-flight worker fails its next step gracefully. |
 | Draft cleanup | Drafts older than 24h deleted; recent drafts survive. |
 | Image flow regression | Existing image saves still create + process correctly post-handler-refactor. |
