@@ -445,7 +445,97 @@ func (h *SavesHandler) writeImageRecord(
 }
 
 func (h *SavesHandler) createAudio(w http.ResponseWriter, r *http.Request, userID string, autoCommit, startProcessing *bool) {
-	WriteError(w, http.StatusNotImplemented, "audio not implemented")
+	file, header, err := r.FormFile("audio")
+	if err != nil {
+		WriteError(w, http.StatusBadRequest, "missing audio file")
+		return
+	}
+	defer file.Close()
+
+	mime := header.Header.Get("Content-Type")
+	ext, ok := allowedAudioMIMEs[mime]
+	if !ok {
+		WriteError(w, http.StatusUnsupportedMediaType, "unsupported audio type")
+		return
+	}
+
+	durationStr := r.FormValue("duration_seconds")
+	if durationStr == "" {
+		WriteError(w, http.StatusBadRequest, "duration_seconds required")
+		return
+	}
+	durSec64, err := strconv.ParseInt(durationStr, 10, 32)
+	if err != nil || durSec64 <= 0 || int32(durSec64) > maxAudioDurationSeconds {
+		WriteError(w, http.StatusBadRequest, "duration_seconds out of range")
+		return
+	}
+	durSec := int32(durSec64)
+
+	contentID := uuid.New()
+	mediaKey := fmt.Sprintf("%s/%s/audio%s", userID, contentID, ext)
+
+	buf, err := io.ReadAll(file)
+	if err != nil {
+		WriteError(w, http.StatusInternalServerError, "read upload")
+		return
+	}
+	if err := h.storage.Save(r.Context(), mediaKey, bytes.NewReader(buf), mime); err != nil {
+		slog.Error("failed to store audio", "error", err, "mediaKey", mediaKey)
+		WriteError(w, http.StatusInternalServerError, "store audio")
+		return
+	}
+
+	commitStatus, processingStatus := resolveLifecycleFlags(autoCommit, startProcessing)
+
+	nowTitle := fmt.Sprintf("Voice note · %s", time.Now().Format("Jan 2, 3:04 PM"))
+
+	row, err := h.queries.CreateContent(r.Context(), store.CreateContentParams{
+		ID:               uuidFromGoogle(contentID),
+		UserID:           userID,
+		SourceUrl:        pgtype.Text{},
+		SourceType:       "audio",
+		SourceTitle:      pgtype.Text{String: nowTitle, Valid: true},
+		ExtractedText:    pgtype.Text{},
+		MediaKey:         pgtype.Text{String: mediaKey, Valid: true},
+		MediaMime:        pgtype.Text{String: mime, Valid: true},
+		MediaFileBytes:   pgtype.Int8{Int64: int64(len(buf)), Valid: true},
+		DurationSeconds:  pgtype.Int4{Int32: durSec, Valid: true},
+		ProcessingStatus: processingStatus,
+		CommitStatus:     commitStatus,
+	})
+	if err != nil {
+		slog.Error("failed to create content record for audio", "error", err, "userID", userID)
+		// Best-effort cleanup of the stored file.
+		_ = h.storage.Delete(r.Context(), mediaKey)
+		WriteError(w, http.StatusInternalServerError, "create content")
+		return
+	}
+
+	if processingStatus == "pending" {
+		jobID, err := h.queries.CreateJob(r.Context(), store.CreateJobParams{
+			ContentID:   row.ID,
+			UserID:      userID,
+			ContentType: "audio",
+		})
+		if err != nil {
+			slog.Error("failed to create job record for audio", "error", err, "contentID", uuidToString(row.ID))
+			WriteError(w, http.StatusInternalServerError, "create job")
+			return
+		}
+		if err := h.producer.Enqueue(r.Context(), queue.JobPayload{
+			JobID:       uuidFromPgtype(jobID),
+			ContentID:   uuidFromPgtype(row.ID),
+			UserID:      userID,
+			ContentType: "audio",
+			MaxAttempts: 5,
+		}); err != nil {
+			slog.Error("failed to enqueue audio job", "error", err, "jobID", uuidFromPgtype(jobID).String())
+			WriteError(w, http.StatusInternalServerError, "enqueue")
+			return
+		}
+	}
+
+	writeSaveResponse(w, row, h.storage)
 }
 
 // List handles GET /saves.
