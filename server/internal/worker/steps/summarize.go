@@ -34,21 +34,24 @@ const audioSummarizeSystemPrompt = `You are MindTab's audio summariser. Given th
 Return ONLY valid JSON, no markdown fences.`
 
 func Summarize(ctx context.Context, llmChain *providers.Chain[llm.LLMProvider], text string) (*worker.StepResult, error) {
+	if text == "" {
+		return nil, fmt.Errorf("summarize: empty input text")
+	}
 	return runSummarizeWithPrompt(ctx, llmChain, summarizeSystemPrompt, "Summarize the following content:\n\n"+text)
 }
 
 // SummarizeForAudio runs the LLM chain on a transcript with an audio-specific
 // prompt that explicitly requests a short title (audio has no natural title source).
 func SummarizeForAudio(ctx context.Context, llmChain *providers.Chain[llm.LLMProvider], transcript string) (*worker.StepResult, error) {
+	if transcript == "" {
+		return nil, fmt.Errorf("summarize: empty input text")
+	}
 	return runSummarizeWithPrompt(ctx, llmChain, audioSummarizeSystemPrompt, "Summarize the following audio transcript:\n\n"+transcript)
 }
 
 // runSummarizeWithPrompt is the shared implementation: it calls the LLM chain,
 // strips any markdown fences, parses the JSON response, and returns a StepResult.
 func runSummarizeWithPrompt(ctx context.Context, llmChain *providers.Chain[llm.LLMProvider], systemPrompt, userPrompt string) (*worker.StepResult, error) {
-	if userPrompt == "" {
-		return nil, fmt.Errorf("summarize: empty input text")
-	}
 
 	// Trim the user prompt to at most 30 000 chars (rough token guard).
 	if len(userPrompt) > 30000 {
