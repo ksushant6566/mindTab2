@@ -29,7 +29,6 @@ func TestProducer_Enqueue(t *testing.T) {
 		ContentID:   uuid.New(),
 		UserID:      "user-123",
 		ContentType: "image",
-		SourceURL:   "https://example.com/image.png",
 		MaxAttempts: 3,
 	}
 
