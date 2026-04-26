@@ -22,19 +22,23 @@ import { colors } from "~/styles/colors";
 type SaveDetail = {
   id: string;
   source_url?: string | null;
-  source_type: "article" | "image" | "youtube";
+  source_type: "article" | "image" | "youtube" | "audio";
   source_title?: string | null;
   summary?: string | null;
   tags?: string[] | null;
   key_topics?: string[] | null;
   source_media_url?: string | null;
-  processing_status: "pending" | "processing" | "completed" | "failed";
+  media_url?: string | null;
+  media_mime?: string | null;
+  media_file_bytes?: number | null;
+  duration_seconds?: number | null;
+  processing_status: "deferred" | "pending" | "processing" | "completed" | "failed";
+  commit_status: "draft" | "committed";
   processing_error?: string | null;
   extracted_text?: string | null;
   visual_description?: string | null;
   created_at: string;
   updated_at: string;
-  video_duration?: number | null;
   video_thumbnail_url?: string | null;
   video_channel?: string | null;
   transcript_source?: string | null;
@@ -147,9 +151,9 @@ export default function VaultDetailScreen() {
                 <View style={styles.ytPlayOverlay}>
                   <Play size={28} color="#ffffff" fill="#ffffff" />
                 </View>
-                {save.video_duration != null ? (
+                {save.duration_seconds != null ? (
                   <View style={styles.ytDurationBadge}>
-                    <Text style={styles.ytDurationText}>{formatDuration(save.video_duration)}</Text>
+                    <Text style={styles.ytDurationText}>{formatDuration(save.duration_seconds)}</Text>
                   </View>
                 ) : null}
               </View>
