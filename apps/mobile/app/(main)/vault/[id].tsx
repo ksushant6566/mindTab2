@@ -131,7 +131,7 @@ export default function VaultDetailScreen() {
           >
             <View style={styles.audioPlayerHeader}>
               {save.media_url ? (
-                <AudioPlayer source={save.media_url} />
+                <AudioPlayer source={`${API_URL}${save.media_url}`} />
               ) : null}
               <Text style={styles.audioTitle}>
                 {save.source_title ?? "Voice note"}
