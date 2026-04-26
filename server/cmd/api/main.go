@@ -129,6 +129,12 @@ func main() {
 				queries, pool, cfg,
 			))
 			logger.Info("youtube processor registered")
+			dispatcher.Register(processors.NewAudioProcessor(
+				transcriptionChain,
+				registry.LLM, registry.Embedding,
+				storage, queries, pool,
+			))
+			logger.Info("audio processor registered")
 		}
 
 		// Startup cleanup of orphaned YouTube temp dirs (older than 1 hour).
