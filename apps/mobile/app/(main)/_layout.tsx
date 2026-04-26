@@ -1,9 +1,11 @@
 import { Stack } from "expo-router";
 import { colors } from "~/styles/colors";
 import { HeaderRight } from "~/components/header-right";
+import { MiniAudioPlayer } from "~/components/audio/mini-audio-player";
 
 export default function MainLayout() {
   return (
+    <>
     <Stack
       screenOptions={{
         headerShown: false,
@@ -64,5 +66,7 @@ export default function MainLayout() {
         options={{ presentation: "fullScreenModal", headerShown: false, animation: "fade" }}
       />
     </Stack>
+    <MiniAudioPlayer />
+    </>
   );
 }
