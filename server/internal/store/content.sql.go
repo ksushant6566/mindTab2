@@ -271,7 +271,7 @@ SELECT id, user_id, source_url, source_type, source_title, source_thumbnail_url,
        summary_provider, embedding_provider, embedding_model,
        media_key, processing_status, processing_error,
        duration_seconds, video_thumbnail_url, video_channel, transcript_source,
-       created_at, updated_at
+       commit_status, created_at, updated_at
 FROM mindmap_content
 WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL
 `
@@ -303,6 +303,7 @@ type GetContentByIDRow struct {
 	VideoThumbnailUrl  pgtype.Text        `json:"video_thumbnail_url"`
 	VideoChannel       pgtype.Text        `json:"video_channel"`
 	TranscriptSource   pgtype.Text        `json:"transcript_source"`
+	CommitStatus       string             `json:"commit_status"`
 	CreatedAt          pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
 }
@@ -332,6 +333,7 @@ func (q *Queries) GetContentByID(ctx context.Context, arg GetContentByIDParams) 
 		&i.VideoThumbnailUrl,
 		&i.VideoChannel,
 		&i.TranscriptSource,
+		&i.CommitStatus,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)

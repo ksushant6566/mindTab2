@@ -46,7 +46,7 @@ SELECT id, user_id, source_url, source_type, source_title, source_thumbnail_url,
        summary_provider, embedding_provider, embedding_model,
        media_key, processing_status, processing_error,
        duration_seconds, video_thumbnail_url, video_channel, transcript_source,
-       created_at, updated_at
+       commit_status, created_at, updated_at
 FROM mindmap_content
 WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL;
 

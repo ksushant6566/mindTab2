@@ -130,16 +130,53 @@ func (h *SavesHandler) Create(w http.ResponseWriter, r *http.Request) {
 	ct := r.Header.Get("Content-Type")
 
 	if strings.HasPrefix(ct, "multipart/form-data") {
-		h.createImage(w, r, userID, true, true)
+		h.createImage(w, r, userID, parseFormFlag(r, "auto_commit"), parseFormFlag(r, "start_processing"))
 		return
 	}
 	h.createURL(w, r, userID)
 }
 
 type createURLRequest struct {
-	URL     string `json:"url"`
-	Content string `json:"content,omitempty"`
-	Title   string `json:"title,omitempty"`
+	URL             string `json:"url"`
+	Content         string `json:"content,omitempty"`
+	Title           string `json:"title,omitempty"`
+	AutoCommit      *bool  `json:"auto_commit,omitempty"`
+	StartProcessing *bool  `json:"start_processing,omitempty"`
+}
+
+// resolveLifecycleFlags maps the nullable auto_commit / start_processing flags
+// to the string values stored in the DB.  Both flags default to true when omitted.
+func resolveLifecycleFlags(autoCommit, startProcessing *bool) (commit string, processing string) {
+	ac := true
+	if autoCommit != nil {
+		ac = *autoCommit
+	}
+	sp := true
+	if startProcessing != nil {
+		sp = *startProcessing
+	}
+	if ac {
+		commit = "committed"
+	} else {
+		commit = "draft"
+	}
+	if sp {
+		processing = "pending"
+	} else {
+		processing = "deferred"
+	}
+	return
+}
+
+// parseFormFlag reads a multipart form field as a *bool.
+// Returns nil when the field is absent, &true when "true", &false otherwise.
+func parseFormFlag(r *http.Request, name string) *bool {
+	v := r.FormValue(name)
+	if v == "" {
+		return nil
+	}
+	b := v == "true"
+	return &b
 }
 
 func (h *SavesHandler) createURL(w http.ResponseWriter, r *http.Request, userID string) {
@@ -179,18 +216,22 @@ func (h *SavesHandler) createURL(w http.ResponseWriter, r *http.Request, userID 
 		contentType = "youtube"
 	}
 
+	commitStatus, processingStatus := resolveLifecycleFlags(req.AutoCommit, req.StartProcessing)
+
 	// Create content record.
 	var contentID pgtype.UUID
 
 	if req.Content != "" {
 		// Pre-extracted content provided — write extracted_text at create time.
 		content, err := h.queries.CreateContentWithExtracted(r.Context(), store.CreateContentWithExtractedParams{
-			ID:            uuidFromGoogle(uuid.New()),
-			UserID:        userID,
-			SourceUrl:     pgtextFrom(req.URL),
-			SourceType:    contentType,
-			SourceTitle:   pgtextFrom(req.Title),
-			ExtractedText: pgtextFrom(req.Content),
+			ID:               uuidFromGoogle(uuid.New()),
+			UserID:           userID,
+			SourceUrl:        pgtextFrom(req.URL),
+			SourceType:       contentType,
+			SourceTitle:      pgtextFrom(req.Title),
+			ExtractedText:    pgtextFrom(req.Content),
+			ProcessingStatus: processingStatus,
+			CommitStatus:     commitStatus,
 		})
 		if err != nil {
 			slog.Error("failed to create content record", "error", err, "userID", userID)
@@ -200,11 +241,13 @@ func (h *SavesHandler) createURL(w http.ResponseWriter, r *http.Request, userID 
 		contentID = content.ID
 	} else {
 		content, err := h.queries.CreateContent(r.Context(), store.CreateContentParams{
-			ID:          uuidFromGoogle(uuid.New()),
-			UserID:      userID,
-			SourceUrl:   pgtextFrom(req.URL),
-			SourceType:  contentType,
-			SourceTitle: pgtextFrom(req.Title),
+			ID:               uuidFromGoogle(uuid.New()),
+			UserID:           userID,
+			SourceUrl:        pgtextFrom(req.URL),
+			SourceType:       contentType,
+			SourceTitle:      pgtextFrom(req.Title),
+			ProcessingStatus: processingStatus,
+			CommitStatus:     commitStatus,
 		})
 		if err != nil {
 			slog.Error("failed to create content record", "error", err, "userID", userID)
@@ -212,6 +255,14 @@ func (h *SavesHandler) createURL(w http.ResponseWriter, r *http.Request, userID 
 			return
 		}
 		contentID = content.ID
+	}
+
+	if processingStatus == "deferred" {
+		WriteJSON(w, http.StatusCreated, saveResponse{
+			ID:     uuidToString(contentID),
+			Status: processingStatus,
+		})
+		return
 	}
 
 	// Create job record.
@@ -242,11 +293,11 @@ func (h *SavesHandler) createURL(w http.ResponseWriter, r *http.Request, userID 
 
 	WriteJSON(w, http.StatusCreated, saveResponse{
 		ID:     uuidToString(contentID),
-		Status: "pending",
+		Status: processingStatus,
 	})
 }
 
-func (h *SavesHandler) createImage(w http.ResponseWriter, r *http.Request, userID string, autoCommit, startProcessing bool) {
+func (h *SavesHandler) createImage(w http.ResponseWriter, r *http.Request, userID string, autoCommit, startProcessing *bool) {
 	maxSize := h.maxSize
 	if maxSize <= 0 {
 		maxSize = 10 << 20 // 10 MB default
@@ -306,7 +357,7 @@ func (h *SavesHandler) createImage(w http.ResponseWriter, r *http.Request, userI
 // writeImageRecord stores the image bytes to permanent storage, creates the DB record, and enqueues.
 func (h *SavesHandler) writeImageRecord(
 	w http.ResponseWriter, r *http.Request,
-	userID string, autoCommit, startProcessing bool,
+	userID string, autoCommit, startProcessing *bool,
 	filename, mime string, buf []byte,
 ) {
 	contentID := uuid.New()
@@ -319,14 +370,7 @@ func (h *SavesHandler) writeImageRecord(
 		return
 	}
 
-	procStatus := "pending"
-	if !startProcessing {
-		procStatus = "deferred"
-	}
-	commitStatus := "committed"
-	if !autoCommit {
-		commitStatus = "draft"
-	}
+	commitStatus, procStatus := resolveLifecycleFlags(autoCommit, startProcessing)
 
 	row, err := h.queries.CreateContent(r.Context(), store.CreateContentParams{
 		ID:               uuidFromGoogle(contentID),
@@ -345,7 +389,7 @@ func (h *SavesHandler) writeImageRecord(
 		return
 	}
 
-	if startProcessing {
+	if procStatus == "pending" {
 		jobID, err := h.queries.CreateJob(r.Context(), store.CreateJobParams{
 			ContentID:   row.ID,
 			UserID:      userID,
