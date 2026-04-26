@@ -37,6 +37,10 @@ var allowedAudioMIMEs = map[string]string{
 	"audio/ogg":  ".ogg",
 	"audio/webm": ".webm",
 	"audio/flac": ".flac",
+	// Raw AAC (ADTS) — distinct binary format from audio/mp4 (MP4-containerized
+	// AAC). The iOS share-extension client labels .aac files as audio/aac;
+	// remapping that to audio/mp4 would mislabel raw ADTS as containerized.
+	"audio/aac": ".aac",
 }
 
 // enqueuer abstracts the job queue producer for testability.
