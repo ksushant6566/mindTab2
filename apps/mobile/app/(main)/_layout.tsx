@@ -55,6 +55,14 @@ export default function MainLayout() {
         name="vault/[id]"
         options={{ headerShown: true, title: "Vault", headerBackTitle: "Vault", animation: "slide_from_right" }}
       />
+      <Stack.Screen
+        name="saves/record"
+        options={{ presentation: "fullScreenModal", headerShown: false, animation: "slide_from_bottom" }}
+      />
+      <Stack.Screen
+        name="saves/review/[id]"
+        options={{ presentation: "fullScreenModal", headerShown: false, animation: "fade" }}
+      />
     </Stack>
   );
 }
