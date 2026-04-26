@@ -3,24 +3,46 @@ package steps
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/ksushant6566/mindtab/server/internal/providers"
+	"github.com/ksushant6566/mindtab/server/internal/store"
 	"github.com/ksushant6566/mindtab/server/internal/testutil"
 	"github.com/ksushant6566/mindtab/server/internal/worker"
 )
 
-func makeJobWithImage(imageData []byte, imageType string) *worker.Job {
-	return &worker.Job{
+// makeVisionJob creates a Job and pre-seeds the given storage with the image at
+// the canonical key {userID}/{contentID}/image.{ext}.
+func makeVisionJob(storage *testutil.MockStorageProvider, imageData []byte, ext string) *worker.Job {
+	job := &worker.Job{
 		ID:          uuid.New(),
 		ContentID:   uuid.New(),
 		UserID:      "user-test",
 		ContentType: "image",
-		ImageData:   imageData,
-		ImageType:   imageType,
+	}
+	key := fmt.Sprintf("%s/%s/image%s", job.UserID, job.ContentID.String(), ext)
+	storage.Files[key] = imageData
+	return job
+}
+
+// makeVisionQuerier returns a QuerierMock that resolves GetContentByID to the
+// given mediaKey for any job whose UserID and ContentID match.
+func makeVisionQuerier(job *worker.Job, mediaKey string) *store.QuerierMock {
+	return &store.QuerierMock{
+		GetContentByIDFunc: func(ctx context.Context, arg store.GetContentByIDParams) (store.GetContentByIDRow, error) {
+			return store.GetContentByIDRow{
+				ID:               pgtype.UUID{Bytes: job.ContentID, Valid: true},
+				UserID:           job.UserID,
+				SourceType:       "image",
+				MediaKey:         pgtype.Text{String: mediaKey, Valid: true},
+				ProcessingStatus: "processing",
+			}, nil
+		},
 	}
 }
 
@@ -30,9 +52,12 @@ func TestVision_Success(t *testing.T) {
 	mock := &testutil.MockLLMProvider{Response: payload}
 	chain := makeLLMChain(mock)
 
-	job := makeJobWithImage([]byte("fake-image-bytes"), "image/jpeg")
+	storage := testutil.NewMockStorage()
+	job := makeVisionJob(storage, []byte("fake-image-bytes"), ".jpeg")
+	mediaKey := fmt.Sprintf("%s/%s/image.jpeg", job.UserID, job.ContentID.String())
+	queries := makeVisionQuerier(job, mediaKey)
 
-	result, err := Vision(context.Background(), chain, job)
+	result, err := Vision(context.Background(), chain, storage, queries, job)
 	if err != nil {
 		t.Fatalf("Vision: unexpected error: %v", err)
 	}
@@ -70,9 +95,12 @@ func TestVision_LLMError(t *testing.T) {
 	}
 	chain := makeLLMChain(mock)
 
-	job := makeJobWithImage([]byte("fake-image-bytes"), "image/jpeg")
+	storage := testutil.NewMockStorage()
+	job := makeVisionJob(storage, []byte("fake-image-bytes"), ".jpeg")
+	mediaKey := fmt.Sprintf("%s/%s/image.jpeg", job.UserID, job.ContentID.String())
+	queries := makeVisionQuerier(job, mediaKey)
 
-	result, err := Vision(context.Background(), chain, job)
+	result, err := Vision(context.Background(), chain, storage, queries, job)
 	if err == nil {
 		t.Fatal("Vision: expected error when LLM fails")
 	}
@@ -81,15 +109,34 @@ func TestVision_LLMError(t *testing.T) {
 	}
 }
 
-func TestVision_NoImageData(t *testing.T) {
+func TestVision_NoMediaKey(t *testing.T) {
 	mock := &testutil.MockLLMProvider{Response: "{}"}
 	chain := makeLLMChain(mock)
 
-	job := makeJobWithImage(nil, "image/jpeg")
+	storage := testutil.NewMockStorage()
+	job := &worker.Job{
+		ID:          uuid.New(),
+		ContentID:   uuid.New(),
+		UserID:      "user-test",
+		ContentType: "image",
+	}
 
-	result, err := Vision(context.Background(), chain, job)
+	// Return a row with no media_key.
+	queries := &store.QuerierMock{
+		GetContentByIDFunc: func(ctx context.Context, arg store.GetContentByIDParams) (store.GetContentByIDRow, error) {
+			return store.GetContentByIDRow{
+				ID:               pgtype.UUID{Bytes: job.ContentID, Valid: true},
+				UserID:           job.UserID,
+				SourceType:       "image",
+				MediaKey:         pgtype.Text{Valid: false},
+				ProcessingStatus: "processing",
+			}, nil
+		},
+	}
+
+	result, err := Vision(context.Background(), chain, storage, queries, job)
 	if err == nil {
-		t.Fatal("Vision: expected error when no image data")
+		t.Fatal("Vision: expected error when no media_key")
 	}
 	if result != nil {
 		t.Errorf("Vision: expected nil result, got %+v", result)
@@ -102,9 +149,12 @@ func TestVision_MalformedJSONFallback(t *testing.T) {
 	mock := &testutil.MockLLMProvider{Response: raw}
 	chain := makeLLMChain(mock)
 
-	job := makeJobWithImage([]byte("fake-image-bytes"), "image/png")
+	storage := testutil.NewMockStorage()
+	job := makeVisionJob(storage, []byte("fake-image-bytes"), ".png")
+	mediaKey := fmt.Sprintf("%s/%s/image.png", job.UserID, job.ContentID.String())
+	queries := makeVisionQuerier(job, mediaKey)
 
-	result, err := Vision(context.Background(), chain, job)
+	result, err := Vision(context.Background(), chain, storage, queries, job)
 	if err != nil {
 		t.Fatalf("Vision: unexpected error: %v", err)
 	}
