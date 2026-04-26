@@ -13,7 +13,7 @@ SELECT id, user_id, source_url, source_type, source_title, source_thumbnail_url,
        extracted_text, visual_description, summary, tags, key_topics,
        summary_provider, embedding_provider, embedding_model,
        media_key, processing_status, processing_error,
-       video_duration, video_thumbnail_url, video_channel, transcript_source,
+       duration_seconds, video_thumbnail_url, video_channel, transcript_source,
        created_at, updated_at
 FROM mindmap_content
 WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL;
@@ -22,10 +22,11 @@ WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL;
 SELECT id, user_id, source_url, source_type, source_title, source_thumbnail_url,
        summary, tags, key_topics, media_key,
        processing_status, processing_error,
-       video_duration, video_thumbnail_url, video_channel,
+       duration_seconds, video_thumbnail_url, video_channel,
        created_at, updated_at
 FROM mindmap_content
 WHERE user_id = $1 AND deleted_at IS NULL
+  AND commit_status = 'committed'
 ORDER BY created_at DESC
 LIMIT $2 OFFSET $3;
 
@@ -67,7 +68,7 @@ WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL;
 
 -- name: UpdateContentYoutubeFields :exec
 UPDATE mindmap_content
-SET video_duration = $2,
+SET duration_seconds = $2,
     video_thumbnail_url = $3,
     video_channel = $4,
     transcript_source = $5,
@@ -81,4 +82,5 @@ WHERE id = $1;
 
 -- name: CountContent :one
 SELECT count(*) FROM mindmap_content
-WHERE user_id = $1 AND deleted_at IS NULL;
+WHERE user_id = $1 AND deleted_at IS NULL
+  AND commit_status = 'committed';
