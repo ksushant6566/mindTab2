@@ -8,7 +8,7 @@ import { colors } from "~/styles/colors";
 
 export default function ChatLayout() {
   const { isOpen, open, close } = useChatSidebar();
-  const activeConversationId = useChatStore((s) => s.activeConversationId);
+  const activeConversationId = useChatStore((s) => s.activeConversationId ?? undefined);
 
   return (
     <ChatSidebar isOpen={isOpen} onClose={close} activeConversationId={activeConversationId}>
