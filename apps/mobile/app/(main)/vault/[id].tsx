@@ -15,6 +15,7 @@ import { Share2, Trash2, Play } from "lucide-react-native";
 import { toast } from "sonner-native";
 import { api } from "~/lib/api-client";
 import { MarkdownContent } from "~/components/vault/markdown-content";
+import { AudioPlayer } from "~/components/audio/audio-player";
 import { colors } from "~/styles/colors";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -22,19 +23,23 @@ import { colors } from "~/styles/colors";
 type SaveDetail = {
   id: string;
   source_url?: string | null;
-  source_type: "article" | "image" | "youtube";
+  source_type: "article" | "image" | "youtube" | "audio";
   source_title?: string | null;
   summary?: string | null;
   tags?: string[] | null;
   key_topics?: string[] | null;
   source_media_url?: string | null;
-  processing_status: "pending" | "processing" | "completed" | "failed";
+  media_url?: string | null;
+  media_mime?: string | null;
+  media_file_bytes?: number | null;
+  duration_seconds?: number | null;
+  processing_status: "deferred" | "pending" | "processing" | "completed" | "failed";
+  commit_status: "draft" | "committed";
   processing_error?: string | null;
   extracted_text?: string | null;
   visual_description?: string | null;
   created_at: string;
   updated_at: string;
-  video_duration?: number | null;
   video_thumbnail_url?: string | null;
   video_channel?: string | null;
   transcript_source?: string | null;
@@ -118,6 +123,30 @@ export default function VaultDetailScreen() {
           <View style={styles.center}>
             <ActivityIndicator color={colors.text.muted} />
           </View>
+        ) : save.source_type === "audio" ? (
+          <ScrollView
+            style={styles.root}
+            contentContainerStyle={styles.audioContent}
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.audioPlayerHeader}>
+              {save.media_url ? (
+                <AudioPlayer source={`${API_URL}${save.media_url}`} />
+              ) : null}
+              <Text style={styles.audioTitle}>
+                {save.source_title ?? "Voice note"}
+              </Text>
+            </View>
+            <View style={{ padding: 16 }}>
+              {save.extracted_text ? (
+                <Text style={styles.transcript}>{save.extracted_text}</Text>
+              ) : (
+                <Text style={styles.muted}>
+                  Transcript will appear here once processing finishes.
+                </Text>
+              )}
+            </View>
+          </ScrollView>
         ) : (
           <ScrollView
             contentContainerStyle={styles.content}
@@ -147,9 +176,9 @@ export default function VaultDetailScreen() {
                 <View style={styles.ytPlayOverlay}>
                   <Play size={28} color="#ffffff" fill="#ffffff" />
                 </View>
-                {save.video_duration != null ? (
+                {save.duration_seconds != null ? (
                   <View style={styles.ytDurationBadge}>
-                    <Text style={styles.ytDurationText}>{formatDuration(save.video_duration)}</Text>
+                    <Text style={styles.ytDurationText}>{formatDuration(save.duration_seconds)}</Text>
                   </View>
                 ) : null}
               </View>
@@ -259,6 +288,35 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: colors.bg.primary,
+  },
+  root: {
+    flex: 1,
+    backgroundColor: colors.bg.primary,
+  },
+  audioContent: {
+    paddingBottom: 80,
+  },
+  audioPlayerHeader: {
+    backgroundColor: colors.bg.primary,
+    padding: 16,
+    gap: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border.subtle,
+  },
+  audioTitle: {
+    fontSize: 22,
+    color: colors.text.primary,
+    fontWeight: "500",
+  },
+  transcript: {
+    fontSize: 16,
+    color: colors.text.primary,
+    lineHeight: 24,
+  },
+  muted: {
+    fontSize: 14,
+    color: colors.text.secondary,
+    fontStyle: "italic",
   },
   center: {
     flex: 1,

@@ -43,6 +43,7 @@ func Store(
 	var embedResult EmbedResult
 	var metadataResult MetadataResult
 	var transcribeResult TranscribeResult
+	var transcribeAudioResult TranscribeAudioResult
 	var mediaKey string
 
 	if r, ok := prevResults["extract"]; ok && r != nil {
@@ -62,6 +63,7 @@ func Store(
 	}
 	if r, ok := prevResults["transcribe"]; ok && r != nil {
 		json.Unmarshal(r.Data, &transcribeResult)
+		json.Unmarshal(r.Data, &transcribeAudioResult)
 	}
 	if r, ok := prevResults["save"]; ok && r != nil {
 		var saveResult map[string]string
@@ -69,10 +71,13 @@ func Store(
 		mediaKey = saveResult["media_key"]
 	}
 
-	// Build extracted text: prefer article text, fall back to transcript, then vision OCR text.
+	// Build extracted text: prefer article text, fall back to transcript (YouTube/audio), then vision OCR text.
 	extractedText := extractResult.Text
 	if extractedText == "" && transcribeResult.Transcript != "" {
 		extractedText = transcribeResult.Transcript
+	}
+	if extractedText == "" && transcribeAudioResult.ExtractedText != "" {
+		extractedText = transcribeAudioResult.ExtractedText
 	}
 	if extractedText == "" {
 		extractedText = visionResult.ExtractedText
@@ -124,13 +129,26 @@ func Store(
 	if metadataResult.VideoID != "" {
 		err = queries.UpdateContentYoutubeFields(ctx, store.UpdateContentYoutubeFieldsParams{
 			ID:                contentID,
-			VideoDuration:     pgint4From(metadataResult.Duration),
+			DurationSeconds:   pgint4From(metadataResult.Duration),
 			VideoThumbnailUrl: pgtextFrom(metadataResult.ThumbnailURL),
 			VideoChannel:      pgtextFrom(metadataResult.Channel),
 			TranscriptSource:  pgtextFrom(transcribeResult.TranscriptSource),
 		})
 		if err != nil {
 			return nil, fmt.Errorf("update youtube fields: %w", err)
+		}
+	}
+
+	// Update transcript_source for audio content (no video metadata, but has audio transcript).
+	// Use the dedicated query so we don't overwrite duration_seconds (set at upload time)
+	// or the unrelated video_* columns with NULLs.
+	if metadataResult.VideoID == "" && transcribeAudioResult.TranscriptSource != "" {
+		err = queries.UpdateContentTranscriptSource(ctx, store.UpdateContentTranscriptSourceParams{
+			ID:               contentID,
+			TranscriptSource: pgtextFrom(transcribeAudioResult.TranscriptSource),
+		})
+		if err != nil {
+			return nil, fmt.Errorf("update audio transcript source: %w", err)
 		}
 	}
 

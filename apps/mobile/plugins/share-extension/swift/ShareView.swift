@@ -118,7 +118,7 @@ struct ShareView: View {
                     .fill(Color(white: 0.12))
                     .frame(width: 56, height: 56)
                     .overlay(
-                        Image(systemName: "link")
+                        Image(systemName: content.hasAudio ? "waveform" : "link")
                             .font(.system(size: 20))
                             .foregroundColor(Color(white: 0.4))
                     )
@@ -146,14 +146,16 @@ struct ShareView: View {
     private func validateContent() {
         if !content.isValid {
             state = .error
-            errorMessage = "Cannot save text-only content. Share a link or image instead."
+            errorMessage = "Cannot save text-only content. Share a link, image, or audio file instead."
             return
         }
         state = .preview
     }
 
     private func performSave(token: String) async throws {
-        if let imageData = content.imageData, let imageMIME = content.imageMIME {
+        if let audioURL = content.audioURL {
+            _ = try await APIClient.saveAudio(fileURL: audioURL, token: token)
+        } else if let imageData = content.imageData, let imageMIME = content.imageMIME {
             _ = try await APIClient.saveImage(imageData: imageData, mimeType: imageMIME, token: token)
         } else if let url = content.url {
             _ = try await APIClient.saveURL(

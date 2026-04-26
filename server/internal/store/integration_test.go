@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/pgvector/pgvector-go"
 	"github.com/stretchr/testify/assert"
@@ -33,10 +34,18 @@ func createTestUser(t *testing.T, ctx context.Context, q *store.Queries) store.M
 func createTestContent(t *testing.T, ctx context.Context, q *store.Queries, userID string) store.CreateContentRow {
 	t.Helper()
 	content, err := q.CreateContent(ctx, store.CreateContentParams{
-		UserID:      userID,
-		SourceUrl:   pgtype.Text{String: "https://example.com/article", Valid: true},
-		SourceType:  "article",
-		SourceTitle: pgtype.Text{String: "Test Article", Valid: true},
+		ID:               pgtype.UUID{Bytes: uuid.New(), Valid: true},
+		UserID:           userID,
+		SourceUrl:        pgtype.Text{String: "https://example.com/article", Valid: true},
+		SourceType:       "article",
+		SourceTitle:      pgtype.Text{String: "Test Article", Valid: true},
+		ExtractedText:    pgtype.Text{},
+		MediaKey:         pgtype.Text{},
+		MediaMime:        pgtype.Text{},
+		MediaFileBytes:   pgtype.Int8{},
+		DurationSeconds:  pgtype.Int4{},
+		ProcessingStatus: "pending",
+		CommitStatus:     "committed",
 	})
 	require.NoError(t, err)
 	return content
@@ -79,10 +88,18 @@ func TestStore_ListContent(t *testing.T) {
 
 	for i := 0; i < 3; i++ {
 		_, err := q.CreateContent(ctx, store.CreateContentParams{
-			UserID:      user.ID,
-			SourceUrl:   pgtype.Text{String: "https://example.com/item", Valid: true},
-			SourceType:  "article",
-			SourceTitle: pgtype.Text{String: "Item", Valid: true},
+			ID:               pgtype.UUID{Bytes: uuid.New(), Valid: true},
+			UserID:           user.ID,
+			SourceUrl:        pgtype.Text{String: "https://example.com/item", Valid: true},
+			SourceType:       "article",
+			SourceTitle:      pgtype.Text{String: "Item", Valid: true},
+			ExtractedText:    pgtype.Text{},
+			MediaKey:         pgtype.Text{},
+			MediaMime:        pgtype.Text{},
+			MediaFileBytes:   pgtype.Int8{},
+			DurationSeconds:  pgtype.Int4{},
+			ProcessingStatus: "pending",
+			CommitStatus:     "committed",
 		})
 		require.NoError(t, err)
 	}

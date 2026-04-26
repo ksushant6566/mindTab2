@@ -47,6 +47,35 @@ func MultipartRequest(path, fieldName, fileName string, fileData []byte, mimeTyp
 	return req
 }
 
+// MultipartRequestWithFields builds a multipart/form-data request with a file field
+// and additional string form fields.
+func MultipartRequestWithFields(path, fieldName, fileName string, fileData []byte, mimeType string, extraFields map[string]string) *http.Request {
+	var buf bytes.Buffer
+	w := multipart.NewWriter(&buf)
+	// Write extra text fields first.
+	for k, v := range extraFields {
+		if err := w.WriteField(k, v); err != nil {
+			panic(fmt.Sprintf("testutil.MultipartRequestWithFields: WriteField failed: %v", err))
+		}
+	}
+	h := make(textproto.MIMEHeader)
+	h.Set("Content-Disposition", fmt.Sprintf(`form-data; name="%s"; filename="%s"`, fieldName, fileName))
+	h.Set("Content-Type", mimeType)
+	part, err := w.CreatePart(h)
+	if err != nil {
+		panic(fmt.Sprintf("testutil.MultipartRequestWithFields: CreatePart failed: %v", err))
+	}
+	if _, err = part.Write(fileData); err != nil {
+		panic(fmt.Sprintf("testutil.MultipartRequestWithFields: part.Write failed: %v", err))
+	}
+	if err = w.Close(); err != nil {
+		panic(fmt.Sprintf("testutil.MultipartRequestWithFields: multipart Close failed: %v", err))
+	}
+	req := httptest.NewRequest(http.MethodPost, path, &buf)
+	req.Header.Set("Content-Type", w.FormDataContentType())
+	return req
+}
+
 // AssertStatus checks the response status code.
 func AssertStatus(t *testing.T, resp *httptest.ResponseRecorder, expected int) {
 	t.Helper()

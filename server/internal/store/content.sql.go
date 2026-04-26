@@ -15,6 +15,7 @@ import (
 const countContent = `-- name: CountContent :one
 SELECT count(*) FROM mindmap_content
 WHERE user_id = $1 AND deleted_at IS NULL
+  AND commit_status = 'committed'
 `
 
 func (q *Queries) CountContent(ctx context.Context, userID string) (int64, error) {
@@ -25,34 +26,85 @@ func (q *Queries) CountContent(ctx context.Context, userID string) (int64, error
 }
 
 const createContent = `-- name: CreateContent :one
-INSERT INTO mindmap_content (user_id, source_url, source_type, source_title, processing_status)
-VALUES ($1, $2, $3, $4, 'pending')
-RETURNING id, user_id, source_url, source_type, source_title, processing_status, created_at
+INSERT INTO mindmap_content (
+    id,
+    user_id, source_url, source_type, source_title,
+    extracted_text, media_key, media_mime, media_file_bytes,
+    duration_seconds,
+    processing_status, commit_status
+) VALUES (
+    $1,
+    $2, $3, $4, $5,
+    $6, $7, $8, $9,
+    $10,
+    $11, $12
+)
+RETURNING id, user_id, source_url, source_type, source_title, source_thumbnail_url,
+          extracted_text, visual_description, summary, tags, key_topics,
+          summary_provider, embedding_provider, embedding_model,
+          media_key, media_mime, media_file_bytes, processing_status, processing_error,
+          duration_seconds, video_thumbnail_url, video_channel, transcript_source,
+          commit_status, created_at, updated_at
 `
 
 type CreateContentParams struct {
-	UserID      string      `json:"user_id"`
-	SourceUrl   pgtype.Text `json:"source_url"`
-	SourceType  string      `json:"source_type"`
-	SourceTitle pgtype.Text `json:"source_title"`
+	ID               pgtype.UUID `json:"id"`
+	UserID           string      `json:"user_id"`
+	SourceUrl        pgtype.Text `json:"source_url"`
+	SourceType       string      `json:"source_type"`
+	SourceTitle      pgtype.Text `json:"source_title"`
+	ExtractedText    pgtype.Text `json:"extracted_text"`
+	MediaKey         pgtype.Text `json:"media_key"`
+	MediaMime        pgtype.Text `json:"media_mime"`
+	MediaFileBytes   pgtype.Int8 `json:"media_file_bytes"`
+	DurationSeconds  pgtype.Int4 `json:"duration_seconds"`
+	ProcessingStatus string      `json:"processing_status"`
+	CommitStatus     string      `json:"commit_status"`
 }
 
 type CreateContentRow struct {
-	ID               pgtype.UUID        `json:"id"`
-	UserID           string             `json:"user_id"`
-	SourceUrl        pgtype.Text        `json:"source_url"`
-	SourceType       string             `json:"source_type"`
-	SourceTitle      pgtype.Text        `json:"source_title"`
-	ProcessingStatus string             `json:"processing_status"`
-	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	ID                 pgtype.UUID        `json:"id"`
+	UserID             string             `json:"user_id"`
+	SourceUrl          pgtype.Text        `json:"source_url"`
+	SourceType         string             `json:"source_type"`
+	SourceTitle        pgtype.Text        `json:"source_title"`
+	SourceThumbnailUrl pgtype.Text        `json:"source_thumbnail_url"`
+	ExtractedText      pgtype.Text        `json:"extracted_text"`
+	VisualDescription  pgtype.Text        `json:"visual_description"`
+	Summary            pgtype.Text        `json:"summary"`
+	Tags               []string           `json:"tags"`
+	KeyTopics          []string           `json:"key_topics"`
+	SummaryProvider    pgtype.Text        `json:"summary_provider"`
+	EmbeddingProvider  pgtype.Text        `json:"embedding_provider"`
+	EmbeddingModel     pgtype.Text        `json:"embedding_model"`
+	MediaKey           pgtype.Text        `json:"media_key"`
+	MediaMime          pgtype.Text        `json:"media_mime"`
+	MediaFileBytes     pgtype.Int8        `json:"media_file_bytes"`
+	ProcessingStatus   string             `json:"processing_status"`
+	ProcessingError    pgtype.Text        `json:"processing_error"`
+	DurationSeconds    pgtype.Int4        `json:"duration_seconds"`
+	VideoThumbnailUrl  pgtype.Text        `json:"video_thumbnail_url"`
+	VideoChannel       pgtype.Text        `json:"video_channel"`
+	TranscriptSource   pgtype.Text        `json:"transcript_source"`
+	CommitStatus       string             `json:"commit_status"`
+	CreatedAt          pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
 }
 
 func (q *Queries) CreateContent(ctx context.Context, arg CreateContentParams) (CreateContentRow, error) {
 	row := q.db.QueryRow(ctx, createContent,
+		arg.ID,
 		arg.UserID,
 		arg.SourceUrl,
 		arg.SourceType,
 		arg.SourceTitle,
+		arg.ExtractedText,
+		arg.MediaKey,
+		arg.MediaMime,
+		arg.MediaFileBytes,
+		arg.DurationSeconds,
+		arg.ProcessingStatus,
+		arg.CommitStatus,
 	)
 	var i CreateContentRow
 	err := row.Scan(
@@ -61,43 +113,111 @@ func (q *Queries) CreateContent(ctx context.Context, arg CreateContentParams) (C
 		&i.SourceUrl,
 		&i.SourceType,
 		&i.SourceTitle,
+		&i.SourceThumbnailUrl,
+		&i.ExtractedText,
+		&i.VisualDescription,
+		&i.Summary,
+		&i.Tags,
+		&i.KeyTopics,
+		&i.SummaryProvider,
+		&i.EmbeddingProvider,
+		&i.EmbeddingModel,
+		&i.MediaKey,
+		&i.MediaMime,
+		&i.MediaFileBytes,
 		&i.ProcessingStatus,
+		&i.ProcessingError,
+		&i.DurationSeconds,
+		&i.VideoThumbnailUrl,
+		&i.VideoChannel,
+		&i.TranscriptSource,
+		&i.CommitStatus,
 		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
 
 const createContentWithExtracted = `-- name: CreateContentWithExtracted :one
-INSERT INTO mindmap_content (user_id, source_url, source_type, source_title, extracted_text, processing_status)
-VALUES ($1, $2, $3, $4, $5, 'pending')
-RETURNING id, user_id, source_url, source_type, source_title, processing_status, created_at
+INSERT INTO mindmap_content (
+    id,
+    user_id, source_url, source_type, source_title,
+    extracted_text, media_key, media_mime, media_file_bytes,
+    duration_seconds,
+    processing_status, commit_status
+) VALUES (
+    $1,
+    $2, $3, $4, $5,
+    $6, $7, $8, $9,
+    $10,
+    $11, $12
+)
+RETURNING id, user_id, source_url, source_type, source_title, source_thumbnail_url,
+          extracted_text, visual_description, summary, tags, key_topics,
+          summary_provider, embedding_provider, embedding_model,
+          media_key, media_mime, media_file_bytes, processing_status, processing_error,
+          duration_seconds, video_thumbnail_url, video_channel, transcript_source,
+          commit_status, created_at, updated_at
 `
 
 type CreateContentWithExtractedParams struct {
-	UserID        string      `json:"user_id"`
-	SourceUrl     pgtype.Text `json:"source_url"`
-	SourceType    string      `json:"source_type"`
-	SourceTitle   pgtype.Text `json:"source_title"`
-	ExtractedText pgtype.Text `json:"extracted_text"`
+	ID               pgtype.UUID `json:"id"`
+	UserID           string      `json:"user_id"`
+	SourceUrl        pgtype.Text `json:"source_url"`
+	SourceType       string      `json:"source_type"`
+	SourceTitle      pgtype.Text `json:"source_title"`
+	ExtractedText    pgtype.Text `json:"extracted_text"`
+	MediaKey         pgtype.Text `json:"media_key"`
+	MediaMime        pgtype.Text `json:"media_mime"`
+	MediaFileBytes   pgtype.Int8 `json:"media_file_bytes"`
+	DurationSeconds  pgtype.Int4 `json:"duration_seconds"`
+	ProcessingStatus string      `json:"processing_status"`
+	CommitStatus     string      `json:"commit_status"`
 }
 
 type CreateContentWithExtractedRow struct {
-	ID               pgtype.UUID        `json:"id"`
-	UserID           string             `json:"user_id"`
-	SourceUrl        pgtype.Text        `json:"source_url"`
-	SourceType       string             `json:"source_type"`
-	SourceTitle      pgtype.Text        `json:"source_title"`
-	ProcessingStatus string             `json:"processing_status"`
-	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	ID                 pgtype.UUID        `json:"id"`
+	UserID             string             `json:"user_id"`
+	SourceUrl          pgtype.Text        `json:"source_url"`
+	SourceType         string             `json:"source_type"`
+	SourceTitle        pgtype.Text        `json:"source_title"`
+	SourceThumbnailUrl pgtype.Text        `json:"source_thumbnail_url"`
+	ExtractedText      pgtype.Text        `json:"extracted_text"`
+	VisualDescription  pgtype.Text        `json:"visual_description"`
+	Summary            pgtype.Text        `json:"summary"`
+	Tags               []string           `json:"tags"`
+	KeyTopics          []string           `json:"key_topics"`
+	SummaryProvider    pgtype.Text        `json:"summary_provider"`
+	EmbeddingProvider  pgtype.Text        `json:"embedding_provider"`
+	EmbeddingModel     pgtype.Text        `json:"embedding_model"`
+	MediaKey           pgtype.Text        `json:"media_key"`
+	MediaMime          pgtype.Text        `json:"media_mime"`
+	MediaFileBytes     pgtype.Int8        `json:"media_file_bytes"`
+	ProcessingStatus   string             `json:"processing_status"`
+	ProcessingError    pgtype.Text        `json:"processing_error"`
+	DurationSeconds    pgtype.Int4        `json:"duration_seconds"`
+	VideoThumbnailUrl  pgtype.Text        `json:"video_thumbnail_url"`
+	VideoChannel       pgtype.Text        `json:"video_channel"`
+	TranscriptSource   pgtype.Text        `json:"transcript_source"`
+	CommitStatus       string             `json:"commit_status"`
+	CreatedAt          pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
 }
 
 func (q *Queries) CreateContentWithExtracted(ctx context.Context, arg CreateContentWithExtractedParams) (CreateContentWithExtractedRow, error) {
 	row := q.db.QueryRow(ctx, createContentWithExtracted,
+		arg.ID,
 		arg.UserID,
 		arg.SourceUrl,
 		arg.SourceType,
 		arg.SourceTitle,
 		arg.ExtractedText,
+		arg.MediaKey,
+		arg.MediaMime,
+		arg.MediaFileBytes,
+		arg.DurationSeconds,
+		arg.ProcessingStatus,
+		arg.CommitStatus,
 	)
 	var i CreateContentWithExtractedRow
 	err := row.Scan(
@@ -106,10 +226,65 @@ func (q *Queries) CreateContentWithExtracted(ctx context.Context, arg CreateCont
 		&i.SourceUrl,
 		&i.SourceType,
 		&i.SourceTitle,
+		&i.SourceThumbnailUrl,
+		&i.ExtractedText,
+		&i.VisualDescription,
+		&i.Summary,
+		&i.Tags,
+		&i.KeyTopics,
+		&i.SummaryProvider,
+		&i.EmbeddingProvider,
+		&i.EmbeddingModel,
+		&i.MediaKey,
+		&i.MediaMime,
+		&i.MediaFileBytes,
 		&i.ProcessingStatus,
+		&i.ProcessingError,
+		&i.DurationSeconds,
+		&i.VideoThumbnailUrl,
+		&i.VideoChannel,
+		&i.TranscriptSource,
+		&i.CommitStatus,
 		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const deleteExpiredDraftsReturningKeys = `-- name: DeleteExpiredDraftsReturningKeys :many
+DELETE FROM mindmap_content
+WHERE commit_status = 'draft'
+  AND updated_at < $1
+RETURNING id, media_key
+`
+
+type DeleteExpiredDraftsReturningKeysRow struct {
+	ID       pgtype.UUID `json:"id"`
+	MediaKey pgtype.Text `json:"media_key"`
+}
+
+// Atomically deletes expired drafts and returns the media_key of each deleted
+// row. Combining SELECT + DELETE into one statement closes the TOCTOU window
+// where a draft could be committed between the two queries, which previously
+// caused us to delete media for a now-committed row.
+func (q *Queries) DeleteExpiredDraftsReturningKeys(ctx context.Context, updatedAt pgtype.Timestamptz) ([]DeleteExpiredDraftsReturningKeysRow, error) {
+	rows, err := q.db.Query(ctx, deleteExpiredDraftsReturningKeys, updatedAt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []DeleteExpiredDraftsReturningKeysRow
+	for rows.Next() {
+		var i DeleteExpiredDraftsReturningKeysRow
+		if err := rows.Scan(&i.ID, &i.MediaKey); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getContentByID = `-- name: GetContentByID :one
@@ -117,8 +292,8 @@ SELECT id, user_id, source_url, source_type, source_title, source_thumbnail_url,
        extracted_text, visual_description, summary, tags, key_topics,
        summary_provider, embedding_provider, embedding_model,
        media_key, processing_status, processing_error,
-       video_duration, video_thumbnail_url, video_channel, transcript_source,
-       created_at, updated_at
+       duration_seconds, video_thumbnail_url, video_channel, transcript_source,
+       commit_status, created_at, updated_at
 FROM mindmap_content
 WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL
 `
@@ -146,10 +321,11 @@ type GetContentByIDRow struct {
 	MediaKey           pgtype.Text        `json:"media_key"`
 	ProcessingStatus   string             `json:"processing_status"`
 	ProcessingError    pgtype.Text        `json:"processing_error"`
-	VideoDuration      pgtype.Int4        `json:"video_duration"`
+	DurationSeconds    pgtype.Int4        `json:"duration_seconds"`
 	VideoThumbnailUrl  pgtype.Text        `json:"video_thumbnail_url"`
 	VideoChannel       pgtype.Text        `json:"video_channel"`
 	TranscriptSource   pgtype.Text        `json:"transcript_source"`
+	CommitStatus       string             `json:"commit_status"`
 	CreatedAt          pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
 }
@@ -175,10 +351,11 @@ func (q *Queries) GetContentByID(ctx context.Context, arg GetContentByIDParams) 
 		&i.MediaKey,
 		&i.ProcessingStatus,
 		&i.ProcessingError,
-		&i.VideoDuration,
+		&i.DurationSeconds,
 		&i.VideoThumbnailUrl,
 		&i.VideoChannel,
 		&i.TranscriptSource,
+		&i.CommitStatus,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -202,10 +379,11 @@ const listContent = `-- name: ListContent :many
 SELECT id, user_id, source_url, source_type, source_title, source_thumbnail_url,
        summary, tags, key_topics, media_key,
        processing_status, processing_error,
-       video_duration, video_thumbnail_url, video_channel,
+       duration_seconds, video_thumbnail_url, video_channel,
        created_at, updated_at
 FROM mindmap_content
 WHERE user_id = $1 AND deleted_at IS NULL
+  AND commit_status = 'committed'
 ORDER BY created_at DESC
 LIMIT $2 OFFSET $3
 `
@@ -229,7 +407,7 @@ type ListContentRow struct {
 	MediaKey           pgtype.Text        `json:"media_key"`
 	ProcessingStatus   string             `json:"processing_status"`
 	ProcessingError    pgtype.Text        `json:"processing_error"`
-	VideoDuration      pgtype.Int4        `json:"video_duration"`
+	DurationSeconds    pgtype.Int4        `json:"duration_seconds"`
 	VideoThumbnailUrl  pgtype.Text        `json:"video_thumbnail_url"`
 	VideoChannel       pgtype.Text        `json:"video_channel"`
 	CreatedAt          pgtype.Timestamptz `json:"created_at"`
@@ -258,7 +436,7 @@ func (q *Queries) ListContent(ctx context.Context, arg ListContentParams) ([]Lis
 			&i.MediaKey,
 			&i.ProcessingStatus,
 			&i.ProcessingError,
-			&i.VideoDuration,
+			&i.DurationSeconds,
 			&i.VideoThumbnailUrl,
 			&i.VideoChannel,
 			&i.CreatedAt,
@@ -291,6 +469,33 @@ func (q *Queries) SoftDeleteContent(ctx context.Context, arg SoftDeleteContentPa
 	return err
 }
 
+const updateContentCommitStatus = `-- name: UpdateContentCommitStatus :exec
+UPDATE mindmap_content
+SET commit_status = $2,
+    source_title  = COALESCE($3, source_title),
+    updated_at    = CURRENT_TIMESTAMP
+WHERE id = $1
+  AND user_id = $4
+  AND deleted_at IS NULL
+`
+
+type UpdateContentCommitStatusParams struct {
+	ID           pgtype.UUID `json:"id"`
+	CommitStatus string      `json:"commit_status"`
+	SourceTitle  pgtype.Text `json:"source_title"`
+	UserID       string      `json:"user_id"`
+}
+
+func (q *Queries) UpdateContentCommitStatus(ctx context.Context, arg UpdateContentCommitStatusParams) error {
+	_, err := q.db.Exec(ctx, updateContentCommitStatus,
+		arg.ID,
+		arg.CommitStatus,
+		arg.SourceTitle,
+		arg.UserID,
+	)
+	return err
+}
+
 const updateContentEmbedding = `-- name: UpdateContentEmbedding :exec
 UPDATE mindmap_content
 SET embedding = $2,
@@ -305,6 +510,20 @@ type UpdateContentEmbeddingParams struct {
 
 func (q *Queries) UpdateContentEmbedding(ctx context.Context, arg UpdateContentEmbeddingParams) error {
 	_, err := q.db.Exec(ctx, updateContentEmbedding, arg.ID, arg.Embedding)
+	return err
+}
+
+const updateContentProcessingStatusToPending = `-- name: UpdateContentProcessingStatusToPending :exec
+UPDATE mindmap_content
+SET processing_status = 'pending',
+    updated_at        = CURRENT_TIMESTAMP
+WHERE id = $1
+  AND processing_status = 'deferred'
+  AND deleted_at IS NULL
+`
+
+func (q *Queries) UpdateContentProcessingStatusToPending(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, updateContentProcessingStatusToPending, id)
 	return err
 }
 
@@ -376,9 +595,26 @@ func (q *Queries) UpdateContentStatus(ctx context.Context, arg UpdateContentStat
 	return err
 }
 
+const updateContentTranscriptSource = `-- name: UpdateContentTranscriptSource :exec
+UPDATE mindmap_content
+SET transcript_source = $2,
+    updated_at = NOW()
+WHERE id = $1 AND deleted_at IS NULL
+`
+
+type UpdateContentTranscriptSourceParams struct {
+	ID               pgtype.UUID `json:"id"`
+	TranscriptSource pgtype.Text `json:"transcript_source"`
+}
+
+func (q *Queries) UpdateContentTranscriptSource(ctx context.Context, arg UpdateContentTranscriptSourceParams) error {
+	_, err := q.db.Exec(ctx, updateContentTranscriptSource, arg.ID, arg.TranscriptSource)
+	return err
+}
+
 const updateContentYoutubeFields = `-- name: UpdateContentYoutubeFields :exec
 UPDATE mindmap_content
-SET video_duration = $2,
+SET duration_seconds = $2,
     video_thumbnail_url = $3,
     video_channel = $4,
     transcript_source = $5,
@@ -388,7 +624,7 @@ WHERE id = $1 AND deleted_at IS NULL
 
 type UpdateContentYoutubeFieldsParams struct {
 	ID                pgtype.UUID `json:"id"`
-	VideoDuration     pgtype.Int4 `json:"video_duration"`
+	DurationSeconds   pgtype.Int4 `json:"duration_seconds"`
 	VideoThumbnailUrl pgtype.Text `json:"video_thumbnail_url"`
 	VideoChannel      pgtype.Text `json:"video_channel"`
 	TranscriptSource  pgtype.Text `json:"transcript_source"`
@@ -397,7 +633,7 @@ type UpdateContentYoutubeFieldsParams struct {
 func (q *Queries) UpdateContentYoutubeFields(ctx context.Context, arg UpdateContentYoutubeFieldsParams) error {
 	_, err := q.db.Exec(ctx, updateContentYoutubeFields,
 		arg.ID,
-		arg.VideoDuration,
+		arg.DurationSeconds,
 		arg.VideoThumbnailUrl,
 		arg.VideoChannel,
 		arg.TranscriptSource,

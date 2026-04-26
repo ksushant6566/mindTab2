@@ -38,6 +38,11 @@ type Querier interface {
 	CreateProject(ctx context.Context, arg CreateProjectParams) (MindmapProject, error)
 	CreateRefreshToken(ctx context.Context, arg CreateRefreshTokenParams) error
 	CreateVerificationToken(ctx context.Context, arg CreateVerificationTokenParams) error
+	// Atomically deletes expired drafts and returns the media_key of each deleted
+	// row. Combining SELECT + DELETE into one statement closes the TOCTOU window
+	// where a draft could be committed between the two queries, which previously
+	// caused us to delete media for a now-committed row.
+	DeleteExpiredDraftsReturningKeys(ctx context.Context, updatedAt pgtype.Timestamptz) ([]DeleteExpiredDraftsReturningKeysRow, error)
 	DeleteExpiredRefreshTokens(ctx context.Context) error
 	DeleteExpiredVerificationTokens(ctx context.Context) error
 	DeleteHabit(ctx context.Context, arg DeleteHabitParams) error
@@ -103,9 +108,12 @@ type Querier interface {
 	TouchConversation(ctx context.Context, id pgtype.UUID) error
 	TrackHabit(ctx context.Context, arg TrackHabitParams) (pgtype.UUID, error)
 	UntrackHabit(ctx context.Context, arg UntrackHabitParams) error
+	UpdateContentCommitStatus(ctx context.Context, arg UpdateContentCommitStatusParams) error
 	UpdateContentEmbedding(ctx context.Context, arg UpdateContentEmbeddingParams) error
+	UpdateContentProcessingStatusToPending(ctx context.Context, id pgtype.UUID) error
 	UpdateContentResults(ctx context.Context, arg UpdateContentResultsParams) error
 	UpdateContentStatus(ctx context.Context, arg UpdateContentStatusParams) error
+	UpdateContentTranscriptSource(ctx context.Context, arg UpdateContentTranscriptSourceParams) error
 	UpdateContentYoutubeFields(ctx context.Context, arg UpdateContentYoutubeFieldsParams) error
 	UpdateConversationTitle(ctx context.Context, arg UpdateConversationTitleParams) error
 	UpdateGoal(ctx context.Context, arg UpdateGoalParams) error

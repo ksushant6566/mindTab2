@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/ksushant6566/mindtab/server/internal/providers"
 	"github.com/ksushant6566/mindtab/server/internal/providers/embedding"
@@ -19,7 +18,7 @@ import (
 )
 
 // ImageProcessor handles the processing pipeline for image content.
-// Pipeline: save → vision → summarize → embed → store
+// Pipeline: vision → summarize → embed → store
 type ImageProcessor struct {
 	storage        services.StorageProvider
 	llmChain       *providers.Chain[llm.LLMProvider]
@@ -52,7 +51,7 @@ func (p *ImageProcessor) ContentType() string {
 
 // Steps returns the ordered list of step names for this pipeline.
 func (p *ImageProcessor) Steps() []string {
-	return []string{"save", "vision", "summarize", "embed", "store"}
+	return []string{"vision", "summarize", "embed", "store"}
 }
 
 // LockTTL returns the distributed lock duration for this processor.
@@ -63,10 +62,8 @@ func (p *ImageProcessor) LockTTL() time.Duration {
 // Execute runs the named step and returns its result.
 func (p *ImageProcessor) Execute(ctx context.Context, step string, job *worker.Job, prevResults worker.StepResults) (*worker.StepResult, error) {
 	switch step {
-	case "save":
-		return p.save(ctx, job)
 	case "vision":
-		return steps.Vision(ctx, p.llmChain, job)
+		return steps.Vision(ctx, p.llmChain, p.storage, p.queries, job)
 	case "summarize":
 		return p.summarize(ctx, prevResults)
 	case "embed":
@@ -76,34 +73,6 @@ func (p *ImageProcessor) Execute(ctx context.Context, step string, job *worker.J
 	default:
 		return nil, fmt.Errorf("image processor: unknown step %q", step)
 	}
-}
-
-func (p *ImageProcessor) save(ctx context.Context, job *worker.Job) (*worker.StepResult, error) {
-	if len(job.ImageData) == 0 {
-		return nil, fmt.Errorf("save: no image data")
-	}
-
-	// Build a storage key scoped to the user for access control.
-	ext := mimeToExt(job.ImageType)
-	mediaKey := fmt.Sprintf("%s/%s/image%s", job.UserID, job.ContentID.String(), ext)
-
-	if err := p.storage.Save(ctx, mediaKey, bytes.NewReader(job.ImageData), job.ImageType); err != nil {
-		return nil, fmt.Errorf("save: store image: %w", err)
-	}
-
-	// Update content status to "processing".
-	contentID := pgtype.UUID{Bytes: job.ContentID, Valid: true}
-	if err := p.queries.UpdateContentStatus(ctx, store.UpdateContentStatusParams{
-		ID:               contentID,
-		ProcessingStatus: "processing",
-		ProcessingError:  pgtype.Text{},
-	}); err != nil {
-		return nil, fmt.Errorf("save: update content status: %w", err)
-	}
-
-	result := map[string]string{"media_key": mediaKey}
-	data, _ := json.Marshal(result)
-	return &worker.StepResult{Data: data}, nil
 }
 
 func (p *ImageProcessor) summarize(ctx context.Context, prevResults worker.StepResults) (*worker.StepResult, error) {
@@ -163,18 +132,3 @@ func (p *ImageProcessor) embed(ctx context.Context, prevResults worker.StepResul
 	return steps.Embed(ctx, p.embeddingChain, buf.String())
 }
 
-// mimeToExt returns a file extension for common image MIME types.
-func mimeToExt(mime string) string {
-	switch mime {
-	case "image/jpeg", "image/jpg":
-		return ".jpg"
-	case "image/png":
-		return ".png"
-	case "image/gif":
-		return ".gif"
-	case "image/webp":
-		return ".webp"
-	default:
-		return ".bin"
-	}
-}

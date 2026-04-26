@@ -14,10 +14,13 @@ import {
   type BottomSheetBackdropProps,
 } from "@gorhom/bottom-sheet";
 import * as ImagePicker from "expo-image-picker";
+import * as DocumentPicker from "expo-document-picker";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus } from "lucide-react-native";
+import { useRouter } from "expo-router";
+import { Mic, Plus, Upload } from "lucide-react-native";
 import { toast } from "sonner-native";
 import { api, authedFetch } from "~/lib/api-client";
+import { useAudioUpload } from "~/hooks/use-audio-upload";
 import { colors } from "~/styles/colors";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:8080";
@@ -25,6 +28,8 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:8080";
 export function SaveFAB() {
   const bottomSheetRef = useRef<BottomSheetModal>(null);
   const queryClient = useQueryClient();
+  const router = useRouter();
+  const upload = useAudioUpload();
 
   const [urlInput, setUrlInput] = useState("");
   const [urlLoading, setUrlLoading] = useState(false);
@@ -111,6 +116,46 @@ export function SaveFAB() {
     }
   };
 
+  // ── Record Audio ─────────────────────────────────────────────────────────
+
+  const handleRecordAudio = useCallback(() => {
+    bottomSheetRef.current?.dismiss();
+    router.push("/saves/record");
+  }, [router]);
+
+  // ── Upload Audio File ─────────────────────────────────────────────────────
+
+  const handleUploadAudio = useCallback(async () => {
+    const r = await DocumentPicker.getDocumentAsync({
+      type: ["audio/*"],
+      copyToCacheDirectory: true,
+    });
+    if (r.canceled || !r.assets?.[0]) return;
+    const asset = r.assets[0];
+    bottomSheetRef.current?.dismiss();
+    upload.mutate(
+      {
+        fileUri: asset.uri,
+        durationSeconds: 1,
+        autoCommit: true,
+        startProcessing: true,
+        source: "file_picker",
+        mime: asset.mimeType ?? "audio/mp4",
+        filename: asset.name,
+      },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: ["saves"] });
+          toast.success("Audio uploaded");
+        },
+        onError: (err) => {
+          toast.error("Upload failed");
+          console.warn(err);
+        },
+      },
+    );
+  }, [upload, queryClient]);
+
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
@@ -123,7 +168,7 @@ export function SaveFAB() {
       {/* Bottom sheet */}
       <BottomSheetModal
         ref={bottomSheetRef}
-        snapPoints={["55%", "80%"]}
+        snapPoints={["70%", "90%"]}
         enablePanDownToClose
         backgroundStyle={styles.sheetBg}
         handleIndicatorStyle={styles.sheetHandle}
@@ -165,6 +210,23 @@ export function SaveFAB() {
             <Text style={styles.sectionLabel}>Save Image</Text>
             <Pressable style={styles.galleryBtn} onPress={handleSaveImage}>
               <Text style={styles.galleryBtnText}>Choose from Gallery</Text>
+            </Pressable>
+
+            {/* ── Divider ── */}
+            <View style={styles.divider} />
+
+            {/* ── Audio section ── */}
+            <Text style={styles.sectionLabel}>Save Audio</Text>
+            <Pressable style={styles.audioBtn} onPress={handleRecordAudio}>
+              <Mic size={16} color={colors.text.primary} />
+              <Text style={styles.audioBtnText}>Record Audio</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.audioBtn, styles.audioBtnSecondary]}
+              onPress={handleUploadAudio}
+            >
+              <Upload size={16} color={colors.text.secondary} />
+              <Text style={styles.audioBtnSecondaryText}>Upload Audio File</Text>
             </Pressable>
           </KeyboardAvoidingView>
         </BottomSheetView>
@@ -261,6 +323,32 @@ const styles = StyleSheet.create({
   },
   galleryBtnText: {
     color: "#fafafa",
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  // Audio buttons
+  audioBtn: {
+    backgroundColor: colors.accent.indigo,
+    borderRadius: 12,
+    paddingVertical: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginBottom: 10,
+  },
+  audioBtnText: {
+    color: colors.text.primary,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  audioBtnSecondary: {
+    backgroundColor: "#141414",
+    borderWidth: 1,
+    borderColor: colors.border.input,
+  },
+  audioBtnSecondaryText: {
+    color: colors.text.secondary,
     fontSize: 14,
     fontWeight: "500",
   },

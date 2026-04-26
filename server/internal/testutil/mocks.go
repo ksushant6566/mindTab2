@@ -137,6 +137,15 @@ func (m *MockStorageProvider) URL(key string) string {
 	return "/media/" + key
 }
 
+// FileExists reports whether key is currently present, taking the internal
+// lock so it is safe to call concurrently with Save/Delete.
+func (m *MockStorageProvider) FileExists(key string) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	_, ok := m.Files[key]
+	return ok
+}
+
 // --- Producer Mock ---
 
 type MockProducer struct {

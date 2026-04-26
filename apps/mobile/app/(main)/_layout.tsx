@@ -1,9 +1,11 @@
 import { Stack } from "expo-router";
 import { colors } from "~/styles/colors";
 import { HeaderRight } from "~/components/header-right";
+import { MiniAudioPlayer } from "~/components/audio/mini-audio-player";
 
 export default function MainLayout() {
   return (
+    <>
     <Stack
       screenOptions={{
         headerShown: false,
@@ -55,6 +57,16 @@ export default function MainLayout() {
         name="vault/[id]"
         options={{ headerShown: true, title: "Vault", headerBackTitle: "Vault", animation: "slide_from_right" }}
       />
+      <Stack.Screen
+        name="saves/record"
+        options={{ presentation: "fullScreenModal", headerShown: false, animation: "slide_from_bottom" }}
+      />
+      <Stack.Screen
+        name="saves/review/[id]"
+        options={{ presentation: "fullScreenModal", headerShown: false, animation: "fade" }}
+      />
     </Stack>
+    <MiniAudioPlayer />
+    </>
   );
 }

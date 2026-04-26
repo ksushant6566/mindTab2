@@ -1,6 +1,7 @@
 package testutil
 
 import (
+	"testing"
 	"time"
 
 	"github.com/google/uuid"
@@ -13,6 +14,17 @@ import (
 
 func PgUUID(id uuid.UUID) pgtype.UUID {
 	return pgtype.UUID{Bytes: id, Valid: true}
+}
+
+// PgUUIDFromString parses a UUID string and returns a pgtype.UUID.
+// Fails the test if the string is not a valid UUID.
+func PgUUIDFromString(t *testing.T, s string) pgtype.UUID {
+	t.Helper()
+	id, err := uuid.Parse(s)
+	if err != nil {
+		t.Fatalf("PgUUIDFromString: invalid UUID %q: %v", s, err)
+	}
+	return PgUUID(id)
 }
 
 func PgText(s string) pgtype.Text {
@@ -35,6 +47,7 @@ func NewCreateContentRow(opts ...CreateContentOption) store.CreateContentRow {
 		UserID:           "test-user",
 		SourceType:       "article",
 		ProcessingStatus: "pending",
+		CommitStatus:     "committed",
 		CreatedAt:        PgTimestamptz(now),
 	}
 	for _, o := range opts {
@@ -125,7 +138,6 @@ func NewJobPayload(opts ...PayloadOption) queue.JobPayload {
 		ContentID:   uuid.New(),
 		UserID:      "test-user",
 		ContentType: "article",
-		SourceURL:   "https://example.com/article",
 		MaxAttempts: 5,
 	}
 	for _, o := range opts {
@@ -138,22 +150,10 @@ func WithContentType(ct string) PayloadOption {
 	return func(p *queue.JobPayload) { p.ContentType = ct }
 }
 
-func WithSourceURL(url string) PayloadOption {
-	return func(p *queue.JobPayload) { p.SourceURL = url }
-}
-
 func WithAttemptCount(n int) PayloadOption {
 	return func(p *queue.JobPayload) { p.AttemptCount = n }
 }
 
 func WithMaxAttempts(n int) PayloadOption {
 	return func(p *queue.JobPayload) { p.MaxAttempts = n }
-}
-
-func WithTempImagePath(path string) PayloadOption {
-	return func(p *queue.JobPayload) { p.TempImagePath = path }
-}
-
-func WithImageMIME(mime string) PayloadOption {
-	return func(p *queue.JobPayload) { p.ImageMIME = mime }
 }

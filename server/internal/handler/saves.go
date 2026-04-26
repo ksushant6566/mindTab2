@@ -1,16 +1,18 @@
 package handler
 
 import (
+	"bytes"
 	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -24,6 +26,22 @@ import (
 	"github.com/ksushant6566/mindtab/server/internal/services"
 	"github.com/ksushant6566/mindtab/server/internal/store"
 )
+
+const maxAudioBytes int64 = 500 * 1024 * 1024
+const maxAudioDurationSeconds int32 = 5400 // 90 min
+
+var allowedAudioMIMEs = map[string]string{
+	"audio/mp4":  ".m4a",
+	"audio/mpeg": ".mp3",
+	"audio/wav":  ".wav",
+	"audio/ogg":  ".ogg",
+	"audio/webm": ".webm",
+	"audio/flac": ".flac",
+	// Raw AAC (ADTS) — distinct binary format from audio/mp4 (MP4-containerized
+	// AAC). The iOS share-extension client labels .aac files as audio/aac;
+	// remapping that to audio/mp4 would mislabel raw ADTS as containerized.
+	"audio/aac": ".aac",
+}
 
 // enqueuer abstracts the job queue producer for testability.
 type enqueuer interface {
@@ -40,16 +58,18 @@ type SavesHandler struct {
 	queries   store.Querier
 	producer  enqueuer
 	search    searcher
+	storage   services.StorageProvider
 	maxSize   int64
 	jwtSecret string
 }
 
 // NewSavesHandler creates a new SavesHandler.
-func NewSavesHandler(queries store.Querier, producer enqueuer, search searcher, maxSize int64, jwtSecret string) *SavesHandler {
+func NewSavesHandler(queries store.Querier, producer enqueuer, search searcher, storage services.StorageProvider, maxSize int64, jwtSecret string) *SavesHandler {
 	return &SavesHandler{
 		queries:   queries,
 		producer:  producer,
 		search:    search,
+		storage:   storage,
 		maxSize:   maxSize,
 		jwtSecret: jwtSecret,
 	}
@@ -79,7 +99,7 @@ type contentJSON struct {
 	EmbeddingModel     *string    `json:"embedding_model,omitempty"`
 	MediaKey           *string    `json:"media_key,omitempty"`
 	SourceMediaURL     *string    `json:"source_media_url,omitempty"`
-	VideoDuration      *int32     `json:"video_duration,omitempty"`
+	DurationSeconds    *int32     `json:"duration_seconds,omitempty"`
 	VideoThumbnailURL  *string    `json:"video_thumbnail_url,omitempty"`
 	VideoChannel       *string    `json:"video_channel,omitempty"`
 	TranscriptSource   *string    `json:"transcript_source,omitempty"`
@@ -102,7 +122,7 @@ type contentListJSON struct {
 	KeyTopics          []string   `json:"key_topics"`
 	MediaKey           *string    `json:"media_key,omitempty"`
 	SourceMediaURL     *string    `json:"source_media_url,omitempty"`
-	VideoDuration      *int32     `json:"video_duration,omitempty"`
+	DurationSeconds    *int32     `json:"duration_seconds,omitempty"`
 	VideoThumbnailURL  *string    `json:"video_thumbnail_url,omitempty"`
 	VideoChannel       *string    `json:"video_channel,omitempty"`
 	ProcessingStatus   string     `json:"processing_status"`
@@ -127,16 +147,75 @@ func (h *SavesHandler) Create(w http.ResponseWriter, r *http.Request) {
 	ct := r.Header.Get("Content-Type")
 
 	if strings.HasPrefix(ct, "multipart/form-data") {
-		h.createImage(w, r, userID)
+		// Apply size cap. We use the audio cap (500 MB) since it's larger than the image cap;
+		// image-specific size validation already happens inside createImage.
+		r.Body = http.MaxBytesReader(w, r.Body, maxAudioBytes)
+		if err := r.ParseMultipartForm(32 << 20); err != nil {
+			var maxErr *http.MaxBytesError
+			if errors.As(err, &maxErr) {
+				WriteError(w, http.StatusRequestEntityTooLarge, "file too large")
+				return
+			}
+			WriteError(w, http.StatusBadRequest, "invalid multipart body")
+			return
+		}
+		autoCommit := parseFormFlag(r, "auto_commit")
+		startProcessing := parseFormFlag(r, "start_processing")
+		if _, _, err := r.FormFile("audio"); err == nil {
+			h.createAudio(w, r, userID, autoCommit, startProcessing)
+			return
+		}
+		if _, _, err := r.FormFile("image"); err == nil {
+			h.createImage(w, r, userID, autoCommit, startProcessing)
+			return
+		}
+		WriteError(w, http.StatusBadRequest, "missing file (expected audio or image field)")
 		return
 	}
 	h.createURL(w, r, userID)
 }
 
 type createURLRequest struct {
-	URL     string `json:"url"`
-	Content string `json:"content,omitempty"`
-	Title   string `json:"title,omitempty"`
+	URL             string `json:"url"`
+	Content         string `json:"content,omitempty"`
+	Title           string `json:"title,omitempty"`
+	AutoCommit      *bool  `json:"auto_commit,omitempty"`
+	StartProcessing *bool  `json:"start_processing,omitempty"`
+}
+
+// resolveLifecycleFlags maps the nullable auto_commit / start_processing flags
+// to the string values stored in the DB.  Both flags default to true when omitted.
+func resolveLifecycleFlags(autoCommit, startProcessing *bool) (commit string, processing string) {
+	ac := true
+	if autoCommit != nil {
+		ac = *autoCommit
+	}
+	sp := true
+	if startProcessing != nil {
+		sp = *startProcessing
+	}
+	if ac {
+		commit = "committed"
+	} else {
+		commit = "draft"
+	}
+	if sp {
+		processing = "pending"
+	} else {
+		processing = "deferred"
+	}
+	return
+}
+
+// parseFormFlag reads a multipart form field as a *bool.
+// Returns nil when the field is absent, &true when "true", &false otherwise.
+func parseFormFlag(r *http.Request, name string) *bool {
+	v := r.FormValue(name)
+	if v == "" {
+		return nil
+	}
+	b := v == "true"
+	return &b
 }
 
 func (h *SavesHandler) createURL(w http.ResponseWriter, r *http.Request, userID string) {
@@ -176,17 +255,22 @@ func (h *SavesHandler) createURL(w http.ResponseWriter, r *http.Request, userID 
 		contentType = "youtube"
 	}
 
+	commitStatus, processingStatus := resolveLifecycleFlags(req.AutoCommit, req.StartProcessing)
+
 	// Create content record.
 	var contentID pgtype.UUID
 
 	if req.Content != "" {
 		// Pre-extracted content provided — write extracted_text at create time.
 		content, err := h.queries.CreateContentWithExtracted(r.Context(), store.CreateContentWithExtractedParams{
-			UserID:        userID,
-			SourceUrl:     pgtextFrom(req.URL),
-			SourceType:    contentType,
-			SourceTitle:   pgtextFrom(req.Title),
-			ExtractedText: pgtextFrom(req.Content),
+			ID:               uuidFromGoogle(uuid.New()),
+			UserID:           userID,
+			SourceUrl:        pgtextFrom(req.URL),
+			SourceType:       contentType,
+			SourceTitle:      pgtextFrom(req.Title),
+			ExtractedText:    pgtextFrom(req.Content),
+			ProcessingStatus: processingStatus,
+			CommitStatus:     commitStatus,
 		})
 		if err != nil {
 			slog.Error("failed to create content record", "error", err, "userID", userID)
@@ -196,10 +280,13 @@ func (h *SavesHandler) createURL(w http.ResponseWriter, r *http.Request, userID 
 		contentID = content.ID
 	} else {
 		content, err := h.queries.CreateContent(r.Context(), store.CreateContentParams{
-			UserID:      userID,
-			SourceUrl:   pgtextFrom(req.URL),
-			SourceType:  contentType,
-			SourceTitle: pgtextFrom(req.Title),
+			ID:               uuidFromGoogle(uuid.New()),
+			UserID:           userID,
+			SourceUrl:        pgtextFrom(req.URL),
+			SourceType:       contentType,
+			SourceTitle:      pgtextFrom(req.Title),
+			ProcessingStatus: processingStatus,
+			CommitStatus:     commitStatus,
 		})
 		if err != nil {
 			slog.Error("failed to create content record", "error", err, "userID", userID)
@@ -207,6 +294,14 @@ func (h *SavesHandler) createURL(w http.ResponseWriter, r *http.Request, userID 
 			return
 		}
 		contentID = content.ID
+	}
+
+	if processingStatus == "deferred" {
+		WriteJSON(w, http.StatusCreated, saveResponse{
+			ID:     uuidToString(contentID),
+			Status: processingStatus,
+		})
+		return
 	}
 
 	// Create job record.
@@ -227,7 +322,6 @@ func (h *SavesHandler) createURL(w http.ResponseWriter, r *http.Request, userID 
 		ContentID:   uuidFromPgtype(contentID),
 		UserID:      userID,
 		ContentType: contentType,
-		SourceURL:   req.URL,
 		MaxAttempts: 5,
 	}
 	if err := h.producer.Enqueue(r.Context(), payload); err != nil {
@@ -238,20 +332,13 @@ func (h *SavesHandler) createURL(w http.ResponseWriter, r *http.Request, userID 
 
 	WriteJSON(w, http.StatusCreated, saveResponse{
 		ID:     uuidToString(contentID),
-		Status: "pending",
+		Status: processingStatus,
 	})
 }
 
-func (h *SavesHandler) createImage(w http.ResponseWriter, r *http.Request, userID string) {
-	maxSize := h.maxSize
-	if maxSize <= 0 {
-		maxSize = 10 << 20 // 10 MB default
-	}
-
-	if err := r.ParseMultipartForm(maxSize); err != nil {
-		WriteError(w, http.StatusRequestEntityTooLarge, fmt.Sprintf("file too large (max %dMB)", maxSize/(1024*1024)))
-		return
-	}
+func (h *SavesHandler) createImage(w http.ResponseWriter, r *http.Request, userID string, autoCommit, startProcessing *bool) {
+	// r.ParseMultipartForm has already been called by Create before dispatching here.
+	// Calling it again is a no-op; we skip it.
 
 	file, header, err := r.FormFile("image")
 	if err != nil {
@@ -260,108 +347,234 @@ func (h *SavesHandler) createImage(w http.ResponseWriter, r *http.Request, userI
 	}
 	defer file.Close()
 
-	// Validate MIME type.
-	buf := make([]byte, 512)
-	n, err := file.Read(buf)
-	if err != nil && err != io.EOF {
-		WriteError(w, http.StatusBadRequest, "failed to read image")
-		return
-	}
-	buf = buf[:n]
-	mimeType := http.DetectContentType(buf)
-
-	allowed := map[string]bool{
-		"image/jpeg": true,
-		"image/png":  true,
-		"image/webp": true,
-	}
-	if !allowed[mimeType] {
-		WriteError(w, http.StatusBadRequest, fmt.Sprintf("unsupported image type: %s (must be jpeg, png, or webp)", mimeType))
+	// Fast-fail using the multipart-reported size when present. multipart only
+	// populates Size for parts that were spooled to disk, so this is a hint —
+	// the post-read limit below is the real guard.
+	if h.maxSize > 0 && header.Size > h.maxSize {
+		WriteError(w, http.StatusRequestEntityTooLarge, "image too large")
 		return
 	}
 
-	// Save to temp file under /tmp/mindtab/{uuid}/.
-	dirID := uuid.New()
-	dirPath := fmt.Sprintf("/tmp/mindtab/%s", dirID.String())
-	if err := os.MkdirAll(dirPath, 0o755); err != nil {
-		slog.Error("failed to create temp dir", "error", err)
-		WriteError(w, http.StatusInternalServerError, "failed to prepare image storage")
+	// Validate MIME type from the part's Content-Type header first;
+	// fall back to sniffing the first 512 bytes.
+	mime := header.Header.Get("Content-Type")
+	if !isAllowedImageMIME(mime) {
+		// Sniff bytes for cases where the client sends an incorrect or missing Content-Type.
+		sniff := make([]byte, 512)
+		n, readErr := file.Read(sniff)
+		if readErr != nil && readErr != io.EOF {
+			WriteError(w, http.StatusBadRequest, "failed to read image")
+			return
+		}
+		sniff = sniff[:n]
+		mime = http.DetectContentType(sniff)
+		if !isAllowedImageMIME(mime) {
+			WriteError(w, http.StatusBadRequest, fmt.Sprintf("unsupported image type: %s (must be jpeg, png, or webp)", mime))
+			return
+		}
+		// Re-create a reader from the sniffed bytes + remaining file content.
+		buf, tooLarge, readErr2 := readUploadWithLimit(io.MultiReader(bytes.NewReader(sniff), file), h.maxSize)
+		if tooLarge {
+			WriteError(w, http.StatusRequestEntityTooLarge, "image too large")
+			return
+		}
+		if readErr2 != nil {
+			slog.Error("failed to read image body", "error", readErr2)
+			WriteError(w, http.StatusInternalServerError, "failed to read image")
+			return
+		}
+		h.writeImageRecord(w, r, userID, autoCommit, startProcessing, header.Filename, mime, buf)
 		return
 	}
 
-	ext := imageExtFromMIME(mimeType)
-	tempPath := fmt.Sprintf("%s/%s%s", dirPath, dirID.String(), ext)
-	f, err := os.Create(tempPath)
+	// Happy path: MIME was valid from Content-Type header.
+	buf, tooLarge, err := readUploadWithLimit(file, h.maxSize)
+	if tooLarge {
+		WriteError(w, http.StatusRequestEntityTooLarge, "image too large")
+		return
+	}
 	if err != nil {
-		slog.Error("failed to create temp file", "error", err)
+		slog.Error("failed to read image body", "error", err)
+		WriteError(w, http.StatusInternalServerError, "failed to read image")
+		return
+	}
+	h.writeImageRecord(w, r, userID, autoCommit, startProcessing, header.Filename, mime, buf)
+}
+
+// readUploadWithLimit reads up to limit bytes from r. If limit > 0 and the
+// stream contains strictly more than limit bytes, it returns tooLarge=true
+// without buffering the overflow. limit <= 0 disables the cap.
+func readUploadWithLimit(r io.Reader, limit int64) (data []byte, tooLarge bool, err error) {
+	if limit <= 0 {
+		buf, err := io.ReadAll(r)
+		return buf, false, err
+	}
+	// Read one byte past the limit so we can distinguish "exactly at limit"
+	// from "over limit" without reading the entire oversized payload.
+	buf, err := io.ReadAll(io.LimitReader(r, limit+1))
+	if err != nil {
+		return nil, false, err
+	}
+	if int64(len(buf)) > limit {
+		return nil, true, nil
+	}
+	return buf, false, nil
+}
+
+// writeImageRecord stores the image bytes to permanent storage, creates the DB record, and enqueues.
+func (h *SavesHandler) writeImageRecord(
+	w http.ResponseWriter, r *http.Request,
+	userID string, autoCommit, startProcessing *bool,
+	filename, mime string, buf []byte,
+) {
+	contentID := uuid.New()
+	ext := imageExtFromMIME(mime)
+	mediaKey := fmt.Sprintf("%s/%s/image%s", userID, contentID.String(), ext)
+
+	if err := h.storage.Save(r.Context(), mediaKey, bytes.NewReader(buf), mime); err != nil {
+		slog.Error("failed to store image", "error", err, "mediaKey", mediaKey)
 		WriteError(w, http.StatusInternalServerError, "failed to store image")
 		return
 	}
-	defer f.Close()
 
-	// Write already-read bytes then the rest.
-	if _, err := f.Write(buf); err != nil {
-		slog.Error("failed to write image header to temp file", "error", err)
-		WriteError(w, http.StatusInternalServerError, "failed to store image")
-		return
-	}
-	if _, err := io.Copy(f, file); err != nil {
-		slog.Error("failed to write image body to temp file", "error", err)
-		WriteError(w, http.StatusInternalServerError, "failed to store image")
-		return
-	}
+	commitStatus, procStatus := resolveLifecycleFlags(autoCommit, startProcessing)
 
-	// Determine a title from the original filename.
-	title := header.Filename
-
-	// Create content record.
-	content, err := h.queries.CreateContent(r.Context(), store.CreateContentParams{
-		UserID:      userID,
-		SourceUrl:   pgtype.Text{},
-		SourceType:  "image",
-		SourceTitle: pgtextFrom(title),
+	row, err := h.queries.CreateContent(r.Context(), store.CreateContentParams{
+		ID:               uuidFromGoogle(contentID),
+		UserID:           userID,
+		SourceType:       "image",
+		SourceTitle:      pgtextFrom(filename),
+		MediaKey:         pgtype.Text{String: mediaKey, Valid: true},
+		MediaMime:        pgtype.Text{String: mime, Valid: true},
+		MediaFileBytes:   pgtype.Int8{Int64: int64(len(buf)), Valid: true},
+		ProcessingStatus: procStatus,
+		CommitStatus:     commitStatus,
 	})
 	if err != nil {
-		os.RemoveAll(dirPath)
 		slog.Error("failed to create content record for image", "error", err, "userID", userID)
 		WriteError(w, http.StatusInternalServerError, "failed to create save")
 		return
 	}
 
-	// Create job record.
-	jobID, err := h.queries.CreateJob(r.Context(), store.CreateJobParams{
-		ContentID:   content.ID,
-		UserID:      userID,
-		ContentType: "image",
+	if procStatus == "pending" {
+		jobID, err := h.queries.CreateJob(r.Context(), store.CreateJobParams{
+			ContentID:   row.ID,
+			UserID:      userID,
+			ContentType: "image",
+		})
+		if err != nil {
+			slog.Error("failed to create job record for image", "error", err, "contentID", uuidToString(row.ID))
+			WriteError(w, http.StatusInternalServerError, "failed to create processing job")
+			return
+		}
+		if err := h.producer.Enqueue(r.Context(), queue.JobPayload{
+			JobID:       uuidFromPgtype(jobID),
+			ContentID:   uuidFromPgtype(row.ID),
+			UserID:      userID,
+			ContentType: "image",
+			MaxAttempts: 5,
+		}); err != nil {
+			slog.Error("failed to enqueue image job", "error", err, "jobID", uuidFromPgtype(jobID).String())
+			WriteError(w, http.StatusInternalServerError, "failed to enqueue processing job")
+			return
+		}
+	}
+
+	writeSaveResponse(w, row, h.storage)
+}
+
+func (h *SavesHandler) createAudio(w http.ResponseWriter, r *http.Request, userID string, autoCommit, startProcessing *bool) {
+	file, header, err := r.FormFile("audio")
+	if err != nil {
+		WriteError(w, http.StatusBadRequest, "missing audio file")
+		return
+	}
+	defer file.Close()
+
+	mime := header.Header.Get("Content-Type")
+	ext, ok := allowedAudioMIMEs[mime]
+	if !ok {
+		WriteError(w, http.StatusUnsupportedMediaType, "unsupported audio type")
+		return
+	}
+
+	durationStr := r.FormValue("duration_seconds")
+	if durationStr == "" {
+		WriteError(w, http.StatusBadRequest, "duration_seconds required")
+		return
+	}
+	durSec64, err := strconv.ParseInt(durationStr, 10, 32)
+	if err != nil || durSec64 <= 0 || int32(durSec64) > maxAudioDurationSeconds {
+		WriteError(w, http.StatusBadRequest, "duration_seconds out of range")
+		return
+	}
+	durSec := int32(durSec64)
+
+	contentID := uuid.New()
+	mediaKey := fmt.Sprintf("%s/%s/audio%s", userID, contentID, ext)
+
+	buf, err := io.ReadAll(file)
+	if err != nil {
+		WriteError(w, http.StatusInternalServerError, "read upload")
+		return
+	}
+	if err := h.storage.Save(r.Context(), mediaKey, bytes.NewReader(buf), mime); err != nil {
+		slog.Error("failed to store audio", "error", err, "mediaKey", mediaKey)
+		WriteError(w, http.StatusInternalServerError, "store audio")
+		return
+	}
+
+	commitStatus, processingStatus := resolveLifecycleFlags(autoCommit, startProcessing)
+
+	nowTitle := fmt.Sprintf("Voice note · %s", time.Now().Format("Jan 2, 3:04 PM"))
+
+	row, err := h.queries.CreateContent(r.Context(), store.CreateContentParams{
+		ID:               uuidFromGoogle(contentID),
+		UserID:           userID,
+		SourceUrl:        pgtype.Text{},
+		SourceType:       "audio",
+		SourceTitle:      pgtype.Text{String: nowTitle, Valid: true},
+		ExtractedText:    pgtype.Text{},
+		MediaKey:         pgtype.Text{String: mediaKey, Valid: true},
+		MediaMime:        pgtype.Text{String: mime, Valid: true},
+		MediaFileBytes:   pgtype.Int8{Int64: int64(len(buf)), Valid: true},
+		DurationSeconds:  pgtype.Int4{Int32: durSec, Valid: true},
+		ProcessingStatus: processingStatus,
+		CommitStatus:     commitStatus,
 	})
 	if err != nil {
-		os.RemoveAll(dirPath)
-		slog.Error("failed to create job record for image", "error", err, "contentID", uuidToString(content.ID))
-		WriteError(w, http.StatusInternalServerError, "failed to create processing job")
+		slog.Error("failed to create content record for audio", "error", err, "userID", userID)
+		// Best-effort cleanup of the stored file.
+		_ = h.storage.Delete(r.Context(), mediaKey)
+		WriteError(w, http.StatusInternalServerError, "create content")
 		return
 	}
 
-	// Enqueue to Redis with temp path.
-	payload := queue.JobPayload{
-		JobID:         uuidFromPgtype(jobID),
-		ContentID:     uuidFromPgtype(content.ID),
-		UserID:        userID,
-		ContentType:   "image",
-		TempImagePath: tempPath,
-		ImageMIME:     mimeType,
-		MaxAttempts:   5,
-	}
-	if err := h.producer.Enqueue(r.Context(), payload); err != nil {
-		os.RemoveAll(dirPath)
-		slog.Error("failed to enqueue image job", "error", err, "jobID", uuidFromPgtype(jobID).String())
-		WriteError(w, http.StatusInternalServerError, "failed to enqueue processing job")
-		return
+	if processingStatus == "pending" {
+		jobID, err := h.queries.CreateJob(r.Context(), store.CreateJobParams{
+			ContentID:   row.ID,
+			UserID:      userID,
+			ContentType: "audio",
+		})
+		if err != nil {
+			slog.Error("failed to create job record for audio", "error", err, "contentID", uuidToString(row.ID))
+			WriteError(w, http.StatusInternalServerError, "create job")
+			return
+		}
+		if err := h.producer.Enqueue(r.Context(), queue.JobPayload{
+			JobID:       uuidFromPgtype(jobID),
+			ContentID:   uuidFromPgtype(row.ID),
+			UserID:      userID,
+			ContentType: "audio",
+			MaxAttempts: 5,
+		}); err != nil {
+			slog.Error("failed to enqueue audio job", "error", err, "jobID", uuidFromPgtype(jobID).String())
+			WriteError(w, http.StatusInternalServerError, "enqueue")
+			return
+		}
 	}
 
-	WriteJSON(w, http.StatusCreated, saveResponse{
-		ID:     uuidToString(content.ID),
-		Status: "pending",
-	})
+	writeSaveResponse(w, row, h.storage)
 }
 
 // List handles GET /saves.
@@ -416,7 +629,7 @@ func (h *SavesHandler) List(w http.ResponseWriter, r *http.Request) {
 			Tags:               nullableStringSlice(row.Tags),
 			KeyTopics:          nullableStringSlice(row.KeyTopics),
 			MediaKey:           textToPtr(row.MediaKey),
-			VideoDuration:      int4ToPtr(row.VideoDuration),
+			DurationSeconds:    int4ToPtr(row.DurationSeconds),
 			VideoThumbnailURL:  textToPtr(row.VideoThumbnailUrl),
 			VideoChannel:       textToPtr(row.VideoChannel),
 			ProcessingStatus:   row.ProcessingStatus,
@@ -474,7 +687,7 @@ func (h *SavesHandler) Get(w http.ResponseWriter, r *http.Request) {
 		EmbeddingProvider:  textToPtr(row.EmbeddingProvider),
 		EmbeddingModel:     textToPtr(row.EmbeddingModel),
 		MediaKey:           textToPtr(row.MediaKey),
-		VideoDuration:      int4ToPtr(row.VideoDuration),
+		DurationSeconds:    int4ToPtr(row.DurationSeconds),
 		VideoThumbnailURL:  textToPtr(row.VideoThumbnailUrl),
 		VideoChannel:       textToPtr(row.VideoChannel),
 		TranscriptSource:   textToPtr(row.TranscriptSource),
@@ -510,6 +723,115 @@ func (h *SavesHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+type commitRequest struct {
+	Title string `json:"title,omitempty"`
+}
+
+// Commit handles POST /saves/{id}/commit.
+// Flips a draft save to committed and, if processing was deferred, enqueues it.
+func (h *SavesHandler) Commit(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.UserIDFromContext(r.Context())
+
+	id, err := GetUUIDParam(r, "id")
+	if err != nil {
+		WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	var body commitRequest
+	if r.ContentLength > 0 {
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			WriteError(w, http.StatusBadRequest, "bad body")
+			return
+		}
+	}
+
+	row, err := h.queries.GetContentByID(r.Context(), store.GetContentByIDParams{
+		ID:     uuidFromGoogle(id),
+		UserID: userID,
+	})
+	if err != nil {
+		if isNotFound(err) {
+			WriteError(w, http.StatusNotFound, "save not found")
+			return
+		}
+		slog.Error("failed to get content for commit", "error", err, "id", id, "userID", userID)
+		WriteError(w, http.StatusInternalServerError, "failed to get save")
+		return
+	}
+
+	type commitResponse struct {
+		ID               string `json:"id"`
+		CommitStatus     string `json:"commit_status"`
+		ProcessingStatus string `json:"processing_status"`
+	}
+
+	// Idempotent no-op: already committed and not deferred.
+	if row.CommitStatus == "committed" && row.ProcessingStatus != "deferred" {
+		WriteJSON(w, http.StatusOK, commitResponse{
+			ID:               uuidToString(row.ID),
+			CommitStatus:     row.CommitStatus,
+			ProcessingStatus: row.ProcessingStatus,
+		})
+		return
+	}
+
+	// Flip commit_status (and optional title via COALESCE).
+	if err := h.queries.UpdateContentCommitStatus(r.Context(), store.UpdateContentCommitStatusParams{
+		ID:           row.ID,
+		CommitStatus: "committed",
+		SourceTitle:  pgtextFrom(body.Title),
+		UserID:       userID,
+	}); err != nil {
+		slog.Error("failed to update commit status", "error", err, "id", id)
+		WriteError(w, http.StatusInternalServerError, "failed to commit save")
+		return
+	}
+
+	// If processing was deferred, flip to pending and enqueue.
+	if row.ProcessingStatus == "deferred" {
+		if err := h.queries.UpdateContentProcessingStatusToPending(r.Context(), row.ID); err != nil {
+			slog.Error("failed to update processing status", "error", err, "id", id)
+			WriteError(w, http.StatusInternalServerError, "failed to update processing status")
+			return
+		}
+		// Insert the jobs row before enqueueing so the dispatcher's
+		// StartJob/UpdateJobStatus/etc. updates have a target row.
+		jobID, err := h.queries.CreateJob(r.Context(), store.CreateJobParams{
+			ContentID:   row.ID,
+			UserID:      userID,
+			ContentType: row.SourceType,
+		})
+		if err != nil {
+			slog.Error("failed to create job record", "error", err, "id", id)
+			WriteError(w, http.StatusInternalServerError, "failed to create processing job")
+			return
+		}
+		if err := h.producer.Enqueue(r.Context(), queue.JobPayload{
+			JobID:       uuidFromPgtype(jobID),
+			ContentID:   uuidFromPgtype(row.ID),
+			UserID:      userID,
+			ContentType: row.SourceType,
+			MaxAttempts: 5,
+		}); err != nil {
+			slog.Error("failed to enqueue commit job", "error", err, "id", id)
+			WriteError(w, http.StatusInternalServerError, "failed to enqueue processing job")
+			return
+		}
+	}
+
+	finalProcessing := row.ProcessingStatus
+	if row.ProcessingStatus == "deferred" {
+		finalProcessing = "pending"
+	}
+
+	WriteJSON(w, http.StatusOK, commitResponse{
+		ID:               uuidToString(row.ID),
+		CommitStatus:     "committed",
+		ProcessingStatus: finalProcessing,
+	})
 }
 
 type searchRequest struct {
@@ -647,6 +969,35 @@ func isYouTubeURL(rawURL string) bool {
 			strings.HasPrefix(path, "/v/")
 	}
 	return false
+}
+
+// isAllowedImageMIME reports whether the MIME type is a supported image format.
+func isAllowedImageMIME(m string) bool {
+	switch m {
+	case "image/jpeg", "image/png", "image/webp":
+		return true
+	}
+	return false
+}
+
+// writeSaveResponse encodes the newly created content row as a JSON response.
+func writeSaveResponse(w http.ResponseWriter, row store.CreateContentRow, storage services.StorageProvider) {
+	resp := struct {
+		ID               string `json:"id"`
+		CommitStatus     string `json:"commit_status"`
+		ProcessingStatus string `json:"processing_status"`
+		MediaURL         string `json:"media_url,omitempty"`
+	}{
+		ID:               uuidToString(row.ID),
+		CommitStatus:     row.CommitStatus,
+		ProcessingStatus: row.ProcessingStatus,
+	}
+	if row.MediaKey.Valid {
+		resp.MediaURL = storage.URL(row.MediaKey.String)
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	_ = json.NewEncoder(w).Encode(resp)
 }
 
 // imageExtFromMIME returns the file extension for a given image MIME type.

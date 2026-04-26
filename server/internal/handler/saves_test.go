@@ -36,7 +36,7 @@ func (m *mockSearcher) Search(_ context.Context, _ string, _ string, _ int) ([]s
 
 // newTestHandler builds a SavesHandler with the provided mock dependencies.
 func newTestHandler(q store.Querier, e enqueuer, s searcher) *SavesHandler {
-	return NewSavesHandler(q, e, s, 10<<20, "test-secret")
+	return NewSavesHandler(q, e, s, testutil.NewMockStorage(), 10<<20, "test-secret")
 }
 
 // savesRouter mounts the saves handler on a chi router with user ID in context.
@@ -56,6 +56,9 @@ func savesRouter(h *SavesHandler) chi.Router {
 	})
 	r.Delete("/saves/{id}", func(w http.ResponseWriter, r *http.Request) {
 		h.Delete(w, r)
+	})
+	r.Post("/saves/{id}/commit", func(w http.ResponseWriter, r *http.Request) {
+		h.Commit(w, r)
 	})
 	return r
 }
@@ -114,7 +117,14 @@ func TestSaves_Create(t *testing.T) {
 	baseQuerier := func() *store.QuerierMock {
 		return &store.QuerierMock{
 			CreateContentFunc: func(_ context.Context, arg store.CreateContentParams) (store.CreateContentRow, error) {
-				return testutil.NewCreateContentRow(testutil.WithContentID(contentID)), nil
+				row := testutil.NewCreateContentRow(testutil.WithContentID(contentID))
+				// Mirror back media fields so the handler can build a correct response.
+				row.MediaKey = arg.MediaKey
+				row.MediaMime = arg.MediaMime
+				row.MediaFileBytes = arg.MediaFileBytes
+				row.ProcessingStatus = arg.ProcessingStatus
+				row.CommitStatus = arg.CommitStatus
+				return row, nil
 			},
 			CreateContentWithExtractedFunc: func(_ context.Context, arg store.CreateContentWithExtractedParams) (store.CreateContentWithExtractedRow, error) {
 				return store.CreateContentWithExtractedRow{
@@ -122,6 +132,7 @@ func TestSaves_Create(t *testing.T) {
 					UserID:           arg.UserID,
 					SourceType:       arg.SourceType,
 					ProcessingStatus: "pending",
+					CommitStatus:     "committed",
 					CreatedAt:        testutil.PgTimestamptz(time.Now()),
 				}, nil
 			},
@@ -181,19 +192,56 @@ func TestSaves_Create(t *testing.T) {
 	})
 
 	t.Run("ImageUpload", func(t *testing.T) {
+		storage := testutil.NewMockStorage()
 		q := baseQuerier()
-		h := newTestHandler(q, &testutil.MockProducer{}, &mockSearcher{})
+		producer := &testutil.MockProducer{}
+		h := NewSavesHandler(q, producer, &mockSearcher{}, storage, 10<<20, "test-secret")
 		router := savesRouter(h)
 
-		req := testutil.MultipartRequest("/saves", "image", "photo.jpg", minimalJPEG(), "image/jpeg")
+		imageData := minimalJPEG()
+		req := testutil.MultipartRequest("/saves", "image", "photo.jpg", imageData, "image/jpeg")
 		req = testutil.AuthenticatedRequest(req, "test-user")
 
 		resp := fire(router, req)
 		testutil.AssertStatus(t, resp, http.StatusCreated)
 
-		body := testutil.DecodeJSON[saveResponse](t, resp)
-		if body.Status != "pending" {
-			t.Errorf("expected status 'pending', got %q", body.Status)
+		// Verify storage.Save was called (one file stored).
+		if len(storage.Files) != 1 {
+			t.Errorf("expected 1 file in storage, got %d", len(storage.Files))
+		}
+		for key := range storage.Files {
+			if !strings.HasPrefix(key, "test-user/") {
+				t.Errorf("expected storage key to start with 'test-user/', got %q", key)
+			}
+			if !strings.HasSuffix(key, ".jpg") {
+				t.Errorf("expected storage key to end with '.jpg', got %q", key)
+			}
+		}
+
+		// Verify the response shape: processing_status + media_url.
+		type imageCreateResponse struct {
+			ID               string `json:"id"`
+			CommitStatus     string `json:"commit_status"`
+			ProcessingStatus string `json:"processing_status"`
+			MediaURL         string `json:"media_url"`
+		}
+		body := testutil.DecodeJSON[imageCreateResponse](t, resp)
+		if body.ProcessingStatus != "pending" {
+			t.Errorf("expected processing_status 'pending', got %q", body.ProcessingStatus)
+		}
+		if body.MediaURL == "" {
+			t.Error("expected media_url to be set in image upload response")
+		}
+		if body.CommitStatus != "committed" {
+			t.Errorf("expected commit_status 'committed', got %q", body.CommitStatus)
+		}
+		if body.ID == "" {
+			t.Error("expected non-empty id in image upload response")
+		}
+
+		// Verify a job was enqueued.
+		if len(producer.Enqueued) != 1 {
+			t.Errorf("expected 1 enqueued job, got %d", len(producer.Enqueued))
 		}
 	})
 
@@ -254,7 +302,7 @@ func TestSaves_Create(t *testing.T) {
 		// We wrap the request body with MaxBytesReader to enforce the small limit,
 		// which causes ParseMultipartForm to fail.
 		q := baseQuerier()
-		h := NewSavesHandler(q, &testutil.MockProducer{}, &mockSearcher{}, 1, "test-secret")
+		h := NewSavesHandler(q, &testutil.MockProducer{}, &mockSearcher{}, testutil.NewMockStorage(), 1, "test-secret")
 		router := chi.NewRouter()
 		router.Post("/saves", func(w http.ResponseWriter, r *http.Request) {
 			// Wrap body with MaxBytesReader to enforce size limit before the handler runs.
@@ -263,6 +311,26 @@ func TestSaves_Create(t *testing.T) {
 		})
 
 		req := testutil.MultipartRequest("/saves", "image", "photo.jpg", minimalJPEG(), "image/jpeg")
+		req = testutil.AuthenticatedRequest(req, "test-user")
+
+		resp := fire(router, req)
+		testutil.AssertStatus(t, resp, http.StatusRequestEntityTooLarge)
+	})
+
+	t.Run("ImageOverPerImageMaxSize_413", func(t *testing.T) {
+		// Verify that h.maxSize gates image uploads even when the body fits
+		// the multipart cap. Without this guard, createImage would buffer
+		// the whole image via io.ReadAll regardless of size.
+		const perImageLimit int64 = 1024
+		q := baseQuerier()
+		h := NewSavesHandler(q, &testutil.MockProducer{}, &mockSearcher{}, testutil.NewMockStorage(), perImageLimit, "test-secret")
+		router := savesRouter(h)
+
+		// 2 KB JPEG (valid magic + zero-pad). Exceeds perImageLimit but fits the
+		// global multipart cap, so it reaches createImage.
+		oversized := make([]byte, 2048)
+		copy(oversized, minimalJPEG())
+		req := testutil.MultipartRequest("/saves", "image", "big.jpg", oversized, "image/jpeg")
 		req = testutil.AuthenticatedRequest(req, "test-user")
 
 		resp := fire(router, req)
@@ -279,6 +347,7 @@ func TestSaves_Create(t *testing.T) {
 					UserID:           arg.UserID,
 					SourceType:       arg.SourceType,
 					ProcessingStatus: "pending",
+					CommitStatus:     "committed",
 					CreatedAt:        testutil.PgTimestamptz(time.Now()),
 				}, nil
 			},
@@ -335,6 +404,94 @@ func TestSaves_Create(t *testing.T) {
 		resp := fire(router, req)
 		testutil.AssertStatus(t, resp, http.StatusInternalServerError)
 	})
+}
+
+// ============================================================
+// TestSaves_Create_NoFlags_DefaultsToCommittedPending
+// ============================================================
+
+func TestSaves_Create_NoFlags_DefaultsToCommittedPending(t *testing.T) {
+	contentID := uuid.New()
+	jobID := uuid.New()
+
+	var capturedArgs store.CreateContentParams
+	q := &store.QuerierMock{
+		CreateContentFunc: func(_ context.Context, arg store.CreateContentParams) (store.CreateContentRow, error) {
+			capturedArgs = arg
+			row := testutil.NewCreateContentRow(testutil.WithContentID(contentID))
+			row.ProcessingStatus = arg.ProcessingStatus
+			row.CommitStatus = arg.CommitStatus
+			return row, nil
+		},
+		CreateJobFunc: func(_ context.Context, _ store.CreateJobParams) (pgtype.UUID, error) {
+			return testutil.PgUUID(jobID), nil
+		},
+	}
+	producer := &testutil.MockProducer{}
+	h := newTestHandler(q, producer, &mockSearcher{})
+	router := savesRouter(h)
+
+	// POST with no flags — both should default to true.
+	req := testutil.JSONRequest(http.MethodPost, "/saves", map[string]string{
+		"url": "https://example.com/x",
+	})
+	req = testutil.AuthenticatedRequest(req, "test-user")
+
+	resp := fire(router, req)
+	testutil.AssertStatus(t, resp, http.StatusCreated)
+
+	if capturedArgs.CommitStatus != "committed" {
+		t.Errorf("expected CommitStatus 'committed', got %q", capturedArgs.CommitStatus)
+	}
+	if capturedArgs.ProcessingStatus != "pending" {
+		t.Errorf("expected ProcessingStatus 'pending', got %q", capturedArgs.ProcessingStatus)
+	}
+	if len(producer.Enqueued) != 1 {
+		t.Errorf("expected 1 enqueued job, got %d", len(producer.Enqueued))
+	}
+}
+
+// ============================================================
+// TestSaves_Create_DraftDeferred_DoesNotEnqueue
+// ============================================================
+
+func TestSaves_Create_DraftDeferred_DoesNotEnqueue(t *testing.T) {
+	contentID := uuid.New()
+
+	var capturedArgs store.CreateContentParams
+	q := &store.QuerierMock{
+		CreateContentFunc: func(_ context.Context, arg store.CreateContentParams) (store.CreateContentRow, error) {
+			capturedArgs = arg
+			row := testutil.NewCreateContentRow(testutil.WithContentID(contentID))
+			row.ProcessingStatus = arg.ProcessingStatus
+			row.CommitStatus = arg.CommitStatus
+			return row, nil
+		},
+		// CreateJobFunc intentionally absent — should never be called for deferred saves.
+	}
+	producer := &testutil.MockProducer{}
+	h := newTestHandler(q, producer, &mockSearcher{})
+	router := savesRouter(h)
+
+	req := testutil.JSONRequest(http.MethodPost, "/saves", map[string]any{
+		"url":              "https://example.com/x",
+		"auto_commit":      false,
+		"start_processing": false,
+	})
+	req = testutil.AuthenticatedRequest(req, "test-user")
+
+	resp := fire(router, req)
+	testutil.AssertStatus(t, resp, http.StatusCreated)
+
+	if capturedArgs.CommitStatus != "draft" {
+		t.Errorf("expected CommitStatus 'draft', got %q", capturedArgs.CommitStatus)
+	}
+	if capturedArgs.ProcessingStatus != "deferred" {
+		t.Errorf("expected ProcessingStatus 'deferred', got %q", capturedArgs.ProcessingStatus)
+	}
+	if len(producer.Enqueued) != 0 {
+		t.Errorf("expected 0 enqueued jobs, got %d", len(producer.Enqueued))
+	}
 }
 
 // ============================================================
@@ -558,6 +715,262 @@ func TestSaves_Delete(t *testing.T) {
 }
 
 // ============================================================
+// TestSaves_Commit (6 subtests)
+// ============================================================
+
+func TestSaves_Commit_DeferredFlipsAndEnqueues(t *testing.T) {
+	contentID := uuid.New()
+
+	// Seed: draft + deferred
+	seedRow := testutil.NewGetContentRow()
+	seedRow.ID = testutil.PgUUID(contentID)
+	seedRow.UserID = "test-user"
+	seedRow.SourceType = "article"
+	seedRow.ProcessingStatus = "deferred"
+	// CommitStatus is not on GetContentByIDRow before this task — we add it via the updated SQL.
+	// The factory default CommitStatus is not set, so we set it directly.
+
+	var updateCommitCalled bool
+	var updateProcessingCalled bool
+	var createJobCalled bool
+	var capturedCreateJob store.CreateJobParams
+	jobID := testutil.PgUUID(uuid.New())
+
+	q := &store.QuerierMock{
+		GetContentByIDFunc: func(_ context.Context, arg store.GetContentByIDParams) (store.GetContentByIDRow, error) {
+			row := seedRow
+			row.CommitStatus = "draft"
+			return row, nil
+		},
+		UpdateContentCommitStatusFunc: func(_ context.Context, _ store.UpdateContentCommitStatusParams) error {
+			updateCommitCalled = true
+			return nil
+		},
+		UpdateContentProcessingStatusToPendingFunc: func(_ context.Context, _ pgtype.UUID) error {
+			updateProcessingCalled = true
+			return nil
+		},
+		CreateJobFunc: func(_ context.Context, arg store.CreateJobParams) (pgtype.UUID, error) {
+			createJobCalled = true
+			capturedCreateJob = arg
+			return jobID, nil
+		},
+	}
+	producer := &testutil.MockProducer{}
+	h := newTestHandler(q, producer, &mockSearcher{})
+	router := savesRouter(h)
+
+	req := testutil.JSONRequest(http.MethodPost, "/saves/"+contentID.String()+"/commit", nil)
+	req = testutil.AuthenticatedRequest(req, "test-user")
+
+	resp := fire(router, req)
+	testutil.AssertStatus(t, resp, http.StatusOK)
+
+	if !updateCommitCalled {
+		t.Error("expected UpdateContentCommitStatus to be called")
+	}
+	if !updateProcessingCalled {
+		t.Error("expected UpdateContentProcessingStatusToPending to be called")
+	}
+	if !createJobCalled {
+		t.Error("expected CreateJob to be called so dispatcher StartJob/UpdateJobStatus updates have a target row")
+	}
+	if capturedCreateJob.UserID != "test-user" || capturedCreateJob.ContentType != "article" {
+		t.Errorf("CreateJob params not propagated: %+v", capturedCreateJob)
+	}
+	if len(producer.Enqueued) != 1 {
+		t.Fatalf("expected 1 enqueued job, got %d", len(producer.Enqueued))
+	}
+	enqueued := producer.Enqueued[0]
+	if enqueued.JobID != uuidFromPgtype(jobID) {
+		t.Errorf("expected enqueued JobID to match DB-issued ID %v, got %v", uuidFromPgtype(jobID), enqueued.JobID)
+	}
+
+	type commitResp struct {
+		ID               string `json:"id"`
+		CommitStatus     string `json:"commit_status"`
+		ProcessingStatus string `json:"processing_status"`
+	}
+	body := testutil.DecodeJSON[commitResp](t, resp)
+	if body.CommitStatus != "committed" {
+		t.Errorf("expected commit_status 'committed', got %q", body.CommitStatus)
+	}
+	if body.ProcessingStatus != "pending" {
+		t.Errorf("expected processing_status 'pending', got %q", body.ProcessingStatus)
+	}
+}
+
+func TestSaves_Commit_DraftPending_FlipsCommitNoReEnqueue(t *testing.T) {
+	contentID := uuid.New()
+
+	var updateCommitCalled bool
+
+	q := &store.QuerierMock{
+		GetContentByIDFunc: func(_ context.Context, _ store.GetContentByIDParams) (store.GetContentByIDRow, error) {
+			row := testutil.NewGetContentRow()
+			row.ID = testutil.PgUUID(contentID)
+			row.UserID = "test-user"
+			row.ProcessingStatus = "pending"
+			row.CommitStatus = "draft"
+			return row, nil
+		},
+		UpdateContentCommitStatusFunc: func(_ context.Context, _ store.UpdateContentCommitStatusParams) error {
+			updateCommitCalled = true
+			return nil
+		},
+		// UpdateContentProcessingStatusToPendingFunc intentionally absent — should not be called.
+	}
+	producer := &testutil.MockProducer{}
+	h := newTestHandler(q, producer, &mockSearcher{})
+	router := savesRouter(h)
+
+	req := testutil.JSONRequest(http.MethodPost, "/saves/"+contentID.String()+"/commit", nil)
+	req = testutil.AuthenticatedRequest(req, "test-user")
+
+	resp := fire(router, req)
+	testutil.AssertStatus(t, resp, http.StatusOK)
+
+	if !updateCommitCalled {
+		t.Error("expected UpdateContentCommitStatus to be called")
+	}
+	if len(producer.Enqueued) != 0 {
+		t.Errorf("expected 0 enqueued jobs, got %d", len(producer.Enqueued))
+	}
+}
+
+func TestSaves_Commit_DraftCompleted_FlipsCommitNoReEnqueue(t *testing.T) {
+	contentID := uuid.New()
+
+	var updateCommitCalled bool
+
+	q := &store.QuerierMock{
+		GetContentByIDFunc: func(_ context.Context, _ store.GetContentByIDParams) (store.GetContentByIDRow, error) {
+			row := testutil.NewGetContentRow()
+			row.ID = testutil.PgUUID(contentID)
+			row.UserID = "test-user"
+			row.ProcessingStatus = "completed"
+			row.CommitStatus = "draft"
+			return row, nil
+		},
+		UpdateContentCommitStatusFunc: func(_ context.Context, _ store.UpdateContentCommitStatusParams) error {
+			updateCommitCalled = true
+			return nil
+		},
+	}
+	producer := &testutil.MockProducer{}
+	h := newTestHandler(q, producer, &mockSearcher{})
+	router := savesRouter(h)
+
+	req := testutil.JSONRequest(http.MethodPost, "/saves/"+contentID.String()+"/commit", nil)
+	req = testutil.AuthenticatedRequest(req, "test-user")
+
+	resp := fire(router, req)
+	testutil.AssertStatus(t, resp, http.StatusOK)
+
+	if !updateCommitCalled {
+		t.Error("expected UpdateContentCommitStatus to be called")
+	}
+	if len(producer.Enqueued) != 0 {
+		t.Errorf("expected 0 enqueued jobs, got %d", len(producer.Enqueued))
+	}
+}
+
+func TestSaves_Commit_AlreadyCommitted_NoOp(t *testing.T) {
+	contentID := uuid.New()
+
+	var updateCommitCalled bool
+
+	q := &store.QuerierMock{
+		GetContentByIDFunc: func(_ context.Context, _ store.GetContentByIDParams) (store.GetContentByIDRow, error) {
+			row := testutil.NewGetContentRow()
+			row.ID = testutil.PgUUID(contentID)
+			row.UserID = "test-user"
+			row.ProcessingStatus = "completed"
+			row.CommitStatus = "committed"
+			return row, nil
+		},
+		UpdateContentCommitStatusFunc: func(_ context.Context, _ store.UpdateContentCommitStatusParams) error {
+			updateCommitCalled = true
+			return nil
+		},
+	}
+	producer := &testutil.MockProducer{}
+	h := newTestHandler(q, producer, &mockSearcher{})
+	router := savesRouter(h)
+
+	req := testutil.JSONRequest(http.MethodPost, "/saves/"+contentID.String()+"/commit", nil)
+	req = testutil.AuthenticatedRequest(req, "test-user")
+
+	resp := fire(router, req)
+	testutil.AssertStatus(t, resp, http.StatusOK)
+
+	if updateCommitCalled {
+		t.Error("expected UpdateContentCommitStatus NOT to be called for already-committed save")
+	}
+	if len(producer.Enqueued) != 0 {
+		t.Errorf("expected 0 enqueued jobs, got %d", len(producer.Enqueued))
+	}
+}
+
+func TestSaves_Commit_TitleOverride(t *testing.T) {
+	contentID := uuid.New()
+
+	var capturedParams store.UpdateContentCommitStatusParams
+
+	q := &store.QuerierMock{
+		GetContentByIDFunc: func(_ context.Context, _ store.GetContentByIDParams) (store.GetContentByIDRow, error) {
+			row := testutil.NewGetContentRow()
+			row.ID = testutil.PgUUID(contentID)
+			row.UserID = "test-user"
+			row.ProcessingStatus = "completed"
+			row.CommitStatus = "draft"
+			return row, nil
+		},
+		UpdateContentCommitStatusFunc: func(_ context.Context, arg store.UpdateContentCommitStatusParams) error {
+			capturedParams = arg
+			return nil
+		},
+	}
+	h := newTestHandler(q, &testutil.MockProducer{}, &mockSearcher{})
+	router := savesRouter(h)
+
+	req := testutil.JSONRequest(http.MethodPost, "/saves/"+contentID.String()+"/commit", map[string]string{
+		"title": "Renamed",
+	})
+	req = testutil.AuthenticatedRequest(req, "test-user")
+
+	resp := fire(router, req)
+	testutil.AssertStatus(t, resp, http.StatusOK)
+
+	if !capturedParams.SourceTitle.Valid || capturedParams.SourceTitle.String != "Renamed" {
+		t.Errorf("expected SourceTitle 'Renamed', got %+v", capturedParams.SourceTitle)
+	}
+	if capturedParams.UserID != "test-user" {
+		t.Errorf("expected UserID 'test-user' propagated to UpdateContentCommitStatus params, got %q", capturedParams.UserID)
+	}
+}
+
+func TestSaves_Commit_OtherUser_404(t *testing.T) {
+	contentID := uuid.New()
+
+	q := &store.QuerierMock{
+		GetContentByIDFunc: func(_ context.Context, _ store.GetContentByIDParams) (store.GetContentByIDRow, error) {
+			// Return not found (simulating user_id mismatch — GetContentByID filters by user_id).
+			return store.GetContentByIDRow{}, fmt.Errorf("no rows in result set")
+		},
+	}
+	h := newTestHandler(q, &testutil.MockProducer{}, &mockSearcher{})
+	router := savesRouter(h)
+
+	// Authenticate as "other-user" — the query will return not-found.
+	req := testutil.JSONRequest(http.MethodPost, "/saves/"+contentID.String()+"/commit", nil)
+	req = testutil.AuthenticatedRequest(req, "other-user")
+
+	resp := fire(router, req)
+	testutil.AssertStatus(t, resp, http.StatusNotFound)
+}
+
+// ============================================================
 // TestSaves_Search (4 subtests)
 // ============================================================
 
@@ -654,6 +1067,175 @@ func TestSaves_Search(t *testing.T) {
 	})
 }
 
+// ============================================================
+// TestSaves_Create_Audio (5 subtests)
+// ============================================================
+
+// minimalAudio returns a small byte slice with an audio/mpeg-like header.
+func minimalAudio() []byte {
+	data := make([]byte, 128)
+	// MP3 sync word: 0xFF 0xFB
+	data[0] = 0xFF
+	data[1] = 0xFB
+	return data
+}
+
+// audioQuerier builds a QuerierMock that mirrors back media + lifecycle fields
+// and captures CreateContentParams into the provided pointer.
+func audioQuerier(contentID uuid.UUID, jobID uuid.UUID, captured *store.CreateContentParams) *store.QuerierMock {
+	return &store.QuerierMock{
+		CreateContentFunc: func(_ context.Context, arg store.CreateContentParams) (store.CreateContentRow, error) {
+			if captured != nil {
+				*captured = arg
+			}
+			row := testutil.NewCreateContentRow(testutil.WithContentID(contentID))
+			row.MediaKey = arg.MediaKey
+			row.MediaMime = arg.MediaMime
+			row.MediaFileBytes = arg.MediaFileBytes
+			row.DurationSeconds = arg.DurationSeconds
+			row.ProcessingStatus = arg.ProcessingStatus
+			row.CommitStatus = arg.CommitStatus
+			row.SourceType = arg.SourceType
+			return row, nil
+		},
+		CreateJobFunc: func(_ context.Context, _ store.CreateJobParams) (pgtype.UUID, error) {
+			return testutil.PgUUID(jobID), nil
+		},
+	}
+}
+
+func TestSaves_Create_Audio_DraftEager(t *testing.T) {
+	contentID := uuid.New()
+	jobID := uuid.New()
+
+	var captured store.CreateContentParams
+	q := audioQuerier(contentID, jobID, &captured)
+	storage := testutil.NewMockStorage()
+	producer := &testutil.MockProducer{}
+	h := NewSavesHandler(q, producer, &mockSearcher{}, storage, 10<<20, "test-secret")
+	router := savesRouter(h)
+
+	audioData := minimalAudio()
+	req := testutil.MultipartRequestWithFields("/saves", "audio", "note.mp3", audioData, "audio/mpeg", map[string]string{
+		"auto_commit":      "false",
+		"start_processing": "true",
+		"duration_seconds": "30",
+	})
+	req = testutil.AuthenticatedRequest(req, "test-user")
+
+	resp := fire(router, req)
+	testutil.AssertStatus(t, resp, http.StatusCreated)
+
+	// Response shape.
+	type audioCreateResp struct {
+		ID               string `json:"id"`
+		CommitStatus     string `json:"commit_status"`
+		ProcessingStatus string `json:"processing_status"`
+		MediaURL         string `json:"media_url"`
+	}
+	body := testutil.DecodeJSON[audioCreateResp](t, resp)
+
+	if captured.SourceType != "audio" {
+		t.Errorf("expected source_type 'audio', got %q", captured.SourceType)
+	}
+	if body.CommitStatus != "draft" {
+		t.Errorf("expected commit_status 'draft', got %q", body.CommitStatus)
+	}
+	if body.ProcessingStatus != "pending" {
+		t.Errorf("expected processing_status 'pending', got %q", body.ProcessingStatus)
+	}
+	if !captured.DurationSeconds.Valid || captured.DurationSeconds.Int32 != 30 {
+		t.Errorf("expected duration_seconds 30, got %+v", captured.DurationSeconds)
+	}
+	if len(storage.Files) != 1 {
+		t.Errorf("expected 1 file in storage, got %d", len(storage.Files))
+	}
+	if len(producer.Enqueued) != 1 {
+		t.Errorf("expected 1 enqueued job, got %d", len(producer.Enqueued))
+	}
+	if producer.Enqueued[0].ContentType != "audio" {
+		t.Errorf("expected enqueued content_type 'audio', got %q", producer.Enqueued[0].ContentType)
+	}
+}
+
+func TestSaves_Create_Audio_DraftDeferred_Long(t *testing.T) {
+	contentID := uuid.New()
+	jobID := uuid.New()
+
+	var captured store.CreateContentParams
+	q := audioQuerier(contentID, jobID, &captured)
+	storage := testutil.NewMockStorage()
+	producer := &testutil.MockProducer{}
+	h := NewSavesHandler(q, producer, &mockSearcher{}, storage, 10<<20, "test-secret")
+	router := savesRouter(h)
+
+	req := testutil.MultipartRequestWithFields("/saves", "audio", "long.mp3", minimalAudio(), "audio/mpeg", map[string]string{
+		"auto_commit":      "false",
+		"start_processing": "false",
+		"duration_seconds": "1800",
+	})
+	req = testutil.AuthenticatedRequest(req, "test-user")
+
+	resp := fire(router, req)
+	testutil.AssertStatus(t, resp, http.StatusCreated)
+
+	body := testutil.DecodeJSON[struct {
+		CommitStatus     string `json:"commit_status"`
+		ProcessingStatus string `json:"processing_status"`
+	}](t, resp)
+
+	if body.CommitStatus != "draft" {
+		t.Errorf("expected commit_status 'draft', got %q", body.CommitStatus)
+	}
+	if body.ProcessingStatus != "deferred" {
+		t.Errorf("expected processing_status 'deferred', got %q", body.ProcessingStatus)
+	}
+	if len(producer.Enqueued) != 0 {
+		t.Errorf("expected 0 enqueued jobs, got %d", len(producer.Enqueued))
+	}
+	if !captured.DurationSeconds.Valid || captured.DurationSeconds.Int32 != 1800 {
+		t.Errorf("expected duration_seconds 1800, got %+v", captured.DurationSeconds)
+	}
+}
+
+func TestSaves_Create_Audio_BadMIME(t *testing.T) {
+	h := newTestHandler(&store.QuerierMock{}, &testutil.MockProducer{}, &mockSearcher{})
+	router := savesRouter(h)
+
+	req := testutil.MultipartRequestWithFields("/saves", "audio", "clip.mkv", minimalAudio(), "audio/x-matroska", map[string]string{
+		"duration_seconds": "60",
+	})
+	req = testutil.AuthenticatedRequest(req, "test-user")
+
+	resp := fire(router, req)
+	testutil.AssertStatus(t, resp, http.StatusUnsupportedMediaType)
+}
+
+func TestSaves_Create_Audio_DurationOver90Min(t *testing.T) {
+	h := newTestHandler(&store.QuerierMock{}, &testutil.MockProducer{}, &mockSearcher{})
+	router := savesRouter(h)
+
+	req := testutil.MultipartRequestWithFields("/saves", "audio", "note.mp3", minimalAudio(), "audio/mpeg", map[string]string{
+		"duration_seconds": "5401",
+	})
+	req = testutil.AuthenticatedRequest(req, "test-user")
+
+	resp := fire(router, req)
+	testutil.AssertStatus(t, resp, http.StatusBadRequest)
+}
+
+func TestSaves_Create_Audio_MissingDuration(t *testing.T) {
+	h := newTestHandler(&store.QuerierMock{}, &testutil.MockProducer{}, &mockSearcher{})
+	router := savesRouter(h)
+
+	// No duration_seconds field at all.
+	req := testutil.MultipartRequest("/saves", "audio", "note.mp3", minimalAudio(), "audio/mpeg")
+	req = testutil.AuthenticatedRequest(req, "test-user")
+
+	resp := fire(router, req)
+	testutil.AssertStatus(t, resp, http.StatusBadRequest)
+}
+
 // capturingSearcher wraps a searcher to capture the limit parameter.
 type capturingSearcher struct {
 	inner         searcher
@@ -663,6 +1245,44 @@ type capturingSearcher struct {
 func (c *capturingSearcher) Search(ctx context.Context, userID string, query string, limit int) ([]search.SearchResult, error) {
 	*c.capturedLimit = limit
 	return c.inner.Search(ctx, userID, query, limit)
+}
+
+// ============================================================
+// TestSaves_List_OmitsDrafts
+// ============================================================
+// The SQL for ListContent contains a hardcoded AND commit_status='committed'
+// filter, so drafts are excluded at the DB layer.  This test verifies the
+// handler routes GET /saves through ListContent (the draft-filtering query)
+// and correctly surfaces whatever that query returns.
+
+func TestSaves_List_OmitsDrafts(t *testing.T) {
+	var listCalled bool
+	q := &store.QuerierMock{
+		ListContentFunc: func(_ context.Context, _ store.ListContentParams) ([]store.ListContentRow, error) {
+			listCalled = true
+			// Return exactly one committed row — simulating the DB filter.
+			return []store.ListContentRow{
+				testutil.NewListContentRow(),
+			}, nil
+		},
+	}
+	h := newTestHandler(q, &testutil.MockProducer{}, &mockSearcher{})
+	router := savesRouter(h)
+
+	req := testutil.JSONRequest(http.MethodGet, "/saves", nil)
+	req = testutil.AuthenticatedRequest(req, "test-user")
+
+	resp := fire(router, req)
+	testutil.AssertStatus(t, resp, http.StatusOK)
+
+	if !listCalled {
+		t.Error("expected ListContent to be called for GET /saves")
+	}
+
+	items := testutil.DecodeJSON[[]contentListJSON](t, resp)
+	if len(items) != 1 {
+		t.Errorf("expected 1 item from listing, got %d", len(items))
+	}
 }
 
 // ============================================================
@@ -679,7 +1299,7 @@ func TestSaves_ServeMedia(t *testing.T) {
 		storage := testutil.NewMockStorage()
 		storage.Files[mediaKey] = []byte(fileContent)
 
-		h := NewSavesHandler(&store.QuerierMock{}, &testutil.MockProducer{}, &mockSearcher{}, 10<<20, jwtSecret)
+		h := NewSavesHandler(&store.QuerierMock{}, &testutil.MockProducer{}, &mockSearcher{}, testutil.NewMockStorage(), 10<<20, jwtSecret)
 		router := mediaRouter(h, storage)
 
 		exp := time.Now().Add(1 * time.Hour).Unix()
@@ -700,7 +1320,7 @@ func TestSaves_ServeMedia(t *testing.T) {
 		storage := testutil.NewMockStorage()
 		storage.Files[mediaKey] = []byte(fileContent)
 
-		h := NewSavesHandler(&store.QuerierMock{}, &testutil.MockProducer{}, &mockSearcher{}, 10<<20, jwtSecret)
+		h := NewSavesHandler(&store.QuerierMock{}, &testutil.MockProducer{}, &mockSearcher{}, testutil.NewMockStorage(), 10<<20, jwtSecret)
 		router := mediaRouter(h, storage)
 
 		// Expired 1 hour ago.
@@ -717,7 +1337,7 @@ func TestSaves_ServeMedia(t *testing.T) {
 		storage := testutil.NewMockStorage()
 		storage.Files[mediaKey] = []byte(fileContent)
 
-		h := NewSavesHandler(&store.QuerierMock{}, &testutil.MockProducer{}, &mockSearcher{}, 10<<20, jwtSecret)
+		h := NewSavesHandler(&store.QuerierMock{}, &testutil.MockProducer{}, &mockSearcher{}, testutil.NewMockStorage(), 10<<20, jwtSecret)
 		router := mediaRouter(h, storage)
 
 		exp := time.Now().Add(1 * time.Hour).Unix()
@@ -734,7 +1354,7 @@ func TestSaves_ServeMedia(t *testing.T) {
 		storage := testutil.NewMockStorage()
 		storage.Files[mediaKey] = []byte(fileContent)
 
-		h := NewSavesHandler(&store.QuerierMock{}, &testutil.MockProducer{}, &mockSearcher{}, 10<<20, jwtSecret)
+		h := NewSavesHandler(&store.QuerierMock{}, &testutil.MockProducer{}, &mockSearcher{}, testutil.NewMockStorage(), 10<<20, jwtSecret)
 		router := mediaRouter(h, storage)
 
 		// No sig/exp params — falls through to bearer path.
@@ -754,7 +1374,7 @@ func TestSaves_ServeMedia(t *testing.T) {
 		storage := testutil.NewMockStorage()
 		storage.Files[mediaKey] = []byte(fileContent)
 
-		h := NewSavesHandler(&store.QuerierMock{}, &testutil.MockProducer{}, &mockSearcher{}, 10<<20, jwtSecret)
+		h := NewSavesHandler(&store.QuerierMock{}, &testutil.MockProducer{}, &mockSearcher{}, testutil.NewMockStorage(), 10<<20, jwtSecret)
 		router := mediaRouter(h, storage)
 
 		// Authenticate as a different user.

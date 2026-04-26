@@ -3,6 +3,7 @@ package processors
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"reflect"
 	"testing"
@@ -31,14 +32,12 @@ func makeImageEmbeddingChain(mock *testutil.MockEmbeddingProvider) *providers.Ch
 	return chain
 }
 
-func makeImageJob(imageData []byte, mimeType string) *worker.Job {
+func makeImageJob() *worker.Job {
 	return &worker.Job{
 		ID:          uuid.New(),
 		ContentID:   uuid.New(),
 		UserID:      "user-image-test",
 		ContentType: "image",
-		ImageData:   imageData,
-		ImageType:   mimeType,
 	}
 }
 
@@ -53,7 +52,7 @@ func TestImage_ContentType(t *testing.T) {
 // TestImage_StepOrder verifies that Steps returns the expected ordered slice.
 func TestImage_StepOrder(t *testing.T) {
 	p := NewImageProcessor(nil, nil, nil, nil, nil)
-	want := []string{"save", "vision", "summarize", "embed", "store"}
+	want := []string{"vision", "summarize", "embed", "store"}
 	got := p.Steps()
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("Steps() = %v, want %v", got, want)
@@ -70,29 +69,26 @@ func TestImage_LockTTL(t *testing.T) {
 }
 
 // TestImage_HappyPath runs the full image pipeline using mock dependencies.
-// It exercises save, vision, summarize, embed, and store steps in sequence.
+// It exercises vision, summarize, embed, and store steps in sequence.
+// The image bytes are pre-seeded into MockStorage keyed by {user}/{content_id}/image.png.
 func TestImage_HappyPath(t *testing.T) {
 	// Minimal 1x1 PNG bytes — not a valid PNG but sufficient for unit testing
 	// since the mocked LLM won't decode the image bytes.
 	fakeImageData := []byte{0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a}
 	mimeType := "image/png"
 
+	job := makeImageJob()
+	mediaKey := fmt.Sprintf("%s/%s/image.png", job.UserID, job.ContentID.String())
+
 	storage := testutil.NewMockStorage()
+	// Pre-seed storage so the vision step can fetch the image.
+	storage.Files[mediaKey] = fakeImageData
 
 	// LLM returns a valid vision payload then a valid summarize payload.
 	visionResp := `{"extracted_text":"Hello world","visual_description":"A simple test image."}`
 	summarizeResp := `{"title":"Test Image","summary":"A simple test image with text.","tags":["test","image"],"key_topics":["image","text"]}`
 
 	callCount := 0
-	llmMock := &testutil.MockLLMProvider{}
-	llmMock.Response = visionResp // vision is called first
-	// We need to alternate responses: first vision, then summarize.
-	// Since MockLLMProvider uses a single Response field, we override with a
-	// custom Complete via a wrapper.
-	_ = visionResp
-	_ = summarizeResp
-
-	// Use a simple alternating approach: track calls externally.
 	responses := []string{visionResp, summarizeResp}
 	var calls []llm.LLMRequest
 	customLLM := &mockSequentialLLM{responses: responses, calls: &calls, count: &callCount}
@@ -102,7 +98,17 @@ func TestImage_HappyPath(t *testing.T) {
 	embMock := &testutil.MockEmbeddingProvider{}
 	embChain := makeImageEmbeddingChain(embMock)
 
+	contentID := pgtype.UUID{Bytes: job.ContentID, Valid: true}
 	mockQ := &store.QuerierMock{
+		GetContentByIDFunc: func(ctx context.Context, arg store.GetContentByIDParams) (store.GetContentByIDRow, error) {
+			return store.GetContentByIDRow{
+				ID:               contentID,
+				UserID:           job.UserID,
+				SourceType:       "image",
+				MediaKey:         pgtype.Text{String: mediaKey, Valid: true},
+				ProcessingStatus: "processing",
+			}, nil
+		},
 		UpdateContentStatusFunc: func(ctx context.Context, arg store.UpdateContentStatusParams) error {
 			return nil
 		},
@@ -118,32 +124,10 @@ func TestImage_HappyPath(t *testing.T) {
 	}
 
 	p := NewImageProcessor(storage, llmChain, embChain, mockQ, nil)
-	job := makeImageJob(fakeImageData, mimeType)
 	ctx := context.Background()
 	prevResults := worker.StepResults{}
 
-	// Step 1: save.
-	saveResult, err := p.Execute(ctx, "save", job, prevResults)
-	if err != nil {
-		t.Fatalf("save step: %v", err)
-	}
-	if saveResult == nil {
-		t.Fatal("save step: expected non-nil result")
-	}
-	var saveData map[string]string
-	if err := json.Unmarshal(saveResult.Data, &saveData); err != nil {
-		t.Fatalf("unmarshal save result: %v", err)
-	}
-	if saveData["media_key"] == "" {
-		t.Error("save step: expected non-empty media_key")
-	}
-	// Verify image was actually stored.
-	if len(storage.Files) == 0 {
-		t.Error("save step: expected image to be stored in mock storage")
-	}
-	prevResults["save"] = saveResult
-
-	// Step 2: vision.
+	// Step 1: vision — fetches image from storage, calls LLM.
 	visionResult, err := p.Execute(ctx, "vision", job, prevResults)
 	if err != nil {
 		t.Fatalf("vision step: %v", err)
@@ -158,9 +142,19 @@ func TestImage_HappyPath(t *testing.T) {
 	if vr.VisualDescription == "" {
 		t.Error("vision step: expected non-empty visual_description")
 	}
+	// Verify the LLM call received the correct image data and MIME type.
+	if len(calls) != 1 {
+		t.Fatalf("expected 1 LLM call after vision, got %d", len(calls))
+	}
+	if len(calls[0].Images) != 1 {
+		t.Errorf("expected 1 image in LLM request, got %d", len(calls[0].Images))
+	}
+	if calls[0].Images[0].MediaType != mimeType {
+		t.Errorf("LLM image media type = %q, want %q", calls[0].Images[0].MediaType, mimeType)
+	}
 	prevResults["vision"] = visionResult
 
-	// Step 3: summarize.
+	// Step 2: summarize.
 	summarizeResult, err := p.Execute(ctx, "summarize", job, prevResults)
 	if err != nil {
 		t.Fatalf("summarize step: %v", err)
@@ -177,7 +171,7 @@ func TestImage_HappyPath(t *testing.T) {
 	}
 	prevResults["summarize"] = summarizeResult
 
-	// Step 4: embed.
+	// Step 3: embed.
 	embedResult, err := p.Execute(ctx, "embed", job, prevResults)
 	if err != nil {
 		t.Fatalf("embed step: %v", err)
@@ -194,7 +188,7 @@ func TestImage_HappyPath(t *testing.T) {
 	}
 	prevResults["embed"] = embedResult
 
-	// Step 5: store.
+	// Step 4: store.
 	storeResult, err := p.Execute(ctx, "store", job, prevResults)
 	if err != nil {
 		t.Fatalf("store step: %v", err)

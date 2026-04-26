@@ -22,12 +22,22 @@ class ShareViewController: UIViewController {
         var text: String?
         var imageData: Data?
         var imageMIME: String?
+        var audioURL: URL?
 
         for item in items {
             guard let attachments = item.attachments else { continue }
 
             for provider in attachments {
-                // Try image first
+                // Try audio first — some audio sources also conform to UTType.url,
+                // so check audio before URL to avoid misclassifying.
+                if provider.hasItemConformingToTypeIdentifier(UTType.audio.identifier) {
+                    if let result = await loadAudio(from: provider) {
+                        audioURL = result
+                    }
+                    continue
+                }
+
+                // Try image
                 if provider.hasItemConformingToTypeIdentifier(UTType.image.identifier) {
                     if let result = await loadImage(from: provider) {
                         imageData = result.data
@@ -51,7 +61,7 @@ class ShareViewController: UIViewController {
             }
         }
 
-        return SharedContent(url: url, text: text, imageData: imageData, imageMIME: imageMIME)
+        return SharedContent(url: url, text: text, imageData: imageData, imageMIME: imageMIME, audioURL: audioURL)
     }
 
     private func loadURL(from provider: NSItemProvider) async -> URL? {
@@ -66,6 +76,27 @@ class ShareViewController: UIViewController {
         return await withCheckedContinuation { continuation in
             provider.loadItem(forTypeIdentifier: UTType.plainText.identifier) { item, _ in
                 continuation.resume(returning: item as? String)
+            }
+        }
+    }
+
+    private func loadAudio(from provider: NSItemProvider) async -> URL? {
+        return await withCheckedContinuation { continuation in
+            provider.loadItem(forTypeIdentifier: UTType.audio.identifier) { item, _ in
+                if let fileURL = item as? URL {
+                    continuation.resume(returning: fileURL)
+                } else if let data = item as? Data {
+                    // Voice Memos on some iOS versions hands back raw Data rather than a URL.
+                    let tmp = FileManager.default.temporaryDirectory
+                        .appendingPathComponent("share-\(UUID().uuidString).m4a")
+                    if let _ = try? data.write(to: tmp) {
+                        continuation.resume(returning: tmp)
+                    } else {
+                        continuation.resume(returning: nil)
+                    }
+                } else {
+                    continuation.resume(returning: nil)
+                }
             }
         }
     }
@@ -118,12 +149,17 @@ struct SharedContent {
     let text: String?
     let imageData: Data?
     let imageMIME: String?
+    let audioURL: URL?
 
     var hasURL: Bool { url != nil }
     var hasImage: Bool { imageData != nil }
-    var isValid: Bool { hasURL || hasImage }
+    var hasAudio: Bool { audioURL != nil }
+    var isValid: Bool { hasURL || hasImage || hasAudio }
 
     var displayTitle: String {
+        if hasAudio {
+            return audioURL?.deletingPathExtension().lastPathComponent ?? "Audio Recording"
+        }
         if let host = url?.host {
             return host.replacingOccurrences(of: "www.", with: "")
         }
@@ -131,6 +167,9 @@ struct SharedContent {
     }
 
     var displaySubtitle: String {
+        if hasAudio {
+            return audioURL?.lastPathComponent ?? "Audio file"
+        }
         if let text = text, !text.isEmpty {
             return String(text.prefix(200))
         }

@@ -4,11 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/ksushant6566/mindtab/server/internal/providers"
 	"github.com/ksushant6566/mindtab/server/internal/providers/llm"
+	"github.com/ksushant6566/mindtab/server/internal/services"
+	"github.com/ksushant6566/mindtab/server/internal/store"
 	"github.com/ksushant6566/mindtab/server/internal/worker"
 )
 
@@ -22,20 +27,47 @@ const visionSystemPrompt = `You analyze images. Return a JSON object with exactl
 - "visual_description": a detailed description of the image content.
 Return ONLY valid JSON, no markdown fences.`
 
-func Vision(ctx context.Context, llmChain *providers.Chain[llm.LLMProvider], job *worker.Job) (*worker.StepResult, error) {
-	if len(job.ImageData) == 0 {
-		return nil, fmt.Errorf("vision: no image data")
+// Vision fetches the image from storage by media_key and calls the LLM for visual analysis.
+func Vision(
+	ctx context.Context,
+	llmChain *providers.Chain[llm.LLMProvider],
+	storage services.StorageProvider,
+	queries store.Querier,
+	job *worker.Job,
+) (*worker.StepResult, error) {
+	row, err := queries.GetContentByID(ctx, store.GetContentByIDParams{
+		ID:     pgtype.UUID{Bytes: job.ContentID, Valid: true},
+		UserID: job.UserID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("vision: fetch content row: %w", err)
+	}
+	if !row.MediaKey.Valid || row.MediaKey.String == "" {
+		return nil, fmt.Errorf("vision: row %s has no media_key", job.ContentID)
 	}
 
+	rc, err := storage.Get(ctx, row.MediaKey.String)
+	if err != nil {
+		return nil, fmt.Errorf("vision: fetch image from storage: %w", err)
+	}
+	defer rc.Close()
+
+	imageBytes, err := io.ReadAll(rc)
+	if err != nil {
+		return nil, fmt.Errorf("vision: read image bytes: %w", err)
+	}
+
+	mime := extToMime(filepath.Ext(row.MediaKey.String))
+
 	var resp *llm.LLMResponse
-	err := llmChain.Execute(func(name string, provider llm.LLMProvider) error {
+	err = llmChain.Execute(func(name string, provider llm.LLMProvider) error {
 		var callErr error
 		resp, callErr = provider.Complete(ctx, llm.LLMRequest{
 			SystemPrompt: visionSystemPrompt,
 			UserPrompt:   "Analyze this image.",
 			Images: []llm.ImageInput{{
-				Data:      job.ImageData,
-				MediaType: job.ImageType,
+				Data:      imageBytes,
+				MediaType: mime,
 			}},
 			MaxTokens:   1024,
 			Temperature: 0.1,
@@ -53,6 +85,22 @@ func Vision(ctx context.Context, llmChain *providers.Chain[llm.LLMProvider], job
 
 	data, _ := json.Marshal(result)
 	return &worker.StepResult{Data: data}, nil
+}
+
+// extToMime returns the MIME type for common image file extensions.
+func extToMime(ext string) string {
+	switch strings.ToLower(ext) {
+	case ".jpg", ".jpeg":
+		return "image/jpeg"
+	case ".png":
+		return "image/png"
+	case ".gif":
+		return "image/gif"
+	case ".webp":
+		return "image/webp"
+	default:
+		return "image/jpeg"
+	}
 }
 
 // BatchVisionResult holds the combined visual description from multiple frames.

@@ -19,6 +19,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     buildNumber: "1",
     infoPlist: {
       ITSAppUsesNonExemptEncryption: false,
+      UIBackgroundModes: ["audio"],
+      NSMicrophoneUsageDescription:
+        "MindTab uses your microphone to record voice notes you save to your vault.",
     },
   },
   android: {
@@ -27,12 +30,24 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     },
     package: "in.mindtab.app",
     versionCode: 1,
+    permissions: [
+      "RECORD_AUDIO",
+      "FOREGROUND_SERVICE",
+      "FOREGROUND_SERVICE_MICROPHONE",
+    ],
   },
   plugins: [
     "expo-asset",
     "expo-router",
     "expo-secure-store",
     "./plugins/share-extension",
+    [
+      "expo-audio",
+      {
+        microphonePermission:
+          "MindTab uses your microphone to record voice notes you save to your vault.",
+      },
+    ],
     [
       "@react-native-google-signin/google-signin",
       {

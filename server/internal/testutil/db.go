@@ -12,7 +12,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	pgxvector "github.com/pgvector/pgvector-go/pgx"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
@@ -62,7 +64,28 @@ func SetupTestDB(t *testing.T) *pgxpool.Pool {
 		host, port.Port(),
 	)
 
-	pool, err := pgxpool.New(ctx, connStr)
+	// First, run migrations using a one-off connection (no pgvector codec yet —
+	// the vector type doesn't exist until 000003_saves.up.sql creates the extension).
+	bootConn, err := pgx.Connect(ctx, connStr)
+	if err != nil {
+		t.Fatalf("failed to open bootstrap connection: %v", err)
+	}
+	runMigrationsOnConn(t, bootConn)
+	if err := bootConn.Close(ctx); err != nil {
+		t.Logf("failed to close bootstrap connection: %v", err)
+	}
+
+	// Now create the pool with AfterConnect that registers pgvector types — safe
+	// because the vector extension is in place.
+	cfg, err := pgxpool.ParseConfig(connStr)
+	if err != nil {
+		t.Fatalf("failed to parse pgxpool config: %v", err)
+	}
+	cfg.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
+		return pgxvector.RegisterTypes(ctx, conn)
+	}
+
+	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
 		t.Fatalf("failed to create pgxpool: %v", err)
 	}
@@ -74,8 +97,6 @@ func SetupTestDB(t *testing.T) *pgxpool.Pool {
 	if err := pool.Ping(ctx); err != nil {
 		t.Fatalf("failed to ping database: %v", err)
 	}
-
-	runMigrations(t, pool)
 
 	return pool
 }
@@ -112,9 +133,9 @@ func TruncateAllTables(t *testing.T, pool *pgxpool.Pool) {
 	}
 }
 
-// runMigrations reads all *.up.sql files from the migrations directory in sorted order
-// and executes them against the given pool.
-func runMigrations(t *testing.T, pool *pgxpool.Pool) {
+// runMigrationsOnConn reads all *.up.sql files from the migrations directory in sorted order
+// and executes them against the given connection.
+func runMigrationsOnConn(t *testing.T, conn *pgx.Conn) {
 	t.Helper()
 
 	migrationsDir := findMigrationsDir(t)
@@ -139,7 +160,7 @@ func runMigrations(t *testing.T, pool *pgxpool.Pool) {
 			t.Fatalf("failed to read migration file %s: %v", f, err)
 		}
 
-		if _, err := pool.Exec(ctx, string(content)); err != nil {
+		if _, err := conn.Exec(ctx, string(content)); err != nil {
 			t.Fatalf("failed to execute migration %s: %v", filepath.Base(f), err)
 		}
 	}

@@ -13,7 +13,9 @@ import (
 	"github.com/go-chi/chi/v5"
 	"golang.org/x/time/rate"
 	chimw "github.com/go-chi/chi/v5/middleware"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	pgxvector "github.com/pgvector/pgvector-go/pgx"
 
 	"github.com/ksushant6566/mindtab/server/internal/chat"
 	"github.com/ksushant6566/mindtab/server/internal/config"
@@ -41,7 +43,15 @@ func main() {
 		os.Exit(1)
 	}
 
-	pool, err := pgxpool.New(context.Background(), cfg.DatabaseURL)
+	poolCfg, err := pgxpool.ParseConfig(cfg.DatabaseURL)
+	if err != nil {
+		slog.Error("failed to parse database config", "error", err)
+		os.Exit(1)
+	}
+	poolCfg.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
+		return pgxvector.RegisterTypes(ctx, conn)
+	}
+	pool, err := pgxpool.NewWithConfig(context.Background(), poolCfg)
 	if err != nil {
 		slog.Error("failed to connect to database", "error", err)
 		os.Exit(1)
@@ -101,7 +111,7 @@ func main() {
 		llmChain = registry.LLM
 
 		// Saves handler
-		savesHandler = handler.NewSavesHandler(queries, producer, semanticSearch, int64(cfg.MaxFileSizeMB), cfg.JWTSecret)
+		savesHandler = handler.NewSavesHandler(queries, producer, semanticSearch, storage, int64(cfg.MaxFileSizeMB)*1024*1024, cfg.JWTSecret)
 
 		// Worker dispatcher
 		dispatcher = worker.NewDispatcher(consumer, retryScheduler, queries, slog.Default(), cfg.WorkerConcurrency)
@@ -119,6 +129,13 @@ func main() {
 				queries, pool, cfg,
 			))
 			logger.Info("youtube processor registered")
+			dispatcher.Register(processors.NewAudioProcessor(
+				transcriptionChain,
+				registry.LLM, registry.Embedding,
+				storage, queries, pool,
+				ffmpeg,
+			))
+			logger.Info("audio processor registered")
 		}
 
 		// Startup cleanup of orphaned YouTube temp dirs (older than 1 hour).
@@ -150,6 +167,16 @@ func main() {
 
 		// Start workers
 		dispatcher.Start(context.Background())
+
+		// Periodic cleanup of expired draft saves (every 3 hours, expire after 24 hours).
+		go worker.StartDraftCleanup(
+			context.Background(),
+			queries,
+			storage,
+			slog.Default().With("component", "draft_cleanup"),
+			3*time.Hour,
+			24*time.Hour,
+		)
 	}
 
 	// Initialize handlers.
@@ -331,6 +358,7 @@ func main() {
 			r.Post("/saves/search", savesHandler.Search)
 			r.Get("/saves/{id}", savesHandler.Get)
 			r.Delete("/saves/{id}", savesHandler.Delete)
+			r.Post("/saves/{id}/commit", savesHandler.Commit)
 		}
 
 		// Chat.
