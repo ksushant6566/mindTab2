@@ -317,6 +317,26 @@ func TestSaves_Create(t *testing.T) {
 		testutil.AssertStatus(t, resp, http.StatusRequestEntityTooLarge)
 	})
 
+	t.Run("ImageOverPerImageMaxSize_413", func(t *testing.T) {
+		// Verify that h.maxSize gates image uploads even when the body fits
+		// the multipart cap. Without this guard, createImage would buffer
+		// the whole image via io.ReadAll regardless of size.
+		const perImageLimit int64 = 1024
+		q := baseQuerier()
+		h := NewSavesHandler(q, &testutil.MockProducer{}, &mockSearcher{}, testutil.NewMockStorage(), perImageLimit, "test-secret")
+		router := savesRouter(h)
+
+		// 2 KB JPEG (valid magic + zero-pad). Exceeds perImageLimit but fits the
+		// global multipart cap, so it reaches createImage.
+		oversized := make([]byte, 2048)
+		copy(oversized, minimalJPEG())
+		req := testutil.MultipartRequest("/saves", "image", "big.jpg", oversized, "image/jpeg")
+		req = testutil.AuthenticatedRequest(req, "test-user")
+
+		resp := fire(router, req)
+		testutil.AssertStatus(t, resp, http.StatusRequestEntityTooLarge)
+	})
+
 	t.Run("WithPreExtracted", func(t *testing.T) {
 		var createWithExtractedCalled bool
 		q := &store.QuerierMock{

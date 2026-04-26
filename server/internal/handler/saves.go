@@ -343,6 +343,14 @@ func (h *SavesHandler) createImage(w http.ResponseWriter, r *http.Request, userI
 	}
 	defer file.Close()
 
+	// Fast-fail using the multipart-reported size when present. multipart only
+	// populates Size for parts that were spooled to disk, so this is a hint —
+	// the post-read limit below is the real guard.
+	if h.maxSize > 0 && header.Size > h.maxSize {
+		WriteError(w, http.StatusRequestEntityTooLarge, "image too large")
+		return
+	}
+
 	// Validate MIME type from the part's Content-Type header first;
 	// fall back to sniffing the first 512 bytes.
 	mime := header.Header.Get("Content-Type")
@@ -361,8 +369,11 @@ func (h *SavesHandler) createImage(w http.ResponseWriter, r *http.Request, userI
 			return
 		}
 		// Re-create a reader from the sniffed bytes + remaining file content.
-		file2 := io.MultiReader(bytes.NewReader(sniff), file)
-		buf, readErr2 := io.ReadAll(file2)
+		buf, tooLarge, readErr2 := readUploadWithLimit(io.MultiReader(bytes.NewReader(sniff), file), h.maxSize)
+		if tooLarge {
+			WriteError(w, http.StatusRequestEntityTooLarge, "image too large")
+			return
+		}
 		if readErr2 != nil {
 			slog.Error("failed to read image body", "error", readErr2)
 			WriteError(w, http.StatusInternalServerError, "failed to read image")
@@ -373,13 +384,37 @@ func (h *SavesHandler) createImage(w http.ResponseWriter, r *http.Request, userI
 	}
 
 	// Happy path: MIME was valid from Content-Type header.
-	buf, err := io.ReadAll(file)
+	buf, tooLarge, err := readUploadWithLimit(file, h.maxSize)
+	if tooLarge {
+		WriteError(w, http.StatusRequestEntityTooLarge, "image too large")
+		return
+	}
 	if err != nil {
 		slog.Error("failed to read image body", "error", err)
 		WriteError(w, http.StatusInternalServerError, "failed to read image")
 		return
 	}
 	h.writeImageRecord(w, r, userID, autoCommit, startProcessing, header.Filename, mime, buf)
+}
+
+// readUploadWithLimit reads up to limit bytes from r. If limit > 0 and the
+// stream contains strictly more than limit bytes, it returns tooLarge=true
+// without buffering the overflow. limit <= 0 disables the cap.
+func readUploadWithLimit(r io.Reader, limit int64) (data []byte, tooLarge bool, err error) {
+	if limit <= 0 {
+		buf, err := io.ReadAll(r)
+		return buf, false, err
+	}
+	// Read one byte past the limit so we can distinguish "exactly at limit"
+	// from "over limit" without reading the entire oversized payload.
+	buf, err := io.ReadAll(io.LimitReader(r, limit+1))
+	if err != nil {
+		return nil, false, err
+	}
+	if int64(len(buf)) > limit {
+		return nil, true, nil
+	}
+	return buf, false, nil
 }
 
 // writeImageRecord stores the image bytes to permanent storage, creates the DB record, and enqueues.
