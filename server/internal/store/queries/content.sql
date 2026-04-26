@@ -139,14 +139,12 @@ WHERE id = $1
   AND processing_status = 'deferred'
   AND deleted_at IS NULL;
 
--- name: DeleteExpiredDrafts :execrows
+-- name: DeleteExpiredDraftsReturningKeys :many
+-- Atomically deletes expired drafts and returns the media_key of each deleted
+-- row. Combining SELECT + DELETE into one statement closes the TOCTOU window
+-- where a draft could be committed between the two queries, which previously
+-- caused us to delete media for a now-committed row.
 DELETE FROM mindmap_content
 WHERE commit_status = 'draft'
-  AND updated_at < $1;
-
--- name: GetMediaKeysForExpiredDrafts :many
-SELECT id, media_key
-FROM mindmap_content
-WHERE commit_status = 'draft'
   AND updated_at < $1
-  AND media_key IS NOT NULL;
+RETURNING id, media_key;

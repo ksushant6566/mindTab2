@@ -4,6 +4,8 @@ import (
 	"context"
 	"log/slog"
 	"os"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -20,10 +22,13 @@ func TestDraftCleanup_TickRemovesDraftsAndFiles(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	var deletedCalls int
-	var listedCutoff time.Time
+	var deletedCalls atomic.Int32
+	var (
+		cutoffMu     sync.Mutex
+		listedCutoff time.Time
+	)
 
-	keys := []store.GetMediaKeysForExpiredDraftsRow{
+	keys := []store.DeleteExpiredDraftsReturningKeysRow{
 		{
 			ID:       testutil.PgUUID(uuid.New()),
 			MediaKey: pgtype.Text{String: "u/c/audio.m4a", Valid: true},
@@ -31,13 +36,12 @@ func TestDraftCleanup_TickRemovesDraftsAndFiles(t *testing.T) {
 	}
 
 	q := &store.QuerierMock{
-		GetMediaKeysForExpiredDraftsFunc: func(_ context.Context, cutoff pgtype.Timestamptz) ([]store.GetMediaKeysForExpiredDraftsRow, error) {
+		DeleteExpiredDraftsReturningKeysFunc: func(_ context.Context, cutoff pgtype.Timestamptz) ([]store.DeleteExpiredDraftsReturningKeysRow, error) {
+			cutoffMu.Lock()
 			listedCutoff = cutoff.Time
+			cutoffMu.Unlock()
+			deletedCalls.Add(1)
 			return keys, nil
-		},
-		DeleteExpiredDraftsFunc: func(_ context.Context, _ pgtype.Timestamptz) (int64, error) {
-			deletedCalls++
-			return int64(len(keys)), nil
 		},
 	}
 
@@ -47,29 +51,39 @@ func TestDraftCleanup_TickRemovesDraftsAndFiles(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
 	// Run cleanup with a 50 ms tick and 100 ms expiry window.
-	go worker.StartDraftCleanup(ctx, q, storage, logger, 50*time.Millisecond, 100*time.Millisecond)
+	done := make(chan struct{})
+	go func() {
+		worker.StartDraftCleanup(ctx, q, storage, logger, 50*time.Millisecond, 100*time.Millisecond)
+		close(done)
+	}()
 
-	require.Eventually(t, func() bool { return deletedCalls >= 1 }, time.Second, 25*time.Millisecond,
-		"expected DeleteExpiredDrafts to be called at least once within 1s")
+	require.Eventually(t, func() bool { return deletedCalls.Load() >= 1 }, time.Second, 25*time.Millisecond,
+		"expected DeleteExpiredDraftsReturningKeys to be called at least once within 1s")
 
 	cancel()
+	// Wait for the goroutine to fully exit so any in-flight storage.Delete
+	// has completed before we inspect storage state.
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("StartDraftCleanup did not exit within 1s of cancel")
+	}
 
-	require.False(t, listedCutoff.IsZero(), "expected GetMediaKeysForExpiredDrafts to have been called with a non-zero cutoff")
-	_, stillPresent := storage.Files["u/c/audio.m4a"]
-	require.False(t, stillPresent, "expected storage key to have been deleted after cleanup tick")
+	cutoffMu.Lock()
+	cutoffSeen := listedCutoff
+	cutoffMu.Unlock()
+	require.False(t, cutoffSeen.IsZero(), "expected DeleteExpiredDraftsReturningKeys to have been called with a non-zero cutoff")
+	require.False(t, storage.FileExists("u/c/audio.m4a"), "expected storage key to have been deleted after cleanup tick")
 }
 
 func TestDraftCleanup_StopsOnContextCancel(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	var callCount int
+	var callCount atomic.Int32
 	q := &store.QuerierMock{
-		GetMediaKeysForExpiredDraftsFunc: func(_ context.Context, _ pgtype.Timestamptz) ([]store.GetMediaKeysForExpiredDraftsRow, error) {
-			callCount++
+		DeleteExpiredDraftsReturningKeysFunc: func(_ context.Context, _ pgtype.Timestamptz) ([]store.DeleteExpiredDraftsReturningKeysRow, error) {
+			callCount.Add(1)
 			return nil, nil
-		},
-		DeleteExpiredDraftsFunc: func(_ context.Context, _ pgtype.Timestamptz) (int64, error) {
-			return 0, nil
 		},
 	}
 
@@ -83,7 +97,7 @@ func TestDraftCleanup_StopsOnContextCancel(t *testing.T) {
 	}()
 
 	// Let it tick at least once, then cancel.
-	require.Eventually(t, func() bool { return callCount >= 1 }, time.Second, 25*time.Millisecond)
+	require.Eventually(t, func() bool { return callCount.Load() >= 1 }, time.Second, 25*time.Millisecond)
 	cancel()
 
 	select {

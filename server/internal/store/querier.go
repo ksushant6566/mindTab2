@@ -38,7 +38,11 @@ type Querier interface {
 	CreateProject(ctx context.Context, arg CreateProjectParams) (MindmapProject, error)
 	CreateRefreshToken(ctx context.Context, arg CreateRefreshTokenParams) error
 	CreateVerificationToken(ctx context.Context, arg CreateVerificationTokenParams) error
-	DeleteExpiredDrafts(ctx context.Context, updatedAt pgtype.Timestamptz) (int64, error)
+	// Atomically deletes expired drafts and returns the media_key of each deleted
+	// row. Combining SELECT + DELETE into one statement closes the TOCTOU window
+	// where a draft could be committed between the two queries, which previously
+	// caused us to delete media for a now-committed row.
+	DeleteExpiredDraftsReturningKeys(ctx context.Context, updatedAt pgtype.Timestamptz) ([]DeleteExpiredDraftsReturningKeysRow, error)
 	DeleteExpiredRefreshTokens(ctx context.Context) error
 	DeleteExpiredVerificationTokens(ctx context.Context) error
 	DeleteHabit(ctx context.Context, arg DeleteHabitParams) error
@@ -68,7 +72,6 @@ type Querier interface {
 	GetJobByContentID(ctx context.Context, contentID pgtype.UUID) (MindmapJob, error)
 	GetJournalActivity(ctx context.Context, arg GetJournalActivityParams) ([]GetJournalActivityRow, error)
 	GetJournalByID(ctx context.Context, arg GetJournalByIDParams) (GetJournalByIDRow, error)
-	GetMediaKeysForExpiredDrafts(ctx context.Context, updatedAt pgtype.Timestamptz) ([]GetMediaKeysForExpiredDraftsRow, error)
 	GetMessage(ctx context.Context, id pgtype.UUID) (MindmapMessage, error)
 	GetProjectByID(ctx context.Context, arg GetProjectByIDParams) (MindmapProject, error)
 	GetRefreshToken(ctx context.Context, tokenHash string) (MindmapRefreshToken, error)

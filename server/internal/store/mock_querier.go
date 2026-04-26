@@ -100,8 +100,8 @@ var _ Querier = &QuerierMock{}
 //			CreateVerificationTokenFunc: func(ctx context.Context, arg CreateVerificationTokenParams) error {
 //				panic("mock out the CreateVerificationToken method")
 //			},
-//			DeleteExpiredDraftsFunc: func(ctx context.Context, updatedAt pgtype.Timestamptz) (int64, error) {
-//				panic("mock out the DeleteExpiredDrafts method")
+//			DeleteExpiredDraftsReturningKeysFunc: func(ctx context.Context, updatedAt pgtype.Timestamptz) ([]DeleteExpiredDraftsReturningKeysRow, error) {
+//				panic("mock out the DeleteExpiredDraftsReturningKeys method")
 //			},
 //			DeleteExpiredRefreshTokensFunc: func(ctx context.Context) error {
 //				panic("mock out the DeleteExpiredRefreshTokens method")
@@ -171,9 +171,6 @@ var _ Querier = &QuerierMock{}
 //			},
 //			GetJournalByIDFunc: func(ctx context.Context, arg GetJournalByIDParams) (GetJournalByIDRow, error) {
 //				panic("mock out the GetJournalByID method")
-//			},
-//			GetMediaKeysForExpiredDraftsFunc: func(ctx context.Context, updatedAt pgtype.Timestamptz) ([]GetMediaKeysForExpiredDraftsRow, error) {
-//				panic("mock out the GetMediaKeysForExpiredDrafts method")
 //			},
 //			GetMessageFunc: func(ctx context.Context, id pgtype.UUID) (MindmapMessage, error) {
 //				panic("mock out the GetMessage method")
@@ -425,8 +422,8 @@ type QuerierMock struct {
 	// CreateVerificationTokenFunc mocks the CreateVerificationToken method.
 	CreateVerificationTokenFunc func(ctx context.Context, arg CreateVerificationTokenParams) error
 
-	// DeleteExpiredDraftsFunc mocks the DeleteExpiredDrafts method.
-	DeleteExpiredDraftsFunc func(ctx context.Context, updatedAt pgtype.Timestamptz) (int64, error)
+	// DeleteExpiredDraftsReturningKeysFunc mocks the DeleteExpiredDraftsReturningKeys method.
+	DeleteExpiredDraftsReturningKeysFunc func(ctx context.Context, updatedAt pgtype.Timestamptz) ([]DeleteExpiredDraftsReturningKeysRow, error)
 
 	// DeleteExpiredRefreshTokensFunc mocks the DeleteExpiredRefreshTokens method.
 	DeleteExpiredRefreshTokensFunc func(ctx context.Context) error
@@ -496,9 +493,6 @@ type QuerierMock struct {
 
 	// GetJournalByIDFunc mocks the GetJournalByID method.
 	GetJournalByIDFunc func(ctx context.Context, arg GetJournalByIDParams) (GetJournalByIDRow, error)
-
-	// GetMediaKeysForExpiredDraftsFunc mocks the GetMediaKeysForExpiredDrafts method.
-	GetMediaKeysForExpiredDraftsFunc func(ctx context.Context, updatedAt pgtype.Timestamptz) ([]GetMediaKeysForExpiredDraftsRow, error)
 
 	// GetMessageFunc mocks the GetMessage method.
 	GetMessageFunc func(ctx context.Context, id pgtype.UUID) (MindmapMessage, error)
@@ -853,8 +847,8 @@ type QuerierMock struct {
 			// Arg is the arg argument value.
 			Arg CreateVerificationTokenParams
 		}
-		// DeleteExpiredDrafts holds details about calls to the DeleteExpiredDrafts method.
-		DeleteExpiredDrafts []struct {
+		// DeleteExpiredDraftsReturningKeys holds details about calls to the DeleteExpiredDraftsReturningKeys method.
+		DeleteExpiredDraftsReturningKeys []struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
 			// UpdatedAt is the updatedAt argument value.
@@ -1016,13 +1010,6 @@ type QuerierMock struct {
 			Ctx context.Context
 			// Arg is the arg argument value.
 			Arg GetJournalByIDParams
-		}
-		// GetMediaKeysForExpiredDrafts holds details about calls to the GetMediaKeysForExpiredDrafts method.
-		GetMediaKeysForExpiredDrafts []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// UpdatedAt is the updatedAt argument value.
-			UpdatedAt pgtype.Timestamptz
 		}
 		// GetMessage holds details about calls to the GetMessage method.
 		GetMessage []struct {
@@ -1430,7 +1417,7 @@ type QuerierMock struct {
 	lockCreateProject                          sync.RWMutex
 	lockCreateRefreshToken                     sync.RWMutex
 	lockCreateVerificationToken                sync.RWMutex
-	lockDeleteExpiredDrafts                    sync.RWMutex
+	lockDeleteExpiredDraftsReturningKeys       sync.RWMutex
 	lockDeleteExpiredRefreshTokens             sync.RWMutex
 	lockDeleteExpiredVerificationTokens        sync.RWMutex
 	lockDeleteHabit                            sync.RWMutex
@@ -1454,7 +1441,6 @@ type QuerierMock struct {
 	lockGetJobByContentID                      sync.RWMutex
 	lockGetJournalActivity                     sync.RWMutex
 	lockGetJournalByID                         sync.RWMutex
-	lockGetMediaKeysForExpiredDrafts           sync.RWMutex
 	lockGetMessage                             sync.RWMutex
 	lockGetProjectByID                         sync.RWMutex
 	lockGetRefreshToken                        sync.RWMutex
@@ -2483,10 +2469,10 @@ func (mock *QuerierMock) CreateVerificationTokenCalls() []struct {
 	return calls
 }
 
-// DeleteExpiredDrafts calls DeleteExpiredDraftsFunc.
-func (mock *QuerierMock) DeleteExpiredDrafts(ctx context.Context, updatedAt pgtype.Timestamptz) (int64, error) {
-	if mock.DeleteExpiredDraftsFunc == nil {
-		panic("QuerierMock.DeleteExpiredDraftsFunc: method is nil but Querier.DeleteExpiredDrafts was just called")
+// DeleteExpiredDraftsReturningKeys calls DeleteExpiredDraftsReturningKeysFunc.
+func (mock *QuerierMock) DeleteExpiredDraftsReturningKeys(ctx context.Context, updatedAt pgtype.Timestamptz) ([]DeleteExpiredDraftsReturningKeysRow, error) {
+	if mock.DeleteExpiredDraftsReturningKeysFunc == nil {
+		panic("QuerierMock.DeleteExpiredDraftsReturningKeysFunc: method is nil but Querier.DeleteExpiredDraftsReturningKeys was just called")
 	}
 	callInfo := struct {
 		Ctx       context.Context
@@ -2495,17 +2481,17 @@ func (mock *QuerierMock) DeleteExpiredDrafts(ctx context.Context, updatedAt pgty
 		Ctx:       ctx,
 		UpdatedAt: updatedAt,
 	}
-	mock.lockDeleteExpiredDrafts.Lock()
-	mock.calls.DeleteExpiredDrafts = append(mock.calls.DeleteExpiredDrafts, callInfo)
-	mock.lockDeleteExpiredDrafts.Unlock()
-	return mock.DeleteExpiredDraftsFunc(ctx, updatedAt)
+	mock.lockDeleteExpiredDraftsReturningKeys.Lock()
+	mock.calls.DeleteExpiredDraftsReturningKeys = append(mock.calls.DeleteExpiredDraftsReturningKeys, callInfo)
+	mock.lockDeleteExpiredDraftsReturningKeys.Unlock()
+	return mock.DeleteExpiredDraftsReturningKeysFunc(ctx, updatedAt)
 }
 
-// DeleteExpiredDraftsCalls gets all the calls that were made to DeleteExpiredDrafts.
+// DeleteExpiredDraftsReturningKeysCalls gets all the calls that were made to DeleteExpiredDraftsReturningKeys.
 // Check the length with:
 //
-//	len(mockedQuerier.DeleteExpiredDraftsCalls())
-func (mock *QuerierMock) DeleteExpiredDraftsCalls() []struct {
+//	len(mockedQuerier.DeleteExpiredDraftsReturningKeysCalls())
+func (mock *QuerierMock) DeleteExpiredDraftsReturningKeysCalls() []struct {
 	Ctx       context.Context
 	UpdatedAt pgtype.Timestamptz
 } {
@@ -2513,9 +2499,9 @@ func (mock *QuerierMock) DeleteExpiredDraftsCalls() []struct {
 		Ctx       context.Context
 		UpdatedAt pgtype.Timestamptz
 	}
-	mock.lockDeleteExpiredDrafts.RLock()
-	calls = mock.calls.DeleteExpiredDrafts
-	mock.lockDeleteExpiredDrafts.RUnlock()
+	mock.lockDeleteExpiredDraftsReturningKeys.RLock()
+	calls = mock.calls.DeleteExpiredDraftsReturningKeys
+	mock.lockDeleteExpiredDraftsReturningKeys.RUnlock()
 	return calls
 }
 
@@ -3336,42 +3322,6 @@ func (mock *QuerierMock) GetJournalByIDCalls() []struct {
 	mock.lockGetJournalByID.RLock()
 	calls = mock.calls.GetJournalByID
 	mock.lockGetJournalByID.RUnlock()
-	return calls
-}
-
-// GetMediaKeysForExpiredDrafts calls GetMediaKeysForExpiredDraftsFunc.
-func (mock *QuerierMock) GetMediaKeysForExpiredDrafts(ctx context.Context, updatedAt pgtype.Timestamptz) ([]GetMediaKeysForExpiredDraftsRow, error) {
-	if mock.GetMediaKeysForExpiredDraftsFunc == nil {
-		panic("QuerierMock.GetMediaKeysForExpiredDraftsFunc: method is nil but Querier.GetMediaKeysForExpiredDrafts was just called")
-	}
-	callInfo := struct {
-		Ctx       context.Context
-		UpdatedAt pgtype.Timestamptz
-	}{
-		Ctx:       ctx,
-		UpdatedAt: updatedAt,
-	}
-	mock.lockGetMediaKeysForExpiredDrafts.Lock()
-	mock.calls.GetMediaKeysForExpiredDrafts = append(mock.calls.GetMediaKeysForExpiredDrafts, callInfo)
-	mock.lockGetMediaKeysForExpiredDrafts.Unlock()
-	return mock.GetMediaKeysForExpiredDraftsFunc(ctx, updatedAt)
-}
-
-// GetMediaKeysForExpiredDraftsCalls gets all the calls that were made to GetMediaKeysForExpiredDrafts.
-// Check the length with:
-//
-//	len(mockedQuerier.GetMediaKeysForExpiredDraftsCalls())
-func (mock *QuerierMock) GetMediaKeysForExpiredDraftsCalls() []struct {
-	Ctx       context.Context
-	UpdatedAt pgtype.Timestamptz
-} {
-	var calls []struct {
-		Ctx       context.Context
-		UpdatedAt pgtype.Timestamptz
-	}
-	mock.lockGetMediaKeysForExpiredDrafts.RLock()
-	calls = mock.calls.GetMediaKeysForExpiredDrafts
-	mock.lockGetMediaKeysForExpiredDrafts.RUnlock()
 	return calls
 }
 

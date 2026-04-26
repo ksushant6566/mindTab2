@@ -251,18 +251,40 @@ func (q *Queries) CreateContentWithExtracted(ctx context.Context, arg CreateCont
 	return i, err
 }
 
-const deleteExpiredDrafts = `-- name: DeleteExpiredDrafts :execrows
+const deleteExpiredDraftsReturningKeys = `-- name: DeleteExpiredDraftsReturningKeys :many
 DELETE FROM mindmap_content
 WHERE commit_status = 'draft'
   AND updated_at < $1
+RETURNING id, media_key
 `
 
-func (q *Queries) DeleteExpiredDrafts(ctx context.Context, updatedAt pgtype.Timestamptz) (int64, error) {
-	result, err := q.db.Exec(ctx, deleteExpiredDrafts, updatedAt)
+type DeleteExpiredDraftsReturningKeysRow struct {
+	ID       pgtype.UUID `json:"id"`
+	MediaKey pgtype.Text `json:"media_key"`
+}
+
+// Atomically deletes expired drafts and returns the media_key of each deleted
+// row. Combining SELECT + DELETE into one statement closes the TOCTOU window
+// where a draft could be committed between the two queries, which previously
+// caused us to delete media for a now-committed row.
+func (q *Queries) DeleteExpiredDraftsReturningKeys(ctx context.Context, updatedAt pgtype.Timestamptz) ([]DeleteExpiredDraftsReturningKeysRow, error) {
+	rows, err := q.db.Query(ctx, deleteExpiredDraftsReturningKeys, updatedAt)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
-	return result.RowsAffected(), nil
+	defer rows.Close()
+	var items []DeleteExpiredDraftsReturningKeysRow
+	for rows.Next() {
+		var i DeleteExpiredDraftsReturningKeysRow
+		if err := rows.Scan(&i.ID, &i.MediaKey); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getContentByID = `-- name: GetContentByID :one
@@ -338,39 +360,6 @@ func (q *Queries) GetContentByID(ctx context.Context, arg GetContentByIDParams) 
 		&i.UpdatedAt,
 	)
 	return i, err
-}
-
-const getMediaKeysForExpiredDrafts = `-- name: GetMediaKeysForExpiredDrafts :many
-SELECT id, media_key
-FROM mindmap_content
-WHERE commit_status = 'draft'
-  AND updated_at < $1
-  AND media_key IS NOT NULL
-`
-
-type GetMediaKeysForExpiredDraftsRow struct {
-	ID       pgtype.UUID `json:"id"`
-	MediaKey pgtype.Text `json:"media_key"`
-}
-
-func (q *Queries) GetMediaKeysForExpiredDrafts(ctx context.Context, updatedAt pgtype.Timestamptz) ([]GetMediaKeysForExpiredDraftsRow, error) {
-	rows, err := q.db.Query(ctx, getMediaKeysForExpiredDrafts, updatedAt)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []GetMediaKeysForExpiredDraftsRow
-	for rows.Next() {
-		var i GetMediaKeysForExpiredDraftsRow
-		if err := rows.Scan(&i.ID, &i.MediaKey); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
 }
 
 const isContentDeleted = `-- name: IsContentDeleted :one

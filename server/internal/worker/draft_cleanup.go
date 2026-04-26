@@ -30,19 +30,16 @@ func StartDraftCleanup(
 		cutoff := time.Now().Add(-expireAfter)
 		cutoffArg := pgtype.Timestamptz{Time: cutoff, Valid: true}
 
-		keys, err := queries.GetMediaKeysForExpiredDrafts(ctx, cutoffArg)
-		if err != nil {
-			logger.Error("draft_cleanup: list keys", "err", err)
-			return
-		}
-
-		deleted, err := queries.DeleteExpiredDrafts(ctx, cutoffArg)
+		// Single atomic DELETE ... RETURNING avoids the TOCTOU window where a
+		// draft could be committed between a separate SELECT and DELETE,
+		// causing us to delete media for a now-committed row.
+		deleted, err := queries.DeleteExpiredDraftsReturningKeys(ctx, cutoffArg)
 		if err != nil {
 			logger.Error("draft_cleanup: delete rows", "err", err)
 			return
 		}
 
-		for _, k := range keys {
+		for _, k := range deleted {
 			if !k.MediaKey.Valid {
 				continue
 			}
@@ -51,8 +48,8 @@ func StartDraftCleanup(
 			}
 		}
 
-		if deleted > 0 {
-			logger.Info("draft_cleanup: removed", "rows", deleted)
+		if len(deleted) > 0 {
+			logger.Info("draft_cleanup: removed", "rows", len(deleted))
 		}
 	}
 
