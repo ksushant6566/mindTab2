@@ -57,6 +57,9 @@ func savesRouter(h *SavesHandler) chi.Router {
 	r.Delete("/saves/{id}", func(w http.ResponseWriter, r *http.Request) {
 		h.Delete(w, r)
 	})
+	r.Post("/saves/{id}/commit", func(w http.ResponseWriter, r *http.Request) {
+		h.Commit(w, r)
+	})
 	return r
 }
 
@@ -689,6 +692,241 @@ func TestSaves_Delete(t *testing.T) {
 			t.Error("expected SoftDeleteContent to be called")
 		}
 	})
+}
+
+// ============================================================
+// TestSaves_Commit (6 subtests)
+// ============================================================
+
+func TestSaves_Commit_DeferredFlipsAndEnqueues(t *testing.T) {
+	contentID := uuid.New()
+
+	// Seed: draft + deferred
+	seedRow := testutil.NewGetContentRow()
+	seedRow.ID = testutil.PgUUID(contentID)
+	seedRow.UserID = "test-user"
+	seedRow.SourceType = "article"
+	seedRow.ProcessingStatus = "deferred"
+	// CommitStatus is not on GetContentByIDRow before this task — we add it via the updated SQL.
+	// The factory default CommitStatus is not set, so we set it directly.
+
+	var updateCommitCalled bool
+	var updateProcessingCalled bool
+
+	q := &store.QuerierMock{
+		GetContentByIDFunc: func(_ context.Context, arg store.GetContentByIDParams) (store.GetContentByIDRow, error) {
+			row := seedRow
+			row.CommitStatus = "draft"
+			return row, nil
+		},
+		UpdateContentCommitStatusFunc: func(_ context.Context, _ store.UpdateContentCommitStatusParams) error {
+			updateCommitCalled = true
+			return nil
+		},
+		UpdateContentProcessingStatusToPendingFunc: func(_ context.Context, _ pgtype.UUID) error {
+			updateProcessingCalled = true
+			return nil
+		},
+	}
+	producer := &testutil.MockProducer{}
+	h := newTestHandler(q, producer, &mockSearcher{})
+	router := savesRouter(h)
+
+	req := testutil.JSONRequest(http.MethodPost, "/saves/"+contentID.String()+"/commit", nil)
+	req = testutil.AuthenticatedRequest(req, "test-user")
+
+	resp := fire(router, req)
+	testutil.AssertStatus(t, resp, http.StatusOK)
+
+	if !updateCommitCalled {
+		t.Error("expected UpdateContentCommitStatus to be called")
+	}
+	if !updateProcessingCalled {
+		t.Error("expected UpdateContentProcessingStatusToPending to be called")
+	}
+	if len(producer.Enqueued) != 1 {
+		t.Errorf("expected 1 enqueued job, got %d", len(producer.Enqueued))
+	}
+
+	type commitResp struct {
+		ID               string `json:"id"`
+		CommitStatus     string `json:"commit_status"`
+		ProcessingStatus string `json:"processing_status"`
+	}
+	body := testutil.DecodeJSON[commitResp](t, resp)
+	if body.CommitStatus != "committed" {
+		t.Errorf("expected commit_status 'committed', got %q", body.CommitStatus)
+	}
+	if body.ProcessingStatus != "pending" {
+		t.Errorf("expected processing_status 'pending', got %q", body.ProcessingStatus)
+	}
+}
+
+func TestSaves_Commit_DraftPending_FlipsCommitNoReEnqueue(t *testing.T) {
+	contentID := uuid.New()
+
+	var updateCommitCalled bool
+
+	q := &store.QuerierMock{
+		GetContentByIDFunc: func(_ context.Context, _ store.GetContentByIDParams) (store.GetContentByIDRow, error) {
+			row := testutil.NewGetContentRow()
+			row.ID = testutil.PgUUID(contentID)
+			row.UserID = "test-user"
+			row.ProcessingStatus = "pending"
+			row.CommitStatus = "draft"
+			return row, nil
+		},
+		UpdateContentCommitStatusFunc: func(_ context.Context, _ store.UpdateContentCommitStatusParams) error {
+			updateCommitCalled = true
+			return nil
+		},
+		// UpdateContentProcessingStatusToPendingFunc intentionally absent — should not be called.
+	}
+	producer := &testutil.MockProducer{}
+	h := newTestHandler(q, producer, &mockSearcher{})
+	router := savesRouter(h)
+
+	req := testutil.JSONRequest(http.MethodPost, "/saves/"+contentID.String()+"/commit", nil)
+	req = testutil.AuthenticatedRequest(req, "test-user")
+
+	resp := fire(router, req)
+	testutil.AssertStatus(t, resp, http.StatusOK)
+
+	if !updateCommitCalled {
+		t.Error("expected UpdateContentCommitStatus to be called")
+	}
+	if len(producer.Enqueued) != 0 {
+		t.Errorf("expected 0 enqueued jobs, got %d", len(producer.Enqueued))
+	}
+}
+
+func TestSaves_Commit_DraftCompleted_FlipsCommitNoReEnqueue(t *testing.T) {
+	contentID := uuid.New()
+
+	var updateCommitCalled bool
+
+	q := &store.QuerierMock{
+		GetContentByIDFunc: func(_ context.Context, _ store.GetContentByIDParams) (store.GetContentByIDRow, error) {
+			row := testutil.NewGetContentRow()
+			row.ID = testutil.PgUUID(contentID)
+			row.UserID = "test-user"
+			row.ProcessingStatus = "completed"
+			row.CommitStatus = "draft"
+			return row, nil
+		},
+		UpdateContentCommitStatusFunc: func(_ context.Context, _ store.UpdateContentCommitStatusParams) error {
+			updateCommitCalled = true
+			return nil
+		},
+	}
+	producer := &testutil.MockProducer{}
+	h := newTestHandler(q, producer, &mockSearcher{})
+	router := savesRouter(h)
+
+	req := testutil.JSONRequest(http.MethodPost, "/saves/"+contentID.String()+"/commit", nil)
+	req = testutil.AuthenticatedRequest(req, "test-user")
+
+	resp := fire(router, req)
+	testutil.AssertStatus(t, resp, http.StatusOK)
+
+	if !updateCommitCalled {
+		t.Error("expected UpdateContentCommitStatus to be called")
+	}
+	if len(producer.Enqueued) != 0 {
+		t.Errorf("expected 0 enqueued jobs, got %d", len(producer.Enqueued))
+	}
+}
+
+func TestSaves_Commit_AlreadyCommitted_NoOp(t *testing.T) {
+	contentID := uuid.New()
+
+	var updateCommitCalled bool
+
+	q := &store.QuerierMock{
+		GetContentByIDFunc: func(_ context.Context, _ store.GetContentByIDParams) (store.GetContentByIDRow, error) {
+			row := testutil.NewGetContentRow()
+			row.ID = testutil.PgUUID(contentID)
+			row.UserID = "test-user"
+			row.ProcessingStatus = "completed"
+			row.CommitStatus = "committed"
+			return row, nil
+		},
+		UpdateContentCommitStatusFunc: func(_ context.Context, _ store.UpdateContentCommitStatusParams) error {
+			updateCommitCalled = true
+			return nil
+		},
+	}
+	producer := &testutil.MockProducer{}
+	h := newTestHandler(q, producer, &mockSearcher{})
+	router := savesRouter(h)
+
+	req := testutil.JSONRequest(http.MethodPost, "/saves/"+contentID.String()+"/commit", nil)
+	req = testutil.AuthenticatedRequest(req, "test-user")
+
+	resp := fire(router, req)
+	testutil.AssertStatus(t, resp, http.StatusOK)
+
+	if updateCommitCalled {
+		t.Error("expected UpdateContentCommitStatus NOT to be called for already-committed save")
+	}
+	if len(producer.Enqueued) != 0 {
+		t.Errorf("expected 0 enqueued jobs, got %d", len(producer.Enqueued))
+	}
+}
+
+func TestSaves_Commit_TitleOverride(t *testing.T) {
+	contentID := uuid.New()
+
+	var capturedParams store.UpdateContentCommitStatusParams
+
+	q := &store.QuerierMock{
+		GetContentByIDFunc: func(_ context.Context, _ store.GetContentByIDParams) (store.GetContentByIDRow, error) {
+			row := testutil.NewGetContentRow()
+			row.ID = testutil.PgUUID(contentID)
+			row.UserID = "test-user"
+			row.ProcessingStatus = "completed"
+			row.CommitStatus = "draft"
+			return row, nil
+		},
+		UpdateContentCommitStatusFunc: func(_ context.Context, arg store.UpdateContentCommitStatusParams) error {
+			capturedParams = arg
+			return nil
+		},
+	}
+	h := newTestHandler(q, &testutil.MockProducer{}, &mockSearcher{})
+	router := savesRouter(h)
+
+	req := testutil.JSONRequest(http.MethodPost, "/saves/"+contentID.String()+"/commit", map[string]string{
+		"title": "Renamed",
+	})
+	req = testutil.AuthenticatedRequest(req, "test-user")
+
+	resp := fire(router, req)
+	testutil.AssertStatus(t, resp, http.StatusOK)
+
+	if !capturedParams.SourceTitle.Valid || capturedParams.SourceTitle.String != "Renamed" {
+		t.Errorf("expected SourceTitle 'Renamed', got %+v", capturedParams.SourceTitle)
+	}
+}
+
+func TestSaves_Commit_OtherUser_404(t *testing.T) {
+	contentID := uuid.New()
+
+	q := &store.QuerierMock{
+		GetContentByIDFunc: func(_ context.Context, _ store.GetContentByIDParams) (store.GetContentByIDRow, error) {
+			// Return not found (simulating user_id mismatch — GetContentByID filters by user_id).
+			return store.GetContentByIDRow{}, fmt.Errorf("no rows in result set")
+		},
+	}
+	h := newTestHandler(q, &testutil.MockProducer{}, &mockSearcher{})
+	router := savesRouter(h)
+
+	// Authenticate as "other-user" — the query will return not-found.
+	req := testutil.JSONRequest(http.MethodPost, "/saves/"+contentID.String()+"/commit", nil)
+	req = testutil.AuthenticatedRequest(req, "other-user")
+
+	resp := fire(router, req)
+	testutil.AssertStatus(t, resp, http.StatusNotFound)
 }
 
 // ============================================================
