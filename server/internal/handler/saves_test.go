@@ -1038,6 +1038,44 @@ func (c *capturingSearcher) Search(ctx context.Context, userID string, query str
 }
 
 // ============================================================
+// TestSaves_List_OmitsDrafts
+// ============================================================
+// The SQL for ListContent contains a hardcoded AND commit_status='committed'
+// filter, so drafts are excluded at the DB layer.  This test verifies the
+// handler routes GET /saves through ListContent (the draft-filtering query)
+// and correctly surfaces whatever that query returns.
+
+func TestSaves_List_OmitsDrafts(t *testing.T) {
+	var listCalled bool
+	q := &store.QuerierMock{
+		ListContentFunc: func(_ context.Context, _ store.ListContentParams) ([]store.ListContentRow, error) {
+			listCalled = true
+			// Return exactly one committed row — simulating the DB filter.
+			return []store.ListContentRow{
+				testutil.NewListContentRow(),
+			}, nil
+		},
+	}
+	h := newTestHandler(q, &testutil.MockProducer{}, &mockSearcher{})
+	router := savesRouter(h)
+
+	req := testutil.JSONRequest(http.MethodGet, "/saves", nil)
+	req = testutil.AuthenticatedRequest(req, "test-user")
+
+	resp := fire(router, req)
+	testutil.AssertStatus(t, resp, http.StatusOK)
+
+	if !listCalled {
+		t.Error("expected ListContent to be called for GET /saves")
+	}
+
+	items := testutil.DecodeJSON[[]contentListJSON](t, resp)
+	if len(items) != 1 {
+		t.Errorf("expected 1 item from listing, got %d", len(items))
+	}
+}
+
+// ============================================================
 // TestSaves_ServeMedia (5 subtests)
 // ============================================================
 
