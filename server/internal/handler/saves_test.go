@@ -712,6 +712,9 @@ func TestSaves_Commit_DeferredFlipsAndEnqueues(t *testing.T) {
 
 	var updateCommitCalled bool
 	var updateProcessingCalled bool
+	var createJobCalled bool
+	var capturedCreateJob store.CreateJobParams
+	jobID := testutil.PgUUID(uuid.New())
 
 	q := &store.QuerierMock{
 		GetContentByIDFunc: func(_ context.Context, arg store.GetContentByIDParams) (store.GetContentByIDRow, error) {
@@ -726,6 +729,11 @@ func TestSaves_Commit_DeferredFlipsAndEnqueues(t *testing.T) {
 		UpdateContentProcessingStatusToPendingFunc: func(_ context.Context, _ pgtype.UUID) error {
 			updateProcessingCalled = true
 			return nil
+		},
+		CreateJobFunc: func(_ context.Context, arg store.CreateJobParams) (pgtype.UUID, error) {
+			createJobCalled = true
+			capturedCreateJob = arg
+			return jobID, nil
 		},
 	}
 	producer := &testutil.MockProducer{}
@@ -744,8 +752,18 @@ func TestSaves_Commit_DeferredFlipsAndEnqueues(t *testing.T) {
 	if !updateProcessingCalled {
 		t.Error("expected UpdateContentProcessingStatusToPending to be called")
 	}
+	if !createJobCalled {
+		t.Error("expected CreateJob to be called so dispatcher StartJob/UpdateJobStatus updates have a target row")
+	}
+	if capturedCreateJob.UserID != "test-user" || capturedCreateJob.ContentType != "article" {
+		t.Errorf("CreateJob params not propagated: %+v", capturedCreateJob)
+	}
 	if len(producer.Enqueued) != 1 {
-		t.Errorf("expected 1 enqueued job, got %d", len(producer.Enqueued))
+		t.Fatalf("expected 1 enqueued job, got %d", len(producer.Enqueued))
+	}
+	enqueued := producer.Enqueued[0]
+	if enqueued.JobID != uuidFromPgtype(jobID) {
+		t.Errorf("expected enqueued JobID to match DB-issued ID %v, got %v", uuidFromPgtype(jobID), enqueued.JobID)
 	}
 
 	type commitResp struct {

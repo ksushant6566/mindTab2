@@ -758,8 +758,20 @@ func (h *SavesHandler) Commit(w http.ResponseWriter, r *http.Request) {
 			WriteError(w, http.StatusInternalServerError, "failed to update processing status")
 			return
 		}
+		// Insert the jobs row before enqueueing so the dispatcher's
+		// StartJob/UpdateJobStatus/etc. updates have a target row.
+		jobID, err := h.queries.CreateJob(r.Context(), store.CreateJobParams{
+			ContentID:   row.ID,
+			UserID:      userID,
+			ContentType: row.SourceType,
+		})
+		if err != nil {
+			slog.Error("failed to create job record", "error", err, "id", id)
+			WriteError(w, http.StatusInternalServerError, "failed to create processing job")
+			return
+		}
 		if err := h.producer.Enqueue(r.Context(), queue.JobPayload{
-			JobID:       uuid.New(),
+			JobID:       uuidFromPgtype(jobID),
 			ContentID:   uuidFromPgtype(row.ID),
 			UserID:      userID,
 			ContentType: row.SourceType,
