@@ -384,6 +384,94 @@ func TestSaves_Create(t *testing.T) {
 }
 
 // ============================================================
+// TestSaves_Create_NoFlags_DefaultsToCommittedPending
+// ============================================================
+
+func TestSaves_Create_NoFlags_DefaultsToCommittedPending(t *testing.T) {
+	contentID := uuid.New()
+	jobID := uuid.New()
+
+	var capturedArgs store.CreateContentParams
+	q := &store.QuerierMock{
+		CreateContentFunc: func(_ context.Context, arg store.CreateContentParams) (store.CreateContentRow, error) {
+			capturedArgs = arg
+			row := testutil.NewCreateContentRow(testutil.WithContentID(contentID))
+			row.ProcessingStatus = arg.ProcessingStatus
+			row.CommitStatus = arg.CommitStatus
+			return row, nil
+		},
+		CreateJobFunc: func(_ context.Context, _ store.CreateJobParams) (pgtype.UUID, error) {
+			return testutil.PgUUID(jobID), nil
+		},
+	}
+	producer := &testutil.MockProducer{}
+	h := newTestHandler(q, producer, &mockSearcher{})
+	router := savesRouter(h)
+
+	// POST with no flags — both should default to true.
+	req := testutil.JSONRequest(http.MethodPost, "/saves", map[string]string{
+		"url": "https://example.com/x",
+	})
+	req = testutil.AuthenticatedRequest(req, "test-user")
+
+	resp := fire(router, req)
+	testutil.AssertStatus(t, resp, http.StatusCreated)
+
+	if capturedArgs.CommitStatus != "committed" {
+		t.Errorf("expected CommitStatus 'committed', got %q", capturedArgs.CommitStatus)
+	}
+	if capturedArgs.ProcessingStatus != "pending" {
+		t.Errorf("expected ProcessingStatus 'pending', got %q", capturedArgs.ProcessingStatus)
+	}
+	if len(producer.Enqueued) != 1 {
+		t.Errorf("expected 1 enqueued job, got %d", len(producer.Enqueued))
+	}
+}
+
+// ============================================================
+// TestSaves_Create_DraftDeferred_DoesNotEnqueue
+// ============================================================
+
+func TestSaves_Create_DraftDeferred_DoesNotEnqueue(t *testing.T) {
+	contentID := uuid.New()
+
+	var capturedArgs store.CreateContentParams
+	q := &store.QuerierMock{
+		CreateContentFunc: func(_ context.Context, arg store.CreateContentParams) (store.CreateContentRow, error) {
+			capturedArgs = arg
+			row := testutil.NewCreateContentRow(testutil.WithContentID(contentID))
+			row.ProcessingStatus = arg.ProcessingStatus
+			row.CommitStatus = arg.CommitStatus
+			return row, nil
+		},
+		// CreateJobFunc intentionally absent — should never be called for deferred saves.
+	}
+	producer := &testutil.MockProducer{}
+	h := newTestHandler(q, producer, &mockSearcher{})
+	router := savesRouter(h)
+
+	req := testutil.JSONRequest(http.MethodPost, "/saves", map[string]any{
+		"url":              "https://example.com/x",
+		"auto_commit":      false,
+		"start_processing": false,
+	})
+	req = testutil.AuthenticatedRequest(req, "test-user")
+
+	resp := fire(router, req)
+	testutil.AssertStatus(t, resp, http.StatusCreated)
+
+	if capturedArgs.CommitStatus != "draft" {
+		t.Errorf("expected CommitStatus 'draft', got %q", capturedArgs.CommitStatus)
+	}
+	if capturedArgs.ProcessingStatus != "deferred" {
+		t.Errorf("expected ProcessingStatus 'deferred', got %q", capturedArgs.ProcessingStatus)
+	}
+	if len(producer.Enqueued) != 0 {
+		t.Errorf("expected 0 enqueued jobs, got %d", len(producer.Enqueued))
+	}
+}
+
+// ============================================================
 // TestSaves_List (5 subtests)
 // ============================================================
 
