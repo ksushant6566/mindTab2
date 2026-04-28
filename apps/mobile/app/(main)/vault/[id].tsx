@@ -28,7 +28,6 @@ type SaveDetail = {
   summary?: string | null;
   tags?: string[] | null;
   key_topics?: string[] | null;
-  source_media_url?: string | null;
   media_url?: string | null;
   media_mime?: string | null;
   media_file_bytes?: number | null;
@@ -153,9 +152,9 @@ export default function VaultDetailScreen() {
             showsVerticalScrollIndicator={false}
           >
             {/* ── Image (image saves) ── */}
-            {save.source_type === "image" && save.source_media_url ? (
+            {save.source_type === "image" && save.media_url ? (
               <Image
-                source={{ uri: `${API_URL}${save.source_media_url}` }}
+                source={{ uri: `${API_URL}${save.media_url}` }}
                 style={styles.coverImage}
                 resizeMode="contain"
               />

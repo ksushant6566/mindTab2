@@ -29,16 +29,20 @@ function makeDefaultTitle(): string {
 export function AudioReview({
   id,
   durationSeconds,
+  processingStatus,
   localFileUri,
   onDelete,
 }: {
   id: string;
   durationSeconds: number;
+  processingStatus?: string;
   localFileUri: string | null;
   onDelete: (id: string) => Promise<void>;
 }) {
   const router = useRouter();
-  const eager = durationSeconds <= 60;
+  const eager = processingStatus
+    ? processingStatus !== "deferred"
+    : durationSeconds <= 60;
 
   const draftPoll = useDraftPoll(id, eager);
   const commit = useCommitSave();

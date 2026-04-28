@@ -14,7 +14,6 @@ export type RawSave = {
   source_thumbnail_url?: string | null;
   summary?: string | null;
   tags?: string[] | null;
-  source_media_url?: string | null;
   media_url?: string | null;
   media_mime?: string | null;
   media_file_bytes?: number | null;
@@ -69,7 +68,7 @@ export function SaveGrid({
             sourceThumbnailUrl={item.source_thumbnail_url}
             summary={item.summary}
             tags={item.tags}
-            sourceMediaUrl={item.source_media_url}
+            mediaUrl={item.media_url}
             processingStatus={item.processing_status}
             onPress={onSavePress}
             videoDuration={item.duration_seconds ?? undefined}

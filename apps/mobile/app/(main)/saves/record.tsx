@@ -12,16 +12,20 @@ export default function RecordScreen() {
 
   const onStop = useCallback(
     async ({ fileUri, durationSeconds }: { fileUri: string; durationSeconds: number }) => {
-      const startProcessing = durationSeconds <= 60;
       try {
         const result = await upload.mutateAsync({
           fileUri,
-          durationSeconds,
           autoCommit: false,
-          startProcessing,
           source: "recorder",
         });
-        router.replace(`/saves/review/${result.id}`);
+        router.replace({
+          pathname: "/saves/review/[id]",
+          params: {
+            id: result.id,
+            processingStatus: result.processing_status,
+            durationSeconds: String(result.duration_seconds ?? durationSeconds),
+          },
+        } as any);
       } catch (err) {
         console.warn("audio upload failed", err);
         router.back();

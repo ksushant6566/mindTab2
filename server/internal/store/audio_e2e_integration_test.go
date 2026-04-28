@@ -10,10 +10,10 @@ package store_test
 // we only assert the queue-state transitions that are fully deterministic without
 // external network calls.
 //
-// Test 1 — DraftEager: upload (draft + start_processing=true, 30 s) → queue depth 1
+// Test 1 — DraftEager: upload (draft + server-probed 30 s) → queue depth 1
 //           → commit → row is committed, queue depth still 1.
 //
-// Test 2 — DraftDeferred: upload (draft + start_processing=false, 1800 s) → queue depth 0
+// Test 2 — DraftDeferred: upload (draft + server-probed 1800 s) → queue depth 0
 //           → commit with title "Lecture" → row committed, processing_status=pending,
 //           source_title="Lecture", queue depth 1.
 
@@ -46,6 +46,15 @@ type audioE2EEnv struct {
 	Queries *store.Queries
 	Redis   *goredis.Client
 	UserID  string
+	Prober  *audioE2EProber
+}
+
+type audioE2EProber struct {
+	seconds int32
+}
+
+func (p *audioE2EProber) ProbeDuration(_ context.Context, _ string) (int32, error) {
+	return p.seconds, nil
 }
 
 // setupAudioE2EEnv boots Postgres + Redis containers, creates a real handler,
@@ -72,8 +81,9 @@ func setupAudioE2EEnv(t *testing.T, userID string) *audioE2EEnv {
 
 	producer := queue.NewProducer(redisClient)
 	storage := testutil.NewMockStorage()
+	prober := &audioE2EProber{}
 	// nil searcher is fine — Search endpoint is not under test.
-	h := handler.NewSavesHandler(q, producer, &noopSearcher{}, storage, 50<<20, "e2e-secret")
+	h := handler.NewSavesHandler(q, producer, &noopSearcher{}, storage, 50<<20, "e2e-secret", prober)
 
 	r := chi.NewRouter()
 	r.Post("/saves", h.Create)
@@ -84,6 +94,7 @@ func setupAudioE2EEnv(t *testing.T, userID string) *audioE2EEnv {
 		Queries: q,
 		Redis:   redisClient,
 		UserID:  userID,
+		Prober:  prober,
 	}
 }
 
@@ -104,22 +115,16 @@ func queueDepth(t *testing.T, client *goredis.Client) int64 {
 }
 
 // buildAudioMultipart constructs a multipart/form-data request for an audio upload.
-func buildAudioMultipart(t *testing.T, mime, duration string, autoCommit, startProcessing bool, payload []byte) (io.Reader, string) {
+func buildAudioMultipart(t *testing.T, mime string, autoCommit bool, payload []byte) (io.Reader, string) {
 	t.Helper()
 	var buf bytes.Buffer
 	mw := multipart.NewWriter(&buf)
 
 	// Write form fields first.
-	_ = mw.WriteField("duration_seconds", duration)
 	if autoCommit {
 		_ = mw.WriteField("auto_commit", "true")
 	} else {
 		_ = mw.WriteField("auto_commit", "false")
-	}
-	if startProcessing {
-		_ = mw.WriteField("start_processing", "true")
-	} else {
-		_ = mw.WriteField("start_processing", "false")
 	}
 
 	// Audio file part.
@@ -184,9 +189,10 @@ func (n *noopSearcher) Search(_ context.Context, _, _ string, _ int) ([]search.S
 func TestAudio_E2E_DraftEagerCommit(t *testing.T) {
 	const userID = "e2e-user-eager"
 	env := setupAudioE2EEnv(t, userID)
+	env.Prober.seconds = 30
 
-	// Stage 1: upload as draft + eager (30 s ≤ 60 s threshold).
-	body, ct := buildAudioMultipart(t, "audio/mpeg", "30", false, true, minimalMP3())
+	// Stage 1: upload as draft + eager (30 s <= 60 s threshold).
+	body, ct := buildAudioMultipart(t, "audio/mpeg", false, minimalMP3())
 	req := httptest.NewRequest(http.MethodPost, "/saves", body)
 	req.Header.Set("Content-Type", ct)
 
@@ -235,9 +241,10 @@ func TestAudio_E2E_DraftEagerCommit(t *testing.T) {
 func TestAudio_E2E_DraftDeferredCommit(t *testing.T) {
 	const userID = "e2e-user-deferred"
 	env := setupAudioE2EEnv(t, userID)
+	env.Prober.seconds = 1800
 
 	// Stage 1: upload as draft + deferred (1800 s > 60 s threshold).
-	body, ct := buildAudioMultipart(t, "audio/mpeg", "1800", false, false, minimalMP3())
+	body, ct := buildAudioMultipart(t, "audio/mpeg", false, minimalMP3())
 	req := httptest.NewRequest(http.MethodPost, "/saves", body)
 	req.Header.Set("Content-Type", ct)
 

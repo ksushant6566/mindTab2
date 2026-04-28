@@ -12,12 +12,12 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
-	pgvector "github.com/pgvector/pgvector-go"
 	"github.com/ksushant6566/mindtab/server/internal/providers"
 	"github.com/ksushant6566/mindtab/server/internal/providers/embedding"
 	"github.com/ksushant6566/mindtab/server/internal/search"
 	"github.com/ksushant6566/mindtab/server/internal/store"
 	"github.com/ksushant6566/mindtab/server/internal/testutil"
+	pgvector "github.com/pgvector/pgvector-go"
 )
 
 // upsertTestUser creates a user in the DB, failing the test if it errors.
@@ -47,6 +47,21 @@ func insertContent(t *testing.T, ctx context.Context, pool *pgxpool.Pool, userID
 	`, id, userID, sourceType, v)
 	if err != nil {
 		t.Fatalf("insertContent(user=%s): %v", userID, err)
+	}
+	return id
+}
+
+// insertDraftContent inserts a draft row that must not appear in semantic search.
+func insertDraftContent(t *testing.T, ctx context.Context, pool *pgxpool.Pool, userID, sourceType string, vec []float32) uuid.UUID {
+	t.Helper()
+	id := uuid.New()
+	v := pgvector.NewVector(vec)
+	_, err := pool.Exec(ctx, `
+		INSERT INTO mindmap_content (id, user_id, source_type, embedding, processing_status, commit_status)
+		VALUES ($1, $2, $3, $4, 'completed', 'draft')
+	`, id, userID, sourceType, v)
+	if err != nil {
+		t.Fatalf("insertDraftContent(user=%s): %v", userID, err)
 	}
 	return id
 }
@@ -191,6 +206,39 @@ func TestSearch_ExcludesSoftDeleted(t *testing.T) {
 
 	if len(results) != 0 {
 		t.Errorf("expected 0 results after soft-delete, got %d", len(results))
+	}
+}
+
+// TestSearch_ExcludesDrafts verifies semantic search only returns committed
+// saves, matching the vault list contract.
+func TestSearch_ExcludesDrafts(t *testing.T) {
+	pool := testutil.SetupTestDB(t)
+	ctx := context.Background()
+	userID := "user-draft-" + uuid.New().String()[:8]
+
+	upsertTestUser(t, ctx, store.New(pool), userID)
+
+	vec := make([]float32, 1536)
+	vec[0] = 1.0
+
+	committedID := insertContent(t, ctx, pool, userID, "audio", vec)
+	insertDraftContent(t, ctx, pool, userID, "audio", vec)
+
+	queryVec := make([]float32, 1536)
+	queryVec[0] = 1.0
+
+	s := newSemanticSearch(t, pool, queryVec)
+
+	results, err := s.Search(ctx, userID, "query", 10)
+	if err != nil {
+		t.Fatalf("Search() error = %v", err)
+	}
+
+	if len(results) != 1 {
+		t.Fatalf("expected 1 committed result, got %d", len(results))
+	}
+	if results[0].ID != committedID {
+		t.Errorf("expected committed result ID %v, got %v", committedID, results[0].ID)
 	}
 }
 

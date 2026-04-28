@@ -13,6 +13,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -53,19 +54,25 @@ type searcher interface {
 	Search(ctx context.Context, userID string, query string, limit int) ([]search.SearchResult, error)
 }
 
+// AudioDurationProber extracts authoritative audio duration from a staged upload.
+type AudioDurationProber interface {
+	ProbeDuration(ctx context.Context, inputPath string) (int32, error)
+}
+
 // SavesHandler handles save CRUD and search endpoints.
 type SavesHandler struct {
-	queries   store.Querier
-	producer  enqueuer
-	search    searcher
-	storage   services.StorageProvider
-	maxSize   int64
-	jwtSecret string
+	queries             store.Querier
+	producer            enqueuer
+	search              searcher
+	storage             services.StorageProvider
+	maxSize             int64
+	jwtSecret           string
+	audioDurationProber AudioDurationProber
 }
 
 // NewSavesHandler creates a new SavesHandler.
-func NewSavesHandler(queries store.Querier, producer enqueuer, search searcher, storage services.StorageProvider, maxSize int64, jwtSecret string) *SavesHandler {
-	return &SavesHandler{
+func NewSavesHandler(queries store.Querier, producer enqueuer, search searcher, storage services.StorageProvider, maxSize int64, jwtSecret string, audioDurationProbers ...AudioDurationProber) *SavesHandler {
+	h := &SavesHandler{
 		queries:   queries,
 		producer:  producer,
 		search:    search,
@@ -73,6 +80,10 @@ func NewSavesHandler(queries store.Querier, producer enqueuer, search searcher, 
 		maxSize:   maxSize,
 		jwtSecret: jwtSecret,
 	}
+	if len(audioDurationProbers) > 0 {
+		h.audioDurationProber = audioDurationProbers[0]
+	}
+	return h
 }
 
 // saveResponse is the response body for POST /saves.
@@ -98,7 +109,7 @@ type contentJSON struct {
 	EmbeddingProvider  *string    `json:"embedding_provider,omitempty"`
 	EmbeddingModel     *string    `json:"embedding_model,omitempty"`
 	MediaKey           *string    `json:"media_key,omitempty"`
-	SourceMediaURL     *string    `json:"source_media_url,omitempty"`
+	MediaURL           *string    `json:"media_url,omitempty"`
 	DurationSeconds    *int32     `json:"duration_seconds,omitempty"`
 	VideoThumbnailURL  *string    `json:"video_thumbnail_url,omitempty"`
 	VideoChannel       *string    `json:"video_channel,omitempty"`
@@ -121,7 +132,7 @@ type contentListJSON struct {
 	Tags               []string   `json:"tags"`
 	KeyTopics          []string   `json:"key_topics"`
 	MediaKey           *string    `json:"media_key,omitempty"`
-	SourceMediaURL     *string    `json:"source_media_url,omitempty"`
+	MediaURL           *string    `json:"media_url,omitempty"`
 	DurationSeconds    *int32     `json:"duration_seconds,omitempty"`
 	VideoThumbnailURL  *string    `json:"video_thumbnail_url,omitempty"`
 	VideoChannel       *string    `json:"video_channel,omitempty"`
@@ -162,7 +173,7 @@ func (h *SavesHandler) Create(w http.ResponseWriter, r *http.Request) {
 		autoCommit := parseFormFlag(r, "auto_commit")
 		startProcessing := parseFormFlag(r, "start_processing")
 		if _, _, err := r.FormFile("audio"); err == nil {
-			h.createAudio(w, r, userID, autoCommit, startProcessing)
+			h.createAudio(w, r, userID, autoCommit)
 			return
 		}
 		if _, _, err := r.FormFile("image"); err == nil {
@@ -205,6 +216,23 @@ func resolveLifecycleFlags(autoCommit, startProcessing *bool) (commit string, pr
 		processing = "deferred"
 	}
 	return
+}
+
+// resolveAudioLifecycle keeps duration-sensitive audio behavior server-side.
+// Committed audio always starts processing. Draft audio under the review
+// threshold starts eagerly; longer drafts wait until the user commits.
+func resolveAudioLifecycle(autoCommit *bool, durationSeconds int32) (commit string, processing string) {
+	ac := true
+	if autoCommit != nil {
+		ac = *autoCommit
+	}
+	if ac {
+		return "committed", "pending"
+	}
+	if durationSeconds <= 60 {
+		return "draft", "pending"
+	}
+	return "draft", "deferred"
 }
 
 // parseFormFlag reads a multipart form field as a *bool.
@@ -483,7 +511,7 @@ func (h *SavesHandler) writeImageRecord(
 	writeSaveResponse(w, row, h.storage)
 }
 
-func (h *SavesHandler) createAudio(w http.ResponseWriter, r *http.Request, userID string, autoCommit, startProcessing *bool) {
+func (h *SavesHandler) createAudio(w http.ResponseWriter, r *http.Request, userID string, autoCommit *bool) {
 	file, header, err := r.FormFile("audio")
 	if err != nil {
 		WriteError(w, http.StatusBadRequest, "missing audio file")
@@ -498,17 +526,11 @@ func (h *SavesHandler) createAudio(w http.ResponseWriter, r *http.Request, userI
 		return
 	}
 
-	durationStr := r.FormValue("duration_seconds")
-	if durationStr == "" {
-		WriteError(w, http.StatusBadRequest, "duration_seconds required")
+	if h.audioDurationProber == nil {
+		slog.Error("audio duration prober is not configured")
+		WriteError(w, http.StatusInternalServerError, "audio duration probe unavailable")
 		return
 	}
-	durSec64, err := strconv.ParseInt(durationStr, 10, 32)
-	if err != nil || durSec64 <= 0 || int32(durSec64) > maxAudioDurationSeconds {
-		WriteError(w, http.StatusBadRequest, "duration_seconds out of range")
-		return
-	}
-	durSec := int32(durSec64)
 
 	contentID := uuid.New()
 	mediaKey := fmt.Sprintf("%s/%s/audio%s", userID, contentID, ext)
@@ -518,13 +540,42 @@ func (h *SavesHandler) createAudio(w http.ResponseWriter, r *http.Request, userI
 		WriteError(w, http.StatusInternalServerError, "read upload")
 		return
 	}
+
+	tmp, err := os.CreateTemp("", "mindtab-audio-*"+ext)
+	if err != nil {
+		WriteError(w, http.StatusInternalServerError, "stage upload")
+		return
+	}
+	tmpPath := tmp.Name()
+	defer os.Remove(tmpPath)
+	if _, err := tmp.Write(buf); err != nil {
+		_ = tmp.Close()
+		WriteError(w, http.StatusInternalServerError, "stage upload")
+		return
+	}
+	if err := tmp.Close(); err != nil {
+		WriteError(w, http.StatusInternalServerError, "stage upload")
+		return
+	}
+
+	durSec, err := h.audioDurationProber.ProbeDuration(r.Context(), tmpPath)
+	if err != nil {
+		slog.Warn("failed to probe audio duration", "error", err, "mime", mime)
+		WriteError(w, http.StatusBadRequest, "invalid audio file")
+		return
+	}
+	if durSec <= 0 || durSec > maxAudioDurationSeconds {
+		WriteError(w, http.StatusBadRequest, "audio duration out of range")
+		return
+	}
+
 	if err := h.storage.Save(r.Context(), mediaKey, bytes.NewReader(buf), mime); err != nil {
 		slog.Error("failed to store audio", "error", err, "mediaKey", mediaKey)
 		WriteError(w, http.StatusInternalServerError, "store audio")
 		return
 	}
 
-	commitStatus, processingStatus := resolveLifecycleFlags(autoCommit, startProcessing)
+	commitStatus, processingStatus := resolveAudioLifecycle(autoCommit, durSec)
 
 	nowTitle := fmt.Sprintf("Voice note · %s", time.Now().Format("Jan 2, 3:04 PM"))
 
@@ -639,7 +690,7 @@ func (h *SavesHandler) List(w http.ResponseWriter, r *http.Request) {
 		}
 		if row.MediaKey.Valid {
 			signed := h.signMediaURL(row.MediaKey.String, 1*time.Hour)
-			item.SourceMediaURL = &signed
+			item.MediaURL = &signed
 		}
 		items = append(items, item)
 	}
@@ -698,7 +749,7 @@ func (h *SavesHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 	if row.MediaKey.Valid {
 		signed := h.signMediaURL(row.MediaKey.String, 1*time.Hour)
-		item.SourceMediaURL = &signed
+		item.MediaURL = &signed
 	}
 	WriteJSON(w, http.StatusOK, item)
 }
@@ -987,6 +1038,7 @@ func writeSaveResponse(w http.ResponseWriter, row store.CreateContentRow, storag
 		CommitStatus     string `json:"commit_status"`
 		ProcessingStatus string `json:"processing_status"`
 		MediaURL         string `json:"media_url,omitempty"`
+		DurationSeconds  *int32 `json:"duration_seconds,omitempty"`
 	}{
 		ID:               uuidToString(row.ID),
 		CommitStatus:     row.CommitStatus,
@@ -994,6 +1046,9 @@ func writeSaveResponse(w http.ResponseWriter, row store.CreateContentRow, storag
 	}
 	if row.MediaKey.Valid {
 		resp.MediaURL = storage.URL(row.MediaKey.String)
+	}
+	if row.DurationSeconds.Valid {
+		resp.DurationSeconds = &row.DurationSeconds.Int32
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)

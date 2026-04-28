@@ -11,11 +11,11 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"golang.org/x/time/rate"
 	chimw "github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	pgxvector "github.com/pgvector/pgvector-go/pgx"
+	"golang.org/x/time/rate"
 
 	"github.com/ksushant6566/mindtab/server/internal/chat"
 	"github.com/ksushant6566/mindtab/server/internal/config"
@@ -96,6 +96,9 @@ func main() {
 		// Storage
 		storage = services.NewLocalStorage(cfg.StorageLocalPath)
 
+		// Media tooling
+		ffmpeg := services.NewFFmpeg(cfg.FFmpegPath, logger)
+
 		// Jina Reader
 		jina := services.NewJinaReader(cfg.JinaAPIKey)
 
@@ -111,7 +114,7 @@ func main() {
 		llmChain = registry.LLM
 
 		// Saves handler
-		savesHandler = handler.NewSavesHandler(queries, producer, semanticSearch, storage, int64(cfg.MaxFileSizeMB)*1024*1024, cfg.JWTSecret)
+		savesHandler = handler.NewSavesHandler(queries, producer, semanticSearch, storage, int64(cfg.MaxFileSizeMB)*1024*1024, cfg.JWTSecret, ffmpeg)
 
 		// Worker dispatcher
 		dispatcher = worker.NewDispatcher(consumer, retryScheduler, queries, slog.Default(), cfg.WorkerConcurrency)
@@ -122,7 +125,6 @@ func main() {
 			transcriptionChain := providers.NewChain[transcription.TranscriptionProvider](logger)
 			transcriptionChain.Add("groq-whisper", transcription.NewGroqProvider(cfg.GroqAPIKey))
 			ytdlp := services.NewYTDLP(cfg.YTDLPPath, logger)
-			ffmpeg := services.NewFFmpeg(cfg.FFmpegPath, logger)
 			dispatcher.Register(processors.NewYoutubeProcessor(
 				ytdlp, ffmpeg, transcriptionChain,
 				registry.LLM, registry.Embedding,

@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
+	"strings"
 )
 
 // FFmpeg wraps the ffmpeg binary for video processing.
@@ -22,6 +23,43 @@ type FFmpeg struct {
 // NewFFmpeg creates a new FFmpeg service.
 func NewFFmpeg(binPath string, logger *slog.Logger) *FFmpeg {
 	return &FFmpeg{binPath: binPath, logger: logger}
+}
+
+// ProbeDuration returns the media duration in whole seconds, rounded up.
+func (f *FFmpeg) ProbeDuration(ctx context.Context, inputPath string) (int32, error) {
+	args := []string{
+		"-v", "error",
+		"-show_entries", "format=duration",
+		"-of", "default=noprint_wrappers=1:nokey=1",
+		inputPath,
+	}
+	cmd := exec.CommandContext(ctx, f.ffprobePath(), args...)
+	f.logger.Debug("probing media duration", "input", inputPath)
+
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return 0, fmt.Errorf("ffprobe duration: %w\noutput: %s", err, string(out))
+	}
+
+	raw := strings.TrimSpace(string(out))
+	duration, err := strconv.ParseFloat(raw, 64)
+	if err != nil || duration <= 0 || math.IsNaN(duration) || math.IsInf(duration, 0) {
+		return 0, fmt.Errorf("ffprobe duration: invalid duration %q", raw)
+	}
+
+	return int32(math.Ceil(duration)), nil
+}
+
+func (f *FFmpeg) ffprobePath() string {
+	if f.binPath == "" {
+		return "ffprobe"
+	}
+	dir := filepath.Dir(f.binPath)
+	base := filepath.Base(f.binPath)
+	if strings.Contains(base, "ffmpeg") {
+		return filepath.Join(dir, strings.Replace(base, "ffmpeg", "ffprobe", 1))
+	}
+	return "ffprobe"
 }
 
 // ExtractFrames extracts scene-change frames from a video file.

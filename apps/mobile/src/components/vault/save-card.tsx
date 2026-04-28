@@ -28,7 +28,7 @@ export type SaveCardProps = {
   sourceThumbnailUrl?: string | null;
   summary?: string | null;
   tags?: string[] | null;
-  sourceMediaUrl?: string | null;
+  mediaUrl?: string | null;
   processingStatus: string;
   onPress: (id: string) => void;
   videoDuration?: number;
@@ -44,7 +44,7 @@ export function SaveCard({
   sourceThumbnailUrl,
   summary,
   tags,
-  sourceMediaUrl,
+  mediaUrl,
   processingStatus,
   onPress,
   videoDuration,
@@ -70,7 +70,7 @@ export function SaveCard({
   }
 
   if (sourceType === "image") {
-    const imageUri = sourceMediaUrl ? `${API_URL}${sourceMediaUrl}` : null;
+    const imageUri = mediaUrl ? `${API_URL}${mediaUrl}` : null;
     return (
       <Pressable onPress={() => onPress(id)} style={styles.card}>
         {imageUri ? (

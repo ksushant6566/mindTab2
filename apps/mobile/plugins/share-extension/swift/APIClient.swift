@@ -90,7 +90,7 @@ struct APIClient {
     }
 
     /// Save an audio recording from the share extension.
-    /// Posts multipart/form-data to POST /saves with auto_commit and start_processing set.
+    /// Posts multipart/form-data to POST /saves. The server probes duration and starts processing.
     static func saveAudio(fileURL: URL, token: String) async throws -> String {
         let boundary = UUID().uuidString
         var formData = Data()
@@ -106,9 +106,7 @@ struct APIClient {
             formData.append("\r\n".data(using: .utf8)!)
         }
         appendField("auto_commit", "true")
-        appendField("start_processing", "true")
         appendField("source", "share_extension")
-        appendField("duration_seconds", "1") // exact duration unknown; server requires >0
 
         formData.append("--\(boundary)\r\n".data(using: .utf8)!)
         formData.append("Content-Disposition: form-data; name=\"audio\"; filename=\"\(filename)\"\r\n".data(using: .utf8)!)

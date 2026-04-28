@@ -181,7 +181,7 @@ mock := &QuerierMock{
 | `TestSaves_List_CustomPagination` | GET /saves | `?limit=5&offset=10` | 200, respects params |
 | `TestSaves_List_LimitClamped` | GET /saves | `?limit=999` | 200, clamped to 100 |
 | `TestSaves_List_InvalidParams` | GET /saves | `?limit=abc` | 400 |
-| `TestSaves_List_SignedMediaURLs` | GET /saves | Content with media_key | 200, source_media_url is signed |
+| `TestSaves_List_SignedMediaURLs` | GET /saves | Content with media_key | 200, media_url is signed |
 | `TestSaves_Get_Found` | GET /saves/{id} | Valid ID, user owns it | 200, full content JSON |
 | `TestSaves_Get_NotFound` | GET /saves/{id} | ID doesn't exist | 404 |
 | `TestSaves_Get_BadUUID` | GET /saves/{id} | Malformed UUID | 400 |
