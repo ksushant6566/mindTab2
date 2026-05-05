@@ -120,7 +120,7 @@ export function SaveFAB() {
 
   const handleRecordAudio = useCallback(() => {
     bottomSheetRef.current?.dismiss();
-    router.push("/saves/record" as any);
+    router.push("/saves/record");
   }, [router]);
 
   // ── Upload Audio File ─────────────────────────────────────────────────────
