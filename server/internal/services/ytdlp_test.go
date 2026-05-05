@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -142,5 +143,25 @@ JSON
 	}
 	if got.HasCaptions {
 		t.Fatal("HasCaptions = true, want false for null caption maps")
+	}
+}
+
+func TestGetMetadataIncludesYTDLPStderr(t *testing.T) {
+	binPath := filepath.Join(t.TempDir(), "yt-dlp")
+	script := `#!/bin/sh
+echo "extractor failed: login required" >&2
+exit 2
+`
+	if err := os.WriteFile(binPath, []byte(script), 0o755); err != nil {
+		t.Fatalf("write fake yt-dlp: %v", err)
+	}
+
+	service := NewYTDLP(binPath, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	_, err := service.GetMetadata(context.Background(), "https://example.com/video")
+	if err == nil {
+		t.Fatal("GetMetadata() error = nil, want failure")
+	}
+	if !strings.Contains(err.Error(), "extractor failed: login required") {
+		t.Fatalf("GetMetadata() error = %q, want stderr output", err.Error())
 	}
 }

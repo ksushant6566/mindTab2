@@ -70,9 +70,9 @@ func (y *YTDLP) GetMetadata(ctx context.Context, url string) (*VideoMetadata, er
 
 	y.logger.Debug("running yt-dlp metadata", "url", url)
 
-	out, err := cmd.Output()
+	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return nil, fmt.Errorf("yt-dlp metadata: %w", err)
+		return nil, fmt.Errorf("yt-dlp metadata: %w\noutput: %s", err, string(out))
 	}
 
 	var raw ytdlpJSON
