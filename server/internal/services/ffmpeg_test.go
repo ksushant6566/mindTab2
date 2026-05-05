@@ -40,6 +40,15 @@ func TestUniformDownsample(t *testing.T) {
 		}
 	})
 
+	t.Run("multiple items cap 1 returns one representative item", func(t *testing.T) {
+		items := []string{"first", "middle", "last"}
+		got := uniformDownsample(items, 1)
+		want := []string{"middle"}
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("uniformDownsample(3 items, 1) = %v, want %v", got, want)
+		}
+	})
+
 	t.Run("5 items cap 5 returns all 5 items", func(t *testing.T) {
 		items := []string{"p", "q", "r", "s", "t"}
 		got := uniformDownsample(items, 5)

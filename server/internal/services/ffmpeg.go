@@ -253,6 +253,9 @@ func uniformDownsample(items []string, n int) []string {
 	if n >= len(items) {
 		return items
 	}
+	if n == 1 {
+		return []string{items[(len(items)-1)/2]}
+	}
 
 	result := make([]string, n)
 	for i := 0; i < n; i++ {
