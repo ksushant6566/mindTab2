@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/ksushant6566/mindtab/server/internal/services"
 	"github.com/ksushant6566/mindtab/server/internal/worker"
@@ -349,7 +350,7 @@ func VideoEmbeddingText(evidence VideoEvidence, summary SummarizeResult) string 
 			return
 		}
 		if max > 0 && len(value) > max {
-			value = value[:max]
+			value = truncateUTF8(value, max)
 		}
 		if b.Len() > 0 {
 			b.WriteString("\n\n")
@@ -365,6 +366,16 @@ func VideoEmbeddingText(evidence VideoEvidence, summary SummarizeResult) string 
 	writeSection("OCR text", evidence.OCRText, 1200)
 	writeSection("Visual timeline", evidence.VisualTimeline, 1200)
 	return b.String()
+}
+
+func truncateUTF8(value string, max int) string {
+	if max <= 0 || len(value) <= max {
+		return value
+	}
+	for max > 0 && !utf8.RuneStart(value[max]) {
+		max--
+	}
+	return value[:max]
 }
 
 func unmarshalStep(prevResults worker.StepResults, key string, out any) error {

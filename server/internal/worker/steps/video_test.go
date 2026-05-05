@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/ksushant6566/mindtab/server/internal/worker"
 )
@@ -261,6 +263,23 @@ func TestBuildVideoEvidenceStep_DegradesWithPartialEvidence(t *testing.T) {
 	}
 	if len(evidence.EvidenceStatus) < 4 {
 		t.Fatalf("expected degraded statuses, got %v", evidence.EvidenceStatus)
+	}
+}
+
+func TestVideoEmbeddingTextTruncatesUTF8Safely(t *testing.T) {
+	description := strings.Repeat("a", 1199) + "é"
+	got := VideoEmbeddingText(VideoEvidence{
+		Metadata: ResolvedVideo{Description: description},
+	}, SummarizeResult{})
+
+	if !utf8.ValidString(got) {
+		t.Fatalf("VideoEmbeddingText returned invalid UTF-8: %q", got)
+	}
+	if strings.Contains(got, "é") {
+		t.Fatalf("VideoEmbeddingText kept split-boundary rune: %q", got)
+	}
+	if !strings.Contains(got, strings.Repeat("a", 1199)) {
+		t.Fatalf("VideoEmbeddingText missing expected truncated content: %q", got)
 	}
 }
 
