@@ -315,7 +315,7 @@ func TestStore_InstagramReelVideoFields(t *testing.T) {
 			}
 			return nil
 		},
-		UpdateContentYoutubeFieldsFunc: func(ctx context.Context, arg store.UpdateContentYoutubeFieldsParams) error {
+		UpdateContentVideoFieldsFunc: func(ctx context.Context, arg store.UpdateContentVideoFieldsParams) error {
 			videoFieldsCalled = true
 			if arg.DurationSeconds.Int32 != 37 {
 				t.Errorf("DurationSeconds = %d, want 37", arg.DurationSeconds.Int32)

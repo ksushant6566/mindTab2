@@ -57,7 +57,7 @@ func (p *sequentialLLMProvider) Calls() []llm.LLMRequest {
 
 type capturedVideoStore struct {
 	results         store.UpdateContentResultsParams
-	videoFields     store.UpdateContentYoutubeFieldsParams
+	videoFields     store.UpdateContentVideoFieldsParams
 	finalMediaKey   string
 	embeddingCalled bool
 	videoFieldsSeen bool
@@ -332,7 +332,7 @@ func videoE2EQuerier(t *testing.T, job *worker.Job, mediaKey string, sourceTitle
 			captured.embeddingCalled = true
 			return nil
 		},
-		UpdateContentYoutubeFieldsFunc: func(ctx context.Context, arg store.UpdateContentYoutubeFieldsParams) error {
+		UpdateContentVideoFieldsFunc: func(ctx context.Context, arg store.UpdateContentVideoFieldsParams) error {
 			captured.videoFields = arg
 			captured.videoFieldsSeen = true
 			return nil

@@ -157,7 +157,7 @@ func Store(
 
 	// Update video fields when video metadata is present.
 	if metadataResult.VideoID != "" || videoEvidence.Metadata.LocalPath != "" {
-		err = queries.UpdateContentYoutubeFields(ctx, store.UpdateContentYoutubeFieldsParams{
+		err = queries.UpdateContentVideoFields(ctx, store.UpdateContentVideoFieldsParams{
 			ID:                contentID,
 			DurationSeconds:   pgint4From(videoDuration),
 			VideoThumbnailUrl: pgtextFrom(videoThumbnail),
@@ -165,7 +165,7 @@ func Store(
 			TranscriptSource:  pgtextFrom(transcriptSource),
 		})
 		if err != nil {
-			return nil, fmt.Errorf("update youtube fields: %w", err)
+			return nil, fmt.Errorf("update video fields: %w", err)
 		}
 	}
 

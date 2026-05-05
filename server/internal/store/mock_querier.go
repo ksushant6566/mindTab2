@@ -298,8 +298,8 @@ var _ Querier = &QuerierMock{}
 //			UpdateContentTranscriptSourceFunc: func(ctx context.Context, arg UpdateContentTranscriptSourceParams) error {
 //				panic("mock out the UpdateContentTranscriptSource method")
 //			},
-//			UpdateContentYoutubeFieldsFunc: func(ctx context.Context, arg UpdateContentYoutubeFieldsParams) error {
-//				panic("mock out the UpdateContentYoutubeFields method")
+//			UpdateContentVideoFieldsFunc: func(ctx context.Context, arg UpdateContentVideoFieldsParams) error {
+//				panic("mock out the UpdateContentVideoFields method")
 //			},
 //			UpdateConversationTitleFunc: func(ctx context.Context, arg UpdateConversationTitleParams) error {
 //				panic("mock out the UpdateConversationTitle method")
@@ -620,8 +620,8 @@ type QuerierMock struct {
 	// UpdateContentTranscriptSourceFunc mocks the UpdateContentTranscriptSource method.
 	UpdateContentTranscriptSourceFunc func(ctx context.Context, arg UpdateContentTranscriptSourceParams) error
 
-	// UpdateContentYoutubeFieldsFunc mocks the UpdateContentYoutubeFields method.
-	UpdateContentYoutubeFieldsFunc func(ctx context.Context, arg UpdateContentYoutubeFieldsParams) error
+	// UpdateContentVideoFieldsFunc mocks the UpdateContentVideoFields method.
+	UpdateContentVideoFieldsFunc func(ctx context.Context, arg UpdateContentVideoFieldsParams) error
 
 	// UpdateConversationTitleFunc mocks the UpdateConversationTitle method.
 	UpdateConversationTitleFunc func(ctx context.Context, arg UpdateConversationTitleParams) error
@@ -1305,12 +1305,12 @@ type QuerierMock struct {
 			// Arg is the arg argument value.
 			Arg UpdateContentTranscriptSourceParams
 		}
-		// UpdateContentYoutubeFields holds details about calls to the UpdateContentYoutubeFields method.
-		UpdateContentYoutubeFields []struct {
+		// UpdateContentVideoFields holds details about calls to the UpdateContentVideoFields method.
+		UpdateContentVideoFields []struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
 			// Arg is the arg argument value.
-			Arg UpdateContentYoutubeFieldsParams
+			Arg UpdateContentVideoFieldsParams
 		}
 		// UpdateConversationTitle holds details about calls to the UpdateConversationTitle method.
 		UpdateConversationTitle []struct {
@@ -1483,7 +1483,7 @@ type QuerierMock struct {
 	lockUpdateContentResults                   sync.RWMutex
 	lockUpdateContentStatus                    sync.RWMutex
 	lockUpdateContentTranscriptSource          sync.RWMutex
-	lockUpdateContentYoutubeFields             sync.RWMutex
+	lockUpdateContentVideoFields               sync.RWMutex
 	lockUpdateConversationTitle                sync.RWMutex
 	lockUpdateGoal                             sync.RWMutex
 	lockUpdateGoalPosition                     sync.RWMutex
@@ -4837,39 +4837,39 @@ func (mock *QuerierMock) UpdateContentTranscriptSourceCalls() []struct {
 	return calls
 }
 
-// UpdateContentYoutubeFields calls UpdateContentYoutubeFieldsFunc.
-func (mock *QuerierMock) UpdateContentYoutubeFields(ctx context.Context, arg UpdateContentYoutubeFieldsParams) error {
-	if mock.UpdateContentYoutubeFieldsFunc == nil {
-		panic("QuerierMock.UpdateContentYoutubeFieldsFunc: method is nil but Querier.UpdateContentYoutubeFields was just called")
+// UpdateContentVideoFields calls UpdateContentVideoFieldsFunc.
+func (mock *QuerierMock) UpdateContentVideoFields(ctx context.Context, arg UpdateContentVideoFieldsParams) error {
+	if mock.UpdateContentVideoFieldsFunc == nil {
+		panic("QuerierMock.UpdateContentVideoFieldsFunc: method is nil but Querier.UpdateContentVideoFields was just called")
 	}
 	callInfo := struct {
 		Ctx context.Context
-		Arg UpdateContentYoutubeFieldsParams
+		Arg UpdateContentVideoFieldsParams
 	}{
 		Ctx: ctx,
 		Arg: arg,
 	}
-	mock.lockUpdateContentYoutubeFields.Lock()
-	mock.calls.UpdateContentYoutubeFields = append(mock.calls.UpdateContentYoutubeFields, callInfo)
-	mock.lockUpdateContentYoutubeFields.Unlock()
-	return mock.UpdateContentYoutubeFieldsFunc(ctx, arg)
+	mock.lockUpdateContentVideoFields.Lock()
+	mock.calls.UpdateContentVideoFields = append(mock.calls.UpdateContentVideoFields, callInfo)
+	mock.lockUpdateContentVideoFields.Unlock()
+	return mock.UpdateContentVideoFieldsFunc(ctx, arg)
 }
 
-// UpdateContentYoutubeFieldsCalls gets all the calls that were made to UpdateContentYoutubeFields.
+// UpdateContentVideoFieldsCalls gets all the calls that were made to UpdateContentVideoFields.
 // Check the length with:
 //
-//	len(mockedQuerier.UpdateContentYoutubeFieldsCalls())
-func (mock *QuerierMock) UpdateContentYoutubeFieldsCalls() []struct {
+//	len(mockedQuerier.UpdateContentVideoFieldsCalls())
+func (mock *QuerierMock) UpdateContentVideoFieldsCalls() []struct {
 	Ctx context.Context
-	Arg UpdateContentYoutubeFieldsParams
+	Arg UpdateContentVideoFieldsParams
 } {
 	var calls []struct {
 		Ctx context.Context
-		Arg UpdateContentYoutubeFieldsParams
+		Arg UpdateContentVideoFieldsParams
 	}
-	mock.lockUpdateContentYoutubeFields.RLock()
-	calls = mock.calls.UpdateContentYoutubeFields
-	mock.lockUpdateContentYoutubeFields.RUnlock()
+	mock.lockUpdateContentVideoFields.RLock()
+	calls = mock.calls.UpdateContentVideoFields
+	mock.lockUpdateContentVideoFields.RUnlock()
 	return calls
 }
 
