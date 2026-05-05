@@ -298,12 +298,14 @@ func TestStore_InstagramReelVideoFields(t *testing.T) {
 		})},
 	}
 
+	var resultsCalled bool
 	var videoFieldsCalled bool
 	mockQ := &store.QuerierMock{
 		IsContentDeletedFunc: func(ctx context.Context, id pgtype.UUID) (bool, error) {
 			return false, nil
 		},
 		UpdateContentResultsFunc: func(ctx context.Context, arg store.UpdateContentResultsParams) error {
+			resultsCalled = true
 			if arg.SourceTitle.String != "Interesting Reel" {
 				t.Errorf("SourceTitle = %q, want Interesting Reel", arg.SourceTitle.String)
 			}
@@ -335,6 +337,9 @@ func TestStore_InstagramReelVideoFields(t *testing.T) {
 
 	if _, err := Store(context.Background(), mockQ, job, prevResults); err != nil {
 		t.Fatalf("Store: %v", err)
+	}
+	if !resultsCalled {
+		t.Error("expected content results update for instagram reel")
 	}
 	if !videoFieldsCalled {
 		t.Error("expected video fields update for instagram reel metadata")
