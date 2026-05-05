@@ -63,6 +63,17 @@ function extractDomain(url?: string | null): string {
   }
 }
 
+function transcriptSourceLabel(save: SaveDetail): string | null {
+  switch (save.transcript_source) {
+    case "whisper":
+      return "Whisper transcription";
+    case "captions":
+      return save.source_type === "youtube" ? "YouTube captions" : "Captions";
+    default:
+      return null;
+  }
+}
+
 const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:8080";
 
 // ── Screen ─────────────────────────────────────────────────────────────────────
@@ -98,6 +109,8 @@ export default function VaultDetailScreen() {
       await Linking.openURL(save.source_url);
     }
   };
+
+  const transcriptLabel = save ? transcriptSourceLabel(save) : null;
 
   return (
     <>
@@ -270,14 +283,9 @@ export default function VaultDetailScreen() {
             ) : null}
 
             {/* ── Transcript source footer (videos) ── */}
-            {save.source_type === "youtube" || save.source_type === "instagram_reel" ? (
+            {transcriptLabel ? (
               <Text style={styles.transcriptFooter}>
-                Transcript:{" "}
-                {save.transcript_source === "whisper"
-                  ? "Whisper transcription"
-                  : save.source_type === "youtube"
-                    ? "YouTube captions"
-                    : "captions"}
+                Transcript: {transcriptLabel}
               </Text>
             ) : null}
           </ScrollView>
