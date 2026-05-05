@@ -63,8 +63,8 @@ type searcher interface {
 	Search(ctx context.Context, userID string, query string, limit int) ([]search.SearchResult, error)
 }
 
-// AudioDurationProber extracts authoritative media duration from a staged upload.
-type AudioDurationProber interface {
+// MediaDurationProber extracts authoritative media duration from a staged upload.
+type MediaDurationProber interface {
 	ProbeDuration(ctx context.Context, inputPath string) (int32, error)
 }
 
@@ -76,11 +76,11 @@ type SavesHandler struct {
 	storage             services.StorageProvider
 	maxSize             int64
 	jwtSecret           string
-	audioDurationProber AudioDurationProber
+	mediaDurationProber MediaDurationProber
 }
 
 // NewSavesHandler creates a new SavesHandler.
-func NewSavesHandler(queries store.Querier, producer enqueuer, search searcher, storage services.StorageProvider, maxSize int64, jwtSecret string, audioDurationProbers ...AudioDurationProber) *SavesHandler {
+func NewSavesHandler(queries store.Querier, producer enqueuer, search searcher, storage services.StorageProvider, maxSize int64, jwtSecret string, mediaDurationProbers ...MediaDurationProber) *SavesHandler {
 	h := &SavesHandler{
 		queries:   queries,
 		producer:  producer,
@@ -89,8 +89,8 @@ func NewSavesHandler(queries store.Querier, producer enqueuer, search searcher, 
 		maxSize:   maxSize,
 		jwtSecret: jwtSecret,
 	}
-	if len(audioDurationProbers) > 0 {
-		h.audioDurationProber = audioDurationProbers[0]
+	if len(mediaDurationProbers) > 0 {
+		h.mediaDurationProber = mediaDurationProbers[0]
 	}
 	return h
 }
@@ -541,7 +541,7 @@ func (h *SavesHandler) createAudio(w http.ResponseWriter, r *http.Request, userI
 		return
 	}
 
-	if h.audioDurationProber == nil {
+	if h.mediaDurationProber == nil {
 		slog.Error("audio duration prober is not configured")
 		WriteError(w, http.StatusInternalServerError, "audio duration probe unavailable")
 		return
@@ -573,7 +573,7 @@ func (h *SavesHandler) createAudio(w http.ResponseWriter, r *http.Request, userI
 		return
 	}
 
-	durSec, err := h.audioDurationProber.ProbeDuration(r.Context(), tmpPath)
+	durSec, err := h.mediaDurationProber.ProbeDuration(r.Context(), tmpPath)
 	if err != nil {
 		slog.Warn("failed to probe audio duration", "error", err, "mime", mime)
 		WriteError(w, http.StatusBadRequest, "invalid audio file")
@@ -658,7 +658,7 @@ func (h *SavesHandler) createVideo(w http.ResponseWriter, r *http.Request, userI
 		return
 	}
 
-	if h.audioDurationProber == nil {
+	if h.mediaDurationProber == nil {
 		slog.Error("media duration prober is not configured")
 		WriteError(w, http.StatusInternalServerError, "media duration probe unavailable")
 		return
@@ -692,7 +692,7 @@ func (h *SavesHandler) createVideo(w http.ResponseWriter, r *http.Request, userI
 		return
 	}
 
-	durSec, err := h.audioDurationProber.ProbeDuration(r.Context(), tmpPath)
+	durSec, err := h.mediaDurationProber.ProbeDuration(r.Context(), tmpPath)
 	if err != nil {
 		slog.Warn("failed to probe video duration", "error", err, "mime", mime)
 		WriteError(w, http.StatusBadRequest, "invalid video file")
