@@ -2625,7 +2625,6 @@ type SaveDetail = {
   tags?: string[] | null;
   key_topics?: string[] | null;
   media_url?: string | null;
-  media_url?: string | null;
   media_mime?: string | null;
   media_file_bytes?: number | null;
   duration_seconds?: number | null;
