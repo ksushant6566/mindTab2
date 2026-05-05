@@ -131,35 +131,23 @@ struct APIClient {
     /// Posts multipart/form-data to POST /saves as an Instagram Reel candidate.
     static func saveVideo(fileURL: URL, sourceURL: String?, token: String) async throws -> String {
         let boundary = UUID().uuidString
-        var formData = Data()
 
         let mimeType = videoMIMEType(for: fileURL)
         let filename = fileURL.lastPathComponent
-        let videoData = try Data(contentsOf: fileURL)
+        let uploadFileURL = try makeVideoMultipartFile(
+            fileURL: fileURL,
+            sourceURL: sourceURL,
+            filename: filename,
+            mimeType: mimeType,
+            boundary: boundary
+        )
+        defer { try? FileManager.default.removeItem(at: uploadFileURL) }
 
-        func appendField(_ name: String, _ value: String) {
-            formData.append("--\(boundary)\r\n".data(using: .utf8)!)
-            formData.append("Content-Disposition: form-data; name=\"\(name)\"\r\n\r\n".data(using: .utf8)!)
-            formData.append(value.data(using: .utf8)!)
-            formData.append("\r\n".data(using: .utf8)!)
-        }
-        appendField("auto_commit", "true")
-        appendField("source", "share_extension")
-        if let sourceURL = sourceURL, !sourceURL.isEmpty {
-            appendField("source_url", sourceURL)
-        }
-
-        formData.append("--\(boundary)\r\n".data(using: .utf8)!)
-        formData.append("Content-Disposition: form-data; name=\"video\"; filename=\"\(filename)\"\r\n".data(using: .utf8)!)
-        formData.append("Content-Type: \(mimeType)\r\n\r\n".data(using: .utf8)!)
-        formData.append(videoData)
-        formData.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
-
-        let (data, response) = try await makeRequest(
+        let (data, response) = try await uploadFile(
             path: "/saves",
             method: "POST",
             contentType: "multipart/form-data; boundary=\(boundary)",
-            body: formData,
+            fileURL: uploadFileURL,
             token: token
         )
 
@@ -209,6 +197,55 @@ struct APIClient {
         return id
     }
 
+    private static func makeVideoMultipartFile(fileURL: URL, sourceURL: String?, filename: String, mimeType: String, boundary: String) throws -> URL {
+        let tempURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("mindtab-video-upload-\(UUID().uuidString).multipart")
+        FileManager.default.createFile(atPath: tempURL.path, contents: nil)
+
+        do {
+            let output = try FileHandle(forWritingTo: tempURL)
+            defer { try? output.close() }
+
+            func write(_ string: String) throws {
+                guard let data = string.data(using: .utf8) else {
+                    throw APIError.encodingError
+                }
+                try output.write(contentsOf: data)
+            }
+
+            func appendField(_ name: String, _ value: String) throws {
+                try write("--\(boundary)\r\n")
+                try write("Content-Disposition: form-data; name=\"\(name)\"\r\n\r\n")
+                try write(value)
+                try write("\r\n")
+            }
+
+            try appendField("auto_commit", "true")
+            try appendField("source", "share_extension")
+            if let sourceURL = sourceURL, !sourceURL.isEmpty {
+                try appendField("source_url", sourceURL)
+            }
+
+            try write("--\(boundary)\r\n")
+            try write("Content-Disposition: form-data; name=\"video\"; filename=\"\(filename)\"\r\n")
+            try write("Content-Type: \(mimeType)\r\n\r\n")
+
+            let input = try FileHandle(forReadingFrom: fileURL)
+            defer { try? input.close() }
+            while true {
+                let chunk = try input.read(upToCount: 1024 * 1024)
+                guard let chunk, !chunk.isEmpty else { break }
+                try output.write(contentsOf: chunk)
+            }
+
+            try write("\r\n--\(boundary)--\r\n")
+            return tempURL
+        } catch {
+            try? FileManager.default.removeItem(at: tempURL)
+            throw error
+        }
+    }
+
     private static func makeRequest(path: String, method: String, contentType: String, body: Data, token: String) async throws -> (Data, URLResponse) {
         guard let url = URL(string: "\(baseURL)\(path)") else {
             throw APIError.encodingError
@@ -222,5 +259,19 @@ struct APIClient {
         request.httpBody = body
 
         return try await URLSession.shared.data(for: request)
+    }
+
+    private static func uploadFile(path: String, method: String, contentType: String, fileURL: URL, token: String) async throws -> (Data, URLResponse) {
+        guard let url = URL(string: "\(baseURL)\(path)") else {
+            throw APIError.encodingError
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = method
+        request.setValue(contentType, forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("mobile", forHTTPHeaderField: "X-Platform")
+
+        return try await URLSession.shared.upload(for: request, fromFile: fileURL)
     }
 }
