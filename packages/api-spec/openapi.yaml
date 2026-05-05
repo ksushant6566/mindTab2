@@ -2105,6 +2105,11 @@ components:
           type: string
           format: binary
           description: Instagram Reel/Post video file to save
+        source_url:
+          type: string
+          format: uri
+          description: Original content URL for uploaded media, when available
+          example: https://www.instagram.com/reel/C1234567890/
         source:
           type: string
           enum: [recorder, file_picker, share_extension, app]
