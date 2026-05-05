@@ -1,6 +1,6 @@
 # Saves Feature Roadmap
 
-MindTab Saves is the Vault system for capturing external knowledge and personal media. Users can save articles, images, YouTube videos, and audio recordings; MindTab processes them asynchronously, generates summaries and metadata, embeds them for semantic search, and makes them available to the Vault UI and assistant tools.
+MindTab Saves is the Vault system for capturing external knowledge and personal media. Users can save articles, images, YouTube videos, Instagram Reels, and audio recordings; MindTab processes them asynchronously, generates summaries and metadata, embeds them for semantic search, and makes them available to the Vault UI and assistant tools.
 
 This document is the roadmap and current-state overview for the Saves feature. It is not the full API contract, schema reference, or worker implementation manual. For exact endpoint schemas, use `packages/api-spec/openapi.yaml`. For exact database shape, use the migrations. For implementation details, use the server and mobile code.
 
@@ -23,7 +23,7 @@ The feature should:
 |---|---|---|---|
 | Phase 1 | Articles and images | Done | Users can save article URLs and image uploads. Backend processing, storage, embeddings, search, and Vault display exist. |
 | Phase 2 | YouTube videos and Shorts | Done | YouTube URLs are detected and processed with metadata extraction, transcript extraction, frame vision, summaries, embeddings, and search. |
-| Phase 3 | Audio files and Instagram Reels | Partially done | Audio saves are implemented with recording, upload, review, commit, playback, transcription, summaries, and embeddings. Reels remain. |
+| Phase 3 | Audio files and Instagram Reels | Done | Audio saves and Instagram Reels are implemented with upload/share flows, processing, transcripts, frame understanding, summaries, embeddings, API support, and Vault display. |
 | Phase 4 | Provider fallbacks | Partially done | Provider-chain infrastructure exists. Additional concrete LLM, embedding, and transcription fallback providers remain. |
 | Phase 5 | Search/storage scale-up | Not done | LLM reranking, R2 storage, signed direct upload, and resumable/chunked upload remain. |
 
@@ -34,17 +34,18 @@ Implemented source types:
 - `article`: HTTP/HTTPS URLs that are not classified as YouTube.
 - `image`: JPEG, PNG, and WebP uploads.
 - `youtube`: YouTube videos and Shorts.
+- `instagram_reel`: Instagram Reel/Post URLs and uploaded/shared Instagram video media.
 - `audio`: mobile recordings, audio file picker uploads, and iOS share-extension audio.
 
 Implemented user surfaces:
 
 - Mobile Vault tab with type filtering.
-- Vault grid cards for article, image, YouTube, and audio saves.
+- Vault grid cards for article, image, YouTube, Instagram Reel, and audio saves.
 - Vault detail view for saved content.
 - Save FAB for URL, image, record-audio, and upload-audio flows.
 - Audio review screen for draft recordings.
 - Audio playback and mini-player support.
-- iOS share extension for URL, image, and audio saves.
+- iOS share extension for URL, image, audio, and video saves.
 - Assistant/tool access through semantic Vault search and save detail lookup.
 
 ## Core Concepts
@@ -218,7 +219,7 @@ Current notes:
 
 ### Phase 3: Audio And Reels
 
-Status: Partially done.
+Status: Done.
 
 Audio implemented:
 
@@ -242,15 +243,21 @@ Audio known gaps:
 - Web and Chrome extension audio save flows are not implemented.
 - Speaker diarization, timestamped transcript navigation, chaptering, trim handles, and waveform editing are out of scope for this phase.
 
-Reels remaining:
+Reels implemented:
 
-- Define accepted Reels URL/input formats.
-- Add source classification for Reels.
-- Add a Reels processor.
-- Reuse the generic duration/media columns where possible.
-- Reuse YouTube/audio patterns for download, transcription, frame extraction, vision, summary, embedding, and storage.
-- Add mobile card/detail behavior.
-- Add API, handler, processor, and integration coverage.
+- Instagram Reel/Post URL classification to `instagram_reel`.
+- Multipart video uploads through `POST /saves` using the `video` file field and optional `source_url` for the original content URL.
+- iOS share-extension movie saves with uploaded media.
+- `InstagramReelProcessor` using the shared video pipeline for metadata/download, transcription, frame selection, vision, summarization, embeddings, and final storage.
+- Uploaded Reel videos are processed from stored `media_key` bytes, including cases where the share extension also supplies an original `source_url`.
+- Duration, thumbnail, channel/creator, transcript source, media MIME, media size, and `media_url` metadata are exposed through the generic save model.
+- Mobile Vault card/detail behavior for Reels and uploaded videos.
+- Handler, processor, worker-step, and integration coverage for URL and uploaded-video paths.
+
+Reels known limitations:
+
+- URL-only Reels still require a public/reachable source that `yt-dlp` can access. Private, authenticated, or ephemeral shares should be saved through uploaded media.
+- Large media still uses the synchronous API upload path until Phase 5 signed/resumable uploads land.
 
 ### Phase 4: Provider Fallbacks
 
@@ -295,7 +302,7 @@ The exact API contract lives in `packages/api-spec/openapi.yaml`. At roadmap lev
 
 | Method | Path | Purpose |
 |---|---|---|
-| `POST` | `/saves` | Create article, image, YouTube, or audio save. |
+| `POST` | `/saves` | Create article, image, YouTube, Instagram Reel, or audio save. |
 | `GET` | `/saves` | List committed saves. |
 | `GET` | `/saves/{id}` | Get one owned save, including drafts for review flows. |
 | `DELETE` | `/saves/{id}` | Soft-delete a save. |
@@ -306,13 +313,14 @@ The exact API contract lives in `packages/api-spec/openapi.yaml`. At roadmap lev
 Important API-level decisions:
 
 - `POST /saves` is polymorphic: JSON for URL saves, multipart for media saves.
+- JSON URL saves classify YouTube and Instagram Reel/Post URLs; multipart media saves accept `image`, `audio`, or `video` file fields.
+- Multipart video saves may include optional `source_url` as the original content URL.
 - `media_url` is the only client-facing media URL field.
 - List/search surfaces exclude drafts.
 - Detail lookup may return drafts owned by the current user.
 
 ## Current Gaps
 
-- Reels are not implemented.
 - Phase 4 fallback providers are not implemented beyond chain infrastructure.
 - Phase 5 reranking and R2/signed upload are not implemented.
 - Android audio share intent is not implemented.
@@ -322,7 +330,6 @@ Important API-level decisions:
 
 ## Next Recommended Work
 
-1. Implement Reels as the second half of Phase 3.
-2. Add at least one fallback provider per provider category, starting with the highest operational risk.
-3. Design R2 signed uploads before increasing large-media usage.
-4. Evaluate LLM reranking after the Vault has enough real saved-content volume to judge search quality.
+1. Add at least one fallback provider per provider category, starting with the highest operational risk.
+2. Design R2 signed uploads before increasing large-media usage.
+3. Evaluate LLM reranking after the Vault has enough real saved-content volume to judge search quality.
