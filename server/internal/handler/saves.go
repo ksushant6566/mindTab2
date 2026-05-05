@@ -464,27 +464,45 @@ func readUploadWithLimit(r io.Reader, limit int64) (data []byte, tooLarge bool, 
 	return buf, false, nil
 }
 
-func stageUploadToTemp(buf []byte, ext string) (path string, cleanup func(), err error) {
+func stageUploadToTemp(r io.Reader, ext string, limit int64) (path string, size int64, tooLarge bool, cleanup func(), err error) {
 	tmp, err := os.CreateTemp("", "mindtab-upload-*"+ext)
 	if err != nil {
-		return "", nil, err
+		return "", 0, false, nil, err
 	}
 	tmpPath := tmp.Name()
 	cleanup = func() {
 		_ = os.Remove(tmpPath)
 	}
 
-	if _, err := tmp.Write(buf); err != nil {
+	src := r
+	if limit > 0 {
+		src = io.LimitReader(r, limit+1)
+	}
+	size, err = io.Copy(tmp, src)
+	if err != nil {
 		_ = tmp.Close()
 		cleanup()
-		return "", nil, err
+		return "", 0, false, nil, err
 	}
 	if err := tmp.Close(); err != nil {
 		cleanup()
-		return "", nil, err
+		return "", 0, false, nil, err
+	}
+	if limit > 0 && size > limit {
+		cleanup()
+		return "", 0, true, nil, nil
 	}
 
-	return tmpPath, cleanup, nil
+	return tmpPath, size, false, cleanup, nil
+}
+
+func (h *SavesHandler) saveStagedUpload(ctx context.Context, mediaKey, tmpPath, mime string) error {
+	upload, err := os.Open(tmpPath)
+	if err != nil {
+		return err
+	}
+	defer upload.Close()
+	return h.storage.Save(ctx, mediaKey, upload, mime)
 }
 
 // writeImageRecord stores the image bytes to permanent storage, creates the DB record, and enqueues.
@@ -573,13 +591,11 @@ func (h *SavesHandler) createAudio(w http.ResponseWriter, r *http.Request, userI
 	contentID := uuid.New()
 	mediaKey := fmt.Sprintf("%s/%s/audio%s", userID, contentID, ext)
 
-	buf, err := io.ReadAll(file)
-	if err != nil {
-		WriteError(w, http.StatusInternalServerError, "read upload")
+	tmpPath, mediaBytes, tooLarge, cleanup, err := stageUploadToTemp(file, ext, maxAudioBytes)
+	if tooLarge {
+		WriteError(w, http.StatusRequestEntityTooLarge, "audio too large")
 		return
 	}
-
-	tmpPath, cleanup, err := stageUploadToTemp(buf, ext)
 	if err != nil {
 		WriteError(w, http.StatusInternalServerError, "stage upload")
 		return
@@ -597,7 +613,7 @@ func (h *SavesHandler) createAudio(w http.ResponseWriter, r *http.Request, userI
 		return
 	}
 
-	if err := h.storage.Save(r.Context(), mediaKey, bytes.NewReader(buf), mime); err != nil {
+	if err := h.saveStagedUpload(r.Context(), mediaKey, tmpPath, mime); err != nil {
 		slog.Error("failed to store audio", "error", err, "mediaKey", mediaKey)
 		WriteError(w, http.StatusInternalServerError, "store audio")
 		return
@@ -616,7 +632,7 @@ func (h *SavesHandler) createAudio(w http.ResponseWriter, r *http.Request, userI
 		ExtractedText:    pgtype.Text{},
 		MediaKey:         pgtype.Text{String: mediaKey, Valid: true},
 		MediaMime:        pgtype.Text{String: mime, Valid: true},
-		MediaFileBytes:   pgtype.Int8{Int64: int64(len(buf)), Valid: true},
+		MediaFileBytes:   pgtype.Int8{Int64: mediaBytes, Valid: true},
 		DurationSeconds:  pgtype.Int4{Int32: durSec, Valid: true},
 		ProcessingStatus: processingStatus,
 		CommitStatus:     commitStatus,
@@ -677,19 +693,13 @@ func (h *SavesHandler) createVideo(w http.ResponseWriter, r *http.Request, userI
 		return
 	}
 
-	buf, tooLarge, err := readUploadWithLimit(file, maxVideoBytes)
+	tmpPath, mediaBytes, tooLarge, cleanup, err := stageUploadToTemp(file, ext, maxVideoBytes)
 	if tooLarge {
 		WriteError(w, http.StatusRequestEntityTooLarge, "video too large")
 		return
 	}
 	if err != nil {
-		slog.Error("failed to read video body", "error", err)
-		WriteError(w, http.StatusInternalServerError, "failed to read video")
-		return
-	}
-
-	tmpPath, cleanup, err := stageUploadToTemp(buf, ext)
-	if err != nil {
+		slog.Error("failed to stage video upload", "error", err)
 		WriteError(w, http.StatusInternalServerError, "stage upload")
 		return
 	}
@@ -708,7 +718,7 @@ func (h *SavesHandler) createVideo(w http.ResponseWriter, r *http.Request, userI
 
 	contentID := uuid.New()
 	mediaKey := fmt.Sprintf("%s/%s/video%s", userID, contentID, ext)
-	if err := h.storage.Save(r.Context(), mediaKey, bytes.NewReader(buf), mime); err != nil {
+	if err := h.saveStagedUpload(r.Context(), mediaKey, tmpPath, mime); err != nil {
 		slog.Error("failed to store video", "error", err, "mediaKey", mediaKey)
 		WriteError(w, http.StatusInternalServerError, "store video")
 		return
@@ -723,7 +733,7 @@ func (h *SavesHandler) createVideo(w http.ResponseWriter, r *http.Request, userI
 		SourceTitle:      pgtextFrom(header.Filename),
 		MediaKey:         pgtype.Text{String: mediaKey, Valid: true},
 		MediaMime:        pgtype.Text{String: mime, Valid: true},
-		MediaFileBytes:   pgtype.Int8{Int64: int64(len(buf)), Valid: true},
+		MediaFileBytes:   pgtype.Int8{Int64: mediaBytes, Valid: true},
 		DurationSeconds:  pgtype.Int4{Int32: durSec, Valid: true},
 		ProcessingStatus: procStatus,
 		CommitStatus:     commitStatus,
