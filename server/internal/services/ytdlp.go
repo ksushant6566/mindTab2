@@ -47,13 +47,20 @@ func NewYTDLP(binPath string, logger *slog.Logger) *YTDLP {
 type ytdlpJSON struct {
 	ID           string                 `json:"id"`
 	Title        string                 `json:"title"`
-	Description  string                 `json:"description"`
+	Description  *string                `json:"description"`
 	Duration     float64                `json:"duration"`
-	Thumbnail    string                 `json:"thumbnail"`
-	Channel      string                 `json:"channel"`
-	Uploader     string                 `json:"uploader"`
+	Thumbnail    *string                `json:"thumbnail"`
+	Channel      *string                `json:"channel"`
+	Uploader     *string                `json:"uploader"`
 	Subtitles    map[string]interface{} `json:"subtitles"`
 	AutoCaptions map[string]interface{} `json:"automatic_captions"`
+}
+
+func stringValue(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
 }
 
 // GetMetadata runs yt-dlp --dump-json --no-download and returns VideoMetadata.
@@ -74,19 +81,22 @@ func (y *YTDLP) GetMetadata(ctx context.Context, url string) (*VideoMetadata, er
 	}
 
 	hasCaptions := len(raw.Subtitles) > 0 || len(raw.AutoCaptions) > 0
-	channel := raw.Channel
+	description := stringValue(raw.Description)
+	thumbnail := stringValue(raw.Thumbnail)
+	uploader := stringValue(raw.Uploader)
+	channel := stringValue(raw.Channel)
 	if channel == "" {
-		channel = raw.Uploader
+		channel = uploader
 	}
 
 	return &VideoMetadata{
 		ID:           raw.ID,
 		Title:        raw.Title,
-		Description:  raw.Description,
+		Description:  description,
 		Duration:     int(raw.Duration),
-		ThumbnailURL: raw.Thumbnail,
+		ThumbnailURL: thumbnail,
 		Channel:      channel,
-		Uploader:     raw.Uploader,
+		Uploader:     uploader,
 		HasCaptions:  hasCaptions,
 	}, nil
 }
