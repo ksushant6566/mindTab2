@@ -23,7 +23,7 @@ import { colors } from "~/styles/colors";
 type SaveDetail = {
   id: string;
   source_url?: string | null;
-  source_type: "article" | "image" | "youtube" | "audio";
+  source_type: "article" | "image" | "youtube" | "audio" | "instagram_reel";
   source_title?: string | null;
   summary?: string | null;
   tags?: string[] | null;
@@ -160,8 +160,8 @@ export default function VaultDetailScreen() {
               />
             ) : null}
 
-            {/* ── YouTube cover ── */}
-            {save.source_type === "youtube" ? (
+            {/* ── Video cover ── */}
+            {save.source_type === "youtube" || save.source_type === "instagram_reel" ? (
               <View style={styles.ytCoverWrapper}>
                 {save.video_thumbnail_url ? (
                   <Image
@@ -199,7 +199,7 @@ export default function VaultDetailScreen() {
             ) : null}
 
             {/* ── Channel (YouTube) ── */}
-            {save.source_type === "youtube" && save.video_channel ? (
+            {(save.source_type === "youtube" || save.source_type === "instagram_reel") && save.video_channel ? (
               <Text style={styles.channelName}>{save.video_channel}</Text>
             ) : null}
 
@@ -237,14 +237,18 @@ export default function VaultDetailScreen() {
               </View>
             ) : null}
 
-            {/* ── Open Original / Watch on YouTube button ── */}
-            {(save.source_type === "article" || save.source_type === "youtube") && save.source_url ? (
+            {/* ── Open Original button ── */}
+            {(save.source_type === "article" || save.source_type === "youtube" || save.source_type === "instagram_reel") && save.source_url ? (
               <Pressable
                 style={styles.openBtn}
                 onPress={() => Linking.openURL(save.source_url!)}
               >
                 <Text style={styles.openBtnText}>
-                  {save.source_type === "youtube" ? "Watch on YouTube ↗" : "Open Original Article ↗"}
+                  {save.source_type === "youtube"
+                    ? "Watch on YouTube ↗"
+                    : save.source_type === "instagram_reel"
+                      ? "Open on Instagram ↗"
+                      : "Open Original Article ↗"}
                 </Text>
               </Pressable>
             ) : null}
@@ -265,13 +269,15 @@ export default function VaultDetailScreen() {
               </View>
             ) : null}
 
-            {/* ── Transcript source footer (YouTube) ── */}
-            {save.source_type === "youtube" ? (
+            {/* ── Transcript source footer (videos) ── */}
+            {save.source_type === "youtube" || save.source_type === "instagram_reel" ? (
               <Text style={styles.transcriptFooter}>
                 Transcript:{" "}
                 {save.transcript_source === "whisper"
                   ? "Whisper transcription"
-                  : "YouTube captions"}
+                  : save.source_type === "youtube"
+                    ? "YouTube captions"
+                    : "captions"}
               </Text>
             ) : null}
           </ScrollView>

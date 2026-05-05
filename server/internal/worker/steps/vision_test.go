@@ -262,3 +262,36 @@ func TestBatchVision_MissingFrameFile(t *testing.T) {
 		t.Errorf("BatchVision: expected nil result on error, got %+v", result)
 	}
 }
+
+func TestLLMFrameUnderstandingProvider_ParsesFencedJSON(t *testing.T) {
+	payload := "```json\n{\"ocr_text\":\"SALE\",\"visual_timeline\":\"a sign appears\",\"frame_observations\":[{\"frame_index\":0,\"observation\":\"a sign is visible\",\"ocr_text\":\"SALE\"}],\"uncertainty_notes\":[]}\n```"
+	mock := &testutil.MockLLMProvider{Response: payload}
+	provider := NewLLMFrameUnderstandingProvider(makeLLMChain(mock))
+
+	dir := t.TempDir()
+	framePath := filepath.Join(dir, "frame.jpg")
+	if err := os.WriteFile(framePath, []byte("fake-frame-data"), 0o644); err != nil {
+		t.Fatalf("write frame: %v", err)
+	}
+
+	result, err := provider.UnderstandFrames(context.Background(), SelectedFrames{
+		FramePaths: []string{framePath},
+		FrameCount: 1,
+		Frames: []SelectedFrame{{
+			Path:  framePath,
+			Index: 0,
+		}},
+	})
+	if err != nil {
+		t.Fatalf("UnderstandFrames: %v", err)
+	}
+	if result.OCRText != "SALE" {
+		t.Errorf("OCRText = %q, want SALE", result.OCRText)
+	}
+	if result.VisualTimeline != "a sign appears" {
+		t.Errorf("VisualTimeline = %q", result.VisualTimeline)
+	}
+	if len(result.FrameObservations) != 1 {
+		t.Fatalf("FrameObservations len = %d, want 1", len(result.FrameObservations))
+	}
+}

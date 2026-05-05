@@ -6,9 +6,9 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5/pgtype"
-	pgvector "github.com/pgvector/pgvector-go"
 	"github.com/ksushant6566/mindtab/server/internal/store"
 	"github.com/ksushant6566/mindtab/server/internal/worker"
+	pgvector "github.com/pgvector/pgvector-go"
 )
 
 // pgint4From converts an int to pgtype.Int4. Zero value means not set.
@@ -44,6 +44,7 @@ func Store(
 	var metadataResult MetadataResult
 	var transcribeResult TranscribeResult
 	var transcribeAudioResult TranscribeAudioResult
+	var videoEvidence VideoEvidence
 	var mediaKey string
 
 	if r, ok := prevResults["extract"]; ok && r != nil {
@@ -65,6 +66,9 @@ func Store(
 		json.Unmarshal(r.Data, &transcribeResult)
 		json.Unmarshal(r.Data, &transcribeAudioResult)
 	}
+	if r, ok := prevResults["evidence"]; ok && r != nil {
+		json.Unmarshal(r.Data, &videoEvidence)
+	}
 	if r, ok := prevResults["save"]; ok && r != nil {
 		var saveResult map[string]string
 		json.Unmarshal(r.Data, &saveResult)
@@ -76,6 +80,9 @@ func Store(
 	if extractedText == "" && transcribeResult.Transcript != "" {
 		extractedText = transcribeResult.Transcript
 	}
+	if extractedText == "" && videoEvidence.Transcript != "" {
+		extractedText = videoEvidence.Transcript
+	}
 	if extractedText == "" && transcribeAudioResult.ExtractedText != "" {
 		extractedText = transcribeAudioResult.ExtractedText
 	}
@@ -83,13 +90,19 @@ func Store(
 		extractedText = visionResult.ExtractedText
 	}
 
-	// Build visual description from vision result (handles both single-image and YouTube batch frames).
+	// Build visual description from image vision or the shared video evidence timeline.
 	visualDescription := visionResult.VisualDescription
+	if visualDescription == "" && (videoEvidence.VisualTimeline != "" || len(videoEvidence.FrameObservations) > 0) {
+		visualDescription = RenderVideoVisualDescription(videoEvidence)
+	}
 
 	// Prefer extract title (articles), fall back to metadata title, then summarize title.
 	title := extractResult.Title
 	if title == "" {
 		title = metadataResult.Title
+	}
+	if title == "" {
+		title = videoEvidence.Metadata.Title
 	}
 	if title == "" {
 		title = summarizeResult.Title
@@ -125,14 +138,31 @@ func Store(
 		}
 	}
 
-	// Update YouTube-specific fields when video metadata is present.
-	if metadataResult.VideoID != "" {
+	videoDuration := metadataResult.Duration
+	videoThumbnail := metadataResult.ThumbnailURL
+	videoChannel := metadataResult.Channel
+	transcriptSource := transcribeResult.TranscriptSource
+	if videoDuration == 0 {
+		videoDuration = videoEvidence.Metadata.DurationSeconds
+	}
+	if videoThumbnail == "" {
+		videoThumbnail = videoEvidence.Metadata.ThumbnailURL
+	}
+	if videoChannel == "" {
+		videoChannel = videoEvidence.Metadata.Creator
+	}
+	if transcriptSource == "" {
+		transcriptSource = videoEvidence.TranscriptSource
+	}
+
+	// Update video fields when video metadata is present.
+	if metadataResult.VideoID != "" || videoEvidence.Metadata.LocalPath != "" {
 		err = queries.UpdateContentYoutubeFields(ctx, store.UpdateContentYoutubeFieldsParams{
 			ID:                contentID,
-			DurationSeconds:   pgint4From(metadataResult.Duration),
-			VideoThumbnailUrl: pgtextFrom(metadataResult.ThumbnailURL),
-			VideoChannel:      pgtextFrom(metadataResult.Channel),
-			TranscriptSource:  pgtextFrom(transcribeResult.TranscriptSource),
+			DurationSeconds:   pgint4From(videoDuration),
+			VideoThumbnailUrl: pgtextFrom(videoThumbnail),
+			VideoChannel:      pgtextFrom(videoChannel),
+			TranscriptSource:  pgtextFrom(transcriptSource),
 		})
 		if err != nil {
 			return nil, fmt.Errorf("update youtube fields: %w", err)

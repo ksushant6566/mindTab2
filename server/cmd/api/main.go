@@ -131,6 +131,12 @@ func main() {
 				queries, pool, cfg,
 			))
 			logger.Info("youtube processor registered")
+			dispatcher.Register(processors.NewInstagramReelProcessor(
+				ytdlp, ffmpeg, transcriptionChain,
+				registry.LLM, registry.Embedding,
+				storage, queries, pool, cfg,
+			))
+			logger.Info("instagram reel processor registered")
 			dispatcher.Register(processors.NewAudioProcessor(
 				transcriptionChain,
 				registry.LLM, registry.Embedding,

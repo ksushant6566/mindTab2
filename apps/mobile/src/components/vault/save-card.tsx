@@ -22,7 +22,7 @@ const getDomain = (url: string) => {
 
 export type SaveCardProps = {
   id: string;
-  sourceType: "article" | "image" | "youtube" | "audio";
+  sourceType: "article" | "image" | "youtube" | "audio" | "instagram_reel";
   sourceTitle?: string | null;
   sourceUrl?: string | null;
   sourceThumbnailUrl?: string | null;
@@ -101,7 +101,8 @@ export function SaveCard({
     );
   }
 
-  if (sourceType === "youtube") {
+  if (sourceType === "youtube" || sourceType === "instagram_reel") {
+    const isInstagram = sourceType === "instagram_reel";
     return (
       <Pressable onPress={() => onPress(id)} style={styles.card}>
         <View style={styles.youtubeThumbnailWrapper}>
@@ -114,8 +115,8 @@ export function SaveCard({
           ) : (
             <View style={[styles.youtubeThumbnail, styles.youtubeThumbnailPlaceholder]} />
           )}
-          <View style={styles.ytBadge}>
-            <Text style={styles.ytBadgeText}>YT</Text>
+          <View style={isInstagram ? styles.igBadge : styles.ytBadge}>
+            <Text style={styles.ytBadgeText}>{isInstagram ? "IG" : "YT"}</Text>
           </View>
           <View style={styles.playOverlay}>
             <Play size={18} color="#ffffff" fill="#ffffff" />
@@ -243,6 +244,15 @@ const styles = StyleSheet.create({
     top: 6,
     left: 6,
     backgroundColor: "#ff0000",
+    borderRadius: 3,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+  },
+  igBadge: {
+    position: "absolute",
+    top: 6,
+    left: 6,
+    backgroundColor: "#d62976",
     borderRadius: 3,
     paddingHorizontal: 4,
     paddingVertical: 1,

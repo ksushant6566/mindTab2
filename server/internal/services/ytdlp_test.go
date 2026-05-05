@@ -106,3 +106,11 @@ func TestStripHTMLTags(t *testing.T) {
 		})
 	}
 }
+
+func TestDownloadFormat(t *testing.T) {
+	got := DownloadFormat(360)
+	want := "bestvideo[height<=360][ext=mp4]+bestaudio[ext=m4a]/best[height<=360][ext=mp4]/best[height<=360]/best"
+	if got != want {
+		t.Fatalf("DownloadFormat(360) = %q, want %q", got, want)
+	}
+}

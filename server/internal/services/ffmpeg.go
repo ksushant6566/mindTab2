@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -103,6 +104,57 @@ func (f *FFmpeg) ExtractFrames(ctx context.Context, videoPath, outputDir string,
 		}
 	}
 
+	return matches, nil
+}
+
+// ExtractUniformFrames samples frames across the whole video timeline. This is
+// useful for short social videos where scene-change extraction can return a
+// single static-looking frame and miss the actual action.
+func (f *FFmpeg) ExtractUniformFrames(ctx context.Context, videoPath, outputDir string, frameCount int, durationSec int) ([]string, error) {
+	if frameCount <= 0 {
+		return nil, nil
+	}
+	if err := os.MkdirAll(outputDir, 0o755); err != nil {
+		return nil, fmt.Errorf("create uniform frames dir: %w", err)
+	}
+	stale, err := filepath.Glob(filepath.Join(outputDir, "frame_*.jpg"))
+	if err != nil {
+		return nil, fmt.Errorf("glob stale uniform frames: %w", err)
+	}
+	for _, path := range stale {
+		if err := os.Remove(path); err != nil {
+			return nil, fmt.Errorf("remove stale uniform frame %s: %w", path, err)
+		}
+	}
+
+	outputPattern := filepath.Join(outputDir, "frame_%05d.jpg")
+	duration := math.Max(1, float64(durationSec))
+	fps := math.Max(1.0/duration, float64(frameCount)/duration)
+	vfFilter := fmt.Sprintf("fps=%f,scale=-1:360", fps)
+
+	args := []string{
+		"-i", videoPath,
+		"-vf", vfFilter,
+		"-frames:v", strconv.Itoa(frameCount),
+		"-q:v", "2",
+		"-y",
+		outputPattern,
+	}
+
+	cmd := exec.CommandContext(ctx, f.binPath, args...)
+	f.logger.Debug("extracting uniform frames", "video", videoPath, "frames", frameCount)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return nil, fmt.Errorf("ffmpeg extract uniform frames: %w\noutput: %s", err, string(out))
+	}
+
+	matches, err := filepath.Glob(filepath.Join(outputDir, "frame_*.jpg"))
+	if err != nil {
+		return nil, fmt.Errorf("glob uniform frames: %w", err)
+	}
+	sort.Strings(matches)
+	if len(matches) > frameCount {
+		matches = uniformDownsample(matches, frameCount)
+	}
 	return matches, nil
 }
 

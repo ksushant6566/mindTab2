@@ -30,6 +30,8 @@ import (
 
 const maxAudioBytes int64 = 500 * 1024 * 1024
 const maxAudioDurationSeconds int32 = 5400 // 90 min
+const maxVideoBytes int64 = 500 * 1024 * 1024
+const maxVideoDurationSeconds int32 = 7200 // 2 hours, matching the default YouTube max duration
 
 var allowedAudioMIMEs = map[string]string{
 	"audio/mp4":  ".m4a",
@@ -44,6 +46,13 @@ var allowedAudioMIMEs = map[string]string{
 	"audio/aac": ".aac",
 }
 
+var allowedVideoMIMEs = map[string]string{
+	"video/mp4":       ".mp4",
+	"video/quicktime": ".mov",
+	"video/webm":      ".webm",
+	"video/x-m4v":     ".m4v",
+}
+
 // enqueuer abstracts the job queue producer for testability.
 type enqueuer interface {
 	Enqueue(ctx context.Context, payload queue.JobPayload) error
@@ -54,7 +63,7 @@ type searcher interface {
 	Search(ctx context.Context, userID string, query string, limit int) ([]search.SearchResult, error)
 }
 
-// AudioDurationProber extracts authoritative audio duration from a staged upload.
+// AudioDurationProber extracts authoritative media duration from a staged upload.
 type AudioDurationProber interface {
 	ProbeDuration(ctx context.Context, inputPath string) (int32, error)
 }
@@ -152,7 +161,7 @@ func uuidFromPgtype(u pgtype.UUID) uuid.UUID {
 
 // Create handles POST /saves.
 // Content-Type application/json → article pipeline.
-// Content-Type multipart/form-data → image pipeline.
+// Content-Type multipart/form-data → image, audio, or video pipeline.
 func (h *SavesHandler) Create(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.UserIDFromContext(r.Context())
 	ct := r.Header.Get("Content-Type")
@@ -180,7 +189,11 @@ func (h *SavesHandler) Create(w http.ResponseWriter, r *http.Request) {
 			h.createImage(w, r, userID, autoCommit, startProcessing)
 			return
 		}
-		WriteError(w, http.StatusBadRequest, "missing file (expected audio or image field)")
+		if _, _, err := r.FormFile("video"); err == nil {
+			h.createVideo(w, r, userID, autoCommit, startProcessing)
+			return
+		}
+		WriteError(w, http.StatusBadRequest, "missing file (expected audio, image, or video field)")
 		return
 	}
 	h.createURL(w, r, userID)
@@ -281,6 +294,8 @@ func (h *SavesHandler) createURL(w http.ResponseWriter, r *http.Request, userID 
 	contentType := "article"
 	if isYouTubeURL(req.URL) {
 		contentType = "youtube"
+	} else if isInstagramReelURL(req.URL) {
+		contentType = "instagram_reel"
 	}
 
 	commitStatus, processingStatus := resolveLifecycleFlags(req.AutoCommit, req.StartProcessing)
@@ -620,6 +635,122 @@ func (h *SavesHandler) createAudio(w http.ResponseWriter, r *http.Request, userI
 			MaxAttempts: 5,
 		}); err != nil {
 			slog.Error("failed to enqueue audio job", "error", err, "jobID", uuidFromPgtype(jobID).String())
+			WriteError(w, http.StatusInternalServerError, "enqueue")
+			return
+		}
+	}
+
+	writeSaveResponse(w, row, h.storage)
+}
+
+func (h *SavesHandler) createVideo(w http.ResponseWriter, r *http.Request, userID string, autoCommit, startProcessing *bool) {
+	file, header, err := r.FormFile("video")
+	if err != nil {
+		WriteError(w, http.StatusBadRequest, "missing video file")
+		return
+	}
+	defer file.Close()
+
+	mime := header.Header.Get("Content-Type")
+	ext, ok := allowedVideoMIMEs[mime]
+	if !ok {
+		WriteError(w, http.StatusUnsupportedMediaType, "unsupported video type")
+		return
+	}
+
+	if h.audioDurationProber == nil {
+		slog.Error("media duration prober is not configured")
+		WriteError(w, http.StatusInternalServerError, "media duration probe unavailable")
+		return
+	}
+
+	buf, tooLarge, err := readUploadWithLimit(file, maxVideoBytes)
+	if tooLarge {
+		WriteError(w, http.StatusRequestEntityTooLarge, "video too large")
+		return
+	}
+	if err != nil {
+		slog.Error("failed to read video body", "error", err)
+		WriteError(w, http.StatusInternalServerError, "failed to read video")
+		return
+	}
+
+	tmp, err := os.CreateTemp("", "mindtab-video-*"+ext)
+	if err != nil {
+		WriteError(w, http.StatusInternalServerError, "stage upload")
+		return
+	}
+	tmpPath := tmp.Name()
+	defer os.Remove(tmpPath)
+	if _, err := tmp.Write(buf); err != nil {
+		_ = tmp.Close()
+		WriteError(w, http.StatusInternalServerError, "stage upload")
+		return
+	}
+	if err := tmp.Close(); err != nil {
+		WriteError(w, http.StatusInternalServerError, "stage upload")
+		return
+	}
+
+	durSec, err := h.audioDurationProber.ProbeDuration(r.Context(), tmpPath)
+	if err != nil {
+		slog.Warn("failed to probe video duration", "error", err, "mime", mime)
+		WriteError(w, http.StatusBadRequest, "invalid video file")
+		return
+	}
+	if durSec <= 0 || durSec > maxVideoDurationSeconds {
+		WriteError(w, http.StatusBadRequest, "video duration out of range")
+		return
+	}
+
+	contentID := uuid.New()
+	mediaKey := fmt.Sprintf("%s/%s/video%s", userID, contentID, ext)
+	if err := h.storage.Save(r.Context(), mediaKey, bytes.NewReader(buf), mime); err != nil {
+		slog.Error("failed to store video", "error", err, "mediaKey", mediaKey)
+		WriteError(w, http.StatusInternalServerError, "store video")
+		return
+	}
+
+	commitStatus, procStatus := resolveLifecycleFlags(autoCommit, startProcessing)
+	row, err := h.queries.CreateContent(r.Context(), store.CreateContentParams{
+		ID:               uuidFromGoogle(contentID),
+		UserID:           userID,
+		SourceUrl:        pgtextFrom(r.FormValue("source_url")),
+		SourceType:       "instagram_reel",
+		SourceTitle:      pgtextFrom(header.Filename),
+		MediaKey:         pgtype.Text{String: mediaKey, Valid: true},
+		MediaMime:        pgtype.Text{String: mime, Valid: true},
+		MediaFileBytes:   pgtype.Int8{Int64: int64(len(buf)), Valid: true},
+		DurationSeconds:  pgtype.Int4{Int32: durSec, Valid: true},
+		ProcessingStatus: procStatus,
+		CommitStatus:     commitStatus,
+	})
+	if err != nil {
+		slog.Error("failed to create content record for video", "error", err, "userID", userID)
+		_ = h.storage.Delete(r.Context(), mediaKey)
+		WriteError(w, http.StatusInternalServerError, "create content")
+		return
+	}
+
+	if procStatus == "pending" {
+		jobID, err := h.queries.CreateJob(r.Context(), store.CreateJobParams{
+			ContentID:   row.ID,
+			UserID:      userID,
+			ContentType: "instagram_reel",
+		})
+		if err != nil {
+			slog.Error("failed to create job record for video", "error", err, "contentID", uuidToString(row.ID))
+			WriteError(w, http.StatusInternalServerError, "create job")
+			return
+		}
+		if err := h.producer.Enqueue(r.Context(), queue.JobPayload{
+			JobID:       uuidFromPgtype(jobID),
+			ContentID:   uuidFromPgtype(row.ID),
+			UserID:      userID,
+			ContentType: "instagram_reel",
+			MaxAttempts: 5,
+		}); err != nil {
+			slog.Error("failed to enqueue video job", "error", err, "jobID", uuidFromPgtype(jobID).String())
 			WriteError(w, http.StatusInternalServerError, "enqueue")
 			return
 		}
@@ -1020,6 +1151,31 @@ func isYouTubeURL(rawURL string) bool {
 			strings.HasPrefix(path, "/v/")
 	}
 	return false
+}
+
+// isInstagramReelURL reports whether rawURL points to an Instagram Reel/Post
+// URL that may contain video media. It intentionally ignores profile, explore,
+// story, and root URLs so they keep the article fallback behavior.
+func isInstagramReelURL(rawURL string) bool {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return false
+	}
+	host := strings.ToLower(u.Hostname())
+	if host != "instagram.com" && host != "www.instagram.com" && host != "m.instagram.com" {
+		return false
+	}
+	path := strings.Trim(u.EscapedPath(), "/")
+	parts := strings.Split(path, "/")
+	if len(parts) < 2 || parts[1] == "" {
+		return false
+	}
+	switch parts[0] {
+	case "reel", "reels", "p", "tv":
+		return true
+	default:
+		return false
+	}
 }
 
 // isAllowedImageMIME reports whether the MIME type is a supported image format.

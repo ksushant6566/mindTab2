@@ -141,3 +141,19 @@ func TestExtractFrames_EmptyResultWhenNoPaths(t *testing.T) {
 		t.Errorf("expected empty FramePaths, got %v", result.FramePaths)
 	}
 }
+
+func TestExtractUniformFrames_CreateFramesDirectory(t *testing.T) {
+	tmpDir := t.TempDir()
+	videoPath := filepath.Join(tmpDir, "video.mp4")
+	expectedFramesDir := filepath.Join(tmpDir, "frames")
+
+	if err := os.WriteFile(videoPath, []byte{}, 0o644); err != nil {
+		t.Fatalf("create dummy video file: %v", err)
+	}
+
+	_, _ = ExtractUniformFrames(context.Background(), brokenFFmpegForFrames(), videoPath, 9, 5)
+
+	if _, err := os.Stat(expectedFramesDir); os.IsNotExist(err) {
+		t.Errorf("expected frames directory %q to be created before ffmpeg call, but it does not exist", expectedFramesDir)
+	}
+}

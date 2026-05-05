@@ -136,6 +136,7 @@ func TestSaves_Create(t *testing.T) {
 				row.MediaKey = arg.MediaKey
 				row.MediaMime = arg.MediaMime
 				row.MediaFileBytes = arg.MediaFileBytes
+				row.DurationSeconds = arg.DurationSeconds
 				row.ProcessingStatus = arg.ProcessingStatus
 				row.CommitStatus = arg.CommitStatus
 				return row, nil
@@ -205,6 +206,38 @@ func TestSaves_Create(t *testing.T) {
 		}
 	})
 
+	t.Run("InstagramReelURL", func(t *testing.T) {
+		var capturedType string
+		var capturedJobType string
+		q := &store.QuerierMock{
+			CreateContentFunc: func(_ context.Context, arg store.CreateContentParams) (store.CreateContentRow, error) {
+				capturedType = arg.SourceType
+				return testutil.NewCreateContentRow(testutil.WithContentID(contentID)), nil
+			},
+			CreateJobFunc: func(_ context.Context, arg store.CreateJobParams) (pgtype.UUID, error) {
+				capturedJobType = arg.ContentType
+				return testutil.PgUUID(jobID), nil
+			},
+		}
+		h := newTestHandler(q, &testutil.MockProducer{}, &mockSearcher{})
+		router := savesRouter(h)
+
+		req := testutil.JSONRequest(http.MethodPost, "/saves", map[string]string{
+			"url": "https://www.instagram.com/reel/C123abc/?igsh=test",
+		})
+		req = testutil.AuthenticatedRequest(req, "test-user")
+
+		resp := fire(router, req)
+		testutil.AssertStatus(t, resp, http.StatusCreated)
+
+		if capturedType != "instagram_reel" {
+			t.Errorf("expected source_type 'instagram_reel', got %q", capturedType)
+		}
+		if capturedJobType != "instagram_reel" {
+			t.Errorf("expected job content_type 'instagram_reel', got %q", capturedJobType)
+		}
+	})
+
 	t.Run("ImageUpload", func(t *testing.T) {
 		storage := testutil.NewMockStorage()
 		q := baseQuerier()
@@ -256,6 +289,61 @@ func TestSaves_Create(t *testing.T) {
 		// Verify a job was enqueued.
 		if len(producer.Enqueued) != 1 {
 			t.Errorf("expected 1 enqueued job, got %d", len(producer.Enqueued))
+		}
+	})
+
+	t.Run("VideoUpload", func(t *testing.T) {
+		storage := testutil.NewMockStorage()
+		q := baseQuerier()
+		producer := &testutil.MockProducer{}
+		prober := &mockAudioDurationProber{seconds: 42}
+		h := NewSavesHandler(q, producer, &mockSearcher{}, storage, 10<<20, "test-secret", prober)
+		router := savesRouter(h)
+
+		videoData := []byte("fake mp4 bytes")
+		req := testutil.MultipartRequestWithFields("/saves", "video", "reel.mp4", videoData, "video/mp4", map[string]string{
+			"source_url": "https://www.instagram.com/reel/C123abc/",
+		})
+		req = testutil.AuthenticatedRequest(req, "test-user")
+
+		resp := fire(router, req)
+		testutil.AssertStatus(t, resp, http.StatusCreated)
+
+		if len(storage.Files) != 1 {
+			t.Errorf("expected 1 file in storage, got %d", len(storage.Files))
+		}
+		for key := range storage.Files {
+			if !strings.HasPrefix(key, "test-user/") {
+				t.Errorf("expected storage key to start with 'test-user/', got %q", key)
+			}
+			if !strings.HasSuffix(key, ".mp4") {
+				t.Errorf("expected storage key to end with .mp4, got %q", key)
+			}
+		}
+		if len(producer.Enqueued) != 1 {
+			t.Fatalf("expected 1 enqueued job, got %d", len(producer.Enqueued))
+		}
+		if producer.Enqueued[0].ContentType != "instagram_reel" {
+			t.Errorf("expected enqueued content_type 'instagram_reel', got %q", producer.Enqueued[0].ContentType)
+		}
+		if prober.path == "" {
+			t.Error("expected duration prober to receive staged video path")
+		}
+
+		type videoCreateResp struct {
+			ProcessingStatus string `json:"processing_status"`
+			MediaURL         string `json:"media_url"`
+			DurationSeconds  *int32 `json:"duration_seconds"`
+		}
+		body := testutil.DecodeJSON[videoCreateResp](t, resp)
+		if body.ProcessingStatus != "pending" {
+			t.Errorf("expected processing_status pending, got %q", body.ProcessingStatus)
+		}
+		if body.MediaURL == "" {
+			t.Error("expected media_url to be set")
+		}
+		if body.DurationSeconds == nil || *body.DurationSeconds != 42 {
+			t.Errorf("expected duration_seconds 42, got %v", body.DurationSeconds)
 		}
 	})
 

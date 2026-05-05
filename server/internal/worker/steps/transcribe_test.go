@@ -80,6 +80,44 @@ func TestTranscribe_CaptionsSourceLabel(t *testing.T) {
 	}
 }
 
+func TestTranscribeVideo_MissingProviderDegrades(t *testing.T) {
+	result, err := TranscribeVideo(context.Background(), nil, brokenFFmpeg(), nil, ResolvedVideo{
+		LocalPath: "/tmp/video.mp4",
+	})
+	if err != nil {
+		t.Fatalf("TranscribeVideo: unexpected error: %v", err)
+	}
+
+	var got TranscribeResult
+	if err := json.Unmarshal(result.Data, &got); err != nil {
+		t.Fatalf("unmarshal TranscribeResult: %v", err)
+	}
+	if got.Status.Status != EvidenceStatusSkipped {
+		t.Errorf("status = %q, want skipped", got.Status.Status)
+	}
+}
+
+func TestTranscribeVideo_FFmpegFailureIsStructuredStatus(t *testing.T) {
+	chain := makeTranscriptionChain(&testutil.MockTranscriptionProvider{Transcript: "unused"})
+	result, err := TranscribeVideo(context.Background(), nil, nil, chain, ResolvedVideo{
+		LocalPath: "/tmp/video.mp4",
+	})
+	if err != nil {
+		t.Fatalf("TranscribeVideo: unexpected error: %v", err)
+	}
+
+	var got TranscribeResult
+	if err := json.Unmarshal(result.Data, &got); err != nil {
+		t.Fatalf("unmarshal TranscribeResult: %v", err)
+	}
+	if got.Status.Status != EvidenceStatusFailed {
+		t.Errorf("status = %q, want failed", got.Status.Status)
+	}
+	if got.Status.ErrorCode != "ffmpeg_not_configured" {
+		t.Errorf("error code = %q, want ffmpeg_not_configured", got.Status.ErrorCode)
+	}
+}
+
 // TestTranscribe_FallbackPath_ExtractAudioFails verifies that when hasCaptions
 // is false and ffmpeg audio extraction fails (no binary in unit tests), the
 // error is wrapped with the expected "transcribe: extract audio:" prefix.

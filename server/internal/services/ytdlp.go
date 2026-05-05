@@ -24,9 +24,11 @@ var (
 type VideoMetadata struct {
 	ID           string
 	Title        string
+	Description  string
 	Duration     int
 	ThumbnailURL string
 	Channel      string
+	Uploader     string
 	HasCaptions  bool
 }
 
@@ -43,12 +45,14 @@ func NewYTDLP(binPath string, logger *slog.Logger) *YTDLP {
 
 // ytdlpJSON is the subset of yt-dlp JSON output we care about.
 type ytdlpJSON struct {
-	ID         string  `json:"id"`
-	Title      string  `json:"title"`
-	Duration   float64 `json:"duration"`
-	Thumbnail  string  `json:"thumbnail"`
-	Channel    string  `json:"channel"`
-	Subtitles  map[string]interface{} `json:"subtitles"`
+	ID           string                 `json:"id"`
+	Title        string                 `json:"title"`
+	Description  string                 `json:"description"`
+	Duration     float64                `json:"duration"`
+	Thumbnail    string                 `json:"thumbnail"`
+	Channel      string                 `json:"channel"`
+	Uploader     string                 `json:"uploader"`
+	Subtitles    map[string]interface{} `json:"subtitles"`
 	AutoCaptions map[string]interface{} `json:"automatic_captions"`
 }
 
@@ -70,13 +74,19 @@ func (y *YTDLP) GetMetadata(ctx context.Context, url string) (*VideoMetadata, er
 	}
 
 	hasCaptions := len(raw.Subtitles) > 0 || len(raw.AutoCaptions) > 0
+	channel := raw.Channel
+	if channel == "" {
+		channel = raw.Uploader
+	}
 
 	return &VideoMetadata{
 		ID:           raw.ID,
 		Title:        raw.Title,
+		Description:  raw.Description,
 		Duration:     int(raw.Duration),
 		ThumbnailURL: raw.Thumbnail,
-		Channel:      raw.Channel,
+		Channel:      channel,
+		Uploader:     raw.Uploader,
 		HasCaptions:  hasCaptions,
 	}, nil
 }
@@ -84,7 +94,7 @@ func (y *YTDLP) GetMetadata(ctx context.Context, url string) (*VideoMetadata, er
 // Download downloads the video at the given URL to outputDir, limited to maxHeight.
 // Returns the path to the downloaded file.
 func (y *YTDLP) Download(ctx context.Context, url, outputDir string, maxHeight int) (string, error) {
-	format := fmt.Sprintf("bestvideo[height<=%d][ext=mp4]+bestaudio[ext=m4a]/best[height<=%d][ext=mp4]/best[height<=%d]/best", maxHeight, maxHeight, maxHeight)
+	format := DownloadFormat(maxHeight)
 	outputTemplate := filepath.Join(outputDir, "%(id)s.%(ext)s")
 
 	args := []string{
@@ -118,6 +128,13 @@ func (y *YTDLP) Download(ctx context.Context, url, outputDir string, maxHeight i
 	}
 
 	return matches[0], nil
+}
+
+// DownloadFormat returns the yt-dlp format selector used for downloaded video
+// sources. Keeping this shared ensures YouTube and Instagram sources respect
+// the same quality ceiling.
+func DownloadFormat(maxHeight int) string {
+	return fmt.Sprintf("bestvideo[height<=%d][ext=mp4]+bestaudio[ext=m4a]/best[height<=%d][ext=mp4]/best[height<=%d]/best", maxHeight, maxHeight, maxHeight)
 }
 
 // GetCaptions extracts captions for the given URL and language, returns plain text.

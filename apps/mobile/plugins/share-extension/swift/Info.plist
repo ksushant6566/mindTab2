@@ -36,6 +36,8 @@
                 <integer>1</integer>
                 <key>NSExtensionActivationSupportsAudioWithMaxCount</key>
                 <integer>1</integer>
+                <key>NSExtensionActivationSupportsMovieWithMaxCount</key>
+                <integer>1</integer>
                 <key>NSExtensionActivationSupportsText</key>
                 <true/>
             </dict>

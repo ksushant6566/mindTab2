@@ -2054,7 +2054,7 @@ components:
     # ── Saves ───────────────────────────────────────────────────────────
     SaveSourceType:
       type: string
-      enum: [article, image, youtube, audio]
+      enum: [article, image, youtube, audio, instagram_reel]
       description: Type of saved content
 
     SaveProcessingStatus:
@@ -2101,6 +2101,10 @@ components:
           type: string
           format: binary
           description: Audio file to save
+        video:
+          type: string
+          format: binary
+          description: Instagram Reel/Post video file to save
         source:
           type: string
           enum: [recorder, file_picker, share_extension, app]
