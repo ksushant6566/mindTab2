@@ -57,8 +57,12 @@ func Metadata(ctx context.Context, ytdlp *services.YTDLP, sourceURL string, maxD
 }
 
 func DegradedMetadataResult(err error) (*worker.StepResult, error) {
+	msg := "unknown error"
+	if err != nil {
+		msg = err.Error()
+	}
 	result := MetadataResult{
-		Status: degradedStatus("metadata", "metadata_unavailable", err.Error()),
+		Status: degradedStatus("metadata", "metadata_unavailable", msg),
 	}
 	data, marshalErr := json.Marshal(result)
 	if marshalErr != nil {
