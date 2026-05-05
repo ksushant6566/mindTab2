@@ -97,7 +97,7 @@ func formatVideoEvidencePrompt(evidence VideoEvidence) string {
 				continue
 			}
 			observations.WriteString(fmt.Sprintf("- frame %d", obs.FrameIndex+1))
-			if obs.TimestampSeconds > 0 {
+			if obs.TimestampSeconds >= 0 {
 				observations.WriteString(fmt.Sprintf(" at %.1fs", obs.TimestampSeconds))
 			}
 			observations.WriteString(": ")

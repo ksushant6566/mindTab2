@@ -184,6 +184,9 @@ func TestSummarizeVideoEvidence_PromptConstruction(t *testing.T) {
 	if !strings.Contains(req.UserPrompt, "OCR text from frames:") || !strings.Contains(req.UserPrompt, "overlay text") {
 		t.Errorf("video prompt missing OCR text: %q", req.UserPrompt)
 	}
+	if !strings.Contains(req.UserPrompt, "- frame 1 at 0.0s: a person starts dancing") {
+		t.Errorf("video prompt missing zero timestamp observation: %q", req.UserPrompt)
+	}
 }
 
 func TestSummarizeForVideo_EmptyInput(t *testing.T) {
