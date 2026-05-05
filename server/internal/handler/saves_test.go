@@ -347,6 +347,75 @@ func TestSaves_Create(t *testing.T) {
 		}
 	})
 
+	t.Run("VideoUploadCreateJobFailureMarksContentFailed", func(t *testing.T) {
+		storage := testutil.NewMockStorage()
+		producer := &testutil.MockProducer{}
+		var statusArg store.UpdateContentStatusParams
+		q := baseQuerier()
+		q.CreateJobFunc = func(_ context.Context, _ store.CreateJobParams) (pgtype.UUID, error) {
+			return pgtype.UUID{}, fmt.Errorf("create job failed")
+		}
+		q.UpdateContentStatusFunc = func(_ context.Context, arg store.UpdateContentStatusParams) error {
+			statusArg = arg
+			return nil
+		}
+		prober := &mockMediaDurationProber{seconds: 42}
+		h := NewSavesHandler(q, producer, &mockSearcher{}, storage, 10<<20, "test-secret", prober)
+		router := savesRouter(h)
+
+		req := testutil.MultipartRequest("/saves", "video", "reel.mp4", []byte("fake mp4 bytes"), "video/mp4")
+		req = testutil.AuthenticatedRequest(req, "test-user")
+
+		resp := fire(router, req)
+		testutil.AssertStatus(t, resp, http.StatusInternalServerError)
+		if statusArg.ProcessingStatus != "failed" {
+			t.Fatalf("ProcessingStatus = %q, want failed", statusArg.ProcessingStatus)
+		}
+		if !statusArg.ProcessingError.Valid || !strings.Contains(statusArg.ProcessingError.String, "create job failed") {
+			t.Fatalf("ProcessingError = %#v, want create job failure", statusArg.ProcessingError)
+		}
+		if len(producer.Enqueued) != 0 {
+			t.Fatalf("expected no enqueued jobs, got %d", len(producer.Enqueued))
+		}
+	})
+
+	t.Run("VideoUploadEnqueueFailureMarksContentAndJobFailed", func(t *testing.T) {
+		storage := testutil.NewMockStorage()
+		producer := &testutil.MockProducer{Err: fmt.Errorf("enqueue failed")}
+		var statusArg store.UpdateContentStatusParams
+		var failedJobArg store.FailJobParams
+		q := baseQuerier()
+		q.UpdateContentStatusFunc = func(_ context.Context, arg store.UpdateContentStatusParams) error {
+			statusArg = arg
+			return nil
+		}
+		q.FailJobFunc = func(_ context.Context, arg store.FailJobParams) error {
+			failedJobArg = arg
+			return nil
+		}
+		prober := &mockMediaDurationProber{seconds: 42}
+		h := NewSavesHandler(q, producer, &mockSearcher{}, storage, 10<<20, "test-secret", prober)
+		router := savesRouter(h)
+
+		req := testutil.MultipartRequest("/saves", "video", "reel.mp4", []byte("fake mp4 bytes"), "video/mp4")
+		req = testutil.AuthenticatedRequest(req, "test-user")
+
+		resp := fire(router, req)
+		testutil.AssertStatus(t, resp, http.StatusInternalServerError)
+		if statusArg.ProcessingStatus != "failed" {
+			t.Fatalf("ProcessingStatus = %q, want failed", statusArg.ProcessingStatus)
+		}
+		if !statusArg.ProcessingError.Valid || !strings.Contains(statusArg.ProcessingError.String, "enqueue failed") {
+			t.Fatalf("ProcessingError = %#v, want enqueue failure", statusArg.ProcessingError)
+		}
+		if !failedJobArg.ID.Valid || uuidFromPgtype(failedJobArg.ID) != jobID {
+			t.Fatalf("failed job ID = %v, want %s", failedJobArg.ID, jobID)
+		}
+		if !failedJobArg.LastError.Valid || !strings.Contains(failedJobArg.LastError.String, "enqueue failed") {
+			t.Fatalf("LastError = %#v, want enqueue failure", failedJobArg.LastError)
+		}
+	})
+
 	t.Run("EmptyURL", func(t *testing.T) {
 		h := newTestHandler(baseQuerier(), &testutil.MockProducer{}, &mockSearcher{})
 		router := savesRouter(h)

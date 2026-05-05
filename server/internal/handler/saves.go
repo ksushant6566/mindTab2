@@ -505,6 +505,28 @@ func (h *SavesHandler) saveStagedUpload(ctx context.Context, mediaKey, tmpPath, 
 	return h.storage.Save(ctx, mediaKey, upload, mime)
 }
 
+func (h *SavesHandler) failPendingContent(ctx context.Context, contentID, jobID pgtype.UUID, cause error) {
+	message := "processing job setup failed"
+	if cause != nil {
+		message = cause.Error()
+	}
+	if err := h.queries.UpdateContentStatus(ctx, store.UpdateContentStatusParams{
+		ID:               contentID,
+		ProcessingStatus: "failed",
+		ProcessingError:  pgtextFrom(message),
+	}); err != nil {
+		slog.Error("failed to mark content processing failed", "error", err, "contentID", uuidToString(contentID))
+	}
+	if jobID.Valid {
+		if err := h.queries.FailJob(ctx, store.FailJobParams{
+			ID:        jobID,
+			LastError: pgtextFrom(message),
+		}); err != nil {
+			slog.Error("failed to mark job failed", "error", err, "jobID", uuidFromPgtype(jobID).String())
+		}
+	}
+}
+
 // writeImageRecord stores the image bytes to permanent storage, creates the DB record, and enqueues.
 func (h *SavesHandler) writeImageRecord(
 	w http.ResponseWriter, r *http.Request,
@@ -753,6 +775,7 @@ func (h *SavesHandler) createVideo(w http.ResponseWriter, r *http.Request, userI
 		})
 		if err != nil {
 			slog.Error("failed to create job record for video", "error", err, "contentID", uuidToString(row.ID))
+			h.failPendingContent(r.Context(), row.ID, pgtype.UUID{}, err)
 			WriteError(w, http.StatusInternalServerError, "create job")
 			return
 		}
@@ -764,6 +787,7 @@ func (h *SavesHandler) createVideo(w http.ResponseWriter, r *http.Request, userI
 			MaxAttempts: 5,
 		}); err != nil {
 			slog.Error("failed to enqueue video job", "error", err, "jobID", uuidFromPgtype(jobID).String())
+			h.failPendingContent(r.Context(), row.ID, jobID, err)
 			WriteError(w, http.StatusInternalServerError, "enqueue")
 			return
 		}
