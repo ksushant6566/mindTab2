@@ -34,13 +34,13 @@ func (m *mockSearcher) Search(_ context.Context, _ string, _ string, _ int) ([]s
 	return m.results, nil
 }
 
-type mockAudioDurationProber struct {
+type mockMediaDurationProber struct {
 	seconds int32
 	err     error
 	path    string
 }
 
-func (m *mockAudioDurationProber) ProbeDuration(_ context.Context, path string) (int32, error) {
+func (m *mockMediaDurationProber) ProbeDuration(_ context.Context, path string) (int32, error) {
 	m.path = path
 	if m.err != nil {
 		return 0, m.err
@@ -296,7 +296,7 @@ func TestSaves_Create(t *testing.T) {
 		storage := testutil.NewMockStorage()
 		q := baseQuerier()
 		producer := &testutil.MockProducer{}
-		prober := &mockAudioDurationProber{seconds: 42}
+		prober := &mockMediaDurationProber{seconds: 42}
 		h := NewSavesHandler(q, producer, &mockSearcher{}, storage, 10<<20, "test-secret", prober)
 		router := savesRouter(h)
 
@@ -1214,7 +1214,7 @@ func TestSaves_Create_Audio_DraftEager(t *testing.T) {
 	q := audioQuerier(contentID, jobID, &captured)
 	storage := testutil.NewMockStorage()
 	producer := &testutil.MockProducer{}
-	prober := &mockAudioDurationProber{seconds: 30}
+	prober := &mockMediaDurationProber{seconds: 30}
 	h := NewSavesHandler(q, producer, &mockSearcher{}, storage, 10<<20, "test-secret", prober)
 	router := savesRouter(h)
 
@@ -1274,7 +1274,7 @@ func TestSaves_Create_Audio_DraftDeferred_Long(t *testing.T) {
 	q := audioQuerier(contentID, jobID, &captured)
 	storage := testutil.NewMockStorage()
 	producer := &testutil.MockProducer{}
-	h := NewSavesHandler(q, producer, &mockSearcher{}, storage, 10<<20, "test-secret", &mockAudioDurationProber{seconds: 1800})
+	h := NewSavesHandler(q, producer, &mockSearcher{}, storage, 10<<20, "test-secret", &mockMediaDurationProber{seconds: 1800})
 	router := savesRouter(h)
 
 	req := testutil.MultipartRequestWithFields("/saves", "audio", "long.mp3", minimalAudio(), "audio/mpeg", map[string]string{
@@ -1312,7 +1312,7 @@ func TestSaves_Create_Audio_CommittedLong_StartsProcessing(t *testing.T) {
 	q := audioQuerier(contentID, jobID, &captured)
 	storage := testutil.NewMockStorage()
 	producer := &testutil.MockProducer{}
-	h := NewSavesHandler(q, producer, &mockSearcher{}, storage, 10<<20, "test-secret", &mockAudioDurationProber{seconds: 1800})
+	h := NewSavesHandler(q, producer, &mockSearcher{}, storage, 10<<20, "test-secret", &mockMediaDurationProber{seconds: 1800})
 	router := savesRouter(h)
 
 	req := testutil.MultipartRequestWithFields("/saves", "audio", "long.mp3", minimalAudio(), "audio/mpeg", map[string]string{
@@ -1355,7 +1355,7 @@ func TestSaves_Create_Audio_BadMIME(t *testing.T) {
 }
 
 func TestSaves_Create_Audio_DurationOver90Min(t *testing.T) {
-	h := NewSavesHandler(&store.QuerierMock{}, &testutil.MockProducer{}, &mockSearcher{}, testutil.NewMockStorage(), 10<<20, "test-secret", &mockAudioDurationProber{seconds: 5401})
+	h := NewSavesHandler(&store.QuerierMock{}, &testutil.MockProducer{}, &mockSearcher{}, testutil.NewMockStorage(), 10<<20, "test-secret", &mockMediaDurationProber{seconds: 5401})
 	router := savesRouter(h)
 
 	req := testutil.MultipartRequest("/saves", "audio", "note.mp3", minimalAudio(), "audio/mpeg")
@@ -1366,7 +1366,7 @@ func TestSaves_Create_Audio_DurationOver90Min(t *testing.T) {
 }
 
 func TestSaves_Create_Audio_ProbeFailure(t *testing.T) {
-	h := NewSavesHandler(&store.QuerierMock{}, &testutil.MockProducer{}, &mockSearcher{}, testutil.NewMockStorage(), 10<<20, "test-secret", &mockAudioDurationProber{err: fmt.Errorf("probe failed")})
+	h := NewSavesHandler(&store.QuerierMock{}, &testutil.MockProducer{}, &mockSearcher{}, testutil.NewMockStorage(), 10<<20, "test-secret", &mockMediaDurationProber{err: fmt.Errorf("probe failed")})
 	router := savesRouter(h)
 
 	req := testutil.MultipartRequest("/saves", "audio", "note.mp3", minimalAudio(), "audio/mpeg")
