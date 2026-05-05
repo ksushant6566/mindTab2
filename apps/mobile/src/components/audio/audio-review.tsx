@@ -26,21 +26,29 @@ function makeDefaultTitle(): string {
   })}`;
 }
 
+function isActiveProcessing(status?: string): boolean {
+  return status === "pending" || status === "processing";
+}
+
 export function AudioReview({
   id,
   durationSeconds,
+  processingStatus,
   localFileUri,
   onDelete,
 }: {
   id: string;
   durationSeconds: number;
+  processingStatus?: string;
   localFileUri: string | null;
   onDelete: (id: string) => Promise<void>;
 }) {
   const router = useRouter();
-  const eager = durationSeconds <= 60;
+  const shouldPoll = processingStatus
+    ? isActiveProcessing(processingStatus)
+    : durationSeconds <= 60;
 
-  const draftPoll = useDraftPoll(id, eager);
+  const draftPoll = useDraftPoll(id, shouldPoll);
   const commit = useCommitSave();
 
   const uploadState = useRecorderStore((s) => s.uploadState);
@@ -113,9 +121,18 @@ export function AudioReview({
 
   const playerSrc = data?.media_url ?? localFileUri ?? "";
   const transcript = data?.extracted_text;
+  const effectiveProcessingStatus = data?.processing_status ?? processingStatus;
   const showTranscript = !!transcript;
-  const showTranscriptPlaceholder = !showTranscript && !eager;
-  const showTranscriptSpinner = !showTranscript && eager;
+  const showTranscriptPlaceholder =
+    !showTranscript && effectiveProcessingStatus === "deferred";
+  const showTranscriptSpinner =
+    !showTranscript &&
+    (isActiveProcessing(effectiveProcessingStatus) ||
+      (!effectiveProcessingStatus && shouldPoll));
+  const showTranscriptFailed =
+    !showTranscript && effectiveProcessingStatus === "failed";
+  const showTranscriptCompletedEmpty =
+    !showTranscript && effectiveProcessingStatus === "completed";
   const isSaving = commit.isPending || pendingSave;
 
   return (
@@ -145,6 +162,16 @@ export function AudioReview({
           {showTranscriptPlaceholder && (
             <Text style={styles.muted}>
               Transcript will be generated after you save.
+            </Text>
+          )}
+          {showTranscriptFailed && (
+            <Text style={styles.muted}>
+              Transcript generation failed. You can still save this recording.
+            </Text>
+          )}
+          {showTranscriptCompletedEmpty && (
+            <Text style={styles.muted}>
+              No transcript was generated for this recording.
             </Text>
           )}
           {showTranscript && (

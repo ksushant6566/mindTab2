@@ -138,6 +138,67 @@ func TestSummarize_PromptConstruction(t *testing.T) {
 	}
 }
 
+func TestSummarizeVideoEvidence_PromptConstruction(t *testing.T) {
+	payload := `{"title":"T","summary":"S","tags":["x"],"key_topics":["y"]}`
+	mock := &testutil.MockLLMProvider{Response: payload}
+	chain := makeLLMChain(mock)
+
+	evidence := VideoEvidence{
+		Metadata: ResolvedVideo{
+			SourceType:  "instagram_reel",
+			Title:       "Dance clip",
+			Description: "caption text",
+			Creator:     "creator",
+		},
+		Transcript:       "spoken words",
+		TranscriptSource: "whisper",
+		OCRText:          "overlay text",
+		VisualTimeline:   "three sampled frames show a dance",
+		FrameObservations: []FrameObservation{{
+			FrameIndex:       0,
+			TimestampSeconds: 0,
+			Observation:      "a person starts dancing",
+		}},
+	}
+	_, err := SummarizeVideoEvidence(context.Background(), chain, evidence)
+	if err != nil {
+		t.Fatalf("SummarizeVideoEvidence: unexpected error: %v", err)
+	}
+
+	if len(mock.Calls) == 0 {
+		t.Fatal("LLM was never called")
+	}
+	req := mock.Calls[0]
+	if req.SystemPrompt != videoSummarizeSystemPrompt {
+		t.Errorf("system prompt mismatch: got %q", req.SystemPrompt)
+	}
+	if !strings.Contains(req.UserPrompt, "Transcript/audio:") || !strings.Contains(req.UserPrompt, "spoken words") {
+		t.Errorf("video prompt missing transcript: %q", req.UserPrompt)
+	}
+	if !strings.Contains(req.UserPrompt, "Visual timeline from sampled frames:") || !strings.Contains(req.UserPrompt, "three sampled frames show a dance") {
+		t.Errorf("video prompt missing visual observations: %q", req.UserPrompt)
+	}
+	if !strings.Contains(req.UserPrompt, "Source caption/description:") || !strings.Contains(req.UserPrompt, "caption text") {
+		t.Errorf("video prompt missing source description: %q", req.UserPrompt)
+	}
+	if !strings.Contains(req.UserPrompt, "OCR text from frames:") || !strings.Contains(req.UserPrompt, "overlay text") {
+		t.Errorf("video prompt missing OCR text: %q", req.UserPrompt)
+	}
+	if !strings.Contains(req.UserPrompt, "- frame 1 at 0.0s: a person starts dancing") {
+		t.Errorf("video prompt missing zero timestamp observation: %q", req.UserPrompt)
+	}
+}
+
+func TestSummarizeForVideo_EmptyInput(t *testing.T) {
+	mock := &testutil.MockLLMProvider{Response: "{}"}
+	chain := makeLLMChain(mock)
+
+	_, err := SummarizeForVideo(context.Background(), chain, "", "")
+	if err == nil {
+		t.Fatal("SummarizeForVideo: expected error for empty input")
+	}
+}
+
 func TestSummarize_LLMError(t *testing.T) {
 	// A non-retriable error from the LLM should propagate.
 	mock := &testutil.MockLLMProvider{Err: providers.NewPermanentError("mock", errTest("llm permanent error"))}

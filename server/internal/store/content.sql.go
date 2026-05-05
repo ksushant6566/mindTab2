@@ -612,7 +612,7 @@ func (q *Queries) UpdateContentTranscriptSource(ctx context.Context, arg UpdateC
 	return err
 }
 
-const updateContentYoutubeFields = `-- name: UpdateContentYoutubeFields :exec
+const updateContentVideoFields = `-- name: UpdateContentVideoFields :exec
 UPDATE mindmap_content
 SET duration_seconds = $2,
     video_thumbnail_url = $3,
@@ -622,7 +622,7 @@ SET duration_seconds = $2,
 WHERE id = $1 AND deleted_at IS NULL
 `
 
-type UpdateContentYoutubeFieldsParams struct {
+type UpdateContentVideoFieldsParams struct {
 	ID                pgtype.UUID `json:"id"`
 	DurationSeconds   pgtype.Int4 `json:"duration_seconds"`
 	VideoThumbnailUrl pgtype.Text `json:"video_thumbnail_url"`
@@ -630,8 +630,8 @@ type UpdateContentYoutubeFieldsParams struct {
 	TranscriptSource  pgtype.Text `json:"transcript_source"`
 }
 
-func (q *Queries) UpdateContentYoutubeFields(ctx context.Context, arg UpdateContentYoutubeFieldsParams) error {
-	_, err := q.db.Exec(ctx, updateContentYoutubeFields,
+func (q *Queries) UpdateContentVideoFields(ctx context.Context, arg UpdateContentVideoFieldsParams) error {
+	_, err := q.db.Exec(ctx, updateContentVideoFields,
 		arg.ID,
 		arg.DurationSeconds,
 		arg.VideoThumbnailUrl,

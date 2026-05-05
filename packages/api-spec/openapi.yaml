@@ -2054,7 +2054,7 @@ components:
     # ── Saves ───────────────────────────────────────────────────────────
     SaveSourceType:
       type: string
-      enum: [article, image, youtube, audio]
+      enum: [article, image, youtube, audio, instagram_reel]
       description: Type of saved content
 
     SaveProcessingStatus:
@@ -2101,9 +2101,15 @@ components:
           type: string
           format: binary
           description: Audio file to save
-        duration_seconds:
-          type: integer
-          description: Duration of the audio/video in seconds
+        video:
+          type: string
+          format: binary
+          description: Instagram Reel/Post video file to save
+        source_url:
+          type: string
+          format: uri
+          description: Original content URL for uploaded media, when available
+          example: https://www.instagram.com/reel/C1234567890/
         source:
           type: string
           enum: [recorder, file_picker, share_extension, app]
@@ -2115,11 +2121,11 @@ components:
         start_processing:
           type: boolean
           default: true
-          description: If false, processing is deferred until explicitly started
+          description: If false, processing is deferred until explicitly started. Ignored for audio uploads; audio eager/deferred behavior is derived from server-probed duration.
 
     SaveCreateResponse:
       type: object
-      required: [id, status, commit_status, processing_status]
+      required: [id]
       properties:
         id:
           type: string
@@ -2127,7 +2133,7 @@ components:
           description: ID of the newly created save
         status:
           type: string
-          description: Initial processing status (legacy field)
+          description: Legacy initial processing status returned by JSON URL saves
         commit_status:
           $ref: "#/components/schemas/SaveCommitStatus"
         processing_status:
@@ -2136,6 +2142,10 @@ components:
           type: string
           nullable: true
           description: Authenticated URL to access the media file
+        duration_seconds:
+          type: integer
+          nullable: true
+          description: Server-probed duration for audio/video media in seconds
 
     SaveListItem:
       type: object

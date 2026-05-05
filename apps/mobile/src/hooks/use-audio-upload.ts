@@ -6,9 +6,7 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:8080";
 
 type UploadInput = {
   fileUri: string;
-  durationSeconds: number;
   autoCommit: boolean;
-  startProcessing: boolean;
   source: "recorder" | "file_picker" | "share_extension" | "app";
   mime?: string;
   filename?: string;
@@ -19,6 +17,7 @@ type UploadResult = {
   commit_status: "draft" | "committed";
   processing_status: "deferred" | "pending" | "processing" | "completed" | "failed";
   media_url?: string | null;
+  duration_seconds?: number | null;
 };
 
 function inferMime(fileUri: string): string {
@@ -55,9 +54,7 @@ export function useAudioUpload() {
         name: filename,
         type: mime,
       } as unknown as Blob);
-      form.append("duration_seconds", String(input.durationSeconds));
       form.append("auto_commit", String(input.autoCommit));
-      form.append("start_processing", String(input.startProcessing));
       form.append("source", input.source);
 
       const token = await resolveToken();

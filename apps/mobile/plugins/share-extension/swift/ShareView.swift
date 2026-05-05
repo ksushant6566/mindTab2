@@ -118,7 +118,7 @@ struct ShareView: View {
                     .fill(Color(white: 0.12))
                     .frame(width: 56, height: 56)
                     .overlay(
-                        Image(systemName: content.hasAudio ? "waveform" : "link")
+                        Image(systemName: content.hasVideo ? "play.rectangle" : content.hasAudio ? "waveform" : "link")
                             .font(.system(size: 20))
                             .foregroundColor(Color(white: 0.4))
                     )
@@ -146,14 +146,16 @@ struct ShareView: View {
     private func validateContent() {
         if !content.isValid {
             state = .error
-            errorMessage = "Cannot save text-only content. Share a link, image, or audio file instead."
+            errorMessage = "Cannot save text-only content. Share a link, image, audio file, or video file instead."
             return
         }
         state = .preview
     }
 
     private func performSave(token: String) async throws {
-        if let audioURL = content.audioURL {
+        if let videoURL = content.videoURL {
+            _ = try await APIClient.saveVideo(fileURL: videoURL, sourceURL: content.url?.absoluteString, token: token)
+        } else if let audioURL = content.audioURL {
             _ = try await APIClient.saveAudio(fileURL: audioURL, token: token)
         } else if let imageData = content.imageData, let imageMIME = content.imageMIME {
             _ = try await APIClient.saveImage(imageData: imageData, mimeType: imageMIME, token: token)
@@ -221,6 +223,8 @@ struct ShareView: View {
                             errorMessage = msg ?? "Failed to save. Please try again."
                         case .encodingError:
                             errorMessage = "Failed to process content."
+                        case .missingID:
+                            errorMessage = "Save response was missing an ID. Please try again."
                         }
                     } else if (error as NSError).code == NSURLErrorNotConnectedToInternet {
                         errorMessage = "No internet connection. Please try again."

@@ -1,6 +1,12 @@
 package services
 
 import (
+	"context"
+	"io"
+	"log/slog"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -104,5 +110,58 @@ func TestStripHTMLTags(t *testing.T) {
 				t.Errorf("stripHTMLTags(%q) = %q, want %q", tc.input, got, tc.want)
 			}
 		})
+	}
+}
+
+func TestDownloadFormat(t *testing.T) {
+	got := DownloadFormat(360)
+	want := "bestvideo[height<=360][ext=mp4]+bestaudio[ext=m4a]/best[height<=360][ext=mp4]/best[height<=360]/best"
+	if got != want {
+		t.Fatalf("DownloadFormat(360) = %q, want %q", got, want)
+	}
+}
+
+func TestGetMetadataHandlesNullableYTDLPFields(t *testing.T) {
+	binPath := filepath.Join(t.TempDir(), "yt-dlp")
+	script := `#!/bin/sh
+cat <<'JSON'
+{"id":"abc123","title":"Nullable fields","description":null,"duration":12.4,"thumbnail":null,"channel":null,"uploader":null,"subtitles":null,"automatic_captions":null}
+JSON
+`
+	if err := os.WriteFile(binPath, []byte(script), 0o755); err != nil {
+		t.Fatalf("write fake yt-dlp: %v", err)
+	}
+
+	service := NewYTDLP(binPath, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	got, err := service.GetMetadata(context.Background(), "https://example.com/video")
+	if err != nil {
+		t.Fatalf("GetMetadata() error = %v", err)
+	}
+
+	if got.Description != "" || got.ThumbnailURL != "" || got.Channel != "" || got.Uploader != "" {
+		t.Fatalf("nullable metadata = %#v, want empty string fallbacks", got)
+	}
+	if got.HasCaptions {
+		t.Fatal("HasCaptions = true, want false for null caption maps")
+	}
+}
+
+func TestGetMetadataIncludesYTDLPStderr(t *testing.T) {
+	binPath := filepath.Join(t.TempDir(), "yt-dlp")
+	script := `#!/bin/sh
+echo "extractor failed: login required" >&2
+exit 2
+`
+	if err := os.WriteFile(binPath, []byte(script), 0o755); err != nil {
+		t.Fatalf("write fake yt-dlp: %v", err)
+	}
+
+	service := NewYTDLP(binPath, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	_, err := service.GetMetadata(context.Background(), "https://example.com/video")
+	if err == nil {
+		t.Fatal("GetMetadata() error = nil, want failure")
+	}
+	if !strings.Contains(err.Error(), "extractor failed: login required") {
+		t.Fatalf("GetMetadata() error = %q, want stderr output", err.Error())
 	}
 }

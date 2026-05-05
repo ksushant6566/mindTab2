@@ -5,10 +5,21 @@ import { useRecorderStore } from "~/stores/recorder-store";
 import { api } from "~/lib/api-client";
 
 export default function ReviewScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, durationSeconds: serverDuration, processingStatus } =
+    useLocalSearchParams<{
+      id: string;
+      durationSeconds?: string;
+      processingStatus?: string;
+    }>();
   const fileUri = useRecorderStore((s) => s.fileUri);
   const elapsedMs = useRecorderStore((s) => s.elapsedMs);
-  const durationSeconds = Math.max(1, Math.round(elapsedMs / 1000));
+  const localDurationSeconds = Math.max(1, Math.round(elapsedMs / 1000));
+  const parsedServerDuration =
+    typeof serverDuration === "string" ? Number.parseInt(serverDuration, 10) : NaN;
+  const durationSeconds =
+    Number.isFinite(parsedServerDuration) && parsedServerDuration > 0
+      ? parsedServerDuration
+      : localDurationSeconds;
   const queryClient = useQueryClient();
 
   if (!id || typeof id !== "string") return null;
@@ -25,6 +36,7 @@ export default function ReviewScreen() {
     <AudioReview
       id={id}
       durationSeconds={durationSeconds}
+      processingStatus={typeof processingStatus === "string" ? processingStatus : undefined}
       localFileUri={fileUri}
       onDelete={handleDelete}
     />

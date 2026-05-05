@@ -13,6 +13,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -29,6 +30,8 @@ import (
 
 const maxAudioBytes int64 = 500 * 1024 * 1024
 const maxAudioDurationSeconds int32 = 5400 // 90 min
+const maxVideoBytes int64 = 500 * 1024 * 1024
+const maxVideoDurationSeconds int32 = 7200 // 2 hours, matching the default YouTube max duration
 
 var allowedAudioMIMEs = map[string]string{
 	"audio/mp4":  ".m4a",
@@ -43,6 +46,13 @@ var allowedAudioMIMEs = map[string]string{
 	"audio/aac": ".aac",
 }
 
+var allowedVideoMIMEs = map[string]string{
+	"video/mp4":       ".mp4",
+	"video/quicktime": ".mov",
+	"video/webm":      ".webm",
+	"video/x-m4v":     ".m4v",
+}
+
 // enqueuer abstracts the job queue producer for testability.
 type enqueuer interface {
 	Enqueue(ctx context.Context, payload queue.JobPayload) error
@@ -53,19 +63,25 @@ type searcher interface {
 	Search(ctx context.Context, userID string, query string, limit int) ([]search.SearchResult, error)
 }
 
+// MediaDurationProber extracts authoritative media duration from a staged upload.
+type MediaDurationProber interface {
+	ProbeDuration(ctx context.Context, inputPath string) (int32, error)
+}
+
 // SavesHandler handles save CRUD and search endpoints.
 type SavesHandler struct {
-	queries   store.Querier
-	producer  enqueuer
-	search    searcher
-	storage   services.StorageProvider
-	maxSize   int64
-	jwtSecret string
+	queries             store.Querier
+	producer            enqueuer
+	search              searcher
+	storage             services.StorageProvider
+	maxSize             int64
+	jwtSecret           string
+	mediaDurationProber MediaDurationProber
 }
 
 // NewSavesHandler creates a new SavesHandler.
-func NewSavesHandler(queries store.Querier, producer enqueuer, search searcher, storage services.StorageProvider, maxSize int64, jwtSecret string) *SavesHandler {
-	return &SavesHandler{
+func NewSavesHandler(queries store.Querier, producer enqueuer, search searcher, storage services.StorageProvider, maxSize int64, jwtSecret string, mediaDurationProbers ...MediaDurationProber) *SavesHandler {
+	h := &SavesHandler{
 		queries:   queries,
 		producer:  producer,
 		search:    search,
@@ -73,6 +89,10 @@ func NewSavesHandler(queries store.Querier, producer enqueuer, search searcher, 
 		maxSize:   maxSize,
 		jwtSecret: jwtSecret,
 	}
+	if len(mediaDurationProbers) > 0 {
+		h.mediaDurationProber = mediaDurationProbers[0]
+	}
+	return h
 }
 
 // saveResponse is the response body for POST /saves.
@@ -98,7 +118,7 @@ type contentJSON struct {
 	EmbeddingProvider  *string    `json:"embedding_provider,omitempty"`
 	EmbeddingModel     *string    `json:"embedding_model,omitempty"`
 	MediaKey           *string    `json:"media_key,omitempty"`
-	SourceMediaURL     *string    `json:"source_media_url,omitempty"`
+	MediaURL           *string    `json:"media_url,omitempty"`
 	DurationSeconds    *int32     `json:"duration_seconds,omitempty"`
 	VideoThumbnailURL  *string    `json:"video_thumbnail_url,omitempty"`
 	VideoChannel       *string    `json:"video_channel,omitempty"`
@@ -121,7 +141,7 @@ type contentListJSON struct {
 	Tags               []string   `json:"tags"`
 	KeyTopics          []string   `json:"key_topics"`
 	MediaKey           *string    `json:"media_key,omitempty"`
-	SourceMediaURL     *string    `json:"source_media_url,omitempty"`
+	MediaURL           *string    `json:"media_url,omitempty"`
 	DurationSeconds    *int32     `json:"duration_seconds,omitempty"`
 	VideoThumbnailURL  *string    `json:"video_thumbnail_url,omitempty"`
 	VideoChannel       *string    `json:"video_channel,omitempty"`
@@ -141,7 +161,7 @@ func uuidFromPgtype(u pgtype.UUID) uuid.UUID {
 
 // Create handles POST /saves.
 // Content-Type application/json → article pipeline.
-// Content-Type multipart/form-data → image pipeline.
+// Content-Type multipart/form-data → image, audio, or video pipeline.
 func (h *SavesHandler) Create(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.UserIDFromContext(r.Context())
 	ct := r.Header.Get("Content-Type")
@@ -162,14 +182,18 @@ func (h *SavesHandler) Create(w http.ResponseWriter, r *http.Request) {
 		autoCommit := parseFormFlag(r, "auto_commit")
 		startProcessing := parseFormFlag(r, "start_processing")
 		if _, _, err := r.FormFile("audio"); err == nil {
-			h.createAudio(w, r, userID, autoCommit, startProcessing)
+			h.createAudio(w, r, userID, autoCommit)
 			return
 		}
 		if _, _, err := r.FormFile("image"); err == nil {
 			h.createImage(w, r, userID, autoCommit, startProcessing)
 			return
 		}
-		WriteError(w, http.StatusBadRequest, "missing file (expected audio or image field)")
+		if _, _, err := r.FormFile("video"); err == nil {
+			h.createVideo(w, r, userID, autoCommit, startProcessing)
+			return
+		}
+		WriteError(w, http.StatusBadRequest, "missing file (expected audio, image, or video field)")
 		return
 	}
 	h.createURL(w, r, userID)
@@ -205,6 +229,23 @@ func resolveLifecycleFlags(autoCommit, startProcessing *bool) (commit string, pr
 		processing = "deferred"
 	}
 	return
+}
+
+// resolveAudioLifecycle keeps duration-sensitive audio behavior server-side.
+// Committed audio always starts processing. Draft audio under the review
+// threshold starts eagerly; longer drafts wait until the user commits.
+func resolveAudioLifecycle(autoCommit *bool, durationSeconds int32) (commit string, processing string) {
+	ac := true
+	if autoCommit != nil {
+		ac = *autoCommit
+	}
+	if ac {
+		return "committed", "pending"
+	}
+	if durationSeconds <= 60 {
+		return "draft", "pending"
+	}
+	return "draft", "deferred"
 }
 
 // parseFormFlag reads a multipart form field as a *bool.
@@ -253,6 +294,8 @@ func (h *SavesHandler) createURL(w http.ResponseWriter, r *http.Request, userID 
 	contentType := "article"
 	if isYouTubeURL(req.URL) {
 		contentType = "youtube"
+	} else if isInstagramReelURL(req.URL) {
+		contentType = "instagram_reel"
 	}
 
 	commitStatus, processingStatus := resolveLifecycleFlags(req.AutoCommit, req.StartProcessing)
@@ -421,6 +464,69 @@ func readUploadWithLimit(r io.Reader, limit int64) (data []byte, tooLarge bool, 
 	return buf, false, nil
 }
 
+func stageUploadToTemp(r io.Reader, ext string, limit int64) (path string, size int64, tooLarge bool, cleanup func(), err error) {
+	tmp, err := os.CreateTemp("", "mindtab-upload-*"+ext)
+	if err != nil {
+		return "", 0, false, nil, err
+	}
+	tmpPath := tmp.Name()
+	cleanup = func() {
+		_ = os.Remove(tmpPath)
+	}
+
+	src := r
+	if limit > 0 {
+		src = io.LimitReader(r, limit+1)
+	}
+	size, err = io.Copy(tmp, src)
+	if err != nil {
+		_ = tmp.Close()
+		cleanup()
+		return "", 0, false, nil, err
+	}
+	if err := tmp.Close(); err != nil {
+		cleanup()
+		return "", 0, false, nil, err
+	}
+	if limit > 0 && size > limit {
+		cleanup()
+		return "", 0, true, nil, nil
+	}
+
+	return tmpPath, size, false, cleanup, nil
+}
+
+func (h *SavesHandler) saveStagedUpload(ctx context.Context, mediaKey, tmpPath, mime string) error {
+	upload, err := os.Open(tmpPath)
+	if err != nil {
+		return err
+	}
+	defer upload.Close()
+	return h.storage.Save(ctx, mediaKey, upload, mime)
+}
+
+func (h *SavesHandler) failPendingContent(ctx context.Context, contentID, jobID pgtype.UUID, cause error) {
+	message := "processing job setup failed"
+	if cause != nil {
+		message = cause.Error()
+	}
+	if err := h.queries.UpdateContentStatus(ctx, store.UpdateContentStatusParams{
+		ID:               contentID,
+		ProcessingStatus: "failed",
+		ProcessingError:  pgtextFrom(message),
+	}); err != nil {
+		slog.Error("failed to mark content processing failed", "error", err, "contentID", uuidToString(contentID))
+	}
+	if jobID.Valid {
+		if err := h.queries.FailJob(ctx, store.FailJobParams{
+			ID:        jobID,
+			LastError: pgtextFrom(message),
+		}); err != nil {
+			slog.Error("failed to mark job failed", "error", err, "jobID", uuidFromPgtype(jobID).String())
+		}
+	}
+}
+
 // writeImageRecord stores the image bytes to permanent storage, creates the DB record, and enqueues.
 func (h *SavesHandler) writeImageRecord(
 	w http.ResponseWriter, r *http.Request,
@@ -483,7 +589,7 @@ func (h *SavesHandler) writeImageRecord(
 	writeSaveResponse(w, row, h.storage)
 }
 
-func (h *SavesHandler) createAudio(w http.ResponseWriter, r *http.Request, userID string, autoCommit, startProcessing *bool) {
+func (h *SavesHandler) createAudio(w http.ResponseWriter, r *http.Request, userID string, autoCommit *bool) {
 	file, header, err := r.FormFile("audio")
 	if err != nil {
 		WriteError(w, http.StatusBadRequest, "missing audio file")
@@ -498,33 +604,44 @@ func (h *SavesHandler) createAudio(w http.ResponseWriter, r *http.Request, userI
 		return
 	}
 
-	durationStr := r.FormValue("duration_seconds")
-	if durationStr == "" {
-		WriteError(w, http.StatusBadRequest, "duration_seconds required")
+	if h.mediaDurationProber == nil {
+		slog.Error("audio duration prober is not configured")
+		WriteError(w, http.StatusInternalServerError, "audio duration probe unavailable")
 		return
 	}
-	durSec64, err := strconv.ParseInt(durationStr, 10, 32)
-	if err != nil || durSec64 <= 0 || int32(durSec64) > maxAudioDurationSeconds {
-		WriteError(w, http.StatusBadRequest, "duration_seconds out of range")
-		return
-	}
-	durSec := int32(durSec64)
 
 	contentID := uuid.New()
 	mediaKey := fmt.Sprintf("%s/%s/audio%s", userID, contentID, ext)
 
-	buf, err := io.ReadAll(file)
-	if err != nil {
-		WriteError(w, http.StatusInternalServerError, "read upload")
+	tmpPath, mediaBytes, tooLarge, cleanup, err := stageUploadToTemp(file, ext, maxAudioBytes)
+	if tooLarge {
+		WriteError(w, http.StatusRequestEntityTooLarge, "audio too large")
 		return
 	}
-	if err := h.storage.Save(r.Context(), mediaKey, bytes.NewReader(buf), mime); err != nil {
+	if err != nil {
+		WriteError(w, http.StatusInternalServerError, "stage upload")
+		return
+	}
+	defer cleanup()
+
+	durSec, err := h.mediaDurationProber.ProbeDuration(r.Context(), tmpPath)
+	if err != nil {
+		slog.Warn("failed to probe audio duration", "error", err, "mime", mime)
+		WriteError(w, http.StatusBadRequest, "invalid audio file")
+		return
+	}
+	if durSec <= 0 || durSec > maxAudioDurationSeconds {
+		WriteError(w, http.StatusBadRequest, "audio duration out of range")
+		return
+	}
+
+	if err := h.saveStagedUpload(r.Context(), mediaKey, tmpPath, mime); err != nil {
 		slog.Error("failed to store audio", "error", err, "mediaKey", mediaKey)
 		WriteError(w, http.StatusInternalServerError, "store audio")
 		return
 	}
 
-	commitStatus, processingStatus := resolveLifecycleFlags(autoCommit, startProcessing)
+	commitStatus, processingStatus := resolveAudioLifecycle(autoCommit, durSec)
 
 	nowTitle := fmt.Sprintf("Voice note · %s", time.Now().Format("Jan 2, 3:04 PM"))
 
@@ -537,7 +654,7 @@ func (h *SavesHandler) createAudio(w http.ResponseWriter, r *http.Request, userI
 		ExtractedText:    pgtype.Text{},
 		MediaKey:         pgtype.Text{String: mediaKey, Valid: true},
 		MediaMime:        pgtype.Text{String: mime, Valid: true},
-		MediaFileBytes:   pgtype.Int8{Int64: int64(len(buf)), Valid: true},
+		MediaFileBytes:   pgtype.Int8{Int64: mediaBytes, Valid: true},
 		DurationSeconds:  pgtype.Int4{Int32: durSec, Valid: true},
 		ProcessingStatus: processingStatus,
 		CommitStatus:     commitStatus,
@@ -569,6 +686,108 @@ func (h *SavesHandler) createAudio(w http.ResponseWriter, r *http.Request, userI
 			MaxAttempts: 5,
 		}); err != nil {
 			slog.Error("failed to enqueue audio job", "error", err, "jobID", uuidFromPgtype(jobID).String())
+			WriteError(w, http.StatusInternalServerError, "enqueue")
+			return
+		}
+	}
+
+	writeSaveResponse(w, row, h.storage)
+}
+
+func (h *SavesHandler) createVideo(w http.ResponseWriter, r *http.Request, userID string, autoCommit, startProcessing *bool) {
+	file, header, err := r.FormFile("video")
+	if err != nil {
+		WriteError(w, http.StatusBadRequest, "missing video file")
+		return
+	}
+	defer file.Close()
+
+	mime := header.Header.Get("Content-Type")
+	ext, ok := allowedVideoMIMEs[mime]
+	if !ok {
+		WriteError(w, http.StatusUnsupportedMediaType, "unsupported video type")
+		return
+	}
+
+	if h.mediaDurationProber == nil {
+		slog.Error("media duration prober is not configured")
+		WriteError(w, http.StatusInternalServerError, "media duration probe unavailable")
+		return
+	}
+
+	tmpPath, mediaBytes, tooLarge, cleanup, err := stageUploadToTemp(file, ext, maxVideoBytes)
+	if tooLarge {
+		WriteError(w, http.StatusRequestEntityTooLarge, "video too large")
+		return
+	}
+	if err != nil {
+		slog.Error("failed to stage video upload", "error", err)
+		WriteError(w, http.StatusInternalServerError, "stage upload")
+		return
+	}
+	defer cleanup()
+
+	durSec, err := h.mediaDurationProber.ProbeDuration(r.Context(), tmpPath)
+	if err != nil {
+		slog.Warn("failed to probe video duration", "error", err, "mime", mime)
+		WriteError(w, http.StatusBadRequest, "invalid video file")
+		return
+	}
+	if durSec <= 0 || durSec > maxVideoDurationSeconds {
+		WriteError(w, http.StatusBadRequest, "video duration out of range")
+		return
+	}
+
+	contentID := uuid.New()
+	mediaKey := fmt.Sprintf("%s/%s/video%s", userID, contentID, ext)
+	if err := h.saveStagedUpload(r.Context(), mediaKey, tmpPath, mime); err != nil {
+		slog.Error("failed to store video", "error", err, "mediaKey", mediaKey)
+		WriteError(w, http.StatusInternalServerError, "store video")
+		return
+	}
+
+	commitStatus, procStatus := resolveLifecycleFlags(autoCommit, startProcessing)
+	row, err := h.queries.CreateContent(r.Context(), store.CreateContentParams{
+		ID:               uuidFromGoogle(contentID),
+		UserID:           userID,
+		SourceUrl:        pgtextFrom(r.FormValue("source_url")),
+		SourceType:       "instagram_reel",
+		SourceTitle:      pgtextFrom(header.Filename),
+		MediaKey:         pgtype.Text{String: mediaKey, Valid: true},
+		MediaMime:        pgtype.Text{String: mime, Valid: true},
+		MediaFileBytes:   pgtype.Int8{Int64: mediaBytes, Valid: true},
+		DurationSeconds:  pgtype.Int4{Int32: durSec, Valid: true},
+		ProcessingStatus: procStatus,
+		CommitStatus:     commitStatus,
+	})
+	if err != nil {
+		slog.Error("failed to create content record for video", "error", err, "userID", userID)
+		_ = h.storage.Delete(r.Context(), mediaKey)
+		WriteError(w, http.StatusInternalServerError, "create content")
+		return
+	}
+
+	if procStatus == "pending" {
+		jobID, err := h.queries.CreateJob(r.Context(), store.CreateJobParams{
+			ContentID:   row.ID,
+			UserID:      userID,
+			ContentType: "instagram_reel",
+		})
+		if err != nil {
+			slog.Error("failed to create job record for video", "error", err, "contentID", uuidToString(row.ID))
+			h.failPendingContent(r.Context(), row.ID, pgtype.UUID{}, err)
+			WriteError(w, http.StatusInternalServerError, "create job")
+			return
+		}
+		if err := h.producer.Enqueue(r.Context(), queue.JobPayload{
+			JobID:       uuidFromPgtype(jobID),
+			ContentID:   uuidFromPgtype(row.ID),
+			UserID:      userID,
+			ContentType: "instagram_reel",
+			MaxAttempts: 5,
+		}); err != nil {
+			slog.Error("failed to enqueue video job", "error", err, "jobID", uuidFromPgtype(jobID).String())
+			h.failPendingContent(r.Context(), row.ID, jobID, err)
 			WriteError(w, http.StatusInternalServerError, "enqueue")
 			return
 		}
@@ -639,7 +858,7 @@ func (h *SavesHandler) List(w http.ResponseWriter, r *http.Request) {
 		}
 		if row.MediaKey.Valid {
 			signed := h.signMediaURL(row.MediaKey.String, 1*time.Hour)
-			item.SourceMediaURL = &signed
+			item.MediaURL = &signed
 		}
 		items = append(items, item)
 	}
@@ -698,7 +917,7 @@ func (h *SavesHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 	if row.MediaKey.Valid {
 		signed := h.signMediaURL(row.MediaKey.String, 1*time.Hour)
-		item.SourceMediaURL = &signed
+		item.MediaURL = &signed
 	}
 	WriteJSON(w, http.StatusOK, item)
 }
@@ -971,6 +1190,31 @@ func isYouTubeURL(rawURL string) bool {
 	return false
 }
 
+// isInstagramReelURL reports whether rawURL points to an Instagram Reel/TV
+// URL that may contain video media. It intentionally ignores profile, explore,
+// post, story, and root URLs so they keep the article fallback behavior.
+func isInstagramReelURL(rawURL string) bool {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return false
+	}
+	host := strings.ToLower(u.Hostname())
+	if host != "instagram.com" && host != "www.instagram.com" && host != "m.instagram.com" {
+		return false
+	}
+	path := strings.Trim(u.EscapedPath(), "/")
+	parts := strings.Split(path, "/")
+	if len(parts) < 2 || parts[1] == "" {
+		return false
+	}
+	switch parts[0] {
+	case "reel", "reels", "tv":
+		return true
+	default:
+		return false
+	}
+}
+
 // isAllowedImageMIME reports whether the MIME type is a supported image format.
 func isAllowedImageMIME(m string) bool {
 	switch m {
@@ -987,6 +1231,7 @@ func writeSaveResponse(w http.ResponseWriter, row store.CreateContentRow, storag
 		CommitStatus     string `json:"commit_status"`
 		ProcessingStatus string `json:"processing_status"`
 		MediaURL         string `json:"media_url,omitempty"`
+		DurationSeconds  *int32 `json:"duration_seconds,omitempty"`
 	}{
 		ID:               uuidToString(row.ID),
 		CommitStatus:     row.CommitStatus,
@@ -994,6 +1239,9 @@ func writeSaveResponse(w http.ResponseWriter, row store.CreateContentRow, storag
 	}
 	if row.MediaKey.Valid {
 		resp.MediaURL = storage.URL(row.MediaKey.String)
+	}
+	if row.DurationSeconds.Valid {
+		resp.DurationSeconds = &row.DurationSeconds.Int32
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)

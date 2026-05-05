@@ -55,10 +55,10 @@ This is backward-compatible — existing Bearer-authenticated clients continue t
 
 #### 3. API response fields
 
-Add `source_media_url` to both `contentListJSON` and `contentJSON` response structs:
+Add `media_url` to both `contentListJSON` and `contentJSON` response structs:
 
 ```go
-SourceMediaURL *string `json:"source_media_url,omitempty"`
+MediaURL *string `json:"media_url,omitempty"`
 ```
 
 Populated in `List()` and `Get()` handlers when `media_key` is non-empty:
@@ -66,7 +66,7 @@ Populated in `List()` and `Get()` handlers when `media_key` is non-empty:
 ```go
 if row.MediaKey.Valid {
     signed := signMediaURL(row.MediaKey.String, h.jwtSecret, 1*time.Hour)
-    item.SourceMediaURL = &signed
+    item.MediaURL = &signed
 }
 ```
 
@@ -78,12 +78,12 @@ The `SavesHandler` struct needs access to the JWT secret. It's already available
 
 Add to `RawSave` in `save-grid.tsx`:
 ```typescript
-source_media_url?: string | null;
+media_url?: string | null;
 ```
 
 Add to `SaveDetail` in `vault/[id].tsx`:
 ```typescript
-source_media_url?: string | null;
+media_url?: string | null;
 ```
 
 #### 2. SaveCard — use signed URL
@@ -100,16 +100,16 @@ const imageSource = imageUri
 With:
 ```typescript
 // AFTER: use pre-signed URL from API
-const imageUri = sourceMediaUrl ? `${API_URL}${sourceMediaUrl}` : null;
+const imageUri = mediaUrl ? `${API_URL}${mediaUrl}` : null;
 ```
 
 No headers needed. Remove `accessToken` from `SaveCardProps`.
 
 #### 3. SaveGrid — remove accessToken prop
 
-Remove `accessToken` from `SaveGridProps` and from the `SaveCard` render call. Pass `sourceMediaUrl` instead:
+Remove `accessToken` from `SaveGridProps` and from the `SaveCard` render call. Pass `mediaUrl` instead:
 ```typescript
-sourceMediaUrl={item.source_media_url ?? undefined}
+mediaUrl={item.media_url ?? undefined}
 ```
 
 #### 4. vault.tsx — remove token management
@@ -124,7 +124,7 @@ The `queryFn` simplifies to just fetching saves — no token juggling.
 
 #### 5. vault/[id].tsx — same cleanup
 
-Remove `accessToken` state and `useEffect`. Use `save.source_media_url` for the image source directly.
+Remove `accessToken` state and `useEffect`. Use `save.media_url` for the image source directly.
 
 ### What doesn't change
 

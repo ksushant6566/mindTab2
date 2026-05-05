@@ -38,15 +38,46 @@ func TestIsYouTubeURL(t *testing.T) {
 	}
 }
 
+func TestIsInstagramReelURL(t *testing.T) {
+	tests := map[string]struct {
+		url  string
+		want bool
+	}{
+		"reel":              {url: "https://www.instagram.com/reel/C123abc/", want: true},
+		"reels":             {url: "https://www.instagram.com/reels/C123abc/", want: true},
+		"reel no slash":     {url: "https://instagram.com/reel/C123abc", want: true},
+		"reel with query":   {url: "https://www.instagram.com/reel/C123abc/?igsh=abc", want: true},
+		"mobile post":       {url: "https://m.instagram.com/p/C123abc/", want: false},
+		"tv":                {url: "https://www.instagram.com/tv/C123abc/", want: true},
+		"profile":           {url: "https://www.instagram.com/mindtab/", want: false},
+		"stories":           {url: "https://www.instagram.com/stories/mindtab/123", want: false},
+		"explore":           {url: "https://www.instagram.com/explore/tags/productivity/", want: false},
+		"root":              {url: "https://www.instagram.com/", want: false},
+		"not instagram":     {url: "https://example.com/reel/C123abc/", want: false},
+		"spoofed host":      {url: "https://instagram.com.example.com/reel/C123abc/", want: false},
+		"invalid":           {url: "not a url", want: false},
+		"missing shortcode": {url: "https://www.instagram.com/reel/", want: false},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			got := isInstagramReelURL(tc.url)
+			if got != tc.want {
+				t.Errorf("isInstagramReelURL(%q) = %v, want %v", tc.url, got, tc.want)
+			}
+		})
+	}
+}
+
 func TestImageExtFromMIME(t *testing.T) {
 	tests := map[string]struct {
 		mime string
 		want string
 	}{
-		"jpeg": {mime: "image/jpeg", want: ".jpg"},
-		"png":  {mime: "image/png", want: ".png"},
-		"webp": {mime: "image/webp", want: ".webp"},
-		"gif":  {mime: "image/gif", want: ""},
+		"jpeg":  {mime: "image/jpeg", want: ".jpg"},
+		"png":   {mime: "image/png", want: ".png"},
+		"webp":  {mime: "image/webp", want: ".webp"},
+		"gif":   {mime: "image/gif", want: ""},
 		"empty": {mime: "", want: ""},
 	}
 

@@ -222,7 +222,7 @@ func (d *Dispatcher) processJob(ctx context.Context, payload *queue.JobPayload) 
 			log.Error("step failed", "step", step, "error", err)
 			permanent := !providers.IsRetriable(err)
 			d.handleFailure(ctx, payload, fmt.Errorf("step %q: %w", step, err), permanent)
-			d.cleanupYoutubeTempDir(payload)
+			d.cleanupVideoTempDir(payload)
 			return
 		}
 
@@ -232,7 +232,7 @@ func (d *Dispatcher) processJob(ctx context.Context, payload *queue.JobPayload) 
 		if err := d.checkpointStepResults(ctx, payload.JobID, prevResults, step); err != nil {
 			log.Error("failed to checkpoint step results", "step", step, "error", err)
 			d.handleFailure(ctx, payload, fmt.Errorf("checkpoint step %q: %w", step, err), false)
-			d.cleanupYoutubeTempDir(payload)
+			d.cleanupVideoTempDir(payload)
 			return
 		}
 	}
@@ -252,6 +252,7 @@ func (d *Dispatcher) processJob(ctx context.Context, payload *queue.JobPayload) 
 	if err := d.consumer.Complete(ctx, *payload); err != nil {
 		log.Error("failed to remove job from processing list", "error", err)
 	}
+	d.cleanupVideoTempDir(payload)
 
 	log.Info("job completed successfully")
 }
@@ -315,9 +316,9 @@ func (d *Dispatcher) handleFailure(ctx context.Context, payload *queue.JobPayloa
 	}
 }
 
-// cleanupYoutubeTempDir removes the temp directory used for YouTube job processing.
-func (d *Dispatcher) cleanupYoutubeTempDir(payload *queue.JobPayload) {
-	if payload.ContentType != "youtube" {
+// cleanupVideoTempDir removes the temp directory used for URL/video processing.
+func (d *Dispatcher) cleanupVideoTempDir(payload *queue.JobPayload) {
+	if payload.ContentType != "youtube" && payload.ContentType != "instagram_reel" {
 		return
 	}
 	ytTempDir := filepath.Join("/tmp/mindtab/youtube", payload.JobID.String())

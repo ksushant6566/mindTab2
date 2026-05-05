@@ -43,3 +43,29 @@ func ExtractFrames(
 	data, _ := json.Marshal(result)
 	return &worker.StepResult{Data: data}, nil
 }
+
+// ExtractUniformFrames extracts a fixed number of frames evenly across a video's timeline.
+func ExtractUniformFrames(
+	ctx context.Context,
+	ffmpeg *services.FFmpeg,
+	videoFilePath string,
+	durationSec int,
+	frameCount int,
+) (*worker.StepResult, error) {
+	framesDir := filepath.Join(filepath.Dir(videoFilePath), "frames")
+	if err := os.MkdirAll(framesDir, 0o755); err != nil {
+		return nil, fmt.Errorf("extract_uniform_frames: create frames dir: %w", err)
+	}
+
+	paths, err := ffmpeg.ExtractUniformFrames(ctx, videoFilePath, framesDir, frameCount, durationSec)
+	if err != nil {
+		return nil, fmt.Errorf("extract_uniform_frames: %w", err)
+	}
+
+	result := ExtractFramesResult{
+		FramePaths: paths,
+		FrameCount: len(paths),
+	}
+	data, _ := json.Marshal(result)
+	return &worker.StepResult{Data: data}, nil
+}

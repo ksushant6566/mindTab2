@@ -23,6 +23,7 @@ class ShareViewController: UIViewController {
         var imageData: Data?
         var imageMIME: String?
         var audioURL: URL?
+        var videoURL: URL?
 
         for item in items {
             guard let attachments = item.attachments else { continue }
@@ -33,6 +34,13 @@ class ShareViewController: UIViewController {
                 if provider.hasItemConformingToTypeIdentifier(UTType.audio.identifier) {
                     if let result = await loadAudio(from: provider) {
                         audioURL = result
+                    }
+                    continue
+                }
+
+                if provider.hasItemConformingToTypeIdentifier(UTType.movie.identifier) {
+                    if let result = await loadVideo(from: provider) {
+                        videoURL = result
                     }
                     continue
                 }
@@ -61,7 +69,7 @@ class ShareViewController: UIViewController {
             }
         }
 
-        return SharedContent(url: url, text: text, imageData: imageData, imageMIME: imageMIME, audioURL: audioURL)
+        return SharedContent(url: url, text: text, imageData: imageData, imageMIME: imageMIME, audioURL: audioURL, videoURL: videoURL)
     }
 
     private func loadURL(from provider: NSItemProvider) async -> URL? {
@@ -89,6 +97,26 @@ class ShareViewController: UIViewController {
                     // Voice Memos on some iOS versions hands back raw Data rather than a URL.
                     let tmp = FileManager.default.temporaryDirectory
                         .appendingPathComponent("share-\(UUID().uuidString).m4a")
+                    if let _ = try? data.write(to: tmp) {
+                        continuation.resume(returning: tmp)
+                    } else {
+                        continuation.resume(returning: nil)
+                    }
+                } else {
+                    continuation.resume(returning: nil)
+                }
+            }
+        }
+    }
+
+    private func loadVideo(from provider: NSItemProvider) async -> URL? {
+        return await withCheckedContinuation { continuation in
+            provider.loadItem(forTypeIdentifier: UTType.movie.identifier) { item, _ in
+                if let fileURL = item as? URL {
+                    continuation.resume(returning: fileURL)
+                } else if let data = item as? Data {
+                    let tmp = FileManager.default.temporaryDirectory
+                        .appendingPathComponent("share-\(UUID().uuidString).mp4")
                     if let _ = try? data.write(to: tmp) {
                         continuation.resume(returning: tmp)
                     } else {
@@ -150,13 +178,18 @@ struct SharedContent {
     let imageData: Data?
     let imageMIME: String?
     let audioURL: URL?
+    let videoURL: URL?
 
     var hasURL: Bool { url != nil }
     var hasImage: Bool { imageData != nil }
     var hasAudio: Bool { audioURL != nil }
-    var isValid: Bool { hasURL || hasImage || hasAudio }
+    var hasVideo: Bool { videoURL != nil }
+    var isValid: Bool { hasURL || hasImage || hasAudio || hasVideo }
 
     var displayTitle: String {
+        if hasVideo {
+            return videoURL?.deletingPathExtension().lastPathComponent ?? "Video"
+        }
         if hasAudio {
             return audioURL?.deletingPathExtension().lastPathComponent ?? "Audio Recording"
         }
@@ -167,6 +200,9 @@ struct SharedContent {
     }
 
     var displaySubtitle: String {
+        if hasVideo {
+            return videoURL?.lastPathComponent ?? "Video file"
+        }
         if hasAudio {
             return audioURL?.lastPathComponent ?? "Audio file"
         }

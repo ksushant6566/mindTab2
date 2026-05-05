@@ -265,3 +265,83 @@ func TestStore_ExtractedTextFallbackOrder(t *testing.T) {
 		t.Errorf("extracted_text fallback: got %q, want %q", gotExtractedText, "OCR text from image")
 	}
 }
+
+func TestStore_InstagramReelVideoFields(t *testing.T) {
+	job := makeStoreJob()
+	job.ContentType = "instagram_reel"
+	job.SourceURL = "https://www.instagram.com/reel/C123abc/"
+
+	prevResults := worker.StepResults{
+		"evidence": {Data: mustMarshal(t, VideoEvidence{
+			Metadata: ResolvedVideo{
+				LocalPath:       "/tmp/video.mp4",
+				SourceType:      "instagram_reel",
+				Title:           "Interesting Reel",
+				DurationSeconds: 37,
+				ThumbnailURL:    "https://cdn.example/thumb.jpg",
+				Creator:         "creator",
+			},
+			Transcript:       "Transcript text",
+			TranscriptSource: "whisper",
+			SelectedFrames: SelectedFramesSummary{
+				FrameCount:       2,
+				Policy:           "uniform_timeline_v1",
+				DurationSeconds:  37,
+				TimestampSeconds: []float64{0, 37},
+			},
+			VisualTimeline: "A short video with captions.",
+		})},
+		"summarize": {Data: mustMarshal(t, SummarizeResult{
+			Summary:   "Short summary",
+			Tags:      []string{"instagram"},
+			KeyTopics: []string{"reels"},
+		})},
+	}
+
+	var resultsCalled bool
+	var videoFieldsCalled bool
+	mockQ := &store.QuerierMock{
+		IsContentDeletedFunc: func(ctx context.Context, id pgtype.UUID) (bool, error) {
+			return false, nil
+		},
+		UpdateContentResultsFunc: func(ctx context.Context, arg store.UpdateContentResultsParams) error {
+			resultsCalled = true
+			if arg.SourceTitle.String != "Interesting Reel" {
+				t.Errorf("SourceTitle = %q, want Interesting Reel", arg.SourceTitle.String)
+			}
+			if arg.ExtractedText.String != "Transcript text" {
+				t.Errorf("ExtractedText = %q, want Transcript text", arg.ExtractedText.String)
+			}
+			if arg.VisualDescription.String != "A short video with captions." {
+				t.Errorf("VisualDescription = %q, want frame description", arg.VisualDescription.String)
+			}
+			return nil
+		},
+		UpdateContentVideoFieldsFunc: func(ctx context.Context, arg store.UpdateContentVideoFieldsParams) error {
+			videoFieldsCalled = true
+			if arg.DurationSeconds.Int32 != 37 {
+				t.Errorf("DurationSeconds = %d, want 37", arg.DurationSeconds.Int32)
+			}
+			if arg.VideoThumbnailUrl.String != "https://cdn.example/thumb.jpg" {
+				t.Errorf("VideoThumbnailUrl = %q, want thumbnail", arg.VideoThumbnailUrl.String)
+			}
+			if arg.VideoChannel.String != "creator" {
+				t.Errorf("VideoChannel = %q, want creator", arg.VideoChannel.String)
+			}
+			if arg.TranscriptSource.String != "whisper" {
+				t.Errorf("TranscriptSource = %q, want whisper", arg.TranscriptSource.String)
+			}
+			return nil
+		},
+	}
+
+	if _, err := Store(context.Background(), mockQ, job, prevResults); err != nil {
+		t.Fatalf("Store: %v", err)
+	}
+	if !resultsCalled {
+		t.Error("expected content results update for instagram reel")
+	}
+	if !videoFieldsCalled {
+		t.Error("expected video fields update for instagram reel metadata")
+	}
+}

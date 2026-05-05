@@ -103,3 +103,21 @@ func TestMetadata_MaxDurationContract(t *testing.T) {
 		t.Error("duration check should not fire when URL validation fails first")
 	}
 }
+
+func TestDegradedMetadataResultHandlesNilError(t *testing.T) {
+	result, err := DegradedMetadataResult(nil)
+	if err != nil {
+		t.Fatalf("DegradedMetadataResult(nil) error = %v", err)
+	}
+
+	var got MetadataResult
+	if err := json.Unmarshal(result.Data, &got); err != nil {
+		t.Fatalf("unmarshal degraded metadata: %v", err)
+	}
+	if got.Status.Status != EvidenceStatusDegraded {
+		t.Fatalf("status = %q, want %q", got.Status.Status, EvidenceStatusDegraded)
+	}
+	if got.Status.ErrorMessage != "unknown error" {
+		t.Fatalf("error message = %q, want unknown error", got.Status.ErrorMessage)
+	}
+}

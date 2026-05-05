@@ -67,12 +67,12 @@ func TestYouTube_ContentType(t *testing.T) {
 	}
 }
 
-// TestYouTube_StepOrder verifies that Steps returns all 8 steps in the correct order.
+// TestYouTube_StepOrder verifies that Steps returns the shared video pipeline.
 func TestYouTube_StepOrder(t *testing.T) {
 	ytdlp := services.NewYTDLP("", slog.Default())
 	ffmpeg := services.NewFFmpeg("", slog.Default())
 	p := NewYoutubeProcessor(ytdlp, ffmpeg, nil, nil, nil, nil, nil, defaultTestConfig())
-	want := []string{"metadata", "download", "transcribe", "extract_frames", "vision", "summarize", "embed", "store"}
+	want := []string{"metadata", "download", "transcribe", "extract_frames", "vision", "evidence", "summarize", "embed", "store"}
 	got := p.Steps()
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("Steps() = %v, want %v", got, want)
@@ -107,18 +107,26 @@ func TestYouTube_HappyPath(t *testing.T) {
 	job := makeYouTubeJob("https://www.youtube.com/watch?v=test123")
 	ctx := context.Background()
 
-	// Build synthetic prevResults for steps that depend on earlier pipeline output.
-	transcribeData, _ := json.Marshal(steps.TranscribeResult{
+	evidenceData, _ := json.Marshal(steps.VideoEvidence{
+		Metadata: steps.ResolvedVideo{
+			SourceType:      "youtube",
+			Title:           "Intro to Go",
+			Description:     "A tutorial about Go programming.",
+			Creator:         "Test Channel",
+			DurationSeconds: 120,
+		},
 		Transcript:       "Hello and welcome to this Go tutorial.",
 		TranscriptSource: "captions",
-	})
-	batchVisionData, _ := json.Marshal(steps.BatchVisionResult{
-		VisualDescription: "Screen showing Go code editor.",
-		FrameCount:        3,
+		SelectedFrames: steps.SelectedFramesSummary{
+			FrameCount:       3,
+			Policy:           "uniform_timeline_v1",
+			DurationSeconds:  120,
+			TimestampSeconds: []float64{0, 60, 120},
+		},
+		VisualTimeline: "Screen showing Go code editor.",
 	})
 	prevResults := worker.StepResults{
-		"transcribe": {Data: transcribeData},
-		"vision":     {Data: batchVisionData},
+		"evidence": {Data: evidenceData},
 	}
 
 	// Run summarize step.
@@ -152,6 +160,83 @@ func TestYouTube_HappyPath(t *testing.T) {
 	}
 	if len(embR.Embedding) != 1536 {
 		t.Errorf("embed dims = %d, want 1536", len(embR.Embedding))
+	}
+}
+
+func TestYouTube_EvidenceStepUsesSharedVideoPipeline(t *testing.T) {
+	p := NewYoutubeProcessor(nil, nil, nil, nil, nil, nil, nil, defaultTestConfig())
+	job := makeYouTubeJob("https://www.youtube.com/watch?v=test123")
+
+	metadataData, _ := json.Marshal(steps.MetadataResult{
+		VideoID:      "test123",
+		Title:        "Shared Pipeline Test",
+		Description:  "source description",
+		Duration:     12,
+		ThumbnailURL: "https://example.com/thumb.jpg",
+		Channel:      "Test Channel",
+		Status:       steps.EvidenceStatus{Source: "metadata", Status: steps.EvidenceStatusSuccess},
+	})
+	downloadData, _ := json.Marshal(steps.DownloadResult{VideoFilePath: "/tmp/test.mp4"})
+	transcribeData, _ := json.Marshal(steps.TranscribeResult{
+		Transcript:       "transcript text",
+		TranscriptSource: "captions",
+		Status:           steps.EvidenceStatus{Source: "transcript", Status: steps.EvidenceStatusSuccess},
+	})
+	framesData, _ := json.Marshal(steps.SelectedFrames{
+		FramePaths:      []string{"/tmp/frame1.jpg", "/tmp/frame2.jpg"},
+		FrameCount:      2,
+		Policy:          "uniform_timeline_v1",
+		DurationSeconds: 12,
+		Status:          steps.EvidenceStatus{Source: "frames", Status: steps.EvidenceStatusSuccess},
+	})
+	understandingData, _ := json.Marshal(steps.FrameUnderstanding{
+		OCRText:        "overlay",
+		VisualTimeline: "two sampled frames show a demo",
+		FrameCount:     2,
+		Status:         steps.EvidenceStatus{Source: "frame_understanding", Status: steps.EvidenceStatusSuccess},
+	})
+
+	result, err := p.Execute(context.Background(), "evidence", job, worker.StepResults{
+		"metadata":       {Data: metadataData},
+		"download":       {Data: downloadData},
+		"transcribe":     {Data: transcribeData},
+		"extract_frames": {Data: framesData},
+		"vision":         {Data: understandingData},
+	})
+	if err != nil {
+		t.Fatalf("evidence step: %v", err)
+	}
+	var evidence steps.VideoEvidence
+	if err := json.Unmarshal(result.Data, &evidence); err != nil {
+		t.Fatalf("unmarshal evidence: %v", err)
+	}
+	if evidence.Metadata.SourceType != "youtube" {
+		t.Errorf("source type = %q, want youtube", evidence.Metadata.SourceType)
+	}
+	if evidence.OCRText != "overlay" {
+		t.Errorf("OCRText = %q, want overlay", evidence.OCRText)
+	}
+	if evidence.SelectedFrames.FrameCount != 2 {
+		t.Errorf("selected frame count = %d, want 2", evidence.SelectedFrames.FrameCount)
+	}
+}
+
+func TestYouTube_TranscribeFailsWhenLocalVideoMissing(t *testing.T) {
+	p := NewYoutubeProcessor(nil, nil, nil, nil, nil, nil, nil, defaultTestConfig())
+	job := makeYouTubeJob("https://www.youtube.com/watch?v=test123")
+
+	metadataData, _ := json.Marshal(steps.MetadataResult{
+		Title:  "Missing local file",
+		Status: steps.EvidenceStatus{Source: "metadata", Status: steps.EvidenceStatusSuccess},
+	})
+	downloadData, _ := json.Marshal(steps.DownloadResult{VideoFilePath: "/tmp/does-not-exist-mindtab-video.mp4"})
+
+	_, err := p.Execute(context.Background(), "transcribe", job, worker.StepResults{
+		"metadata": {Data: metadataData},
+		"download": {Data: downloadData},
+	})
+	if err == nil {
+		t.Fatal("transcribe: expected hard failure when local video is unreadable")
 	}
 }
 

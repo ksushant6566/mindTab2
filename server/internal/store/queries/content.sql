@@ -98,7 +98,7 @@ SET deleted_at = CURRENT_TIMESTAMP,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL;
 
--- name: UpdateContentYoutubeFields :exec
+-- name: UpdateContentVideoFields :exec
 UPDATE mindmap_content
 SET duration_seconds = $2,
     video_thumbnail_url = $3,

@@ -114,7 +114,7 @@ type Querier interface {
 	UpdateContentResults(ctx context.Context, arg UpdateContentResultsParams) error
 	UpdateContentStatus(ctx context.Context, arg UpdateContentStatusParams) error
 	UpdateContentTranscriptSource(ctx context.Context, arg UpdateContentTranscriptSourceParams) error
-	UpdateContentYoutubeFields(ctx context.Context, arg UpdateContentYoutubeFieldsParams) error
+	UpdateContentVideoFields(ctx context.Context, arg UpdateContentVideoFieldsParams) error
 	UpdateConversationTitle(ctx context.Context, arg UpdateConversationTitleParams) error
 	UpdateGoal(ctx context.Context, arg UpdateGoalParams) error
 	UpdateGoalPosition(ctx context.Context, arg UpdateGoalPositionParams) error

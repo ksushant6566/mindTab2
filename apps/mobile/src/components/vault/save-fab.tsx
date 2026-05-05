@@ -136,9 +136,7 @@ export function SaveFAB() {
     upload.mutate(
       {
         fileUri: asset.uri,
-        durationSeconds: 1,
         autoCommit: true,
-        startProcessing: true,
         source: "file_picker",
         mime: asset.mimeType ?? "audio/mp4",
         filename: asset.name,

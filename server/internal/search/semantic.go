@@ -7,9 +7,9 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
-	pgvector "github.com/pgvector/pgvector-go"
 	"github.com/ksushant6566/mindtab/server/internal/providers"
 	"github.com/ksushant6566/mindtab/server/internal/providers/embedding"
+	pgvector "github.com/pgvector/pgvector-go"
 )
 
 type SearchResult struct {
@@ -66,6 +66,7 @@ func (s *SemanticSearch) Search(ctx context.Context, userID string, query string
 		FROM mindmap_content
 		WHERE user_id = $2
 		  AND deleted_at IS NULL
+		  AND commit_status = 'committed'
 		  AND embedding IS NOT NULL
 		ORDER BY embedding <=> $1
 		LIMIT $3

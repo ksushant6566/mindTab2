@@ -41,7 +41,7 @@
 | `server/internal/worker/dispatcher.go` | Use `proc.LockTTL()` instead of hardcoded TTL |
 | `server/internal/worker/steps/vision.go` | Add `BatchVision()` for multiple frame images |
 | `server/internal/worker/steps/store.go` | Handle YouTube metadata result + new columns |
-| `server/internal/store/queries/content.sql` | Add `UpdateContentYoutubeFields` query |
+| `server/internal/store/queries/content.sql` | Add `UpdateContentVideoFields` query |
 | `server/internal/handler/saves.go` | Add `isYouTubeURL()`, update `createURL()` routing |
 | `server/internal/providers/registry.go` | Add transcription chain to Registry |
 | `server/internal/queue/producer.go` | No structural changes — SourceURL already carries the URL |
@@ -118,7 +118,7 @@ Add query for updating YouTube-specific fields and regenerate Go code.
 Append to `server/internal/store/queries/content.sql`:
 
 ```sql
--- name: UpdateContentYoutubeFields :exec
+-- name: UpdateContentVideoFields :exec
 UPDATE mindmap_content
 SET video_duration = $2,
     video_thumbnail_url = $3,
@@ -1218,7 +1218,7 @@ Update the store step to handle YouTube-specific metadata and persist the new co
 
 - [ ] **Step 1: Add YouTube metadata handling to Store()**
 
-In the `Store()` function, add unmarshaling of the metadata result and the call to `UpdateContentYoutubeFields`. Add this after the existing step result unmarshaling and before the `UpdateContentResults` call:
+In the `Store()` function, add unmarshaling of the metadata result and the call to `UpdateContentVideoFields`. Add this after the existing step result unmarshaling and before the `UpdateContentResults` call:
 
 ```go
 // Unmarshal YouTube metadata if present
@@ -1240,7 +1240,7 @@ After the existing `UpdateContentResults` and `UpdateContentEmbedding` calls, ad
 // Persist YouTube-specific fields if this is a YouTube save
 if metadataResult.VideoID != "" {
 	videoDuration := int32(metadataResult.Duration)
-	err := queries.UpdateContentYoutubeFields(ctx, store.UpdateContentYoutubeFieldsParams{
+	err := queries.UpdateContentVideoFields(ctx, store.UpdateContentVideoFieldsParams{
 		ID:                contentID,
 		VideoDuration:     &videoDuration,
 		VideoThumbnailUrl: pgtextFrom(metadataResult.ThumbnailURL),
@@ -1253,7 +1253,7 @@ if metadataResult.VideoID != "" {
 }
 ```
 
-Note: The exact param struct name (`UpdateContentYoutubeFieldsParams`) depends on what sqlc generated in Task 2. Match it to the generated code.
+Note: The exact param struct name (`UpdateContentVideoFieldsParams`) depends on what sqlc generated in Task 2. Match it to the generated code.
 
 - [ ] **Step 2: Handle YouTube transcript as extracted_text**
 

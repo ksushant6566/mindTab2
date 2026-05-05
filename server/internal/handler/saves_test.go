@@ -34,6 +34,20 @@ func (m *mockSearcher) Search(_ context.Context, _ string, _ string, _ int) ([]s
 	return m.results, nil
 }
 
+type mockMediaDurationProber struct {
+	seconds int32
+	err     error
+	path    string
+}
+
+func (m *mockMediaDurationProber) ProbeDuration(_ context.Context, path string) (int32, error) {
+	m.path = path
+	if m.err != nil {
+		return 0, m.err
+	}
+	return m.seconds, nil
+}
+
 // newTestHandler builds a SavesHandler with the provided mock dependencies.
 func newTestHandler(q store.Querier, e enqueuer, s searcher) *SavesHandler {
 	return NewSavesHandler(q, e, s, testutil.NewMockStorage(), 10<<20, "test-secret")
@@ -122,6 +136,7 @@ func TestSaves_Create(t *testing.T) {
 				row.MediaKey = arg.MediaKey
 				row.MediaMime = arg.MediaMime
 				row.MediaFileBytes = arg.MediaFileBytes
+				row.DurationSeconds = arg.DurationSeconds
 				row.ProcessingStatus = arg.ProcessingStatus
 				row.CommitStatus = arg.CommitStatus
 				return row, nil
@@ -191,6 +206,38 @@ func TestSaves_Create(t *testing.T) {
 		}
 	})
 
+	t.Run("InstagramReelURL", func(t *testing.T) {
+		var capturedType string
+		var capturedJobType string
+		q := &store.QuerierMock{
+			CreateContentFunc: func(_ context.Context, arg store.CreateContentParams) (store.CreateContentRow, error) {
+				capturedType = arg.SourceType
+				return testutil.NewCreateContentRow(testutil.WithContentID(contentID)), nil
+			},
+			CreateJobFunc: func(_ context.Context, arg store.CreateJobParams) (pgtype.UUID, error) {
+				capturedJobType = arg.ContentType
+				return testutil.PgUUID(jobID), nil
+			},
+		}
+		h := newTestHandler(q, &testutil.MockProducer{}, &mockSearcher{})
+		router := savesRouter(h)
+
+		req := testutil.JSONRequest(http.MethodPost, "/saves", map[string]string{
+			"url": "https://www.instagram.com/reel/C123abc/?igsh=test",
+		})
+		req = testutil.AuthenticatedRequest(req, "test-user")
+
+		resp := fire(router, req)
+		testutil.AssertStatus(t, resp, http.StatusCreated)
+
+		if capturedType != "instagram_reel" {
+			t.Errorf("expected source_type 'instagram_reel', got %q", capturedType)
+		}
+		if capturedJobType != "instagram_reel" {
+			t.Errorf("expected job content_type 'instagram_reel', got %q", capturedJobType)
+		}
+	})
+
 	t.Run("ImageUpload", func(t *testing.T) {
 		storage := testutil.NewMockStorage()
 		q := baseQuerier()
@@ -242,6 +289,130 @@ func TestSaves_Create(t *testing.T) {
 		// Verify a job was enqueued.
 		if len(producer.Enqueued) != 1 {
 			t.Errorf("expected 1 enqueued job, got %d", len(producer.Enqueued))
+		}
+	})
+
+	t.Run("VideoUpload", func(t *testing.T) {
+		storage := testutil.NewMockStorage()
+		q := baseQuerier()
+		producer := &testutil.MockProducer{}
+		prober := &mockMediaDurationProber{seconds: 42}
+		h := NewSavesHandler(q, producer, &mockSearcher{}, storage, 10<<20, "test-secret", prober)
+		router := savesRouter(h)
+
+		videoData := []byte("fake mp4 bytes")
+		req := testutil.MultipartRequestWithFields("/saves", "video", "reel.mp4", videoData, "video/mp4", map[string]string{
+			"source_url": "https://www.instagram.com/reel/C123abc/",
+		})
+		req = testutil.AuthenticatedRequest(req, "test-user")
+
+		resp := fire(router, req)
+		testutil.AssertStatus(t, resp, http.StatusCreated)
+
+		if len(storage.Files) != 1 {
+			t.Errorf("expected 1 file in storage, got %d", len(storage.Files))
+		}
+		for key := range storage.Files {
+			if !strings.HasPrefix(key, "test-user/") {
+				t.Errorf("expected storage key to start with 'test-user/', got %q", key)
+			}
+			if !strings.HasSuffix(key, ".mp4") {
+				t.Errorf("expected storage key to end with .mp4, got %q", key)
+			}
+		}
+		if len(producer.Enqueued) != 1 {
+			t.Fatalf("expected 1 enqueued job, got %d", len(producer.Enqueued))
+		}
+		if producer.Enqueued[0].ContentType != "instagram_reel" {
+			t.Errorf("expected enqueued content_type 'instagram_reel', got %q", producer.Enqueued[0].ContentType)
+		}
+		if prober.path == "" {
+			t.Error("expected duration prober to receive staged video path")
+		}
+
+		type videoCreateResp struct {
+			ProcessingStatus string `json:"processing_status"`
+			MediaURL         string `json:"media_url"`
+			DurationSeconds  *int32 `json:"duration_seconds"`
+		}
+		body := testutil.DecodeJSON[videoCreateResp](t, resp)
+		if body.ProcessingStatus != "pending" {
+			t.Errorf("expected processing_status pending, got %q", body.ProcessingStatus)
+		}
+		if body.MediaURL == "" {
+			t.Error("expected media_url to be set")
+		}
+		if body.DurationSeconds == nil || *body.DurationSeconds != 42 {
+			t.Errorf("expected duration_seconds 42, got %v", body.DurationSeconds)
+		}
+	})
+
+	t.Run("VideoUploadCreateJobFailureMarksContentFailed", func(t *testing.T) {
+		storage := testutil.NewMockStorage()
+		producer := &testutil.MockProducer{}
+		var statusArg store.UpdateContentStatusParams
+		q := baseQuerier()
+		q.CreateJobFunc = func(_ context.Context, _ store.CreateJobParams) (pgtype.UUID, error) {
+			return pgtype.UUID{}, fmt.Errorf("create job failed")
+		}
+		q.UpdateContentStatusFunc = func(_ context.Context, arg store.UpdateContentStatusParams) error {
+			statusArg = arg
+			return nil
+		}
+		prober := &mockMediaDurationProber{seconds: 42}
+		h := NewSavesHandler(q, producer, &mockSearcher{}, storage, 10<<20, "test-secret", prober)
+		router := savesRouter(h)
+
+		req := testutil.MultipartRequest("/saves", "video", "reel.mp4", []byte("fake mp4 bytes"), "video/mp4")
+		req = testutil.AuthenticatedRequest(req, "test-user")
+
+		resp := fire(router, req)
+		testutil.AssertStatus(t, resp, http.StatusInternalServerError)
+		if statusArg.ProcessingStatus != "failed" {
+			t.Fatalf("ProcessingStatus = %q, want failed", statusArg.ProcessingStatus)
+		}
+		if !statusArg.ProcessingError.Valid || !strings.Contains(statusArg.ProcessingError.String, "create job failed") {
+			t.Fatalf("ProcessingError = %#v, want create job failure", statusArg.ProcessingError)
+		}
+		if len(producer.Enqueued) != 0 {
+			t.Fatalf("expected no enqueued jobs, got %d", len(producer.Enqueued))
+		}
+	})
+
+	t.Run("VideoUploadEnqueueFailureMarksContentAndJobFailed", func(t *testing.T) {
+		storage := testutil.NewMockStorage()
+		producer := &testutil.MockProducer{Err: fmt.Errorf("enqueue failed")}
+		var statusArg store.UpdateContentStatusParams
+		var failedJobArg store.FailJobParams
+		q := baseQuerier()
+		q.UpdateContentStatusFunc = func(_ context.Context, arg store.UpdateContentStatusParams) error {
+			statusArg = arg
+			return nil
+		}
+		q.FailJobFunc = func(_ context.Context, arg store.FailJobParams) error {
+			failedJobArg = arg
+			return nil
+		}
+		prober := &mockMediaDurationProber{seconds: 42}
+		h := NewSavesHandler(q, producer, &mockSearcher{}, storage, 10<<20, "test-secret", prober)
+		router := savesRouter(h)
+
+		req := testutil.MultipartRequest("/saves", "video", "reel.mp4", []byte("fake mp4 bytes"), "video/mp4")
+		req = testutil.AuthenticatedRequest(req, "test-user")
+
+		resp := fire(router, req)
+		testutil.AssertStatus(t, resp, http.StatusInternalServerError)
+		if statusArg.ProcessingStatus != "failed" {
+			t.Fatalf("ProcessingStatus = %q, want failed", statusArg.ProcessingStatus)
+		}
+		if !statusArg.ProcessingError.Valid || !strings.Contains(statusArg.ProcessingError.String, "enqueue failed") {
+			t.Fatalf("ProcessingError = %#v, want enqueue failure", statusArg.ProcessingError)
+		}
+		if !failedJobArg.ID.Valid || uuidFromPgtype(failedJobArg.ID) != jobID {
+			t.Fatalf("failed job ID = %v, want %s", failedJobArg.ID, jobID)
+		}
+		if !failedJobArg.LastError.Valid || !strings.Contains(failedJobArg.LastError.String, "enqueue failed") {
+			t.Fatalf("LastError = %#v, want enqueue failure", failedJobArg.LastError)
 		}
 	})
 
@@ -612,14 +783,14 @@ func TestSaves_List(t *testing.T) {
 		if len(items) != 1 {
 			t.Fatalf("expected 1 item, got %d", len(items))
 		}
-		if items[0].SourceMediaURL == nil {
-			t.Fatal("expected source_media_url to be set for item with media_key")
+		if items[0].MediaURL == nil {
+			t.Fatal("expected media_url to be set for item with media_key")
 		}
-		if !strings.Contains(*items[0].SourceMediaURL, "sig=") {
-			t.Errorf("expected signed URL to contain 'sig=', got %q", *items[0].SourceMediaURL)
+		if !strings.Contains(*items[0].MediaURL, "sig=") {
+			t.Errorf("expected signed URL to contain 'sig=', got %q", *items[0].MediaURL)
 		}
-		if !strings.Contains(*items[0].SourceMediaURL, mediaKey) {
-			t.Errorf("expected signed URL to contain media key %q, got %q", mediaKey, *items[0].SourceMediaURL)
+		if !strings.Contains(*items[0].MediaURL, mediaKey) {
+			t.Errorf("expected signed URL to contain media key %q, got %q", mediaKey, *items[0].MediaURL)
 		}
 	})
 }
@@ -1023,7 +1194,7 @@ func TestSaves_Search(t *testing.T) {
 		// Override Search to capture the limit parameter.
 		originalSearch := s
 		captureSearcher := &capturingSearcher{
-			inner:        originalSearch,
+			inner:         originalSearch,
 			capturedLimit: &capturedLimit,
 		}
 		h := newTestHandler(&store.QuerierMock{}, &testutil.MockProducer{}, captureSearcher)
@@ -1112,14 +1283,13 @@ func TestSaves_Create_Audio_DraftEager(t *testing.T) {
 	q := audioQuerier(contentID, jobID, &captured)
 	storage := testutil.NewMockStorage()
 	producer := &testutil.MockProducer{}
-	h := NewSavesHandler(q, producer, &mockSearcher{}, storage, 10<<20, "test-secret")
+	prober := &mockMediaDurationProber{seconds: 30}
+	h := NewSavesHandler(q, producer, &mockSearcher{}, storage, 10<<20, "test-secret", prober)
 	router := savesRouter(h)
 
 	audioData := minimalAudio()
 	req := testutil.MultipartRequestWithFields("/saves", "audio", "note.mp3", audioData, "audio/mpeg", map[string]string{
-		"auto_commit":      "false",
-		"start_processing": "true",
-		"duration_seconds": "30",
+		"auto_commit": "false",
 	})
 	req = testutil.AuthenticatedRequest(req, "test-user")
 
@@ -1132,6 +1302,7 @@ func TestSaves_Create_Audio_DraftEager(t *testing.T) {
 		CommitStatus     string `json:"commit_status"`
 		ProcessingStatus string `json:"processing_status"`
 		MediaURL         string `json:"media_url"`
+		DurationSeconds  int32  `json:"duration_seconds"`
 	}
 	body := testutil.DecodeJSON[audioCreateResp](t, resp)
 
@@ -1146,6 +1317,12 @@ func TestSaves_Create_Audio_DraftEager(t *testing.T) {
 	}
 	if !captured.DurationSeconds.Valid || captured.DurationSeconds.Int32 != 30 {
 		t.Errorf("expected duration_seconds 30, got %+v", captured.DurationSeconds)
+	}
+	if body.DurationSeconds != 30 {
+		t.Errorf("expected response duration_seconds 30, got %d", body.DurationSeconds)
+	}
+	if prober.path == "" {
+		t.Fatal("expected upload to be staged and probed")
 	}
 	if len(storage.Files) != 1 {
 		t.Errorf("expected 1 file in storage, got %d", len(storage.Files))
@@ -1166,13 +1343,11 @@ func TestSaves_Create_Audio_DraftDeferred_Long(t *testing.T) {
 	q := audioQuerier(contentID, jobID, &captured)
 	storage := testutil.NewMockStorage()
 	producer := &testutil.MockProducer{}
-	h := NewSavesHandler(q, producer, &mockSearcher{}, storage, 10<<20, "test-secret")
+	h := NewSavesHandler(q, producer, &mockSearcher{}, storage, 10<<20, "test-secret", &mockMediaDurationProber{seconds: 1800})
 	router := savesRouter(h)
 
 	req := testutil.MultipartRequestWithFields("/saves", "audio", "long.mp3", minimalAudio(), "audio/mpeg", map[string]string{
-		"auto_commit":      "false",
-		"start_processing": "false",
-		"duration_seconds": "1800",
+		"auto_commit": "false",
 	})
 	req = testutil.AuthenticatedRequest(req, "test-user")
 
@@ -1198,6 +1373,43 @@ func TestSaves_Create_Audio_DraftDeferred_Long(t *testing.T) {
 	}
 }
 
+func TestSaves_Create_Audio_CommittedLong_StartsProcessing(t *testing.T) {
+	contentID := uuid.New()
+	jobID := uuid.New()
+
+	var captured store.CreateContentParams
+	q := audioQuerier(contentID, jobID, &captured)
+	storage := testutil.NewMockStorage()
+	producer := &testutil.MockProducer{}
+	h := NewSavesHandler(q, producer, &mockSearcher{}, storage, 10<<20, "test-secret", &mockMediaDurationProber{seconds: 1800})
+	router := savesRouter(h)
+
+	req := testutil.MultipartRequestWithFields("/saves", "audio", "long.mp3", minimalAudio(), "audio/mpeg", map[string]string{
+		"auto_commit": "true",
+	})
+	req = testutil.AuthenticatedRequest(req, "test-user")
+
+	resp := fire(router, req)
+	testutil.AssertStatus(t, resp, http.StatusCreated)
+
+	body := testutil.DecodeJSON[struct {
+		CommitStatus     string `json:"commit_status"`
+		ProcessingStatus string `json:"processing_status"`
+	}](t, resp)
+	if body.CommitStatus != "committed" {
+		t.Errorf("expected commit_status 'committed', got %q", body.CommitStatus)
+	}
+	if body.ProcessingStatus != "pending" {
+		t.Errorf("expected processing_status 'pending', got %q", body.ProcessingStatus)
+	}
+	if len(producer.Enqueued) != 1 {
+		t.Errorf("expected 1 enqueued job, got %d", len(producer.Enqueued))
+	}
+	if !captured.DurationSeconds.Valid || captured.DurationSeconds.Int32 != 1800 {
+		t.Errorf("expected duration_seconds 1800, got %+v", captured.DurationSeconds)
+	}
+}
+
 func TestSaves_Create_Audio_BadMIME(t *testing.T) {
 	h := newTestHandler(&store.QuerierMock{}, &testutil.MockProducer{}, &mockSearcher{})
 	router := savesRouter(h)
@@ -1212,23 +1424,20 @@ func TestSaves_Create_Audio_BadMIME(t *testing.T) {
 }
 
 func TestSaves_Create_Audio_DurationOver90Min(t *testing.T) {
-	h := newTestHandler(&store.QuerierMock{}, &testutil.MockProducer{}, &mockSearcher{})
+	h := NewSavesHandler(&store.QuerierMock{}, &testutil.MockProducer{}, &mockSearcher{}, testutil.NewMockStorage(), 10<<20, "test-secret", &mockMediaDurationProber{seconds: 5401})
 	router := savesRouter(h)
 
-	req := testutil.MultipartRequestWithFields("/saves", "audio", "note.mp3", minimalAudio(), "audio/mpeg", map[string]string{
-		"duration_seconds": "5401",
-	})
+	req := testutil.MultipartRequest("/saves", "audio", "note.mp3", minimalAudio(), "audio/mpeg")
 	req = testutil.AuthenticatedRequest(req, "test-user")
 
 	resp := fire(router, req)
 	testutil.AssertStatus(t, resp, http.StatusBadRequest)
 }
 
-func TestSaves_Create_Audio_MissingDuration(t *testing.T) {
-	h := newTestHandler(&store.QuerierMock{}, &testutil.MockProducer{}, &mockSearcher{})
+func TestSaves_Create_Audio_ProbeFailure(t *testing.T) {
+	h := NewSavesHandler(&store.QuerierMock{}, &testutil.MockProducer{}, &mockSearcher{}, testutil.NewMockStorage(), 10<<20, "test-secret", &mockMediaDurationProber{err: fmt.Errorf("probe failed")})
 	router := savesRouter(h)
 
-	// No duration_seconds field at all.
 	req := testutil.MultipartRequest("/saves", "audio", "note.mp3", minimalAudio(), "audio/mpeg")
 	req = testutil.AuthenticatedRequest(req, "test-user")
 

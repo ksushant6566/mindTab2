@@ -23,12 +23,11 @@ import { colors } from "~/styles/colors";
 type SaveDetail = {
   id: string;
   source_url?: string | null;
-  source_type: "article" | "image" | "youtube" | "audio";
+  source_type: "article" | "image" | "youtube" | "audio" | "instagram_reel";
   source_title?: string | null;
   summary?: string | null;
   tags?: string[] | null;
   key_topics?: string[] | null;
-  source_media_url?: string | null;
   media_url?: string | null;
   media_mime?: string | null;
   media_file_bytes?: number | null;
@@ -61,6 +60,17 @@ function extractDomain(url?: string | null): string {
     return new URL(url).hostname.replace(/^www\./, "");
   } catch {
     return url;
+  }
+}
+
+function transcriptSourceLabel(save: SaveDetail): string | null {
+  switch (save.transcript_source) {
+    case "whisper":
+      return "Whisper transcription";
+    case "captions":
+      return save.source_type === "youtube" ? "YouTube captions" : "Captions";
+    default:
+      return null;
   }
 }
 
@@ -99,6 +109,8 @@ export default function VaultDetailScreen() {
       await Linking.openURL(save.source_url);
     }
   };
+
+  const transcriptLabel = save ? transcriptSourceLabel(save) : null;
 
   return (
     <>
@@ -153,16 +165,16 @@ export default function VaultDetailScreen() {
             showsVerticalScrollIndicator={false}
           >
             {/* ── Image (image saves) ── */}
-            {save.source_type === "image" && save.source_media_url ? (
+            {save.source_type === "image" && save.media_url ? (
               <Image
-                source={{ uri: `${API_URL}${save.source_media_url}` }}
+                source={{ uri: `${API_URL}${save.media_url}` }}
                 style={styles.coverImage}
                 resizeMode="contain"
               />
             ) : null}
 
-            {/* ── YouTube cover ── */}
-            {save.source_type === "youtube" ? (
+            {/* ── Video cover ── */}
+            {save.source_type === "youtube" || save.source_type === "instagram_reel" ? (
               <View style={styles.ytCoverWrapper}>
                 {save.video_thumbnail_url ? (
                   <Image
@@ -200,7 +212,7 @@ export default function VaultDetailScreen() {
             ) : null}
 
             {/* ── Channel (YouTube) ── */}
-            {save.source_type === "youtube" && save.video_channel ? (
+            {(save.source_type === "youtube" || save.source_type === "instagram_reel") && save.video_channel ? (
               <Text style={styles.channelName}>{save.video_channel}</Text>
             ) : null}
 
@@ -238,14 +250,18 @@ export default function VaultDetailScreen() {
               </View>
             ) : null}
 
-            {/* ── Open Original / Watch on YouTube button ── */}
-            {(save.source_type === "article" || save.source_type === "youtube") && save.source_url ? (
+            {/* ── Open Original button ── */}
+            {(save.source_type === "article" || save.source_type === "youtube" || save.source_type === "instagram_reel") && save.source_url ? (
               <Pressable
                 style={styles.openBtn}
                 onPress={() => Linking.openURL(save.source_url!)}
               >
                 <Text style={styles.openBtnText}>
-                  {save.source_type === "youtube" ? "Watch on YouTube ↗" : "Open Original Article ↗"}
+                  {save.source_type === "youtube"
+                    ? "Watch on YouTube ↗"
+                    : save.source_type === "instagram_reel"
+                      ? "Open on Instagram ↗"
+                      : "Open Original Article ↗"}
                 </Text>
               </Pressable>
             ) : null}
@@ -266,13 +282,10 @@ export default function VaultDetailScreen() {
               </View>
             ) : null}
 
-            {/* ── Transcript source footer (YouTube) ── */}
-            {save.source_type === "youtube" ? (
+            {/* ── Transcript source footer (videos) ── */}
+            {transcriptLabel ? (
               <Text style={styles.transcriptFooter}>
-                Transcript:{" "}
-                {save.transcript_source === "whisper"
-                  ? "Whisper transcription"
-                  : "YouTube captions"}
+                Transcript: {transcriptLabel}
               </Text>
             ) : null}
           </ScrollView>
