@@ -464,6 +464,29 @@ func readUploadWithLimit(r io.Reader, limit int64) (data []byte, tooLarge bool, 
 	return buf, false, nil
 }
 
+func stageUploadToTemp(buf []byte, ext string) (path string, cleanup func(), err error) {
+	tmp, err := os.CreateTemp("", "mindtab-upload-*"+ext)
+	if err != nil {
+		return "", nil, err
+	}
+	tmpPath := tmp.Name()
+	cleanup = func() {
+		_ = os.Remove(tmpPath)
+	}
+
+	if _, err := tmp.Write(buf); err != nil {
+		_ = tmp.Close()
+		cleanup()
+		return "", nil, err
+	}
+	if err := tmp.Close(); err != nil {
+		cleanup()
+		return "", nil, err
+	}
+
+	return tmpPath, cleanup, nil
+}
+
 // writeImageRecord stores the image bytes to permanent storage, creates the DB record, and enqueues.
 func (h *SavesHandler) writeImageRecord(
 	w http.ResponseWriter, r *http.Request,
@@ -556,22 +579,12 @@ func (h *SavesHandler) createAudio(w http.ResponseWriter, r *http.Request, userI
 		return
 	}
 
-	tmp, err := os.CreateTemp("", "mindtab-audio-*"+ext)
+	tmpPath, cleanup, err := stageUploadToTemp(buf, ext)
 	if err != nil {
 		WriteError(w, http.StatusInternalServerError, "stage upload")
 		return
 	}
-	tmpPath := tmp.Name()
-	defer os.Remove(tmpPath)
-	if _, err := tmp.Write(buf); err != nil {
-		_ = tmp.Close()
-		WriteError(w, http.StatusInternalServerError, "stage upload")
-		return
-	}
-	if err := tmp.Close(); err != nil {
-		WriteError(w, http.StatusInternalServerError, "stage upload")
-		return
-	}
+	defer cleanup()
 
 	durSec, err := h.mediaDurationProber.ProbeDuration(r.Context(), tmpPath)
 	if err != nil {
@@ -675,22 +688,12 @@ func (h *SavesHandler) createVideo(w http.ResponseWriter, r *http.Request, userI
 		return
 	}
 
-	tmp, err := os.CreateTemp("", "mindtab-video-*"+ext)
+	tmpPath, cleanup, err := stageUploadToTemp(buf, ext)
 	if err != nil {
 		WriteError(w, http.StatusInternalServerError, "stage upload")
 		return
 	}
-	tmpPath := tmp.Name()
-	defer os.Remove(tmpPath)
-	if _, err := tmp.Write(buf); err != nil {
-		_ = tmp.Close()
-		WriteError(w, http.StatusInternalServerError, "stage upload")
-		return
-	}
-	if err := tmp.Close(); err != nil {
-		WriteError(w, http.StatusInternalServerError, "stage upload")
-		return
-	}
+	defer cleanup()
 
 	durSec, err := h.mediaDurationProber.ProbeDuration(r.Context(), tmpPath)
 	if err != nil {
