@@ -222,12 +222,17 @@ struct APIClient {
 
             try appendField("auto_commit", "true")
             try appendField("source", "share_extension")
-            if let sourceURL = sourceURL, !sourceURL.isEmpty {
+            if let sourceURL = sourceURL,
+               !sourceURL.isEmpty,
+               let parsedSourceURL = URL(string: sourceURL),
+               let scheme = parsedSourceURL.scheme?.lowercased(),
+               scheme == "http" || scheme == "https" {
                 try appendField("source_url", sourceURL)
             }
 
+            let escapedFilename = escapeMultipartFilename(filename)
             try write("--\(boundary)\r\n")
-            try write("Content-Disposition: form-data; name=\"video\"; filename=\"\(filename)\"\r\n")
+            try write("Content-Disposition: form-data; name=\"video\"; filename=\"\(escapedFilename)\"\r\n")
             try write("Content-Type: \(mimeType)\r\n\r\n")
 
             let input = try FileHandle(forReadingFrom: fileURL)
@@ -273,5 +278,13 @@ struct APIClient {
         request.setValue("mobile", forHTTPHeaderField: "X-Platform")
 
         return try await URLSession.shared.upload(for: request, fromFile: fileURL)
+    }
+
+    private static func escapeMultipartFilename(_ filename: String) -> String {
+        filename
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+            .replacingOccurrences(of: "\r", with: "_")
+            .replacingOccurrences(of: "\n", with: "_")
     }
 }
