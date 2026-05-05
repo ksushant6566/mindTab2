@@ -47,7 +47,7 @@ func TestIsInstagramReelURL(t *testing.T) {
 		"reels":             {url: "https://www.instagram.com/reels/C123abc/", want: true},
 		"reel no slash":     {url: "https://instagram.com/reel/C123abc", want: true},
 		"reel with query":   {url: "https://www.instagram.com/reel/C123abc/?igsh=abc", want: true},
-		"mobile post":       {url: "https://m.instagram.com/p/C123abc/", want: true},
+		"mobile post":       {url: "https://m.instagram.com/p/C123abc/", want: false},
 		"tv":                {url: "https://www.instagram.com/tv/C123abc/", want: true},
 		"profile":           {url: "https://www.instagram.com/mindtab/", want: false},
 		"stories":           {url: "https://www.instagram.com/stories/mindtab/123", want: false},

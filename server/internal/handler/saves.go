@@ -1190,9 +1190,9 @@ func isYouTubeURL(rawURL string) bool {
 	return false
 }
 
-// isInstagramReelURL reports whether rawURL points to an Instagram Reel/Post
+// isInstagramReelURL reports whether rawURL points to an Instagram Reel/TV
 // URL that may contain video media. It intentionally ignores profile, explore,
-// story, and root URLs so they keep the article fallback behavior.
+// post, story, and root URLs so they keep the article fallback behavior.
 func isInstagramReelURL(rawURL string) bool {
 	u, err := url.Parse(rawURL)
 	if err != nil {
@@ -1208,7 +1208,7 @@ func isInstagramReelURL(rawURL string) bool {
 		return false
 	}
 	switch parts[0] {
-	case "reel", "reels", "p", "tv":
+	case "reel", "reels", "tv":
 		return true
 	default:
 		return false
