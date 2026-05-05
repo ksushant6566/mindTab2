@@ -129,7 +129,7 @@ func (f *FFmpeg) ExtractUniformFrames(ctx context.Context, videoPath, outputDir 
 
 	outputPattern := filepath.Join(outputDir, "frame_%05d.jpg")
 	duration := math.Max(1, float64(durationSec))
-	fps := math.Max(1.0/duration, float64(frameCount)/duration)
+	fps := float64(frameCount) / duration
 	vfFilter := fmt.Sprintf("fps=%f,scale=-1:360", fps)
 
 	args := []string{
