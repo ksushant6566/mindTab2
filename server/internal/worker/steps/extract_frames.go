@@ -44,6 +44,7 @@ func ExtractFrames(
 	return &worker.StepResult{Data: data}, nil
 }
 
+// ExtractUniformFrames extracts a fixed number of frames evenly across a video's timeline.
 func ExtractUniformFrames(
 	ctx context.Context,
 	ffmpeg *services.FFmpeg,
