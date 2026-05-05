@@ -25,7 +25,7 @@ export default function RecordScreen() {
             processingStatus: result.processing_status,
             durationSeconds: String(result.duration_seconds ?? durationSeconds),
           },
-        } as any);
+        });
       } catch (err) {
         console.warn("audio upload failed", err);
         router.back();
