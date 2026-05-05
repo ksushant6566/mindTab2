@@ -6,6 +6,7 @@ enum APIError: Error {
     case noNetwork
     case serverError(Int, String?)
     case encodingError
+    case missingID
 }
 
 struct APIClient {
@@ -41,11 +42,7 @@ struct APIClient {
         }
 
         if httpResponse.statusCode == 201 {
-            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-               let id = json["id"] as? String {
-                return id
-            }
-            return ""
+            return try parseCreatedID(from: data)
         }
 
         let errorMessage = (try? JSONSerialization.jsonObject(with: data) as? [String: String])?["error"]
@@ -78,11 +75,7 @@ struct APIClient {
         }
 
         if httpResponse.statusCode == 201 {
-            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-               let id = json["id"] as? String {
-                return id
-            }
-            return ""
+            return try parseCreatedID(from: data)
         }
 
         let errorMessage = (try? JSONSerialization.jsonObject(with: data) as? [String: String])?["error"]
@@ -127,11 +120,7 @@ struct APIClient {
         }
 
         if httpResponse.statusCode == 201 {
-            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-               let id = json["id"] as? String {
-                return id
-            }
-            return ""
+            return try parseCreatedID(from: data)
         }
 
         let errorMessage = (try? JSONSerialization.jsonObject(with: data) as? [String: String])?["error"]
@@ -179,11 +168,7 @@ struct APIClient {
         }
 
         if httpResponse.statusCode == 201 {
-            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-               let id = json["id"] as? String {
-                return id
-            }
-            return ""
+            return try parseCreatedID(from: data)
         }
 
         let errorMessage = (try? JSONSerialization.jsonObject(with: data) as? [String: String])?["error"]
@@ -214,6 +199,15 @@ struct APIClient {
     }
 
     // MARK: - Private
+
+    private static func parseCreatedID(from data: Data) throws -> String {
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let id = json["id"] as? String,
+              !id.isEmpty else {
+            throw APIError.missingID
+        }
+        return id
+    }
 
     private static func makeRequest(path: String, method: String, contentType: String, body: Data, token: String) async throws -> (Data, URLResponse) {
         guard let url = URL(string: "\(baseURL)\(path)") else {

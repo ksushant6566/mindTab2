@@ -223,6 +223,8 @@ struct ShareView: View {
                             errorMessage = msg ?? "Failed to save. Please try again."
                         case .encodingError:
                             errorMessage = "Failed to process content."
+                        case .missingID:
+                            errorMessage = "Save response was missing an ID. Please try again."
                         }
                     } else if (error as NSError).code == NSURLErrorNotConnectedToInternet {
                         errorMessage = "No internet connection. Please try again."
