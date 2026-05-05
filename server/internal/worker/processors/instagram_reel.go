@@ -81,54 +81,66 @@ func (p *InstagramReelProcessor) Execute(ctx context.Context, step string, job *
 }
 
 func (p *InstagramReelProcessor) metadata(ctx context.Context, job *worker.Job) (*worker.StepResult, error) {
+	row, hasUploadedVideo, err := p.uploadedVideoRow(ctx, job)
+	if err != nil {
+		return nil, fmt.Errorf("instagram metadata: load video row: %w", err)
+	}
+	if hasUploadedVideo {
+		if !row.DurationSeconds.Valid {
+			return nil, fmt.Errorf("instagram metadata: uploaded video has no duration_seconds")
+		}
+		result := steps.MetadataResult{
+			VideoID:  job.ContentID.String(),
+			Duration: int(row.DurationSeconds.Int32),
+			Status:   steps.EvidenceStatus{Source: "metadata", Status: steps.EvidenceStatusSuccess},
+		}
+		if row.SourceTitle.Valid {
+			result.Title = row.SourceTitle.String
+		}
+		data, _ := json.Marshal(result)
+		return &worker.StepResult{Data: data}, nil
+	}
+
 	if job.SourceURL != "" {
 		return metadataForVideoURL(ctx, p.ytdlp, job.SourceURL, p.cfg.YoutubeMaxDuration)
 	}
 
-	row, err := p.queries.GetContentByID(ctx, store.GetContentByIDParams{
-		ID:     pgtype.UUID{Bytes: job.ContentID, Valid: true},
-		UserID: job.UserID,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("instagram metadata: load uploaded video row: %w", err)
-	}
-	if !row.DurationSeconds.Valid {
-		return nil, fmt.Errorf("instagram metadata: uploaded video has no duration_seconds")
-	}
-	result := steps.MetadataResult{
-		VideoID:  job.ContentID.String(),
-		Duration: int(row.DurationSeconds.Int32),
-		Status:   steps.EvidenceStatus{Source: "metadata", Status: steps.EvidenceStatusSuccess},
-	}
-	if row.SourceTitle.Valid {
-		result.Title = row.SourceTitle.String
-	}
-	data, _ := json.Marshal(result)
-	return &worker.StepResult{Data: data}, nil
+	return nil, fmt.Errorf("instagram metadata: uploaded video has no media_key")
 }
 
 func (p *InstagramReelProcessor) download(ctx context.Context, job *worker.Job) (*worker.StepResult, error) {
+	row, hasUploadedVideo, err := p.uploadedVideoRow(ctx, job)
+	if err != nil {
+		return nil, fmt.Errorf("instagram download: load video row: %w", err)
+	}
+	if hasUploadedVideo {
+		videoPath, err := stageMediaKeyToTemp(ctx, p.storage, row.MediaKey.String, p.cfg.YoutubeTempPath, job.ID, "uploaded")
+		if err != nil {
+			return nil, fmt.Errorf("instagram download: %w", err)
+		}
+
+		result := steps.DownloadResult{VideoFilePath: videoPath}
+		data, _ := json.Marshal(result)
+		return &worker.StepResult{Data: data}, nil
+	}
+
 	if job.SourceURL != "" {
 		return steps.Download(ctx, p.ytdlp, job.SourceURL, p.cfg.YoutubeTempPath, job.ID, p.cfg.YoutubeVideoQuality)
 	}
 
+	return nil, fmt.Errorf("instagram download: uploaded video has no media_key")
+}
+
+func (p *InstagramReelProcessor) uploadedVideoRow(ctx context.Context, job *worker.Job) (store.GetContentByIDRow, bool, error) {
+	if p.queries == nil {
+		return store.GetContentByIDRow{}, false, nil
+	}
 	row, err := p.queries.GetContentByID(ctx, store.GetContentByIDParams{
 		ID:     pgtype.UUID{Bytes: job.ContentID, Valid: true},
 		UserID: job.UserID,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("instagram download: load uploaded video row: %w", err)
+		return store.GetContentByIDRow{}, false, err
 	}
-	if !row.MediaKey.Valid || row.MediaKey.String == "" {
-		return nil, fmt.Errorf("instagram download: uploaded video has no media_key")
-	}
-
-	videoPath, err := stageMediaKeyToTemp(ctx, p.storage, row.MediaKey.String, p.cfg.YoutubeTempPath, job.ID, "uploaded")
-	if err != nil {
-		return nil, fmt.Errorf("instagram download: %w", err)
-	}
-
-	result := steps.DownloadResult{VideoFilePath: videoPath}
-	data, _ := json.Marshal(result)
-	return &worker.StepResult{Data: data}, nil
+	return row, row.MediaKey.Valid && row.MediaKey.String != "", nil
 }

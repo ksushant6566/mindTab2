@@ -98,7 +98,7 @@ func TestInstagramReel_UsesUniversalFramePolicy(t *testing.T) {
 }
 
 func TestInstagramReel_UploadedVideoMetadataAndDownload(t *testing.T) {
-	job := makeInstagramJob("")
+	job := makeInstagramJob("https://www.instagram.com/reel/private-or-ephemeral/")
 	mediaKey := filepath.Join(job.UserID, job.ContentID.String(), "video.mp4")
 	storage := testutil.NewMockStorage()
 	if err := storage.Save(context.Background(), mediaKey, strings.NewReader("video-bytes"), "video/mp4"); err != nil {
