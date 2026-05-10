@@ -39,6 +39,7 @@ Add these in GitHub: `Settings -> Secrets and variables -> Actions -> Secrets`.
 - `JINA_API_KEY`
 - `GROQ_API_KEY`
 - `X_BEARER_TOKEN`
+- `LETSENCRYPT_EMAIL`
 
 If GHCR packages are private, also add:
 
@@ -75,10 +76,12 @@ Make sure the SSH user can run `sudo docker`, `sudo nginx`, and `sudo systemctl 
 
 Disable any old nginx site that already claims `mindtab.in`, `app.mindtab.in`, or `api.mindtab.in`; duplicate `server_name` blocks can make nginx keep routing traffic to the old app.
 
-After the first successful deploy, issue/refresh TLS certificates:
+The workflow requests the first TLS certificate automatically when `LETSENCRYPT_EMAIL` is set and `certbot` is installed. It uses a stable certificate name, `mindtab.in`, then rewrites nginx into permanent HTTPS mode.
+
+If you want to issue the certificate manually instead, use the same certificate name:
 
 ```sh
-sudo certbot --nginx -d api.mindtab.in -d app.mindtab.in -d mindtab.in -d www.mindtab.in
+sudo certbot --nginx --cert-name mindtab.in -d mindtab.in -d www.mindtab.in -d app.mindtab.in -d api.mindtab.in
 ```
 
 ## Manual Rollback
