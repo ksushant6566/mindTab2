@@ -112,6 +112,7 @@ type Querier interface {
 	UpdateContentEmbedding(ctx context.Context, arg UpdateContentEmbeddingParams) error
 	UpdateContentProcessingStatusToPending(ctx context.Context, id pgtype.UUID) error
 	UpdateContentResults(ctx context.Context, arg UpdateContentResultsParams) error
+	UpdateContentSourceMetadata(ctx context.Context, arg UpdateContentSourceMetadataParams) error
 	UpdateContentStatus(ctx context.Context, arg UpdateContentStatusParams) error
 	UpdateContentTranscriptSource(ctx context.Context, arg UpdateContentTranscriptSourceParams) error
 	UpdateContentVideoFields(ctx context.Context, arg UpdateContentVideoFieldsParams) error

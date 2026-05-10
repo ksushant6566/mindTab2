@@ -2054,7 +2054,7 @@ components:
     # ── Saves ───────────────────────────────────────────────────────────
     SaveSourceType:
       type: string
-      enum: [article, image, youtube, audio, instagram_reel]
+      enum: [article, image, youtube, audio, instagram_reel, x_post, reddit_post]
       description: Type of saved content
 
     SaveProcessingStatus:
@@ -2230,6 +2230,11 @@ components:
               type: string
               nullable: true
               description: AI-generated visual description for image saves
+            source_metadata:
+              type: object
+              nullable: true
+              additionalProperties: true
+              description: Source-specific metadata captured by first-class processors
 
     SaveSearchResult:
       type: object

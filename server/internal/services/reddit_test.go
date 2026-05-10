@@ -17,6 +17,7 @@ func TestRedditJSONPathFromURL(t *testing.T) {
 		"subreddit comments": {rawURL: "https://www.reddit.com/r/webscraping/comments/1t51qlc/how_scrape_data_from_statsmuse/", want: "/r/webscraping/comments/1t51qlc/.json", ok: true},
 		"old reddit":         {rawURL: "https://old.reddit.com/r/webscraping/comments/1t51qlc/", want: "/r/webscraping/comments/1t51qlc/.json", ok: true},
 		"short link":         {rawURL: "https://redd.it/1t51qlc", want: "/comments/1t51qlc/.json", ok: true},
+		"short link slug":    {rawURL: "https://redd.it/1t51qlc/example", want: "/comments/1t51qlc/.json", ok: true},
 		"unsupported host":   {rawURL: "https://example.com/r/webscraping/comments/1t51qlc/", ok: false},
 		"missing post id":    {rawURL: "https://www.reddit.com/r/webscraping/comments/", ok: false},
 	}

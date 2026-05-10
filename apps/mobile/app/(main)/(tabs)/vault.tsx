@@ -8,7 +8,7 @@ import { SaveGrid, type RawSave } from "~/components/vault/save-grid";
 import { SaveFAB } from "~/components/vault/save-fab";
 import { colors } from "~/styles/colors";
 
-type FilterType = "all" | "article" | "image" | "youtube" | "instagram_reel" | "audio";
+type FilterType = "all" | "article" | "image" | "youtube" | "instagram_reel" | "x_post" | "reddit_post" | "audio";
 
 const PAGE_SIZE = 20;
 

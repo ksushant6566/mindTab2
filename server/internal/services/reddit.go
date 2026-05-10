@@ -26,50 +26,50 @@ type RedditClient struct {
 }
 
 type RedditPost struct {
-	ID                   string
-	Name                 string
-	URL                  string
-	Permalink            string
-	Title                string
-	SelfText             string
-	Author               string
-	Subreddit            string
-	SubredditName        string
-	Domain               string
-	LinkFlairText        string
-	PostHint             string
-	Thumbnail            string
-	IsSelf               bool
-	IsVideo              bool
-	Over18               bool
-	Spoiler              bool
-	Locked               bool
-	Score                int
-	UpvoteRatio          float64
-	NumComments          int
-	SubredditSubscribers int
-	CreatedAt            time.Time
-	PreviewImages        []RedditPreviewImage
-	Comments             []RedditComment
+	ID                   string               `json:"id"`
+	Name                 string               `json:"name"`
+	URL                  string               `json:"url"`
+	Permalink            string               `json:"permalink"`
+	Title                string               `json:"title"`
+	SelfText             string               `json:"selftext,omitempty"`
+	Author               string               `json:"author"`
+	Subreddit            string               `json:"subreddit"`
+	SubredditName        string               `json:"subreddit_name"`
+	Domain               string               `json:"domain,omitempty"`
+	LinkFlairText        string               `json:"link_flair_text,omitempty"`
+	PostHint             string               `json:"post_hint,omitempty"`
+	Thumbnail            string               `json:"thumbnail,omitempty"`
+	IsSelf               bool                 `json:"is_self"`
+	IsVideo              bool                 `json:"is_video"`
+	Over18               bool                 `json:"over_18"`
+	Spoiler              bool                 `json:"spoiler"`
+	Locked               bool                 `json:"locked"`
+	Score                int                  `json:"score"`
+	UpvoteRatio          float64              `json:"upvote_ratio"`
+	NumComments          int                  `json:"num_comments"`
+	SubredditSubscribers int                  `json:"subreddit_subscribers"`
+	CreatedAt            time.Time            `json:"created_at,omitempty"`
+	PreviewImages        []RedditPreviewImage `json:"preview_images,omitempty"`
+	Comments             []RedditComment      `json:"comments,omitempty"`
 }
 
 type RedditPreviewImage struct {
-	URL    string
-	Width  int
-	Height int
+	URL    string `json:"url"`
+	Width  int    `json:"width,omitempty"`
+	Height int    `json:"height,omitempty"`
 }
 
 type RedditComment struct {
-	ID          string
-	Name        string
-	ParentID    string
-	Permalink   string
-	Body        string
-	Author      string
-	Score       int
-	Depth       int
-	IsSubmitter bool
-	CreatedAt   time.Time
+	ID          string    `json:"id"`
+	Name        string    `json:"name"`
+	ParentID    string    `json:"parent_id"`
+	Permalink   string    `json:"permalink"`
+	Body        string    `json:"body"`
+	Author      string    `json:"author"`
+	Score       int       `json:"score"`
+	Depth       int       `json:"depth"`
+	IsSubmitter bool      `json:"is_submitter"`
+	CreatedAt   time.Time `json:"created_at,omitempty"`
 }
 
 func NewRedditClient(userAgent string) *RedditClient {
@@ -159,11 +159,11 @@ func RedditJSONPathFromURL(rawURL string) (string, error) {
 	}
 	host := strings.ToLower(u.Hostname())
 	if host == "redd.it" || host == "www.redd.it" {
-		id := strings.Trim(strings.Trim(u.EscapedPath(), "/"), " ")
-		if id == "" {
+		parts := strings.Split(strings.Trim(u.EscapedPath(), "/"), "/")
+		if len(parts) == 0 || parts[0] == "" {
 			return "", fmt.Errorf("reddit: redd.it url missing post id")
 		}
-		return "/comments/" + id + "/.json", nil
+		return "/comments/" + parts[0] + "/.json", nil
 	}
 	if host != "reddit.com" && host != "www.reddit.com" && host != "old.reddit.com" && host != "new.reddit.com" && host != "m.reddit.com" {
 		return "", fmt.Errorf("reddit: unsupported host %q", host)

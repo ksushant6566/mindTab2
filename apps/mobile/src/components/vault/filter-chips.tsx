@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { colors } from "~/styles/colors";
 
-type FilterType = "all" | "article" | "image" | "youtube" | "instagram_reel" | "audio";
+type FilterType = "all" | "article" | "image" | "youtube" | "instagram_reel" | "x_post" | "reddit_post" | "audio";
 
 type FilterChipsProps = {
   activeFilter: FilterType;
@@ -14,6 +14,8 @@ const CHIPS: { key: FilterType; label: string }[] = [
   { key: "image", label: "Images" },
   { key: "youtube", label: "Videos" },
   { key: "instagram_reel", label: "Reels" },
+  { key: "x_post", label: "X" },
+  { key: "reddit_post", label: "Reddit" },
   { key: "audio", label: "Audio" },
 ];
 

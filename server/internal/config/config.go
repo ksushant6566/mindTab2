@@ -24,18 +24,18 @@ type Config struct {
 	ResendAPIKey   string
 
 	// Saves feature
-	RedisURL             string
-	GeminiAPIKey         string
-	OpenAIAPIKey         string
-	JinaAPIKey           string
-	GeminiModel          string
-	OpenAIEmbeddingModel string
-	EmbeddingDimensions  int
-	StorageProvider      string
-	StorageLocalPath     string
-	WorkerConcurrency    int
+	RedisURL              string
+	GeminiAPIKey          string
+	OpenAIAPIKey          string
+	JinaAPIKey            string
+	GeminiModel           string
+	OpenAIEmbeddingModel  string
+	EmbeddingDimensions   int
+	StorageProvider       string
+	StorageLocalPath      string
+	WorkerConcurrency     int
 	WorkerShutdownTimeout time.Duration
-	MaxFileSizeMB        int
+	MaxFileSizeMB         int
 
 	// YouTube (Phase 2)
 	GroqAPIKey          string
@@ -45,6 +45,10 @@ type Config struct {
 	YoutubeMaxDuration  int
 	YoutubeVideoQuality int
 	YoutubeFramesCap    int
+
+	// Social sources
+	XBearerToken    string
+	RedditUserAgent string
 }
 
 func Load() (*Config, error) {
@@ -127,6 +131,10 @@ func Load() (*Config, error) {
 	if cfg.YoutubeFramesCap == 0 {
 		cfg.YoutubeFramesCap = 5
 	}
+
+	// Social sources
+	cfg.XBearerToken = os.Getenv("X_BEARER_TOKEN")
+	cfg.RedditUserAgent = getEnv("REDDIT_USER_AGENT", "web:mindtab.reddit-summary:v0.1.1")
 
 	if cfg.DatabaseURL == "" {
 		return nil, fmt.Errorf("DATABASE_URL is required")

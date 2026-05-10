@@ -5,6 +5,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -235,6 +236,70 @@ func TestSaves_Create(t *testing.T) {
 		}
 		if capturedJobType != "instagram_reel" {
 			t.Errorf("expected job content_type 'instagram_reel', got %q", capturedJobType)
+		}
+	})
+
+	t.Run("XPostURL", func(t *testing.T) {
+		var capturedType string
+		var capturedJobType string
+		q := &store.QuerierMock{
+			CreateContentFunc: func(_ context.Context, arg store.CreateContentParams) (store.CreateContentRow, error) {
+				capturedType = arg.SourceType
+				return testutil.NewCreateContentRow(testutil.WithContentID(contentID)), nil
+			},
+			CreateJobFunc: func(_ context.Context, arg store.CreateJobParams) (pgtype.UUID, error) {
+				capturedJobType = arg.ContentType
+				return testutil.PgUUID(jobID), nil
+			},
+		}
+		h := newTestHandler(q, &testutil.MockProducer{}, &mockSearcher{})
+		router := savesRouter(h)
+
+		req := testutil.JSONRequest(http.MethodPost, "/saves", map[string]string{
+			"url": "https://x.com/mindtab/status/1234567890",
+		})
+		req = testutil.AuthenticatedRequest(req, "test-user")
+
+		resp := fire(router, req)
+		testutil.AssertStatus(t, resp, http.StatusCreated)
+
+		if capturedType != "x_post" {
+			t.Errorf("expected source_type 'x_post', got %q", capturedType)
+		}
+		if capturedJobType != "x_post" {
+			t.Errorf("expected job content_type 'x_post', got %q", capturedJobType)
+		}
+	})
+
+	t.Run("RedditPostURL", func(t *testing.T) {
+		var capturedType string
+		var capturedJobType string
+		q := &store.QuerierMock{
+			CreateContentFunc: func(_ context.Context, arg store.CreateContentParams) (store.CreateContentRow, error) {
+				capturedType = arg.SourceType
+				return testutil.NewCreateContentRow(testutil.WithContentID(contentID)), nil
+			},
+			CreateJobFunc: func(_ context.Context, arg store.CreateJobParams) (pgtype.UUID, error) {
+				capturedJobType = arg.ContentType
+				return testutil.PgUUID(jobID), nil
+			},
+		}
+		h := newTestHandler(q, &testutil.MockProducer{}, &mockSearcher{})
+		router := savesRouter(h)
+
+		req := testutil.JSONRequest(http.MethodPost, "/saves", map[string]string{
+			"url": "https://www.reddit.com/r/mindtab/comments/1abc123/how_should_social_saves_work/",
+		})
+		req = testutil.AuthenticatedRequest(req, "test-user")
+
+		resp := fire(router, req)
+		testutil.AssertStatus(t, resp, http.StatusCreated)
+
+		if capturedType != "reddit_post" {
+			t.Errorf("expected source_type 'reddit_post', got %q", capturedType)
+		}
+		if capturedJobType != "reddit_post" {
+			t.Errorf("expected job content_type 'reddit_post', got %q", capturedJobType)
 		}
 	})
 
@@ -807,6 +872,7 @@ func TestSaves_Get(t *testing.T) {
 				row := testutil.NewGetContentRow(testutil.WithGetSourceURL("https://example.com"))
 				row.ID = testutil.PgUUID(targetID)
 				row.UserID = "test-user"
+				row.SourceMetadata = []byte(`{"fetcher":"reddit_json_endpoint","post":{"id":"abc"}}`)
 				return row, nil
 			},
 		}
@@ -825,6 +891,13 @@ func TestSaves_Get(t *testing.T) {
 		}
 		if body.UserID != "test-user" {
 			t.Errorf("expected user_id 'test-user', got %q", body.UserID)
+		}
+		var metadata map[string]any
+		if err := json.Unmarshal(body.SourceMetadata, &metadata); err != nil {
+			t.Fatalf("source_metadata is not JSON object: %v", err)
+		}
+		if metadata["fetcher"] != "reddit_json_endpoint" {
+			t.Errorf("source_metadata.fetcher = %v, want reddit_json_endpoint", metadata["fetcher"])
 		}
 	})
 

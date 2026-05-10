@@ -21,47 +21,47 @@ type XClient struct {
 }
 
 type XPost struct {
-	ID               string
-	URL              string
-	Text             string
-	AuthorID         string
-	AuthorName       string
-	AuthorUsername   string
-	ConversationID   string
-	Lang             string
-	CreatedAt        time.Time
-	PublicMetrics    XPostMetrics
-	Media            []XMedia
-	ReferencedTweets []XReferencedTweet
+	ID               string             `json:"id"`
+	URL              string             `json:"url"`
+	Text             string             `json:"text"`
+	AuthorID         string             `json:"author_id"`
+	AuthorName       string             `json:"author_name"`
+	AuthorUsername   string             `json:"author_username"`
+	ConversationID   string             `json:"conversation_id"`
+	Lang             string             `json:"lang"`
+	CreatedAt        time.Time          `json:"created_at,omitempty"`
+	PublicMetrics    XPostMetrics       `json:"public_metrics"`
+	Media            []XMedia           `json:"media,omitempty"`
+	ReferencedTweets []XReferencedTweet `json:"referenced_tweets,omitempty"`
 }
 
 type XPostMetrics struct {
-	RetweetCount    int
-	ReplyCount      int
-	LikeCount       int
-	QuoteCount      int
-	BookmarkCount   int
-	ImpressionCount int
+	RetweetCount    int `json:"retweet_count"`
+	ReplyCount      int `json:"reply_count"`
+	LikeCount       int `json:"like_count"`
+	QuoteCount      int `json:"quote_count"`
+	BookmarkCount   int `json:"bookmark_count"`
+	ImpressionCount int `json:"impression_count"`
 }
 
 type XMedia struct {
-	MediaKey        string
-	Type            string
-	URL             string
-	PreviewImageURL string
-	AltText         string
-	Width           int
-	Height          int
-	DurationMS      int
+	MediaKey        string `json:"media_key"`
+	Type            string `json:"type"`
+	URL             string `json:"url,omitempty"`
+	PreviewImageURL string `json:"preview_image_url,omitempty"`
+	AltText         string `json:"alt_text,omitempty"`
+	Width           int    `json:"width,omitempty"`
+	Height          int    `json:"height,omitempty"`
+	DurationMS      int    `json:"duration_ms,omitempty"`
 }
 
 type XReferencedTweet struct {
-	Type           string
-	ID             string
-	Text           string
-	AuthorID       string
-	AuthorName     string
-	AuthorUsername string
+	Type           string `json:"type"`
+	ID             string `json:"id"`
+	Text           string `json:"text,omitempty"`
+	AuthorID       string `json:"author_id,omitempty"`
+	AuthorName     string `json:"author_name,omitempty"`
+	AuthorUsername string `json:"author_username,omitempty"`
 }
 
 func NewXClient(bearerToken string) *XClient {

@@ -120,6 +120,18 @@ func main() {
 		dispatcher = worker.NewDispatcher(consumer, retryScheduler, queries, slog.Default(), cfg.WorkerConcurrency)
 		dispatcher.Register(processors.NewArticleProcessor(jina, registry.LLM, registry.Embedding, queries, pool))
 		dispatcher.Register(processors.NewImageProcessor(storage, registry.LLM, registry.Embedding, queries, pool))
+		dispatcher.Register(processors.NewXPostProcessor(
+			services.NewXClient(cfg.XBearerToken),
+			registry.LLM, registry.Embedding,
+			queries, pool,
+		))
+		logger.Info("x post processor registered")
+		dispatcher.Register(processors.NewRedditPostProcessor(
+			services.NewRedditClient(cfg.RedditUserAgent),
+			registry.LLM, registry.Embedding,
+			queries, pool,
+		))
+		logger.Info("reddit post processor registered")
 
 		if cfg.GroqAPIKey != "" {
 			transcriptionChain := providers.NewChain[transcription.TranscriptionProvider](logger)

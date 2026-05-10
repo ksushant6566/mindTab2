@@ -614,6 +614,9 @@ type QuerierMock struct {
 	// UpdateContentResultsFunc mocks the UpdateContentResults method.
 	UpdateContentResultsFunc func(ctx context.Context, arg UpdateContentResultsParams) error
 
+	// UpdateContentSourceMetadataFunc mocks the UpdateContentSourceMetadata method.
+	UpdateContentSourceMetadataFunc func(ctx context.Context, arg UpdateContentSourceMetadataParams) error
+
 	// UpdateContentStatusFunc mocks the UpdateContentStatus method.
 	UpdateContentStatusFunc func(ctx context.Context, arg UpdateContentStatusParams) error
 
@@ -1291,6 +1294,13 @@ type QuerierMock struct {
 			// Arg is the arg argument value.
 			Arg UpdateContentResultsParams
 		}
+		// UpdateContentSourceMetadata holds details about calls to the UpdateContentSourceMetadata method.
+		UpdateContentSourceMetadata []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Arg is the arg argument value.
+			Arg UpdateContentSourceMetadataParams
+		}
 		// UpdateContentStatus holds details about calls to the UpdateContentStatus method.
 		UpdateContentStatus []struct {
 			// Ctx is the ctx argument value.
@@ -1481,6 +1491,7 @@ type QuerierMock struct {
 	lockUpdateContentEmbedding                 sync.RWMutex
 	lockUpdateContentProcessingStatusToPending sync.RWMutex
 	lockUpdateContentResults                   sync.RWMutex
+	lockUpdateContentSourceMetadata            sync.RWMutex
 	lockUpdateContentStatus                    sync.RWMutex
 	lockUpdateContentTranscriptSource          sync.RWMutex
 	lockUpdateContentVideoFields               sync.RWMutex
@@ -4762,6 +4773,42 @@ func (mock *QuerierMock) UpdateContentResultsCalls() []struct {
 	mock.lockUpdateContentResults.RLock()
 	calls = mock.calls.UpdateContentResults
 	mock.lockUpdateContentResults.RUnlock()
+	return calls
+}
+
+// UpdateContentSourceMetadata calls UpdateContentSourceMetadataFunc.
+func (mock *QuerierMock) UpdateContentSourceMetadata(ctx context.Context, arg UpdateContentSourceMetadataParams) error {
+	if mock.UpdateContentSourceMetadataFunc == nil {
+		panic("QuerierMock.UpdateContentSourceMetadataFunc: method is nil but Querier.UpdateContentSourceMetadata was just called")
+	}
+	callInfo := struct {
+		Ctx context.Context
+		Arg UpdateContentSourceMetadataParams
+	}{
+		Ctx: ctx,
+		Arg: arg,
+	}
+	mock.lockUpdateContentSourceMetadata.Lock()
+	mock.calls.UpdateContentSourceMetadata = append(mock.calls.UpdateContentSourceMetadata, callInfo)
+	mock.lockUpdateContentSourceMetadata.Unlock()
+	return mock.UpdateContentSourceMetadataFunc(ctx, arg)
+}
+
+// UpdateContentSourceMetadataCalls gets all the calls that were made to UpdateContentSourceMetadata.
+// Check the length with:
+//
+//	len(mockedQuerier.UpdateContentSourceMetadataCalls())
+func (mock *QuerierMock) UpdateContentSourceMetadataCalls() []struct {
+	Ctx context.Context
+	Arg UpdateContentSourceMetadataParams
+} {
+	var calls []struct {
+		Ctx context.Context
+		Arg UpdateContentSourceMetadataParams
+	}
+	mock.lockUpdateContentSourceMetadata.RLock()
+	calls = mock.calls.UpdateContentSourceMetadata
+	mock.lockUpdateContentSourceMetadata.RUnlock()
 	return calls
 }
 

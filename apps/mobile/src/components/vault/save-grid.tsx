@@ -8,7 +8,7 @@ import { colors } from "~/styles/colors";
 
 export type RawSave = {
   id: string;
-  source_type: "article" | "image" | "youtube" | "audio" | "instagram_reel";
+  source_type: "article" | "image" | "youtube" | "audio" | "instagram_reel" | "x_post" | "reddit_post";
   source_title?: string | null;
   source_url?: string | null;
   source_thumbnail_url?: string | null;

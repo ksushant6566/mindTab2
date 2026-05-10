@@ -22,7 +22,7 @@ const getDomain = (url: string) => {
 
 export type SaveCardProps = {
   id: string;
-  sourceType: "article" | "image" | "youtube" | "audio" | "instagram_reel";
+  sourceType: "article" | "image" | "youtube" | "audio" | "instagram_reel" | "x_post" | "reddit_post";
   sourceTitle?: string | null;
   sourceUrl?: string | null;
   sourceThumbnailUrl?: string | null;
