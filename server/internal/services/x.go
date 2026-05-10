@@ -10,6 +10,8 @@ import (
 	"path"
 	"strings"
 	"time"
+
+	"github.com/ksushant6566/mindtab/server/internal/providers"
 )
 
 const defaultXAPIBaseURL = "https://api.x.com/2"
@@ -111,16 +113,16 @@ func (x *XClient) FetchPost(ctx context.Context, rawURL string) (*XPost, error) 
 
 	resp, err := x.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("x: request: %w", err)
+		return nil, providers.NewRetriableError("x", fmt.Errorf("x: request: %w", err))
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 10<<20))
 	if err != nil {
-		return nil, fmt.Errorf("x: read response: %w", err)
+		return nil, providers.NewRetriableError("x", fmt.Errorf("x: read response: %w", err))
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("x: status %d: %s", resp.StatusCode, string(body))
+		return nil, officialHTTPStatusError("x", "x", resp.StatusCode, body)
 	}
 
 	var payload xTweetLookupResponse
@@ -132,6 +134,14 @@ func (x *XClient) FetchPost(ctx context.Context, rawURL string) (*XPost, error) 
 	}
 
 	return x.normalizePost(rawURL, payload), nil
+}
+
+func officialHTTPStatusError(provider, prefix string, statusCode int, body []byte) error {
+	err := fmt.Errorf("%s: status %d: %s", prefix, statusCode, string(body))
+	if statusCode == http.StatusTooManyRequests || statusCode >= http.StatusInternalServerError {
+		return providers.NewRetriableError(provider, err)
+	}
+	return providers.NewPermanentError(provider, err)
 }
 
 func XPostIDFromURL(rawURL string) (string, error) {

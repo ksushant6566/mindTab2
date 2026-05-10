@@ -170,3 +170,43 @@ func TestRedditClientFetchPost(t *testing.T) {
 		t.Fatalf("nested comment = %#v, want parsed nested submitter reply", got.Comments[1])
 	}
 }
+
+func TestRedditClientFetchPostClassifiesHTTPStatusErrors(t *testing.T) {
+	tests := map[string]struct {
+		status    int
+		retriable bool
+	}{
+		"bad request is permanent":  {status: http.StatusBadRequest, retriable: false},
+		"unauthorized is permanent": {status: http.StatusUnauthorized, retriable: false},
+		"forbidden is permanent":    {status: http.StatusForbidden, retriable: false},
+		"not found is permanent":    {status: http.StatusNotFound, retriable: false},
+		"rate limit is retriable":   {status: http.StatusTooManyRequests, retriable: true},
+		"server error is retriable": {status: http.StatusInternalServerError, retriable: true},
+		"bad gateway is retriable":  {status: http.StatusBadGateway, retriable: true},
+		"unavailable is retriable":  {status: http.StatusServiceUnavailable, retriable: true},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(tc.status)
+				_, _ = w.Write([]byte(`{"error":"upstream"}`))
+			}))
+			defer server.Close()
+
+			client := NewRedditClient("")
+			client.SetBaseURL(server.URL)
+
+			_, err := client.FetchPost(context.Background(), "https://www.reddit.com/r/webscraping/comments/1t51qlc/example/")
+			assertProviderError(t, err, "reddit", tc.retriable)
+		})
+	}
+}
+
+func TestRedditClientFetchPostClassifiesRequestErrorsRetriable(t *testing.T) {
+	client := NewRedditClient("")
+	client.SetHTTPClient(&http.Client{Transport: failingRoundTripper{err: temporaryRequestError{}}})
+
+	_, err := client.FetchPost(context.Background(), "https://www.reddit.com/r/webscraping/comments/1t51qlc/example/")
+	assertProviderError(t, err, "reddit", true)
+}

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -148,8 +149,34 @@ func Load() (*Config, error) {
 	if cfg.ResendAPIKey == "" {
 		return nil, fmt.Errorf("RESEND_API_KEY is required")
 	}
+	if cfg.RedisURL != "" {
+		missing := missingRequiredSavesEnv(cfg)
+		if len(missing) > 0 {
+			return nil, fmt.Errorf("saves worker is enabled by REDIS_URL but missing required env: %s", strings.Join(missing, ", "))
+		}
+	}
 
 	return cfg, nil
+}
+
+func missingRequiredSavesEnv(cfg *Config) []string {
+	var missing []string
+	if cfg.GeminiAPIKey == "" {
+		missing = append(missing, "GEMINI_API_KEY")
+	}
+	if cfg.OpenAIAPIKey == "" {
+		missing = append(missing, "OPENAI_API_KEY")
+	}
+	if cfg.JinaAPIKey == "" {
+		missing = append(missing, "JINA_API_KEY")
+	}
+	if cfg.GroqAPIKey == "" {
+		missing = append(missing, "GROQ_API_KEY")
+	}
+	if cfg.XBearerToken == "" {
+		missing = append(missing, "X_BEARER_TOKEN")
+	}
+	return missing
 }
 
 func getEnv(key, fallback string) string {

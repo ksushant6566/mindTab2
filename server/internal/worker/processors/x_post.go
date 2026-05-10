@@ -217,6 +217,8 @@ func formatXPostForSummary(post services.XPost) string {
 		}
 	}
 	if len(post.Media) > 0 {
+		// Social v0 is text-only: include media alt text, but defer image/video
+		// understanding to a future source-specific media pipeline.
 		writeLine(&b, "\nMedia:")
 		for _, media := range post.Media {
 			if media.AltText != "" {

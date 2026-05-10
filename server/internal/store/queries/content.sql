@@ -58,7 +58,7 @@ SELECT id, user_id, source_url, source_type, source_title, source_thumbnail_url,
        summary, tags, key_topics, media_key,
        processing_status, processing_error,
        duration_seconds, video_thumbnail_url, video_channel,
-       created_at, updated_at
+       commit_status, created_at, updated_at
 FROM mindmap_content
 WHERE user_id = $1 AND deleted_at IS NULL
   AND commit_status = 'committed'

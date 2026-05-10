@@ -117,7 +117,14 @@ func main() {
 		savesHandler = handler.NewSavesHandler(queries, producer, semanticSearch, storage, int64(cfg.MaxFileSizeMB)*1024*1024, cfg.JWTSecret, ffmpeg)
 
 		// Worker dispatcher
-		dispatcher = worker.NewDispatcher(consumer, retryScheduler, queries, slog.Default(), cfg.WorkerConcurrency)
+		dispatcher = worker.NewDispatcher(
+			consumer,
+			retryScheduler,
+			queries,
+			slog.Default(),
+			cfg.WorkerConcurrency,
+			worker.WithVideoTempPath(cfg.YoutubeTempPath),
+		)
 		dispatcher.Register(processors.NewArticleProcessor(jina, registry.LLM, registry.Embedding, queries, pool))
 		dispatcher.Register(processors.NewImageProcessor(storage, registry.LLM, registry.Embedding, queries, pool))
 		dispatcher.Register(processors.NewXPostProcessor(

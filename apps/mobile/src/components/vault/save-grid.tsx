@@ -15,11 +15,9 @@ export type RawSave = {
   summary?: string | null;
   tags?: string[] | null;
   media_url?: string | null;
-  media_mime?: string | null;
-  media_file_bytes?: number | null;
   duration_seconds?: number | null;
   processing_status: string;
-  commit_status?: string | null;
+  commit_status: "draft" | "committed";
   created_at: string;
   video_thumbnail_url?: string | null;
   video_channel?: string | null;

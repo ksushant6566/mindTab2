@@ -29,8 +29,6 @@ type SaveDetail = {
   tags?: string[] | null;
   key_topics?: string[] | null;
   media_url?: string | null;
-  media_mime?: string | null;
-  media_file_bytes?: number | null;
   duration_seconds?: number | null;
   processing_status: "deferred" | "pending" | "processing" | "completed" | "failed";
   commit_status: "draft" | "committed";
@@ -73,6 +71,10 @@ function transcriptSourceLabel(save: SaveDetail): string | null {
     default:
       return null;
   }
+}
+
+function extractedContentLabel(save: SaveDetail): string {
+  return save.source_type === "x_post" || save.source_type === "reddit_post" ? "POST" : "ARTICLE";
 }
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:8080";
@@ -274,7 +276,7 @@ export default function VaultDetailScreen() {
             {/* ── Extracted content ── */}
             {save.extracted_text ? (
               <View style={styles.section}>
-                <Text style={styles.sectionLabel}>ARTICLE</Text>
+                <Text style={styles.sectionLabel}>{extractedContentLabel(save)}</Text>
                 <MarkdownContent content={save.extracted_text} />
               </View>
             ) : null}

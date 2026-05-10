@@ -389,7 +389,7 @@ SELECT id, user_id, source_url, source_type, source_title, source_thumbnail_url,
        summary, tags, key_topics, media_key,
        processing_status, processing_error,
        duration_seconds, video_thumbnail_url, video_channel,
-       created_at, updated_at
+       commit_status, created_at, updated_at
 FROM mindmap_content
 WHERE user_id = $1 AND deleted_at IS NULL
   AND commit_status = 'committed'
@@ -419,6 +419,7 @@ type ListContentRow struct {
 	DurationSeconds    pgtype.Int4        `json:"duration_seconds"`
 	VideoThumbnailUrl  pgtype.Text        `json:"video_thumbnail_url"`
 	VideoChannel       pgtype.Text        `json:"video_channel"`
+	CommitStatus       string             `json:"commit_status"`
 	CreatedAt          pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
 }
@@ -448,6 +449,7 @@ func (q *Queries) ListContent(ctx context.Context, arg ListContentParams) ([]Lis
 			&i.DurationSeconds,
 			&i.VideoThumbnailUrl,
 			&i.VideoChannel,
+			&i.CommitStatus,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {

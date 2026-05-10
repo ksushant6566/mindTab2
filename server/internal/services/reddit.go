@@ -10,6 +10,8 @@ import (
 	"path"
 	"strings"
 	"time"
+
+	"github.com/ksushant6566/mindtab/server/internal/providers"
 )
 
 const (
@@ -125,16 +127,16 @@ func (r *RedditClient) FetchPost(ctx context.Context, rawURL string) (*RedditPos
 
 	resp, err := r.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("reddit: request: %w", err)
+		return nil, providers.NewRetriableError("reddit", fmt.Errorf("reddit: request: %w", err))
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 10<<20))
 	if err != nil {
-		return nil, fmt.Errorf("reddit: read response: %w", err)
+		return nil, providers.NewRetriableError("reddit", fmt.Errorf("reddit: read response: %w", err))
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("reddit: status %d: %s", resp.StatusCode, string(body))
+		return nil, officialHTTPStatusError("reddit", "reddit", resp.StatusCode, body)
 	}
 
 	var listings []redditListing

@@ -357,6 +357,42 @@ func TestSaves_Create(t *testing.T) {
 		}
 	})
 
+	t.Run("ImageUploadEnqueueFailureMarksContentAndJobFailed", func(t *testing.T) {
+		storage := testutil.NewMockStorage()
+		producer := &testutil.MockProducer{Err: fmt.Errorf("enqueue image failed")}
+		var statusArg store.UpdateContentStatusParams
+		var failedJobArg store.FailJobParams
+		q := baseQuerier()
+		q.UpdateContentStatusFunc = func(_ context.Context, arg store.UpdateContentStatusParams) error {
+			statusArg = arg
+			return nil
+		}
+		q.FailJobFunc = func(_ context.Context, arg store.FailJobParams) error {
+			failedJobArg = arg
+			return nil
+		}
+		h := NewSavesHandler(q, producer, &mockSearcher{}, storage, 10<<20, "test-secret")
+		router := savesRouter(h)
+
+		req := testutil.MultipartRequest("/saves", "image", "photo.jpg", minimalJPEG(), "image/jpeg")
+		req = testutil.AuthenticatedRequest(req, "test-user")
+
+		resp := fire(router, req)
+		testutil.AssertStatus(t, resp, http.StatusInternalServerError)
+		if statusArg.ProcessingStatus != "failed" {
+			t.Fatalf("ProcessingStatus = %q, want failed", statusArg.ProcessingStatus)
+		}
+		if !statusArg.ProcessingError.Valid || !strings.Contains(statusArg.ProcessingError.String, "enqueue image failed") {
+			t.Fatalf("ProcessingError = %#v, want image enqueue failure", statusArg.ProcessingError)
+		}
+		if !failedJobArg.ID.Valid || uuidFromPgtype(failedJobArg.ID) != jobID {
+			t.Fatalf("failed job ID = %v, want %s", failedJobArg.ID, jobID)
+		}
+		if !failedJobArg.LastError.Valid || !strings.Contains(failedJobArg.LastError.String, "enqueue image failed") {
+			t.Fatalf("LastError = %#v, want image enqueue failure", failedJobArg.LastError)
+		}
+	})
+
 	t.Run("VideoUpload", func(t *testing.T) {
 		storage := testutil.NewMockStorage()
 		q := baseQuerier()
@@ -626,9 +662,47 @@ func TestSaves_Create(t *testing.T) {
 		testutil.AssertStatus(t, resp, http.StatusInternalServerError)
 	})
 
+	t.Run("CreateJobErrorMarksContentFailed", func(t *testing.T) {
+		q := baseQuerier()
+		var statusArg store.UpdateContentStatusParams
+		q.CreateJobFunc = func(_ context.Context, _ store.CreateJobParams) (pgtype.UUID, error) {
+			return pgtype.UUID{}, fmt.Errorf("create job unavailable")
+		}
+		q.UpdateContentStatusFunc = func(_ context.Context, arg store.UpdateContentStatusParams) error {
+			statusArg = arg
+			return nil
+		}
+		h := newTestHandler(q, &testutil.MockProducer{}, &mockSearcher{})
+		router := savesRouter(h)
+
+		req := testutil.JSONRequest(http.MethodPost, "/saves", map[string]string{
+			"url": "https://example.com/article",
+		})
+		req = testutil.AuthenticatedRequest(req, "test-user")
+
+		resp := fire(router, req)
+		testutil.AssertStatus(t, resp, http.StatusInternalServerError)
+		if statusArg.ProcessingStatus != "failed" {
+			t.Fatalf("ProcessingStatus = %q, want failed", statusArg.ProcessingStatus)
+		}
+		if !statusArg.ProcessingError.Valid || !strings.Contains(statusArg.ProcessingError.String, "create job unavailable") {
+			t.Fatalf("ProcessingError = %#v, want create job failure", statusArg.ProcessingError)
+		}
+	})
+
 	t.Run("QueueError", func(t *testing.T) {
 		q := baseQuerier()
 		producer := &testutil.MockProducer{Err: fmt.Errorf("redis unavailable")}
+		var statusArg store.UpdateContentStatusParams
+		var failedJobArg store.FailJobParams
+		q.UpdateContentStatusFunc = func(_ context.Context, arg store.UpdateContentStatusParams) error {
+			statusArg = arg
+			return nil
+		}
+		q.FailJobFunc = func(_ context.Context, arg store.FailJobParams) error {
+			failedJobArg = arg
+			return nil
+		}
 		h := newTestHandler(q, producer, &mockSearcher{})
 		router := savesRouter(h)
 
@@ -639,6 +713,18 @@ func TestSaves_Create(t *testing.T) {
 
 		resp := fire(router, req)
 		testutil.AssertStatus(t, resp, http.StatusInternalServerError)
+		if statusArg.ProcessingStatus != "failed" {
+			t.Fatalf("ProcessingStatus = %q, want failed", statusArg.ProcessingStatus)
+		}
+		if !statusArg.ProcessingError.Valid || !strings.Contains(statusArg.ProcessingError.String, "redis unavailable") {
+			t.Fatalf("ProcessingError = %#v, want queue failure", statusArg.ProcessingError)
+		}
+		if !failedJobArg.ID.Valid || uuidFromPgtype(failedJobArg.ID) != jobID {
+			t.Fatalf("failed job ID = %v, want %s", failedJobArg.ID, jobID)
+		}
+		if !failedJobArg.LastError.Valid || !strings.Contains(failedJobArg.LastError.String, "redis unavailable") {
+			t.Fatalf("LastError = %#v, want queue failure", failedJobArg.LastError)
+		}
 	})
 }
 
@@ -971,8 +1057,7 @@ func TestSaves_Commit_DeferredFlipsAndEnqueues(t *testing.T) {
 	seedRow.UserID = "test-user"
 	seedRow.SourceType = "article"
 	seedRow.ProcessingStatus = "deferred"
-	// CommitStatus is not on GetContentByIDRow before this task — we add it via the updated SQL.
-	// The factory default CommitStatus is not set, so we set it directly.
+	seedRow.CommitStatus = "draft"
 
 	var updateCommitCalled bool
 	var updateProcessingCalled bool
@@ -982,9 +1067,7 @@ func TestSaves_Commit_DeferredFlipsAndEnqueues(t *testing.T) {
 
 	q := &store.QuerierMock{
 		GetContentByIDFunc: func(_ context.Context, arg store.GetContentByIDParams) (store.GetContentByIDRow, error) {
-			row := seedRow
-			row.CommitStatus = "draft"
-			return row, nil
+			return seedRow, nil
 		},
 		UpdateContentCommitStatusFunc: func(_ context.Context, _ store.UpdateContentCommitStatusParams) error {
 			updateCommitCalled = true
@@ -1041,6 +1124,64 @@ func TestSaves_Commit_DeferredFlipsAndEnqueues(t *testing.T) {
 	}
 	if body.ProcessingStatus != "pending" {
 		t.Errorf("expected processing_status 'pending', got %q", body.ProcessingStatus)
+	}
+}
+
+func TestSaves_Commit_EnqueueFailureMarksContentAndJobFailed(t *testing.T) {
+	contentID := uuid.New()
+	jobID := uuid.New()
+
+	seedRow := testutil.NewGetContentRow()
+	seedRow.ID = testutil.PgUUID(contentID)
+	seedRow.UserID = "test-user"
+	seedRow.SourceType = "article"
+	seedRow.ProcessingStatus = "deferred"
+	seedRow.CommitStatus = "draft"
+
+	var statusArg store.UpdateContentStatusParams
+	var failedJobArg store.FailJobParams
+	q := &store.QuerierMock{
+		GetContentByIDFunc: func(_ context.Context, _ store.GetContentByIDParams) (store.GetContentByIDRow, error) {
+			return seedRow, nil
+		},
+		UpdateContentCommitStatusFunc: func(_ context.Context, _ store.UpdateContentCommitStatusParams) error {
+			return nil
+		},
+		UpdateContentProcessingStatusToPendingFunc: func(_ context.Context, _ pgtype.UUID) error {
+			return nil
+		},
+		CreateJobFunc: func(_ context.Context, _ store.CreateJobParams) (pgtype.UUID, error) {
+			return testutil.PgUUID(jobID), nil
+		},
+		UpdateContentStatusFunc: func(_ context.Context, arg store.UpdateContentStatusParams) error {
+			statusArg = arg
+			return nil
+		},
+		FailJobFunc: func(_ context.Context, arg store.FailJobParams) error {
+			failedJobArg = arg
+			return nil
+		},
+	}
+	producer := &testutil.MockProducer{Err: fmt.Errorf("enqueue commit failed")}
+	h := newTestHandler(q, producer, &mockSearcher{})
+	router := savesRouter(h)
+
+	req := testutil.JSONRequest(http.MethodPost, "/saves/"+contentID.String()+"/commit", nil)
+	req = testutil.AuthenticatedRequest(req, "test-user")
+
+	resp := fire(router, req)
+	testutil.AssertStatus(t, resp, http.StatusInternalServerError)
+	if statusArg.ProcessingStatus != "failed" {
+		t.Fatalf("ProcessingStatus = %q, want failed", statusArg.ProcessingStatus)
+	}
+	if !statusArg.ProcessingError.Valid || !strings.Contains(statusArg.ProcessingError.String, "enqueue commit failed") {
+		t.Fatalf("ProcessingError = %#v, want commit enqueue failure", statusArg.ProcessingError)
+	}
+	if !failedJobArg.ID.Valid || uuidFromPgtype(failedJobArg.ID) != jobID {
+		t.Fatalf("failed job ID = %v, want %s", failedJobArg.ID, jobID)
+	}
+	if !failedJobArg.LastError.Valid || !strings.Contains(failedJobArg.LastError.String, "enqueue commit failed") {
+		t.Fatalf("LastError = %#v, want commit enqueue failure", failedJobArg.LastError)
 	}
 }
 
@@ -1480,6 +1621,45 @@ func TestSaves_Create_Audio_CommittedLong_StartsProcessing(t *testing.T) {
 	}
 	if !captured.DurationSeconds.Valid || captured.DurationSeconds.Int32 != 1800 {
 		t.Errorf("expected duration_seconds 1800, got %+v", captured.DurationSeconds)
+	}
+}
+
+func TestSaves_Create_Audio_EnqueueFailureMarksContentAndJobFailed(t *testing.T) {
+	contentID := uuid.New()
+	jobID := uuid.New()
+
+	q := audioQuerier(contentID, jobID, nil)
+	var statusArg store.UpdateContentStatusParams
+	var failedJobArg store.FailJobParams
+	q.UpdateContentStatusFunc = func(_ context.Context, arg store.UpdateContentStatusParams) error {
+		statusArg = arg
+		return nil
+	}
+	q.FailJobFunc = func(_ context.Context, arg store.FailJobParams) error {
+		failedJobArg = arg
+		return nil
+	}
+	storage := testutil.NewMockStorage()
+	producer := &testutil.MockProducer{Err: fmt.Errorf("enqueue audio failed")}
+	h := NewSavesHandler(q, producer, &mockSearcher{}, storage, 10<<20, "test-secret", &mockMediaDurationProber{seconds: 30})
+	router := savesRouter(h)
+
+	req := testutil.MultipartRequest("/saves", "audio", "note.mp3", minimalAudio(), "audio/mpeg")
+	req = testutil.AuthenticatedRequest(req, "test-user")
+
+	resp := fire(router, req)
+	testutil.AssertStatus(t, resp, http.StatusInternalServerError)
+	if statusArg.ProcessingStatus != "failed" {
+		t.Fatalf("ProcessingStatus = %q, want failed", statusArg.ProcessingStatus)
+	}
+	if !statusArg.ProcessingError.Valid || !strings.Contains(statusArg.ProcessingError.String, "enqueue audio failed") {
+		t.Fatalf("ProcessingError = %#v, want audio enqueue failure", statusArg.ProcessingError)
+	}
+	if !failedJobArg.ID.Valid || uuidFromPgtype(failedJobArg.ID) != jobID {
+		t.Fatalf("failed job ID = %v, want %s", failedJobArg.ID, jobID)
+	}
+	if !failedJobArg.LastError.Valid || !strings.Contains(failedJobArg.LastError.String, "enqueue audio failed") {
+		t.Fatalf("LastError = %#v, want audio enqueue failure", failedJobArg.LastError)
 	}
 }
 

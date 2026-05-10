@@ -2,11 +2,14 @@ package services
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ksushant6566/mindtab/server/internal/providers"
 )
 
 func TestXPostIDFromURL(t *testing.T) {
@@ -134,4 +137,80 @@ func TestXClientFetchPostRequiresBearerToken(t *testing.T) {
 	if _, err := client.FetchPost(context.Background(), "https://x.com/mindtab/status/123"); err == nil {
 		t.Fatal("FetchPost() error = nil, want missing token error")
 	}
+}
+
+func TestXClientFetchPostClassifiesHTTPStatusErrors(t *testing.T) {
+	tests := map[string]struct {
+		status    int
+		retriable bool
+	}{
+		"bad request is permanent":  {status: http.StatusBadRequest, retriable: false},
+		"unauthorized is permanent": {status: http.StatusUnauthorized, retriable: false},
+		"forbidden is permanent":    {status: http.StatusForbidden, retriable: false},
+		"not found is permanent":    {status: http.StatusNotFound, retriable: false},
+		"rate limit is retriable":   {status: http.StatusTooManyRequests, retriable: true},
+		"server error is retriable": {status: http.StatusInternalServerError, retriable: true},
+		"bad gateway is retriable":  {status: http.StatusBadGateway, retriable: true},
+		"unavailable is retriable":  {status: http.StatusServiceUnavailable, retriable: true},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(tc.status)
+				_, _ = w.Write([]byte(`{"error":"upstream"}`))
+			}))
+			defer server.Close()
+
+			client := NewXClient("test-token")
+			client.SetBaseURL(server.URL)
+
+			_, err := client.FetchPost(context.Background(), "https://x.com/mindtab/status/123")
+			assertProviderError(t, err, "x", tc.retriable)
+		})
+	}
+}
+
+func TestXClientFetchPostClassifiesRequestErrorsRetriable(t *testing.T) {
+	client := NewXClient("test-token")
+	client.SetHTTPClient(&http.Client{Transport: failingRoundTripper{err: temporaryRequestError{}}})
+
+	_, err := client.FetchPost(context.Background(), "https://x.com/mindtab/status/123")
+	assertProviderError(t, err, "x", true)
+}
+
+func assertProviderError(t *testing.T, err error, provider string, retriable bool) {
+	t.Helper()
+	var providerErr *providers.ProviderError
+	if !errors.As(err, &providerErr) {
+		t.Fatalf("error = %v, want *providers.ProviderError", err)
+	}
+	if providerErr.Provider != provider {
+		t.Fatalf("provider = %q, want %q", providerErr.Provider, provider)
+	}
+	if providerErr.Retriable != retriable {
+		t.Fatalf("Retriable = %v, want %v", providerErr.Retriable, retriable)
+	}
+}
+
+type failingRoundTripper struct {
+	err error
+}
+
+func (f failingRoundTripper) RoundTrip(*http.Request) (*http.Response, error) {
+	return nil, f.err
+}
+
+type temporaryRequestError struct{}
+
+func (temporaryRequestError) Error() string {
+	return "temporary network timeout"
+}
+
+func (temporaryRequestError) Timeout() bool {
+	return true
+}
+
+func (temporaryRequestError) Temporary() bool {
+	return true
 }

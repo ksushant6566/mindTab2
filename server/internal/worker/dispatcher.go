@@ -21,15 +21,30 @@ import (
 
 // Dispatcher orchestrates job processing using registered Processors.
 type Dispatcher struct {
-	consumer   *queue.Consumer
-	retry      *queue.RetryScheduler
-	queries    store.Querier
-	logger     *slog.Logger
-	processors map[string]Processor
-	workers    int
-	wg         sync.WaitGroup
-	quit       chan struct{}
-	cancel     context.CancelFunc
+	consumer      *queue.Consumer
+	retry         *queue.RetryScheduler
+	queries       store.Querier
+	logger        *slog.Logger
+	processors    map[string]Processor
+	workers       int
+	videoTempPath string
+	wg            sync.WaitGroup
+	quit          chan struct{}
+	cancel        context.CancelFunc
+}
+
+const defaultVideoTempPath = "/tmp/mindtab/youtube"
+
+// DispatcherOption customizes Dispatcher behavior.
+type DispatcherOption func(*Dispatcher)
+
+// WithVideoTempPath sets the base directory used for URL/video processor temp files.
+func WithVideoTempPath(path string) DispatcherOption {
+	return func(d *Dispatcher) {
+		if path != "" {
+			d.videoTempPath = path
+		}
+	}
 }
 
 // NewDispatcher creates a Dispatcher with the given dependencies.
@@ -39,16 +54,22 @@ func NewDispatcher(
 	queries store.Querier,
 	logger *slog.Logger,
 	workers int,
+	opts ...DispatcherOption,
 ) *Dispatcher {
-	return &Dispatcher{
-		consumer:   consumer,
-		retry:      retry,
-		queries:    queries,
-		logger:     logger,
-		processors: make(map[string]Processor),
-		workers:    workers,
-		quit:       make(chan struct{}),
+	d := &Dispatcher{
+		consumer:      consumer,
+		retry:         retry,
+		queries:       queries,
+		logger:        logger,
+		processors:    make(map[string]Processor),
+		workers:       workers,
+		videoTempPath: defaultVideoTempPath,
+		quit:          make(chan struct{}),
 	}
+	for _, opt := range opts {
+		opt(d)
+	}
+	return d
 }
 
 // Register adds a Processor for its declared content type.
@@ -321,7 +342,7 @@ func (d *Dispatcher) cleanupVideoTempDir(payload *queue.JobPayload) {
 	if payload.ContentType != "youtube" && payload.ContentType != "instagram_reel" {
 		return
 	}
-	ytTempDir := filepath.Join("/tmp/mindtab/youtube", payload.JobID.String())
+	ytTempDir := filepath.Join(d.videoTempPath, payload.JobID.String())
 	if err := os.RemoveAll(ytTempDir); err != nil {
 		d.logger.Warn("failed to clean youtube temp dir", "dir", ytTempDir, "error", err)
 	}

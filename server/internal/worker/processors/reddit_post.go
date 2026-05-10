@@ -217,6 +217,9 @@ func formatRedditPostForSummary(post services.RedditPost) string {
 		writeLine(&b, "\nLinked URL: "+post.URL)
 	}
 	if len(post.Comments) > 0 {
+		// Social v0 is text-only: summarize post text and comments. Rich Reddit
+		// media such as galleries/videos/embeds should be added as a later,
+		// source-specific pipeline instead of forced into this text path.
 		writeLine(&b, "\nTop comments:")
 		for i, comment := range post.Comments {
 			if i >= 25 {
