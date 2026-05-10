@@ -14,6 +14,7 @@ INSERT INTO mindmap_content (
 )
 RETURNING id, user_id, source_url, source_type, source_title, source_thumbnail_url,
           extracted_text, visual_description, summary, tags, key_topics,
+          source_metadata,
           summary_provider, embedding_provider, embedding_model,
           media_key, media_mime, media_file_bytes, processing_status, processing_error,
           duration_seconds, video_thumbnail_url, video_channel, transcript_source,
@@ -35,6 +36,7 @@ INSERT INTO mindmap_content (
 )
 RETURNING id, user_id, source_url, source_type, source_title, source_thumbnail_url,
           extracted_text, visual_description, summary, tags, key_topics,
+          source_metadata,
           summary_provider, embedding_provider, embedding_model,
           media_key, media_mime, media_file_bytes, processing_status, processing_error,
           duration_seconds, video_thumbnail_url, video_channel, transcript_source,
@@ -43,6 +45,7 @@ RETURNING id, user_id, source_url, source_type, source_title, source_thumbnail_u
 -- name: GetContentByID :one
 SELECT id, user_id, source_url, source_type, source_title, source_thumbnail_url,
        extracted_text, visual_description, summary, tags, key_topics,
+       source_metadata,
        summary_provider, embedding_provider, embedding_model,
        media_key, processing_status, processing_error,
        duration_seconds, video_thumbnail_url, video_channel, transcript_source,
@@ -55,7 +58,7 @@ SELECT id, user_id, source_url, source_type, source_title, source_thumbnail_url,
        summary, tags, key_topics, media_key,
        processing_status, processing_error,
        duration_seconds, video_thumbnail_url, video_channel,
-       created_at, updated_at
+       commit_status, created_at, updated_at
 FROM mindmap_content
 WHERE user_id = $1 AND deleted_at IS NULL
   AND commit_status = 'committed'
@@ -110,6 +113,12 @@ WHERE id = $1 AND deleted_at IS NULL;
 -- name: UpdateContentTranscriptSource :exec
 UPDATE mindmap_content
 SET transcript_source = $2,
+    updated_at = NOW()
+WHERE id = $1 AND deleted_at IS NULL;
+
+-- name: UpdateContentSourceMetadata :exec
+UPDATE mindmap_content
+SET source_metadata = $2,
     updated_at = NOW()
 WHERE id = $1 AND deleted_at IS NULL;
 

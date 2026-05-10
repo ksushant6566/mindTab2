@@ -20,9 +20,15 @@ const getDomain = (url: string) => {
   }
 };
 
+const isSocialPost = (sourceType: SaveCardProps["sourceType"]) =>
+  sourceType === "x_post" || sourceType === "reddit_post";
+
+const getSocialPlatformLabel = (sourceType: SaveCardProps["sourceType"]) =>
+  sourceType === "x_post" ? "X" : "Reddit";
+
 export type SaveCardProps = {
   id: string;
-  sourceType: "article" | "image" | "youtube" | "audio" | "instagram_reel";
+  sourceType: "article" | "image" | "youtube" | "audio" | "instagram_reel" | "x_post" | "reddit_post";
   sourceTitle?: string | null;
   sourceUrl?: string | null;
   sourceThumbnailUrl?: string | null;
@@ -157,6 +163,55 @@ export function SaveCard({
     );
   }
 
+  if (isSocialPost(sourceType)) {
+    return (
+      <Pressable onPress={() => onPress(id)} style={styles.card}>
+        {sourceThumbnailUrl ? (
+          <View style={styles.socialThumbnailWrapper}>
+            <Image
+              source={{ uri: sourceThumbnailUrl }}
+              style={styles.articleThumbnail}
+              resizeMode="cover"
+            />
+            <View style={[styles.socialBadge, styles.socialBadgeOverlay]}>
+              <Text style={styles.socialBadgeText}>{getSocialPlatformLabel(sourceType)}</Text>
+            </View>
+          </View>
+        ) : (
+          <View style={styles.socialDomainRow}>
+            <View style={styles.socialBadge}>
+              <Text style={styles.socialBadgeText}>{getSocialPlatformLabel(sourceType)}</Text>
+            </View>
+            {sourceUrl ? (
+              <Text style={styles.domainText}>{getDomain(sourceUrl)}</Text>
+            ) : null}
+          </View>
+        )}
+        <View style={styles.content}>
+          {sourceTitle ? (
+            <Text style={styles.title} numberOfLines={2}>
+              {sourceTitle}
+            </Text>
+          ) : null}
+          {summary ? (
+            <Text style={styles.snippet} numberOfLines={2}>
+              {summary}
+            </Text>
+          ) : null}
+          {tags && tags.length > 0 ? (
+            <View style={styles.tagsRow}>
+              {tags.map((tag) => (
+                <View key={tag} style={styles.tag}>
+                  <Text style={styles.tagText}>{tag}</Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
+        </View>
+      </Pressable>
+    );
+  }
+
   // Article card
   return (
     <Pressable onPress={() => onPress(id)} style={styles.card}>
@@ -226,6 +281,37 @@ const styles = StyleSheet.create({
   articleThumbnail: {
     width: "100%",
     height: 110,
+  },
+  socialThumbnailWrapper: {
+    position: "relative",
+    width: "100%",
+    height: 110,
+  },
+  socialBadge: {
+    backgroundColor: "#222222",
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: "#333333",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  socialBadgeOverlay: {
+    position: "absolute",
+    top: 6,
+    left: 6,
+  },
+  socialBadgeText: {
+    color: "#ffffff",
+    fontSize: 9,
+    fontWeight: "700",
+  },
+  socialDomainRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    paddingBottom: 4,
   },
   youtubeThumbnailWrapper: {
     position: "relative",

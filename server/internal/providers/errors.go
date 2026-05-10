@@ -1,6 +1,9 @@
 package providers
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
 
 // ProviderError wraps an error with provider context and retriability.
 type ProviderError struct {
@@ -29,7 +32,8 @@ func NewPermanentError(provider string, err error) *ProviderError {
 
 // IsRetriable checks if an error is a retriable provider error.
 func IsRetriable(err error) bool {
-	if pe, ok := err.(*ProviderError); ok {
+	var pe *ProviderError
+	if errors.As(err, &pe) {
 		return pe.Retriable
 	}
 	return false

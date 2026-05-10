@@ -1160,7 +1160,7 @@ paths:
     post:
       operationId: createSave
       tags: [Saves]
-      summary: Save an article URL, image, or audio file
+      summary: Save a URL-backed item, image, audio file, or video file
       requestBody:
         required: true
         content:
@@ -1172,7 +1172,7 @@ paths:
               $ref: "#/components/schemas/CreateSaveMultipartRequest"
       responses:
         "201":
-          description: Save created and queued for processing
+          description: Save created
           content:
             application/json:
               schema:
@@ -2054,7 +2054,7 @@ components:
     # ── Saves ───────────────────────────────────────────────────────────
     SaveSourceType:
       type: string
-      enum: [article, image, youtube, audio, instagram_reel]
+      enum: [article, image, youtube, audio, instagram_reel, x_post, reddit_post]
       description: Type of saved content
 
     SaveProcessingStatus:
@@ -2074,7 +2074,7 @@ components:
         url:
           type: string
           format: uri
-          description: URL of the article to save
+          description: URL of the article, X post, Reddit post, YouTube video, or Instagram Reel to save
         content:
           type: string
           description: Pre-extracted text content (skips server-side extraction when provided)
@@ -2104,7 +2104,7 @@ components:
         video:
           type: string
           format: binary
-          description: Instagram Reel/Post video file to save
+          description: Video file to save
         source_url:
           type: string
           format: uri
@@ -2149,35 +2149,40 @@ components:
 
     SaveListItem:
       type: object
-      required: [id, source_type, processing_status, commit_status, created_at, updated_at]
+      required: [id, user_id, source_type, tags, key_topics, commit_status, processing_status, created_at, updated_at]
       properties:
         id:
           type: string
           format: uuid
+        user_id:
+          type: string
         source_url:
           type: string
           format: uri
           nullable: true
-          description: Original URL for article saves
+          description: Original URL for URL-backed saves
         source_type:
           $ref: "#/components/schemas/SaveSourceType"
         source_title:
           type: string
           nullable: true
           description: Extracted or inferred title
+        source_thumbnail_url:
+          type: string
+          format: uri
+          nullable: true
+          description: Thumbnail URL from the source, when available
         summary:
           type: string
           nullable: true
           description: AI-generated summary
         tags:
           type: array
-          nullable: true
           items:
             type: string
           description: AI-generated tags
         key_topics:
           type: array
-          nullable: true
           items:
             type: string
           description: Key topics extracted from content
@@ -2189,19 +2194,19 @@ components:
           type: string
           nullable: true
           description: Authenticated URL to access the media file
-        media_mime:
-          type: string
-          nullable: true
-          description: MIME type of the media file (e.g. audio/m4a, image/jpeg)
-        media_file_bytes:
-          type: integer
-          format: int64
-          nullable: true
-          description: Size of the media file in bytes
         duration_seconds:
           type: integer
           nullable: true
           description: Duration of the audio or video in seconds
+        video_thumbnail_url:
+          type: string
+          format: uri
+          nullable: true
+          description: Thumbnail URL for saved video content
+        video_channel:
+          type: string
+          nullable: true
+          description: Channel or creator name for video content
         commit_status:
           $ref: "#/components/schemas/SaveCommitStatus"
         processing_status:
@@ -2230,6 +2235,27 @@ components:
               type: string
               nullable: true
               description: AI-generated visual description for image saves
+            source_metadata:
+              type: object
+              nullable: true
+              additionalProperties: true
+              description: Source-specific metadata captured by first-class processors
+            summary_provider:
+              type: string
+              nullable: true
+              description: Provider that generated the summary
+            embedding_provider:
+              type: string
+              nullable: true
+              description: Provider that generated the embedding
+            embedding_model:
+              type: string
+              nullable: true
+              description: Model that generated the embedding
+            transcript_source:
+              type: string
+              nullable: true
+              description: Source of the transcript for audio or video content
 
     SaveSearchResult:
       type: object

@@ -103,30 +103,32 @@ type saveResponse struct {
 
 // contentJSON is the response body for list/get responses.
 type contentJSON struct {
-	ID                 string     `json:"id"`
-	UserID             string     `json:"user_id"`
-	SourceURL          *string    `json:"source_url,omitempty"`
-	SourceType         string     `json:"source_type"`
-	SourceTitle        *string    `json:"source_title,omitempty"`
-	SourceThumbnailURL *string    `json:"source_thumbnail_url,omitempty"`
-	ExtractedText      *string    `json:"extracted_text,omitempty"`
-	VisualDescription  *string    `json:"visual_description,omitempty"`
-	Summary            *string    `json:"summary,omitempty"`
-	Tags               []string   `json:"tags"`
-	KeyTopics          []string   `json:"key_topics"`
-	SummaryProvider    *string    `json:"summary_provider,omitempty"`
-	EmbeddingProvider  *string    `json:"embedding_provider,omitempty"`
-	EmbeddingModel     *string    `json:"embedding_model,omitempty"`
-	MediaKey           *string    `json:"media_key,omitempty"`
-	MediaURL           *string    `json:"media_url,omitempty"`
-	DurationSeconds    *int32     `json:"duration_seconds,omitempty"`
-	VideoThumbnailURL  *string    `json:"video_thumbnail_url,omitempty"`
-	VideoChannel       *string    `json:"video_channel,omitempty"`
-	TranscriptSource   *string    `json:"transcript_source,omitempty"`
-	ProcessingStatus   string     `json:"processing_status"`
-	ProcessingError    *string    `json:"processing_error,omitempty"`
-	CreatedAt          *time.Time `json:"created_at,omitempty"`
-	UpdatedAt          *time.Time `json:"updated_at,omitempty"`
+	ID                 string          `json:"id"`
+	UserID             string          `json:"user_id"`
+	SourceURL          *string         `json:"source_url,omitempty"`
+	SourceType         string          `json:"source_type"`
+	SourceTitle        *string         `json:"source_title,omitempty"`
+	SourceThumbnailURL *string         `json:"source_thumbnail_url,omitempty"`
+	ExtractedText      *string         `json:"extracted_text,omitempty"`
+	VisualDescription  *string         `json:"visual_description,omitempty"`
+	Summary            *string         `json:"summary,omitempty"`
+	Tags               []string        `json:"tags"`
+	KeyTopics          []string        `json:"key_topics"`
+	SourceMetadata     json.RawMessage `json:"source_metadata,omitempty"`
+	SummaryProvider    *string         `json:"summary_provider,omitempty"`
+	EmbeddingProvider  *string         `json:"embedding_provider,omitempty"`
+	EmbeddingModel     *string         `json:"embedding_model,omitempty"`
+	MediaKey           *string         `json:"media_key,omitempty"`
+	MediaURL           *string         `json:"media_url,omitempty"`
+	DurationSeconds    *int32          `json:"duration_seconds,omitempty"`
+	VideoThumbnailURL  *string         `json:"video_thumbnail_url,omitempty"`
+	VideoChannel       *string         `json:"video_channel,omitempty"`
+	TranscriptSource   *string         `json:"transcript_source,omitempty"`
+	CommitStatus       string          `json:"commit_status"`
+	ProcessingStatus   string          `json:"processing_status"`
+	ProcessingError    *string         `json:"processing_error,omitempty"`
+	CreatedAt          *time.Time      `json:"created_at,omitempty"`
+	UpdatedAt          *time.Time      `json:"updated_at,omitempty"`
 }
 
 // contentListJSON is a minimal response for list items (no extracted_text/visual_description/embedding fields).
@@ -145,6 +147,7 @@ type contentListJSON struct {
 	DurationSeconds    *int32     `json:"duration_seconds,omitempty"`
 	VideoThumbnailURL  *string    `json:"video_thumbnail_url,omitempty"`
 	VideoChannel       *string    `json:"video_channel,omitempty"`
+	CommitStatus       string     `json:"commit_status"`
 	ProcessingStatus   string     `json:"processing_status"`
 	ProcessingError    *string    `json:"processing_error,omitempty"`
 	CreatedAt          *time.Time `json:"created_at,omitempty"`
@@ -296,6 +299,10 @@ func (h *SavesHandler) createURL(w http.ResponseWriter, r *http.Request, userID 
 		contentType = "youtube"
 	} else if isInstagramReelURL(req.URL) {
 		contentType = "instagram_reel"
+	} else if isXPostURL(req.URL) {
+		contentType = "x_post"
+	} else if isRedditPostURL(req.URL) {
+		contentType = "reddit_post"
 	}
 
 	commitStatus, processingStatus := resolveLifecycleFlags(req.AutoCommit, req.StartProcessing)
@@ -347,28 +354,8 @@ func (h *SavesHandler) createURL(w http.ResponseWriter, r *http.Request, userID 
 		return
 	}
 
-	// Create job record.
-	jobID, err := h.queries.CreateJob(r.Context(), store.CreateJobParams{
-		ContentID:   contentID,
-		UserID:      userID,
-		ContentType: contentType,
-	})
-	if err != nil {
-		slog.Error("failed to create job record", "error", err, "contentID", uuidToString(contentID))
-		WriteError(w, http.StatusInternalServerError, "failed to create processing job")
-		return
-	}
-
-	// Enqueue to Redis.
-	payload := queue.JobPayload{
-		JobID:       uuidFromPgtype(jobID),
-		ContentID:   uuidFromPgtype(contentID),
-		UserID:      userID,
-		ContentType: contentType,
-		MaxAttempts: 5,
-	}
-	if err := h.producer.Enqueue(r.Context(), payload); err != nil {
-		slog.Error("failed to enqueue job", "error", err, "jobID", uuidFromPgtype(jobID).String())
+	if _, err := h.createAndEnqueueJob(r.Context(), contentID, userID, contentType); err != nil {
+		slog.Error("failed to create or enqueue job", "error", err, "contentID", uuidToString(contentID))
 		WriteError(w, http.StatusInternalServerError, "failed to enqueue processing job")
 		return
 	}
@@ -527,6 +514,32 @@ func (h *SavesHandler) failPendingContent(ctx context.Context, contentID, jobID 
 	}
 }
 
+func (h *SavesHandler) createAndEnqueueJob(ctx context.Context, contentID pgtype.UUID, userID, contentType string) (pgtype.UUID, error) {
+	jobID, err := h.queries.CreateJob(ctx, store.CreateJobParams{
+		ContentID:   contentID,
+		UserID:      userID,
+		ContentType: contentType,
+	})
+	if err != nil {
+		h.failPendingContent(ctx, contentID, pgtype.UUID{}, err)
+		return pgtype.UUID{}, err
+	}
+
+	payload := queue.JobPayload{
+		JobID:       uuidFromPgtype(jobID),
+		ContentID:   uuidFromPgtype(contentID),
+		UserID:      userID,
+		ContentType: contentType,
+		MaxAttempts: 5,
+	}
+	if err := h.producer.Enqueue(ctx, payload); err != nil {
+		h.failPendingContent(ctx, contentID, jobID, err)
+		return jobID, err
+	}
+
+	return jobID, nil
+}
+
 // writeImageRecord stores the image bytes to permanent storage, creates the DB record, and enqueues.
 func (h *SavesHandler) writeImageRecord(
 	w http.ResponseWriter, r *http.Request,
@@ -563,24 +576,8 @@ func (h *SavesHandler) writeImageRecord(
 	}
 
 	if procStatus == "pending" {
-		jobID, err := h.queries.CreateJob(r.Context(), store.CreateJobParams{
-			ContentID:   row.ID,
-			UserID:      userID,
-			ContentType: "image",
-		})
-		if err != nil {
-			slog.Error("failed to create job record for image", "error", err, "contentID", uuidToString(row.ID))
-			WriteError(w, http.StatusInternalServerError, "failed to create processing job")
-			return
-		}
-		if err := h.producer.Enqueue(r.Context(), queue.JobPayload{
-			JobID:       uuidFromPgtype(jobID),
-			ContentID:   uuidFromPgtype(row.ID),
-			UserID:      userID,
-			ContentType: "image",
-			MaxAttempts: 5,
-		}); err != nil {
-			slog.Error("failed to enqueue image job", "error", err, "jobID", uuidFromPgtype(jobID).String())
+		if _, err := h.createAndEnqueueJob(r.Context(), row.ID, userID, "image"); err != nil {
+			slog.Error("failed to create or enqueue image job", "error", err, "contentID", uuidToString(row.ID))
 			WriteError(w, http.StatusInternalServerError, "failed to enqueue processing job")
 			return
 		}
@@ -668,24 +665,8 @@ func (h *SavesHandler) createAudio(w http.ResponseWriter, r *http.Request, userI
 	}
 
 	if processingStatus == "pending" {
-		jobID, err := h.queries.CreateJob(r.Context(), store.CreateJobParams{
-			ContentID:   row.ID,
-			UserID:      userID,
-			ContentType: "audio",
-		})
-		if err != nil {
-			slog.Error("failed to create job record for audio", "error", err, "contentID", uuidToString(row.ID))
-			WriteError(w, http.StatusInternalServerError, "create job")
-			return
-		}
-		if err := h.producer.Enqueue(r.Context(), queue.JobPayload{
-			JobID:       uuidFromPgtype(jobID),
-			ContentID:   uuidFromPgtype(row.ID),
-			UserID:      userID,
-			ContentType: "audio",
-			MaxAttempts: 5,
-		}); err != nil {
-			slog.Error("failed to enqueue audio job", "error", err, "jobID", uuidFromPgtype(jobID).String())
+		if _, err := h.createAndEnqueueJob(r.Context(), row.ID, userID, "audio"); err != nil {
+			slog.Error("failed to create or enqueue audio job", "error", err, "contentID", uuidToString(row.ID))
 			WriteError(w, http.StatusInternalServerError, "enqueue")
 			return
 		}
@@ -768,26 +749,8 @@ func (h *SavesHandler) createVideo(w http.ResponseWriter, r *http.Request, userI
 	}
 
 	if procStatus == "pending" {
-		jobID, err := h.queries.CreateJob(r.Context(), store.CreateJobParams{
-			ContentID:   row.ID,
-			UserID:      userID,
-			ContentType: "instagram_reel",
-		})
-		if err != nil {
-			slog.Error("failed to create job record for video", "error", err, "contentID", uuidToString(row.ID))
-			h.failPendingContent(r.Context(), row.ID, pgtype.UUID{}, err)
-			WriteError(w, http.StatusInternalServerError, "create job")
-			return
-		}
-		if err := h.producer.Enqueue(r.Context(), queue.JobPayload{
-			JobID:       uuidFromPgtype(jobID),
-			ContentID:   uuidFromPgtype(row.ID),
-			UserID:      userID,
-			ContentType: "instagram_reel",
-			MaxAttempts: 5,
-		}); err != nil {
-			slog.Error("failed to enqueue video job", "error", err, "jobID", uuidFromPgtype(jobID).String())
-			h.failPendingContent(r.Context(), row.ID, jobID, err)
+		if _, err := h.createAndEnqueueJob(r.Context(), row.ID, userID, "instagram_reel"); err != nil {
+			slog.Error("failed to create or enqueue video job", "error", err, "contentID", uuidToString(row.ID))
 			WriteError(w, http.StatusInternalServerError, "enqueue")
 			return
 		}
@@ -851,6 +814,7 @@ func (h *SavesHandler) List(w http.ResponseWriter, r *http.Request) {
 			DurationSeconds:    int4ToPtr(row.DurationSeconds),
 			VideoThumbnailURL:  textToPtr(row.VideoThumbnailUrl),
 			VideoChannel:       textToPtr(row.VideoChannel),
+			CommitStatus:       row.CommitStatus,
 			ProcessingStatus:   row.ProcessingStatus,
 			ProcessingError:    textToPtr(row.ProcessingError),
 			CreatedAt:          timestamptzToPtr(row.CreatedAt),
@@ -902,6 +866,7 @@ func (h *SavesHandler) Get(w http.ResponseWriter, r *http.Request) {
 		Summary:            textToPtr(row.Summary),
 		Tags:               nullableStringSlice(row.Tags),
 		KeyTopics:          nullableStringSlice(row.KeyTopics),
+		SourceMetadata:     json.RawMessage(row.SourceMetadata),
 		SummaryProvider:    textToPtr(row.SummaryProvider),
 		EmbeddingProvider:  textToPtr(row.EmbeddingProvider),
 		EmbeddingModel:     textToPtr(row.EmbeddingModel),
@@ -910,6 +875,7 @@ func (h *SavesHandler) Get(w http.ResponseWriter, r *http.Request) {
 		VideoThumbnailURL:  textToPtr(row.VideoThumbnailUrl),
 		VideoChannel:       textToPtr(row.VideoChannel),
 		TranscriptSource:   textToPtr(row.TranscriptSource),
+		CommitStatus:       row.CommitStatus,
 		ProcessingStatus:   row.ProcessingStatus,
 		ProcessingError:    textToPtr(row.ProcessingError),
 		CreatedAt:          timestamptzToPtr(row.CreatedAt),
@@ -1016,26 +982,8 @@ func (h *SavesHandler) Commit(w http.ResponseWriter, r *http.Request) {
 			WriteError(w, http.StatusInternalServerError, "failed to update processing status")
 			return
 		}
-		// Insert the jobs row before enqueueing so the dispatcher's
-		// StartJob/UpdateJobStatus/etc. updates have a target row.
-		jobID, err := h.queries.CreateJob(r.Context(), store.CreateJobParams{
-			ContentID:   row.ID,
-			UserID:      userID,
-			ContentType: row.SourceType,
-		})
-		if err != nil {
-			slog.Error("failed to create job record", "error", err, "id", id)
-			WriteError(w, http.StatusInternalServerError, "failed to create processing job")
-			return
-		}
-		if err := h.producer.Enqueue(r.Context(), queue.JobPayload{
-			JobID:       uuidFromPgtype(jobID),
-			ContentID:   uuidFromPgtype(row.ID),
-			UserID:      userID,
-			ContentType: row.SourceType,
-			MaxAttempts: 5,
-		}); err != nil {
-			slog.Error("failed to enqueue commit job", "error", err, "id", id)
+		if _, err := h.createAndEnqueueJob(r.Context(), row.ID, userID, row.SourceType); err != nil {
+			slog.Error("failed to create or enqueue commit job", "error", err, "id", id)
 			WriteError(w, http.StatusInternalServerError, "failed to enqueue processing job")
 			return
 		}
@@ -1213,6 +1161,18 @@ func isInstagramReelURL(rawURL string) bool {
 	default:
 		return false
 	}
+}
+
+// isXPostURL reports whether rawURL points to an X/Twitter status.
+func isXPostURL(rawURL string) bool {
+	_, err := services.XPostIDFromURL(rawURL)
+	return err == nil
+}
+
+// isRedditPostURL reports whether rawURL points to a Reddit post permalink.
+func isRedditPostURL(rawURL string) bool {
+	_, err := services.RedditJSONPathFromURL(rawURL)
+	return err == nil
 }
 
 // isAllowedImageMIME reports whether the MIME type is a supported image format.

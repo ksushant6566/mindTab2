@@ -45,6 +45,8 @@ type MindmapContent struct {
 	MediaMime pgtype.Text `json:"media_mime"`
 	// Size of the stored media file in bytes
 	MediaFileBytes pgtype.Int8 `json:"media_file_bytes"`
+	// Source-specific metadata captured by first-class processors, keyed by source_type
+	SourceMetadata []byte `json:"source_metadata"`
 }
 
 type MindmapConversation struct {

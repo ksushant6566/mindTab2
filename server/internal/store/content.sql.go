@@ -41,6 +41,7 @@ INSERT INTO mindmap_content (
 )
 RETURNING id, user_id, source_url, source_type, source_title, source_thumbnail_url,
           extracted_text, visual_description, summary, tags, key_topics,
+          source_metadata,
           summary_provider, embedding_provider, embedding_model,
           media_key, media_mime, media_file_bytes, processing_status, processing_error,
           duration_seconds, video_thumbnail_url, video_channel, transcript_source,
@@ -74,6 +75,7 @@ type CreateContentRow struct {
 	Summary            pgtype.Text        `json:"summary"`
 	Tags               []string           `json:"tags"`
 	KeyTopics          []string           `json:"key_topics"`
+	SourceMetadata     []byte             `json:"source_metadata"`
 	SummaryProvider    pgtype.Text        `json:"summary_provider"`
 	EmbeddingProvider  pgtype.Text        `json:"embedding_provider"`
 	EmbeddingModel     pgtype.Text        `json:"embedding_model"`
@@ -119,6 +121,7 @@ func (q *Queries) CreateContent(ctx context.Context, arg CreateContentParams) (C
 		&i.Summary,
 		&i.Tags,
 		&i.KeyTopics,
+		&i.SourceMetadata,
 		&i.SummaryProvider,
 		&i.EmbeddingProvider,
 		&i.EmbeddingModel,
@@ -154,6 +157,7 @@ INSERT INTO mindmap_content (
 )
 RETURNING id, user_id, source_url, source_type, source_title, source_thumbnail_url,
           extracted_text, visual_description, summary, tags, key_topics,
+          source_metadata,
           summary_provider, embedding_provider, embedding_model,
           media_key, media_mime, media_file_bytes, processing_status, processing_error,
           duration_seconds, video_thumbnail_url, video_channel, transcript_source,
@@ -187,6 +191,7 @@ type CreateContentWithExtractedRow struct {
 	Summary            pgtype.Text        `json:"summary"`
 	Tags               []string           `json:"tags"`
 	KeyTopics          []string           `json:"key_topics"`
+	SourceMetadata     []byte             `json:"source_metadata"`
 	SummaryProvider    pgtype.Text        `json:"summary_provider"`
 	EmbeddingProvider  pgtype.Text        `json:"embedding_provider"`
 	EmbeddingModel     pgtype.Text        `json:"embedding_model"`
@@ -232,6 +237,7 @@ func (q *Queries) CreateContentWithExtracted(ctx context.Context, arg CreateCont
 		&i.Summary,
 		&i.Tags,
 		&i.KeyTopics,
+		&i.SourceMetadata,
 		&i.SummaryProvider,
 		&i.EmbeddingProvider,
 		&i.EmbeddingModel,
@@ -290,6 +296,7 @@ func (q *Queries) DeleteExpiredDraftsReturningKeys(ctx context.Context, updatedA
 const getContentByID = `-- name: GetContentByID :one
 SELECT id, user_id, source_url, source_type, source_title, source_thumbnail_url,
        extracted_text, visual_description, summary, tags, key_topics,
+       source_metadata,
        summary_provider, embedding_provider, embedding_model,
        media_key, processing_status, processing_error,
        duration_seconds, video_thumbnail_url, video_channel, transcript_source,
@@ -315,6 +322,7 @@ type GetContentByIDRow struct {
 	Summary            pgtype.Text        `json:"summary"`
 	Tags               []string           `json:"tags"`
 	KeyTopics          []string           `json:"key_topics"`
+	SourceMetadata     []byte             `json:"source_metadata"`
 	SummaryProvider    pgtype.Text        `json:"summary_provider"`
 	EmbeddingProvider  pgtype.Text        `json:"embedding_provider"`
 	EmbeddingModel     pgtype.Text        `json:"embedding_model"`
@@ -345,6 +353,7 @@ func (q *Queries) GetContentByID(ctx context.Context, arg GetContentByIDParams) 
 		&i.Summary,
 		&i.Tags,
 		&i.KeyTopics,
+		&i.SourceMetadata,
 		&i.SummaryProvider,
 		&i.EmbeddingProvider,
 		&i.EmbeddingModel,
@@ -380,7 +389,7 @@ SELECT id, user_id, source_url, source_type, source_title, source_thumbnail_url,
        summary, tags, key_topics, media_key,
        processing_status, processing_error,
        duration_seconds, video_thumbnail_url, video_channel,
-       created_at, updated_at
+       commit_status, created_at, updated_at
 FROM mindmap_content
 WHERE user_id = $1 AND deleted_at IS NULL
   AND commit_status = 'committed'
@@ -410,6 +419,7 @@ type ListContentRow struct {
 	DurationSeconds    pgtype.Int4        `json:"duration_seconds"`
 	VideoThumbnailUrl  pgtype.Text        `json:"video_thumbnail_url"`
 	VideoChannel       pgtype.Text        `json:"video_channel"`
+	CommitStatus       string             `json:"commit_status"`
 	CreatedAt          pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
 }
@@ -439,6 +449,7 @@ func (q *Queries) ListContent(ctx context.Context, arg ListContentParams) ([]Lis
 			&i.DurationSeconds,
 			&i.VideoThumbnailUrl,
 			&i.VideoChannel,
+			&i.CommitStatus,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -573,6 +584,23 @@ func (q *Queries) UpdateContentResults(ctx context.Context, arg UpdateContentRes
 		arg.EmbeddingModel,
 		arg.MediaKey,
 	)
+	return err
+}
+
+const updateContentSourceMetadata = `-- name: UpdateContentSourceMetadata :exec
+UPDATE mindmap_content
+SET source_metadata = $2,
+    updated_at = NOW()
+WHERE id = $1 AND deleted_at IS NULL
+`
+
+type UpdateContentSourceMetadataParams struct {
+	ID             pgtype.UUID `json:"id"`
+	SourceMetadata []byte      `json:"source_metadata"`
+}
+
+func (q *Queries) UpdateContentSourceMetadata(ctx context.Context, arg UpdateContentSourceMetadataParams) error {
+	_, err := q.db.Exec(ctx, updateContentSourceMetadata, arg.ID, arg.SourceMetadata)
 	return err
 }
 

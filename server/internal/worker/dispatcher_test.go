@@ -3,8 +3,11 @@ package worker
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
+	"os"
+	"path/filepath"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -59,6 +62,25 @@ func newTestDispatcher(t *testing.T, client *redis.Client, queries store.Querier
 	consumer := queue.NewConsumer(client)
 	retry := queue.NewRetryScheduler(client, slog.Default())
 	return NewDispatcher(consumer, retry, queries, slog.Default(), 1)
+}
+
+func TestDispatcherCleanupVideoTempDirUsesConfiguredPath(t *testing.T) {
+	base := t.TempDir()
+	jobID := uuid.New()
+	tempDir := filepath.Join(base, jobID.String())
+	if err := os.MkdirAll(tempDir, 0o755); err != nil {
+		t.Fatalf("mkdir temp dir: %v", err)
+	}
+
+	d := NewDispatcher(nil, nil, nil, slog.Default(), 1, WithVideoTempPath(base))
+	d.cleanupVideoTempDir(&queue.JobPayload{
+		JobID:       jobID,
+		ContentType: "youtube",
+	})
+
+	if _, err := os.Stat(tempDir); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("temp dir still exists or unexpected stat error: %v", err)
+	}
 }
 
 // enqueuePayload pushes a serialised JobPayload onto the Redis pending list.

@@ -23,20 +23,19 @@ import { colors } from "~/styles/colors";
 type SaveDetail = {
   id: string;
   source_url?: string | null;
-  source_type: "article" | "image" | "youtube" | "audio" | "instagram_reel";
+  source_type: "article" | "image" | "youtube" | "audio" | "instagram_reel" | "x_post" | "reddit_post";
   source_title?: string | null;
   summary?: string | null;
   tags?: string[] | null;
   key_topics?: string[] | null;
   media_url?: string | null;
-  media_mime?: string | null;
-  media_file_bytes?: number | null;
   duration_seconds?: number | null;
   processing_status: "deferred" | "pending" | "processing" | "completed" | "failed";
   commit_status: "draft" | "committed";
   processing_error?: string | null;
   extracted_text?: string | null;
   visual_description?: string | null;
+  source_metadata?: unknown;
   created_at: string;
   updated_at: string;
   video_thumbnail_url?: string | null;
@@ -72,6 +71,10 @@ function transcriptSourceLabel(save: SaveDetail): string | null {
     default:
       return null;
   }
+}
+
+function extractedContentLabel(save: SaveDetail): string {
+  return save.source_type === "x_post" || save.source_type === "reddit_post" ? "POST" : "ARTICLE";
 }
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:8080";
@@ -251,7 +254,7 @@ export default function VaultDetailScreen() {
             ) : null}
 
             {/* ── Open Original button ── */}
-            {(save.source_type === "article" || save.source_type === "youtube" || save.source_type === "instagram_reel") && save.source_url ? (
+            {(save.source_type === "article" || save.source_type === "youtube" || save.source_type === "instagram_reel" || save.source_type === "x_post" || save.source_type === "reddit_post") && save.source_url ? (
               <Pressable
                 style={styles.openBtn}
                 onPress={() => Linking.openURL(save.source_url!)}
@@ -261,6 +264,10 @@ export default function VaultDetailScreen() {
                     ? "Watch on YouTube ↗"
                     : save.source_type === "instagram_reel"
                       ? "Open on Instagram ↗"
+                      : save.source_type === "x_post"
+                        ? "Open on X ↗"
+                        : save.source_type === "reddit_post"
+                          ? "Open on Reddit ↗"
                       : "Open Original Article ↗"}
                 </Text>
               </Pressable>
@@ -269,7 +276,7 @@ export default function VaultDetailScreen() {
             {/* ── Extracted content ── */}
             {save.extracted_text ? (
               <View style={styles.section}>
-                <Text style={styles.sectionLabel}>ARTICLE</Text>
+                <Text style={styles.sectionLabel}>{extractedContentLabel(save)}</Text>
                 <MarkdownContent content={save.extracted_text} />
               </View>
             ) : null}
