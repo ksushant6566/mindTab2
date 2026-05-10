@@ -1,0 +1,51 @@
+# syntax=docker/dockerfile:1.7
+
+FROM node:20-alpine AS web-builder
+WORKDIR /app
+
+RUN corepack enable
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/web/package.json apps/web/package.json
+COPY packages/api-spec/package.json packages/api-spec/package.json
+COPY packages/core/package.json packages/core/package.json
+COPY packages/shared/package.json packages/shared/package.json
+RUN pnpm install --frozen-lockfile
+
+COPY packages packages
+COPY apps/web apps/web
+
+ARG VITE_GOOGLE_CLIENT_ID
+ENV VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID
+
+RUN pnpm --filter @mindtab/api-spec build
+RUN pnpm --filter @mindtab/web build
+
+FROM golang:1.25-alpine AS api-builder
+WORKDIR /src
+
+RUN apk --no-cache add git
+
+COPY server/go.mod server/go.sum ./
+RUN go mod download
+RUN go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@v4.18.3
+
+COPY server .
+RUN CGO_ENABLED=0 go build -o /out/api ./cmd/api/
+
+FROM alpine:3.19
+
+RUN apk --no-cache add ca-certificates ffmpeg python3 py3-pip \
+    && pip3 install --break-system-packages yt-dlp
+
+COPY --from=api-builder /out/api /bin/api
+COPY --from=api-builder /go/bin/migrate /bin/migrate
+COPY --from=api-builder /src/migrations /migrations
+COPY --from=web-builder /app/apps/web/dist /static
+
+ENV PORT=8080
+ENV STATIC_DIR=/static
+ENV STORAGE_LOCAL_PATH=/data/mindtab/media
+
+EXPOSE 8080
+CMD ["/bin/api"]
