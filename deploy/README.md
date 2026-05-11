@@ -11,7 +11,7 @@ The workflow:
 2. Builds `ghcr.io/ksushant6566/mindtab-v2-landing:<sha>`.
    - Serves the Astro landing page with nginx.
 3. SSHes into the Oracle VM.
-4. Writes `/opt/mindtab/docker-compose.yml` and `/opt/mindtab/env/api.env`.
+4. Writes `/opt/mindtab/env/api.env`.
 5. Runs migrations against the remote Postgres `DATABASE_URL`.
 6. Replaces the running containers.
 7. Reloads host nginx.
@@ -63,7 +63,7 @@ They can be omitted; the server has defaults for blank values.
 
 ## One-Time VM Setup
 
-Install Docker, nginx, and certbot on the Oracle VM. The workflow will use the Docker Compose plugin when available, fall back to `docker-compose`, or install `docker-compose-plugin` with `apt-get` if neither is present.
+Install Docker, nginx, and certbot on the Oracle VM. Docker Compose is not required for production deploys.
 
 ```sh
 sudo apt-get update
@@ -89,13 +89,11 @@ sudo certbot --nginx --cert-name mindtab.in -d mindtab.in -d www.mindtab.in -d a
 Use the previous SHA from GitHub Actions logs:
 
 ```sh
-cd /opt/mindtab
-sudo docker compose pull
-sudo docker compose up -d
-```
-
-For a targeted rollback, edit `/opt/mindtab/docker-compose.yml` and replace the image tags with the previous SHA, then run:
-
-```sh
-sudo docker compose -f /opt/mindtab/docker-compose.yml up -d
+API_IMAGE=ghcr.io/ksushant6566/mindtab-v2-api:PREVIOUS_SHA
+LANDING_IMAGE=ghcr.io/ksushant6566/mindtab-v2-landing:PREVIOUS_SHA
+sudo docker pull "$API_IMAGE"
+sudo docker pull "$LANDING_IMAGE"
+sudo docker rm -f mindtab-api mindtab-landing
+sudo docker run -d --name mindtab-api --restart unless-stopped --env-file /opt/mindtab/env/api.env -p 127.0.0.1:8080:8080 -v mindtab_media:/data/mindtab/media "$API_IMAGE"
+sudo docker run -d --name mindtab-landing --restart unless-stopped -p 127.0.0.1:8081:80 "$LANDING_IMAGE"
 ```

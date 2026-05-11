@@ -108,27 +108,6 @@ jobs:
             sudo mkdir -p "$APP_DIR/env"
             sudo chown -R "$CURRENT_USER:$CURRENT_GROUP" "$APP_DIR"
 
-            if ! sudo docker compose version >/dev/null 2>&1 && ! command -v docker-compose >/dev/null 2>&1; then
-              if command -v apt-get >/dev/null 2>&1; then
-                sudo apt-get update
-                sudo apt-get install -y docker-compose-plugin
-              else
-                echo "Docker Compose is required, but neither 'docker compose' nor 'docker-compose' is installed." >&2
-                exit 1
-              fi
-            fi
-
-            compose() {
-              if sudo docker compose version >/dev/null 2>&1; then
-                sudo docker compose "$@"
-              elif command -v docker-compose >/dev/null 2>&1; then
-                sudo docker-compose "$@"
-              else
-                echo "Docker Compose is required, but neither 'docker compose' nor 'docker-compose' is installed." >&2
-                exit 1
-              fi
-            }
-
             if [ -n "${{ secrets.GHCR_PAT }}" ]; then
               echo "${{ secrets.GHCR_PAT }}" | sudo docker login ghcr.io -u "${{ github.repository_owner }}" --password-stdin
             fi
@@ -159,28 +138,6 @@ jobs:
             YOUTUBE_FRAMES_PER_MIN_CAP=${{ vars.YOUTUBE_FRAMES_PER_MIN_CAP }}
             ENV
             chmod 600 "$APP_DIR/env/api.env"
-
-            cat > "$APP_DIR/docker-compose.yml" <<COMPOSE
-            services:
-              api:
-                image: ${API_IMAGE}
-                restart: unless-stopped
-                env_file:
-                  - ${APP_DIR}/env/api.env
-                ports:
-                  - "127.0.0.1:8080:8080"
-                volumes:
-                  - mindtab_media:/data/mindtab/media
-
-              landing:
-                image: ${LANDING_IMAGE}
-                restart: unless-stopped
-                ports:
-                  - "127.0.0.1:8081:80"
-
-            volumes:
-              mindtab_media:
-            COMPOSE
 
             write_http_nginx_config() {
               cat > "$APP_DIR/mindtab.nginx.conf" <<'NGINX'
@@ -331,9 +288,31 @@ jobs:
 
             sudo nginx -t
 
-            compose -f "$APP_DIR/docker-compose.yml" pull
-            compose -f "$APP_DIR/docker-compose.yml" run --rm --no-deps api sh -lc 'migrate -path /migrations -database "$DATABASE_URL" up'
-            compose -f "$APP_DIR/docker-compose.yml" up -d --remove-orphans
+            sudo docker pull "$API_IMAGE"
+            sudo docker pull "$LANDING_IMAGE"
+            sudo docker volume create mindtab_media >/dev/null
+
+            sudo docker run --rm \
+              --env-file "$APP_DIR/env/api.env" \
+              "$API_IMAGE" \
+              sh -lc 'migrate -path /migrations -database "$DATABASE_URL" up'
+
+            sudo docker rm -f mindtab-api mindtab-landing 2>/dev/null || true
+
+            sudo docker run -d \
+              --name mindtab-api \
+              --restart unless-stopped \
+              --env-file "$APP_DIR/env/api.env" \
+              -p 127.0.0.1:8080:8080 \
+              -v mindtab_media:/data/mindtab/media \
+              "$API_IMAGE"
+
+            sudo docker run -d \
+              --name mindtab-landing \
+              --restart unless-stopped \
+              -p 127.0.0.1:8081:80 \
+              "$LANDING_IMAGE"
+
             sudo docker image prune -f
             sudo systemctl reload nginx
 
