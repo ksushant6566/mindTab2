@@ -63,7 +63,7 @@ They can be omitted; the server has defaults for blank values.
 
 ## One-Time VM Setup
 
-Install Docker, the Docker Compose plugin, nginx, and certbot on the Oracle VM.
+Install Docker, nginx, and certbot on the Oracle VM. The workflow will use the Docker Compose plugin when available, fall back to `docker-compose`, or install `docker-compose-plugin` with `apt-get` if neither is present.
 
 ```sh
 sudo apt-get update
@@ -74,7 +74,7 @@ sudo usermod -aG docker "$USER"
 
 Make sure the SSH user can run `sudo docker`, `sudo nginx`, and `sudo systemctl reload nginx`.
 
-Disable any old nginx site that already claims `mindtab.in`, `app.mindtab.in`, or `api.mindtab.in`; duplicate `server_name` blocks can make nginx keep routing traffic to the old app.
+The workflow disables old enabled nginx site entries that claim `mindtab.in`, `www.mindtab.in`, `app.mindtab.in`, or `api.mindtab.in` before reloading nginx.
 
 The workflow requests the first TLS certificate automatically when `LETSENCRYPT_EMAIL` is set and `certbot` is installed. It uses a stable certificate name, `mindtab.in`, then rewrites nginx into permanent HTTPS mode.
 
