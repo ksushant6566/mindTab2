@@ -91,6 +91,27 @@ jobs:
             sudo mkdir -p "$APP_DIR/env"
             sudo chown -R "$CURRENT_USER:$CURRENT_GROUP" "$APP_DIR"
 
+            if ! sudo docker compose version >/dev/null 2>&1 && ! command -v docker-compose >/dev/null 2>&1; then
+              if command -v apt-get >/dev/null 2>&1; then
+                sudo apt-get update
+                sudo apt-get install -y docker-compose-plugin
+              else
+                echo "Docker Compose is required, but neither 'docker compose' nor 'docker-compose' is installed." >&2
+                exit 1
+              fi
+            fi
+
+            compose() {
+              if sudo docker compose version >/dev/null 2>&1; then
+                sudo docker compose "$@"
+              elif command -v docker-compose >/dev/null 2>&1; then
+                sudo docker-compose "$@"
+              else
+                echo "Docker Compose is required, but neither 'docker compose' nor 'docker-compose' is installed." >&2
+                exit 1
+              fi
+            }
+
             if [ -n "${{ secrets.GHCR_PAT }}" ]; then
               echo "${{ secrets.GHCR_PAT }}" | sudo docker login ghcr.io -u "${{ github.repository_owner }}" --password-stdin
             fi
@@ -282,11 +303,20 @@ jobs:
 
             sudo cp "$APP_DIR/mindtab.nginx.conf" /etc/nginx/sites-available/mindtab
             sudo ln -sf /etc/nginx/sites-available/mindtab /etc/nginx/sites-enabled/mindtab
+
+            MANAGED_NGINX_SITE="$(readlink -f /etc/nginx/sites-available/mindtab)"
+            for site in /etc/nginx/sites-enabled/*; do
+              sudo test -e "$site" || continue
+              if [ "$(readlink -f "$site")" != "$MANAGED_NGINX_SITE" ] && sudo grep -Eq 'server_name[[:space:]][^;]*(api\.mindtab\.in|app\.mindtab\.in|mindtab\.in|www\.mindtab\.in)' "$site"; then
+                sudo rm -f "$site"
+              fi
+            done
+
             sudo nginx -t
 
-            sudo docker compose -f "$APP_DIR/docker-compose.yml" pull
-            sudo docker compose -f "$APP_DIR/docker-compose.yml" run --rm --no-deps api sh -lc 'migrate -path /migrations -database "$DATABASE_URL" up'
-            sudo docker compose -f "$APP_DIR/docker-compose.yml" up -d --remove-orphans
+            compose -f "$APP_DIR/docker-compose.yml" pull
+            compose -f "$APP_DIR/docker-compose.yml" run --rm --no-deps api sh -lc 'migrate -path /migrations -database "$DATABASE_URL" up'
+            compose -f "$APP_DIR/docker-compose.yml" up -d --remove-orphans
             sudo docker image prune -f
             sudo systemctl reload nginx
 
