@@ -104,6 +104,7 @@ jobs:
             CURRENT_GROUP="$(id -gn)"
             CERT_NAME=mindtab.in
             CERT_DIR=/etc/letsencrypt/live/$CERT_NAME
+            REQUIRED_TLS_DOMAINS="mindtab.in www.mindtab.in app.mindtab.in api.mindtab.in"
 
             sudo mkdir -p "$APP_DIR/env"
             sudo chown -R "$CURRENT_USER:$CURRENT_GROUP" "$APP_DIR"
@@ -269,7 +270,15 @@ jobs:
             NGINX
             }
 
-            if sudo test -f "$CERT_DIR/fullchain.pem" && sudo test -f "$CERT_DIR/privkey.pem"; then
+            cert_covers_required_domains() {
+              sudo test -f "$CERT_DIR/fullchain.pem" && sudo test -f "$CERT_DIR/privkey.pem" || return 1
+              cert_names="$(sudo openssl x509 -in "$CERT_DIR/fullchain.pem" -noout -ext subjectAltName 2>/dev/null || true)"
+              for domain in $REQUIRED_TLS_DOMAINS; do
+                echo "$cert_names" | grep -q "DNS:$domain\\>" || return 1
+              done
+            }
+
+            if cert_covers_required_domains; then
               write_https_nginx_config
             else
               write_http_nginx_config
@@ -316,10 +325,11 @@ jobs:
             sudo docker image prune -f
             sudo systemctl reload nginx
 
-            if ! sudo test -f "$CERT_DIR/fullchain.pem" && [ -n "${{ secrets.LETSENCRYPT_EMAIL }}" ] && command -v certbot >/dev/null 2>&1; then
+            if ! cert_covers_required_domains && [ -n "${{ secrets.LETSENCRYPT_EMAIL }}" ] && command -v certbot >/dev/null 2>&1; then
               sudo certbot --nginx \
                 --non-interactive \
                 --agree-tos \
+                --expand \
                 --email "${{ secrets.LETSENCRYPT_EMAIL }}" \
                 --cert-name "$CERT_NAME" \
                 -d mindtab.in \
@@ -327,8 +337,13 @@ jobs:
                 -d app.mindtab.in \
                 -d api.mindtab.in
 
-              write_https_nginx_config
-              sudo cp "$APP_DIR/mindtab.nginx.conf" /etc/nginx/sites-available/mindtab
-              sudo nginx -t
-              sudo systemctl reload nginx
+              if cert_covers_required_domains; then
+                write_https_nginx_config
+                sudo cp "$APP_DIR/mindtab.nginx.conf" /etc/nginx/sites-available/mindtab
+                sudo nginx -t
+                sudo systemctl reload nginx
+              else
+                echo "Certbot completed, but $CERT_DIR/fullchain.pem still does not cover all required domains: $REQUIRED_TLS_DOMAINS" >&2
+                exit 1
+              fi
             fi
