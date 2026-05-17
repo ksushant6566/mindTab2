@@ -8,10 +8,29 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["Geist Sans", ...fontFamily.sans],
+        sans: ["Inter", ...fontFamily.sans],
+        mono: ["JetBrains Mono", ...fontFamily.mono],
       },
       colors: {
-        border: "hsl(var(--border))",
+        mt: {
+          bg: "var(--bg)",
+          "bg-elev": "var(--bg-elev)",
+          "bg-soft": "var(--bg-soft)",
+          "bg-hover": "var(--bg-hover)",
+          border: "var(--border)",
+          "border-2": "var(--border-2)",
+          text: "var(--text)",
+          "text-2": "var(--text-2)",
+          "text-3": "var(--text-3)",
+          "text-4": "var(--text-4)",
+          ink: "var(--ink)",
+          "ink-2": "var(--ink-2)",
+          violet: "var(--violet)",
+          amber: "var(--amber)",
+          rose: "var(--rose)",
+          cyan: "var(--cyan)",
+        },
+        border: "hsl(var(--border-hsl))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
         background: "hsl(var(--background))",

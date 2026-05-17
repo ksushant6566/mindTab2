@@ -107,7 +107,7 @@ export const Habits: React.FC<HabitsProps> = ({ viewMode }) => {
     };
 
     return (
-        <div className="flex flex-col gap-4">
+        <div className="flex h-full min-h-0 flex-col gap-4">
             {isLoadingHabits ? (
                 <HabitTableSkeleton viewMode={viewMode} />
             ) : viewMode === "table" ? (

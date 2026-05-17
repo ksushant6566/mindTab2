@@ -24,7 +24,7 @@ export const EditGoal: React.FC<EditGoalProps> = ({ onSave, onCancel, goal, load
 
     const [formData, setFormData] = React.useState<any>({
         id: goal.id, title: goal.title, description: goal.description,
-        priority: goal.priority, impact: goal.impact, status: goal.status, projectId: goal.projectId,
+        priority: goal.priority, impact: goal.impact, status: goal.status, projectId: goal.projectId ?? goal.project?.id ?? null,
     });
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {

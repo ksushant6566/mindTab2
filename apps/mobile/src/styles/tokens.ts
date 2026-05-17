@@ -1,4 +1,5 @@
 import { TextStyle, ViewStyle } from "react-native";
+import { mindtabRadii } from "@mindtab/shared";
 
 // ---------------------------------------------------------------------------
 // Typography Scale
@@ -48,11 +49,11 @@ export const spacing = {
 // ---------------------------------------------------------------------------
 
 export const radii = {
-  sm: 8,
-  md: 12,
-  lg: 16,
-  xl: 20,
-  full: 999,
+  sm: mindtabRadii.sm,
+  md: mindtabRadii.md,
+  lg: mindtabRadii.lg,
+  xl: mindtabRadii.xl,
+  full: mindtabRadii.pill,
 } as const;
 
 // ---------------------------------------------------------------------------

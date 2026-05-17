@@ -17,11 +17,11 @@ export const CollapsedHabits: React.FC<CollapsedHabitsProps> = ({ habits, habitT
     };
 
     return (
-        <>
-            <div className="flex justify-end mb-4">
+        <div className="flex min-h-0 flex-1 flex-col">
+            <div className="mb-4 flex shrink-0 justify-end">
                 <Button onClick={() => setIsCreateDialogOpen(true)} size="sm" className="gap-2" variant={"secondary"} disabled={isCreatingHabit}><Plus className="h-4 w-4" />Add Habit</Button>
             </div>
-            <ScrollArea className="h-[calc(100vh-18rem)]">
+            <ScrollArea className="min-h-0 flex-1">
                 <div className="grid grid-cols-1 auto-cols-fr gap-4 sm:grid-cols-[repeat(auto-fill,minmax(200px,1fr))] pr-4">
                     {habits.map((habit: any) => {
                         const isChecked = habitTracker.some((tracker: any) => tracker.habitId === habit.id && tracker.status === "completed" && tracker.date === today);
@@ -41,6 +41,6 @@ export const CollapsedHabits: React.FC<CollapsedHabitsProps> = ({ habits, habitT
                     })}
                 </div>
             </ScrollArea>
-        </>
+        </div>
     );
 };

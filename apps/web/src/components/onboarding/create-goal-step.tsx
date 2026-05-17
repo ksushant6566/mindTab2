@@ -117,7 +117,7 @@ export function CreateGoalStep({
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.4, delay: 0.12 }}
                 >
-                    Goals can be tracked from pending to completed. What do you want to accomplish?
+                    Goals can move from To Do to Done. What do you want to accomplish?
                 </motion.p>
             </div>
 

@@ -1,25 +1,23 @@
 /**
- * MindTab design tokens — source of truth.
- * Extracted verbatim from the finalised landing-page design (Apr 2026).
- * Keep this file in lockstep with the design; promote to a shared package
- * when web/mobile/extension start consuming it.
+ * MindTab landing tokens.
+ * This variant intentionally mirrors the web app's neutral dark theme.
  */
 :root {
-  --bg:         #0a0a0b;
-  --bg-elev:    #101012;
-  --bg-soft:    #15161a;
-  --bg-hover:   #1c1d22;
-  --border:     #232429;
-  --border-2:   #2e3036;
-  --text:       #f0f1f3;
-  --text-2:     #a1a3aa;
-  --text-3:     #60636c;
-  --text-4:     #3a3d45;
+  --bg:         #0a0a0a;
+  --bg-elev:    #141414;
+  --bg-soft:    #1c1c1c;
+  --bg-hover:   #262626;
+  --border:     #262626;
+  --border-2:   #333333;
+  --text:       #fafafa;
+  --text-2:     #a3a3a3;
+  --text-3:     #737373;
+  --text-4:     #555555;
 
-  --ink:        #c5f82a;
-  --ink-soft:   #c5f82a18;
-  --ink-line:   #c5f82a55;
-  --ink-2:      #dbff5d;
+  --ink:        #fafafa;
+  --ink-soft:   #fafafa26;
+  --ink-line:   #fafafa66;
+  --ink-2:      #ffffff;
 
   --violet:     #7c6df2;
   --amber:      #f5b344;

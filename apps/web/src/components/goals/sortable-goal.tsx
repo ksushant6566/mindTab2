@@ -9,22 +9,53 @@ interface SortableGoalProps {
   onEdit: (id: string) => void
   onDelete: (id: string) => void
   onToggleStatus: (id: string, checked: CheckedState) => void
+  onUpdate?: (id: string, goal: Record<string, unknown>) => void
   isDeleting: boolean
   deleteVariables?: string
+  surface?: 'list' | 'kanban'
 }
 
-export const SortableGoal: React.FC<SortableGoalProps> = ({ goal, onEdit, onDelete, onToggleStatus, isDeleting, deleteVariables }) => {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: goal.id })
+export const SortableGoal: React.FC<SortableGoalProps> = ({
+  goal,
+  onEdit,
+  onDelete,
+  onToggleStatus,
+  onUpdate,
+  isDeleting,
+  deleteVariables,
+  surface = 'list',
+}) => {
+  const {
+    attributes,
+    listeners,
+    setActivatorNodeRef,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: goal.id })
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.5 : 1,
+    opacity: isDragging ? 0.28 : 1,
   }
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners} className="rounded-lg border bg-card p-4 cursor-grab active:cursor-grabbing">
-      <Goal goal={goal} onEdit={onEdit} onDelete={onDelete} onToggleStatus={onToggleStatus} isDeleting={isDeleting} deleteVariables={deleteVariables} />
+    <div ref={setNodeRef} style={style}>
+      <Goal
+        goal={goal}
+        onEdit={onEdit}
+        onDelete={onDelete}
+        onToggleStatus={onToggleStatus}
+        onUpdate={onUpdate}
+        isDeleting={isDeleting}
+        deleteVariables={deleteVariables}
+        surface={surface}
+        isDragging={isDragging}
+        dragHandleRef={setActivatorNodeRef}
+        dragHandleProps={{ ...attributes, ...listeners }}
+      />
     </div>
   )
 }

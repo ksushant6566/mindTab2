@@ -1,0 +1,60 @@
+:root {
+  --bg: #0a0a0a;
+  --bg-elev: #141414;
+  --bg-soft: #1c1c1c;
+  --bg-hover: #262626;
+  --border: #262626;
+  --border-2: #333333;
+  --text: #fafafa;
+  --text-2: #a3a3a3;
+  --text-3: #737373;
+  --text-4: #555555;
+
+  --ink: #fafafa;
+  --ink-soft: #fafafa26;
+  --ink-line: #fafafa66;
+  --ink-2: #ffffff;
+
+  --violet: #7c6df2;
+  --amber: #f5b344;
+  --rose: #ff4d6d;
+  --cyan: #52d9ff;
+
+  --sans: "Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --r-1: 3px;
+  --r-2: 5px;
+  --r-3: 7px;
+  --r-4: 10px;
+  --r-5: 14px;
+  --r-pill: 999px;
+
+  --ease-out: cubic-bezier(.16,.84,.32,1);
+
+  --background: 0 0% 3.9%;
+  --foreground: 0 0% 98%;
+  --card: 0 0% 7.8%;
+  --card-foreground: 0 0% 98%;
+  --popover: 0 0% 7.8%;
+  --popover-foreground: 0 0% 98%;
+  --primary: 0 0% 98%;
+  --primary-foreground: 0 0% 3.9%;
+  --secondary: 0 0% 11%;
+  --secondary-foreground: 0 0% 98%;
+  --muted: 0 0% 11%;
+  --muted-foreground: 0 0% 63.9%;
+  --accent: 0 0% 98%;
+  --accent-foreground: 0 0% 3.9%;
+  --destructive: 349 100% 65.1%;
+  --destructive-foreground: 0 0% 100%;
+  --border-hsl: 0 0% 14.9%;
+  --input: 0 0% 20%;
+  --ring: 0 0% 83.1%;
+  --radius: var(--r-3);
+  --chart-1: 0 0% 98%;
+  --chart-2: 247 83.6% 68.8%;
+  --chart-3: 38 89.8% 61.4%;
+  --chart-4: 193 100% 66.1%;
+  --chart-5: 349 100% 65.1%;
+}

@@ -1,5 +1,6 @@
 import { TextInput, StyleSheet, type TextInputProps } from "react-native";
 import { colors } from "~/styles/colors";
+import { radii } from "~/styles/tokens";
 
 type InputProps = TextInputProps & {
   className?: string;
@@ -17,9 +18,9 @@ export function Input({ className, style, ...props }: InputProps) {
 
 const styles = StyleSheet.create({
   input: {
-    borderRadius: 8,
+    borderRadius: radii.sm,
     borderWidth: 1,
-    borderColor: colors.border.default,
+    borderColor: colors.border.input,
     backgroundColor: colors.bg.primary,
     paddingHorizontal: 12,
     paddingVertical: 10,

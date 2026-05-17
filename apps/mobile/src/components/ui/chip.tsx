@@ -10,6 +10,7 @@ import * as Haptics from "expo-haptics";
 import { springs } from "~/lib/animations";
 import { colors } from "~/styles/colors";
 import type { ReactNode } from "react";
+import type { ChipSize } from "@mindtab/shared";
 
 type ChipProps = {
   label: string;
@@ -18,14 +19,14 @@ type ChipProps = {
   color?: string;
   onPress?: () => void;
   onLongPress?: () => void;
-  size?: "sm" | "md";
+  size?: ChipSize;
 };
 
 export function Chip({
   label,
   icon,
   selected = false,
-  color = colors.accent.indigo,
+  color = colors.accent.ink,
   onPress,
   onLongPress,
   size = "md",

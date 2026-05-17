@@ -11,7 +11,7 @@ export const GoalSkeleton: React.FC<GoalSkeletonProps> = ({ viewMode }) => {
         return (
             <Accordion type="single" collapsible defaultValue="pending" className="mt-4 pr-8">
                 <AccordionItem value="pending">
-                    <AccordionTrigger className="text-sm font-medium">Pending</AccordionTrigger>
+                    <AccordionTrigger className="text-sm font-medium">To Do</AccordionTrigger>
                     <AccordionContent className="space-y-6">
                         {Array.from({ length: 4 }).map((_, index) => (
                             <div className="flex items-start justify-start gap-3" key={index}>

@@ -1,10 +1,23 @@
 import { type CheckedState } from "@radix-ui/react-checkbox";
-import { Edit3, Flag, Trash2, Zap, FolderOpen, Clock } from "lucide-react";
+import {
+    CheckCircle2,
+    Clock,
+    Edit3,
+    Flag,
+    FolderOpen,
+    GripVertical,
+    Save,
+    Trash2,
+    X,
+    Zap,
+} from "lucide-react";
 import React from "react";
+import { useQuery } from "@tanstack/react-query";
+import { projectsQueryOptions } from "~/api/hooks";
 import { Button } from "~/components/ui/button";
 import { Checkbox } from "~/components/ui/checkbox";
-import { Label } from "~/components/ui/label";
-import { getTimeAgo } from "~/lib/utils";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "~/components/ui/dialog";
+import { cn, getTimeAgo } from "~/lib/utils";
 
 type TGoal = {
     id: string;
@@ -25,20 +38,42 @@ type TGoal = {
     [key: string]: any;
 };
 
-const priorityColors = {
-    priority_1: "red",
-    priority_2: "yellow",
-    priority_3: "green",
-    priority_4: "white",
-};
+const priorityMeta = {
+    priority_1: { label: "P1", tone: "var(--rose)" },
+    priority_2: { label: "P2", tone: "var(--amber)" },
+    priority_3: { label: "P3", tone: "var(--cyan)" },
+    priority_4: { label: "P4", tone: "var(--text-3)" },
+} as const;
+
+const impactMeta = {
+    low: { label: "Low", dots: 1, tone: "var(--text-3)" },
+    medium: { label: "Medium", dots: 2, tone: "var(--cyan)" },
+    high: { label: "High", dots: 3, tone: "var(--amber)" },
+} as const;
+
+const statusMeta = {
+    pending: { label: "To Do", shortcut: "T", hint: "Define the next move" },
+    in_progress: { label: "In Progress", shortcut: "I", hint: "Currently in motion" },
+    completed: { label: "Done", shortcut: "D", hint: "Ready to archive" },
+    archived: { label: "Archive", shortcut: "A", hint: "Stored out of view" },
+} as const;
+
+type PriorityMeta = (typeof priorityMeta)[keyof typeof priorityMeta];
+type ImpactMeta = (typeof impactMeta)[keyof typeof impactMeta];
 
 interface GoalProps {
     goal: TGoal;
     onEdit: (id: string) => void;
     onDelete: (id: string) => void;
     onToggleStatus: (id: string, checked: CheckedState) => void;
+    onUpdate?: (id: string, goal: Record<string, unknown>) => void;
     isDeleting: boolean;
     deleteVariables?: string;
+    surface?: "list" | "kanban";
+    isDragging?: boolean;
+    isOverlay?: boolean;
+    dragHandleRef?: React.Ref<HTMLButtonElement>;
+    dragHandleProps?: React.ButtonHTMLAttributes<HTMLButtonElement>;
 }
 
 export const Goal: React.FC<GoalProps> = ({
@@ -46,88 +81,430 @@ export const Goal: React.FC<GoalProps> = ({
     onEdit,
     onDelete,
     onToggleStatus,
+    onUpdate,
     isDeleting,
     deleteVariables,
+    surface = "list",
+    isDragging = false,
+    isOverlay = false,
+    dragHandleRef,
+    dragHandleProps,
 }) => {
     return (
-        <div className="group relative grid grid-cols-[auto,1fr] gap-3 items-start">
-            <Checkbox
-                id={goal.id}
-                className="h-4 w-4 rounded-full mt-0.5"
-                checked={["completed", "archived"].includes(goal.status)}
-                onCheckedChange={(checked) => onToggleStatus(goal.id, checked)}
-            />
-            <div className="flex flex-col gap-1 min-w-0">
-                <Label
-                    className={`text-sm font-medium ${["completed", "archived"].includes(goal.status) ? "line-through" : ""}`}
-                >
-                    {goal.title}
-                </Label>
-                {goal.description && (
-                    <p
-                        className={`text-sm text-muted-foreground ${["completed", "archived"].includes(goal.status) ? "line-through" : ""} break-words`}
+        <GoalCard
+            goal={goal}
+            onEdit={onEdit}
+            onDelete={onDelete}
+            onToggleStatus={onToggleStatus}
+            onUpdate={onUpdate}
+            isDeleting={isDeleting}
+            deleteVariables={deleteVariables}
+            surface={surface}
+            isDragging={isDragging}
+            isOverlay={isOverlay}
+            dragHandleRef={dragHandleRef}
+            dragHandleProps={dragHandleProps}
+        />
+    );
+};
+
+const GoalCard: React.FC<Required<Pick<GoalProps, "goal" | "onEdit" | "onDelete" | "onToggleStatus" | "isDeleting" | "surface">> & Pick<GoalProps, "onUpdate" | "deleteVariables" | "isDragging" | "isOverlay" | "dragHandleRef" | "dragHandleProps">> = ({
+    goal,
+    onEdit,
+    onDelete,
+    onToggleStatus,
+    onUpdate,
+    isDeleting,
+    deleteVariables,
+    surface,
+    isDragging,
+    isOverlay,
+    dragHandleRef,
+    dragHandleProps,
+}) => {
+    const { data: projects } = useQuery(projectsQueryOptions());
+    const [dialogOpen, setDialogOpen] = React.useState(false);
+    const [mode, setMode] = React.useState<"view" | "edit">("view");
+    const [formData, setFormData] = React.useState({
+        title: goal.title || "",
+        description: goal.description || "",
+        priority: goal.priority || "priority_4",
+        impact: goal.impact || "low",
+        status: goal.status || "pending",
+        projectId: goal.projectId ?? goal.project?.id ?? null,
+    });
+
+    React.useEffect(() => {
+        setFormData({
+            title: goal.title || "",
+            description: goal.description || "",
+            priority: goal.priority || "priority_4",
+            impact: goal.impact || "low",
+            status: goal.status || "pending",
+            projectId: goal.projectId ?? goal.project?.id ?? null,
+        });
+        setMode("view");
+    }, [goal.id, goal.title, goal.description, goal.priority, goal.impact, goal.status, goal.projectId, goal.project?.id]);
+
+    const completed = ["completed", "archived"].includes(goal.status);
+    const priority = priorityMeta[goal.priority as keyof typeof priorityMeta] ?? priorityMeta.priority_4;
+    const impact = impactMeta[goal.impact as keyof typeof impactMeta] ?? impactMeta.low;
+    const status = statusMeta[goal.status as keyof typeof statusMeta] ?? statusMeta.pending;
+    const projectName = goal.project?.name || goal.projectName;
+    const goalCode = goal.key || goal.code || `GOAL-${String(goal.id).slice(0, 4).toUpperCase()}`;
+
+    const saveInlineEdit = (event: React.FormEvent) => {
+        event.preventDefault();
+        if (!formData.title.trim()) return;
+
+        if (onUpdate) {
+            onUpdate(goal.id, {
+                title: formData.title.trim(),
+                description: formData.description.trim() || undefined,
+                priority: formData.priority,
+                impact: formData.impact,
+                status: formData.status,
+                projectId: formData.projectId,
+            });
+            setMode("view");
+            setDialogOpen(true);
+            return;
+        }
+
+        onEdit(goal.id);
+    };
+
+    return (
+        <>
+        <article
+            className={cn(
+                "group/card relative overflow-hidden rounded-[var(--r-3)] border border-border bg-card text-card-foreground transition-all duration-150 [transition-timing-function:var(--ease-out)]",
+                "before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-white/[0.04]",
+                surface === "list" && "bg-[var(--bg-elev)]/65",
+                dialogOpen
+                    ? "border-[var(--border-2)] bg-[var(--bg-elev)] shadow-[0_12px_32px_-28px_rgba(0,0,0,0.9)]"
+                    : "hover:-translate-y-0.5 hover:border-[var(--border-2)] hover:bg-[var(--bg-soft)] hover:shadow-[0_10px_28px_-26px_rgba(0,0,0,0.85)]",
+                isDragging && "scale-[0.985] border-dashed opacity-30",
+                isOverlay && "rotate-[0.35deg] shadow-[0_18px_44px_-34px_rgba(0,0,0,0.9)]"
+            )}
+        >
+            <div className={cn("grid grid-cols-[28px_1fr_auto] gap-2 p-3", surface === "list" && "gap-3 px-3.5 py-3")}>
+                <div className="flex flex-col items-center gap-2 pt-0.5">
+                    <button
+                        ref={dragHandleRef}
+                        type="button"
+                        aria-label={`Drag ${goal.title}`}
+                        {...dragHandleProps}
+                        className="flex size-6 cursor-grab items-center justify-center rounded-[var(--r-2)] text-muted-foreground opacity-45 transition-all hover:bg-secondary hover:text-foreground group-hover/card:opacity-100 active:cursor-grabbing"
+                        onClick={(event) => event.stopPropagation()}
                     >
-                        {goal.description}
-                    </p>
-                )}
-                <div className="mt-1 flex items-center gap-2 flex-wrap">
-                    <span className="flex items-center gap-1 rounded-md bg-secondary px-1 py-0.5 text-xs capitalize text-muted-foreground">
-                        <Flag
-                            className="h-3 w-3"
-                            color={
-                                priorityColors[
-                                    goal.priority as keyof typeof priorityColors
-                                ]
-                            }
-                            fill={
-                                priorityColors[
-                                    goal.priority as keyof typeof priorityColors
-                                ]
-                            }
-                        />
-                        P{goal.priority.split("_")[1]}
-                    </span>
-                    <span className="flex items-center gap-0 rounded-md bg-secondary px-1 py-0.5 text-xs capitalize text-muted-foreground text-yellow-300">
-                        <Zap
-                            className="mr-1 h-3 w-3"
-                            color={"gold"}
-                            fill={"gold"}
-                        />
-                        {goal.impact}
-                    </span>
-                    {(goal.project || goal.projectName) && (
-                        <span className="flex items-center gap-1 rounded-md bg-blue-100 dark:bg-blue-900 px-1 py-0.5 text-xs text-blue-800 dark:text-blue-200">
-                            <FolderOpen className="h-3 w-3" />
-                            {goal.project?.name || goal.projectName || "Project"}
-                        </span>
-                    )}
+                        <GripVertical className="h-3.5 w-3.5" />
+                    </button>
+                    <Checkbox
+                        id={goal.id}
+                        className="size-4 rounded-[var(--r-1)] border-[var(--border-2)] data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground [&_svg]:size-3"
+                        checked={completed}
+                        onCheckedChange={(checked) => onToggleStatus(goal.id, checked)}
+                        aria-label={`Move ${goal.title} to the next status`}
+                    />
                 </div>
-                {goal.createdAt && (
-                    <div className="mt-2 -mb-2.5 flex items-center gap-1 text-xs text-muted-foreground">
-                        <Clock className="h-3 w-3" />
-                        {getTimeAgo(new Date(goal.createdAt))}
+
+                <button
+                    type="button"
+                    className="min-w-0 text-left"
+                    onClick={() => !isOverlay && setDialogOpen(true)}
+                    onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
+                            setDialogOpen(true);
+                        }
+                    }}
+                    aria-expanded={dialogOpen}
+                    aria-haspopup="dialog"
+                >
+                    <div className="flex min-w-0 items-start justify-between gap-3">
+                        <div className="min-w-0">
+                            <div className={cn("truncate text-[13.5px] font-medium leading-5 tracking-normal text-foreground", completed && "text-muted-foreground line-through decoration-muted-foreground/70")}>
+                                {goal.title}
+                            </div>
+                            <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[10.5px] uppercase tracking-[0.04em] text-muted-foreground">
+                                <span>{goalCode}</span>
+                                {projectName && (
+                                    <>
+                                        <span className="text-[var(--text-4)]">·</span>
+                                        <span className="max-w-[120px] truncate lowercase">{projectName}</span>
+                                    </>
+                                )}
+                                <span className="text-[var(--text-4)]">·</span>
+                                <PriorityMark priority={priority} />
+                                <span className="text-[var(--text-4)]">·</span>
+                                <ImpactMark impact={impact} />
+                            </div>
+                            {surface === "list" && goal.description && (
+                                <p className={cn("mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground", completed && "line-through decoration-muted-foreground/60")}>
+                                    {goal.description}
+                                </p>
+                            )}
+                        </div>
+                        <span className="mt-1 size-1.5 shrink-0 rounded-full" style={{ background: priority.tone }} />
                     </div>
-                )}
+                </button>
+
+                <div className="flex items-start gap-1 opacity-0 transition-opacity group-hover/card:opacity-100">
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="size-7 rounded-[var(--r-2)]"
+                        onClick={() => {
+                            setDialogOpen(true);
+                            setMode("edit");
+                        }}
+                        aria-label={`Edit ${goal.title}`}
+                    >
+                        <Edit3 className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="size-7 rounded-[var(--r-2)] text-muted-foreground hover:text-[var(--rose)]"
+                        onClick={() => onDelete(goal.id)}
+                        disabled={isDeleting && deleteVariables === goal.id}
+                        aria-label={`Delete ${goal.title}`}
+                    >
+                        <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                </div>
             </div>
-            <div className="absolute -right-3.5 bottom-0 flex z-10 -translate-y-6 gap-0 opacity-0 transition-all group-hover:translate-y-1.5 group-hover:opacity-100">
-                <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-8 w-8 p-0.5"
-                    onClick={() => onEdit(goal.id)}
-                >
-                    <Edit3 className="h-4 w-4" />
-                </Button>
-                <Button
-                    size="sm"
-                    variant="ghost"
-                    className="hover:bg-red-900 active:bg-red-900 h-8 w-8 p-0.5"
-                    onClick={() => onDelete(goal.id)}
-                    disabled={isDeleting && deleteVariables === goal.id}
-                >
-                    <Trash2 className="h-4 w-4" />
-                </Button>
+
+        </article>
+        {!isOverlay && (
+            <Dialog
+                open={dialogOpen}
+                onOpenChange={(open) => {
+                    setDialogOpen(open);
+                    if (!open) setMode("view");
+                }}
+            >
+                <DialogContent className="max-w-2xl overflow-hidden border border-border bg-[var(--bg-elev)] p-0 shadow-[0_20px_64px_-48px_rgba(0,0,0,0.95)]">
+                    <DialogHeader className="border-b border-border px-5 py-4 text-left">
+                        <DialogTitle className="pr-8 text-lg font-semibold leading-6 tracking-normal text-foreground">
+                            {goal.title}
+                        </DialogTitle>
+                        <DialogDescription className="flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[10.5px] uppercase tracking-[0.06em] text-muted-foreground">
+                            <span>{goalCode}</span>
+                            {projectName && (
+                                <>
+                                    <span className="text-[var(--text-4)]">·</span>
+                                    <span className="lowercase">{projectName}</span>
+                                </>
+                            )}
+                            <span className="text-[var(--text-4)]">·</span>
+                            <span>{status.label}</span>
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="bg-[var(--bg)]/45 px-5 pb-5 pt-4">
+                    <div className="mb-3 flex items-center justify-between gap-2">
+                        <div className="inline-flex rounded-[var(--r-2)] border border-border bg-[var(--bg-soft)] p-0.5">
+                            {(["view", "edit"] as const).map((item) => (
+                                <button
+                                    key={item}
+                                    type="button"
+                                    onClick={() => setMode(item)}
+                                    className={cn(
+                                        "h-6 rounded-[calc(var(--r-2)-1px)] px-2 font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground transition-colors",
+                                        mode === item && "bg-primary text-primary-foreground"
+                                    )}
+                                >
+                                    {item}
+                                </button>
+                            ))}
+                        </div>
+                        <div className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
+                            <CheckCircle2 className="h-3 w-3" />
+                            <span>{status.label}</span>
+                        </div>
+                    </div>
+
+                    {mode === "view" ? (
+                        <div className="space-y-3">
+                            <p className="text-sm leading-5 text-muted-foreground">
+                                {goal.description || "No description yet. Open edit mode to add a sharper next action."}
+                            </p>
+                            <div className="grid grid-cols-2 gap-2">
+                                <KanbanDetail label="Priority" value={priority.label}>
+                                    <PriorityMark priority={priority} />
+                                </KanbanDetail>
+                                <KanbanDetail label="Impact" value={impact.label}>
+                                    <ImpactMark impact={impact} />
+                                </KanbanDetail>
+                                <KanbanDetail label="Project" value={projectName || "None"} icon={<FolderOpen className="h-3 w-3" />} />
+                                <KanbanDetail label="Created" value={goal.createdAt ? getTimeAgo(new Date(goal.createdAt)) : "Unknown"} icon={<Clock className="h-3 w-3" />} />
+                            </div>
+                            <div className="rounded-[var(--r-2)] border border-border bg-[var(--bg-soft)] px-3 py-2">
+                                <div className="flex items-center justify-between gap-3">
+                                    <div>
+                                        <div className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">{status.hint}</div>
+                                        <div className="mt-0.5 text-xs text-foreground">Click the checkbox to advance this goal.</div>
+                                    </div>
+                                    <span className="flex size-6 items-center justify-center rounded-[var(--r-2)] border border-border bg-background font-mono text-[10px] text-muted-foreground">
+                                        {status.shortcut}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        <form className="space-y-3" onSubmit={saveInlineEdit}>
+                            <input
+                                value={formData.title}
+                                onChange={(event) => setFormData((prev) => ({ ...prev, title: event.target.value }))}
+                                className="h-9 w-full rounded-[var(--r-2)] border border-input bg-background px-3 text-sm font-medium text-foreground outline-none transition-colors focus:border-[var(--ink-line)] focus:ring-2 focus:ring-ring/30"
+                                placeholder="Goal title"
+                                autoFocus
+                            />
+                            <textarea
+                                value={formData.description}
+                                onChange={(event) => setFormData((prev) => ({ ...prev, description: event.target.value }))}
+                                className="min-h-20 w-full resize-none rounded-[var(--r-2)] border border-input bg-background px-3 py-2 text-sm leading-5 text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-[var(--ink-line)] focus:ring-2 focus:ring-ring/30"
+                                placeholder="What does done look like?"
+                            />
+                            <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+                                <KanbanSelect
+                                    label="Priority"
+                                    value={formData.priority}
+                                    onChange={(value) => setFormData((prev) => ({ ...prev, priority: value }))}
+                                    options={[
+                                        ["priority_1", "P1"],
+                                        ["priority_2", "P2"],
+                                        ["priority_3", "P3"],
+                                        ["priority_4", "P4"],
+                                    ]}
+                                />
+                                <KanbanSelect
+                                    label="Impact"
+                                    value={formData.impact}
+                                    onChange={(value) => setFormData((prev) => ({ ...prev, impact: value }))}
+                                    options={[
+                                        ["low", "Low"],
+                                        ["medium", "Medium"],
+                                        ["high", "High"],
+                                    ]}
+                                />
+                                <KanbanSelect
+                                    label="Status"
+                                    value={formData.status}
+                                    onChange={(value) => setFormData((prev) => ({ ...prev, status: value }))}
+                                    options={[
+                                        ["pending", "To Do"],
+                                        ["in_progress", "In Progress"],
+                                        ["completed", "Done"],
+                                        ["archived", "Archive"],
+                                    ]}
+                                />
+                                <KanbanSelect
+                                    label="Project"
+                                    value={formData.projectId || "none"}
+                                    onChange={(value) => setFormData((prev) => ({ ...prev, projectId: value === "none" ? null : value }))}
+                                    options={[
+                                        ["none", "No Project"],
+                                        ...((projects as any[]) ?? []).map((project: any) => [project.id, project.name || "Unnamed Project"] as [string, string]),
+                                    ]}
+                                />
+                            </div>
+                            <div className="flex justify-end gap-2">
+                                <Button type="button" variant="ghost" size="sm" className="h-8" onClick={() => setMode("view")}>
+                                    <X className="mr-1.5 h-3.5 w-3.5" />
+                                    Cancel
+                                </Button>
+                                <Button type="submit" size="sm" className="h-8" disabled={!formData.title.trim()}>
+                                    <Save className="mr-1.5 h-3.5 w-3.5" />
+                                    Save
+                                </Button>
+                            </div>
+                        </form>
+                    )}
+                    </div>
+                </DialogContent>
+            </Dialog>
+        )}
+        </>
+    );
+};
+
+function KanbanDetail({
+    label,
+    value,
+    tone,
+    icon,
+    children,
+}: {
+    label: string;
+    value: string;
+    tone?: string;
+    icon?: React.ReactNode;
+    children?: React.ReactNode;
+}) {
+    return (
+        <div className="rounded-[var(--r-2)] border border-border bg-[var(--bg-soft)] px-2.5 py-2">
+            <div className="font-mono text-[9px] uppercase tracking-[0.08em] text-muted-foreground">{label}</div>
+            <div className="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-foreground">
+                {icon}
+                {children || (
+                    <span className="truncate" style={tone ? { color: tone } : undefined}>{value}</span>
+                )}
             </div>
         </div>
     );
-};
+}
+
+function PriorityMark({ priority }: { priority: PriorityMeta }) {
+    return (
+        <span className="inline-flex items-center gap-1" style={{ color: priority.tone }}>
+            <Flag className="h-3 w-3" fill="currentColor" />
+            <span>{priority.label}</span>
+        </span>
+    );
+}
+
+function ImpactMark({ impact }: { impact: ImpactMeta }) {
+    return (
+        <span className="inline-flex items-center gap-1" style={{ color: impact.tone }}>
+            <span className="inline-flex items-center gap-0.5">
+                {Array.from({ length: impact.dots }).map((_, index) => (
+                    <Zap key={index} className="h-3 w-3" fill="currentColor" />
+                ))}
+            </span>
+            <span>{impact.label}</span>
+        </span>
+    );
+}
+
+function KanbanSelect({
+    label,
+    value,
+    onChange,
+    options,
+}: {
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+    options: Array<[string, string]>;
+}) {
+    return (
+        <label className="space-y-1">
+            <span className="font-mono text-[9px] uppercase tracking-[0.08em] text-muted-foreground">{label}</span>
+            <select
+                value={value}
+                onChange={(event) => onChange(event.target.value)}
+                className="h-8 w-full rounded-[var(--r-2)] border border-input bg-background px-2 text-xs text-foreground outline-none focus:border-[var(--ink-line)] focus:ring-2 focus:ring-ring/30"
+            >
+                {options.map(([optionValue, optionLabel]) => (
+                    <option key={optionValue} value={optionValue}>
+                        {optionLabel}
+                    </option>
+                ))}
+            </select>
+        </label>
+    );
+}

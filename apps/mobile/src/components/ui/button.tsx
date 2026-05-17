@@ -17,12 +17,11 @@ import Animated, {
   interpolateColor,
 } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
+import type { ButtonSize, ButtonVariant } from "@mindtab/shared";
 import { Check, X } from "lucide-react-native";
 import { springs } from "~/lib/animations";
 import { colors } from "~/styles/colors";
-
-type ButtonVariant = "default" | "secondary" | "destructive" | "ghost" | "outline";
-type ButtonSize = "default" | "sm" | "lg" | "icon";
+import { radii } from "~/styles/tokens";
 type ButtonState = "idle" | "loading" | "success" | "error";
 
 type ButtonProps = PressableProps & {
@@ -38,11 +37,12 @@ type ButtonProps = PressableProps & {
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 const variantStyles: Record<ButtonVariant, ViewStyle> = {
-  default: { backgroundColor: colors.text.primary },
-  secondary: { backgroundColor: colors.bg.surface },
+  default: { backgroundColor: colors.accent.ink },
+  secondary: { backgroundColor: colors.bg.surface, borderWidth: 1, borderColor: colors.border.default },
   destructive: { backgroundColor: colors.feedback.error },
   ghost: {},
-  outline: { borderWidth: 1, borderColor: colors.border.default },
+  outline: { borderWidth: 1, borderColor: colors.border.default, backgroundColor: "transparent" },
+  link: {},
 };
 
 const sizeStyles: Record<ButtonSize, ViewStyle> = {
@@ -58,6 +58,7 @@ const textColorMap: Record<ButtonVariant, string> = {
   destructive: colors.white,
   ghost: colors.text.primary,
   outline: colors.text.primary,
+  link: colors.accent.ink,
 };
 
 export function Button({
@@ -189,7 +190,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 8,
+    borderRadius: radii.md,
   },
   text: {
     fontSize: 14,

@@ -48,7 +48,7 @@ export const CreateGoal: React.FC<CreateGoalProps> = ({
         description: defaultValues?.description,
         priority: defaultValues?.priority || GOAL_PRIORITY[0],
         impact: defaultValues?.impact || GOAL_IMPACT[1],
-        status: "pending",
+        status: defaultValues?.status || "pending",
         projectId: defaultValues?.projectId,
     });
 

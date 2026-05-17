@@ -1,5 +1,6 @@
 import { View, StyleSheet, type ViewProps, type ViewStyle } from "react-native";
 import { colors } from "~/styles/colors";
+import { radii } from "~/styles/tokens";
 
 type CardProps = ViewProps & {
   className?: string;
@@ -15,7 +16,7 @@ export function Card({ className, children, style, ...props }: CardProps) {
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 12,
+    borderRadius: radii.md,
     borderWidth: 1,
     borderColor: colors.border.default,
     backgroundColor: colors.bg.elevated,

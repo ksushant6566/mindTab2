@@ -25,7 +25,7 @@ function ListWireframe() {
         <div className="flex h-full w-full p-3 gap-3">
             <div className="flex flex-col w-[38%] overflow-hidden">
                 <div className="flex items-center gap-1.5 mb-2.5">
-                    <div className="text-[8px] text-muted-foreground font-semibold">Pending</div>
+                    <div className="text-[8px] text-muted-foreground font-semibold">To Do</div>
                     <div className="text-[7px] bg-muted/30 rounded px-1 text-muted-foreground/70">3</div>
                 </div>
                 <div className="flex flex-col gap-2 flex-1">
@@ -94,7 +94,7 @@ function KanbanWireframe() {
             <div className="flex gap-2 flex-1 min-w-0">
                 <div className="flex flex-col flex-1 min-w-0">
                     <div className="flex items-center gap-1 mb-2">
-                        <div className="text-[8px] text-amber-400/80 font-semibold">Pending</div>
+                        <div className="text-[8px] text-amber-400/80 font-semibold">To Do</div>
                         <div className="text-[7px] bg-amber-500/15 rounded px-1 text-amber-400/60">3</div>
                     </div>
                     <div className="flex flex-col gap-1.5 flex-1">

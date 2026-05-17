@@ -1,33 +1,38 @@
+import { mindtabColors } from "@mindtab/shared";
+
 export const colors = {
   // Backgrounds
   bg: {
-    primary: "#0a0a0a",
-    elevated: "#141414",
-    surface: "#1c1c1c",
+    primary: mindtabColors.bg,
+    elevated: mindtabColors.bgElev,
+    surface: mindtabColors.bgSoft,
     overlay: "rgba(0,0,0,0.5)",
-    input: "#333333",
-    bubble: "#e5e5e5",
+    input: mindtabColors.bgHover,
+    bubble: mindtabColors.text,
   },
   // Text
   text: {
-    primary: "#fafafa",
-    secondary: "#a3a3a3",
-    muted: "#737373",
-    reader: "#e5e5e5",
-    dim: "#555555",
-    inverse: "#0a0a0a",
+    primary: mindtabColors.text,
+    secondary: mindtabColors.text2,
+    muted: mindtabColors.text3,
+    reader: mindtabColors.text,
+    dim: mindtabColors.text4,
+    inverse: mindtabColors.black,
   },
   // Borders
   border: {
-    default: "#262626",
-    subtle: "#1a1a1a",
-    focus: "#818cf8",
-    input: "#222222",
+    default: mindtabColors.border,
+    subtle: mindtabColors.bgSoft,
+    focus: mindtabColors.ink,
+    input: mindtabColors.border2,
   },
   // Accent
   accent: {
-    indigo: "#818cf8",
-    indigoMuted: "rgba(129,140,248,0.15)",
+    indigo: mindtabColors.ink,
+    indigoMuted: mindtabColors.inkSoft,
+    ink: mindtabColors.ink,
+    inkMuted: mindtabColors.inkSoft,
+    violet: mindtabColors.violet,
   },
   // Status
   status: {
@@ -42,7 +47,7 @@ export const colors = {
   priority: {
     p1: "#ef4444",
     p2: "#f97316",
-    p3: "#60a5fa",
+    p3: mindtabColors.cyan,
     p4: "#6b7280",
   },
   // Impact
@@ -62,7 +67,7 @@ export const colors = {
     purple: "#a855f7",
     rainbow: ["#ef4444", "#f97316", "#eab308", "#22c55e", "#3b82f6", "#8b5cf6"],
   },
-  confetti: ["#facc15", "#22c55e", "#818cf8", "#f472b6", "#38bdf8"] as const,
+  confetti: [mindtabColors.ink, "#22c55e", mindtabColors.violet, mindtabColors.rose, mindtabColors.cyan] as const,
   // Feedback
   feedback: {
     success: "#22c55e",
@@ -77,21 +82,21 @@ export const colors = {
     book: "#f59e0b",
     video: "#ef4444",
     podcast: "#22c55e",
-    website: "#60a5fa",
+    website: mindtabColors.cyan,
   },
 
   white: "#ffffff",
   black: "#000000",
 
   // Legacy flat tokens (for NativeWind/existing component compat)
-  background: "#0a0a0a",
-  foreground: "#fafafa",
-  card: "#141414",
-  borderFlat: "#262626",
-  primary: "#fafafa",
-  secondary: "#262626",
-  muted: "#262626",
-  mutedForeground: "#a3a3a3",
+  background: mindtabColors.bg,
+  foreground: mindtabColors.text,
+  card: mindtabColors.bgElev,
+  borderFlat: mindtabColors.border,
+  primary: mindtabColors.ink,
+  secondary: mindtabColors.bgSoft,
+  muted: mindtabColors.bgSoft,
+  mutedForeground: mindtabColors.text2,
   destructive: "#7f1d1d",
-  accentFlat: "#262626",
+  accentFlat: mindtabColors.bgSoft,
 } as const;

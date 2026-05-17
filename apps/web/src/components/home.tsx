@@ -8,6 +8,7 @@ import { Clock } from "./clock";
 import { ProjectTabs } from "./projects";
 import { useAppStore, EActiveLayout } from "@mindtab/core";
 import type { ActiveLayout } from "@mindtab/core";
+import { cn } from "~/lib/utils";
 
 const getLayout1 = (_activeProjectId: string | null) => ({
     container: {
@@ -125,9 +126,9 @@ export default function Component() {
 
     return (
         <div
-            className={`flex flex-col gap-2 relative transition-all ease-out duration-150 ${layout.container.style}`}
+            className={`relative flex h-full min-h-0 flex-col gap-2 transition-all duration-150 ease-out ${layout.container.style}`}
         >
-            <div className="w-full grid grid-cols-10 gap-4">
+            <div className="grid h-full min-h-0 w-full grid-cols-10 grid-rows-[auto_minmax(0,1fr)] gap-4">
                 <div className="flex justify-between items-center col-span-10">
                     <Clock />
                     <div className="flex flex-row gap-8">
@@ -177,9 +178,9 @@ export default function Component() {
                         </div>
                     </div>
                 </div>
-                <div className={`${layout.col1.style} min-w-0`}>
+                <div className={`${layout.col1.style} flex min-h-0 min-w-0 flex-col`}>
                     {/* Project Tabs */}
-                    <div className="-ml-0.5">
+                    <div className="-ml-0.5 shrink-0">
                         <ProjectTabs
                             activeProjectId={activeProjectId}
                             onProjectChange={setStoreActiveProjectId}
@@ -189,17 +190,27 @@ export default function Component() {
                     </div>
                     {layout.col1.elements.map((element, index) => (
                         <div
-                            className={`${layout.activeColumn === "col1" ? (activeElement === element.title ? "block" : "hidden") : "block"} w-full`}
+                            className={cn(
+                                "w-full",
+                                layout.activeColumn === "col1" && activeElement !== element.title
+                                    ? "hidden"
+                                    : "flex min-h-0 flex-1 flex-col"
+                            )}
                             key={index}
                         >
                             {element.element}
                         </div>
                     ))}
                 </div>
-                <div className={`${layout.col2.style} min-w-0`}>
+                <div className={`${layout.col2.style} flex min-h-0 min-w-0 flex-col`}>
                     {layout.col2.elements.map((element, index) => (
                         <div
-                            className={`${layout.activeColumn === "col2" ? (activeElement === element.title ? "block" : "hidden") : "block"} w-full`}
+                            className={cn(
+                                "w-full",
+                                layout.activeColumn === "col2" && activeElement !== element.title
+                                    ? "hidden"
+                                    : "flex min-h-0 flex-1 flex-col"
+                            )}
                             key={index}
                         >
                             {element.element}

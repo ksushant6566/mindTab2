@@ -1,7 +1,6 @@
 import { View, Text, StyleSheet, type ViewStyle, type TextStyle } from "react-native";
+import type { BadgeVariant } from "@mindtab/shared";
 import { colors } from "~/styles/colors";
-
-type BadgeVariant = "default" | "secondary" | "destructive" | "outline" | "success" | "warning";
 
 type BadgeProps = {
   variant?: BadgeVariant;
@@ -10,8 +9,8 @@ type BadgeProps = {
 };
 
 const variantBg: Record<BadgeVariant, ViewStyle> = {
-  default: { backgroundColor: colors.text.primary },
-  secondary: { backgroundColor: colors.bg.surface },
+  default: { backgroundColor: colors.accent.ink },
+  secondary: { backgroundColor: colors.bg.surface, borderWidth: 1, borderColor: colors.border.default },
   destructive: { backgroundColor: colors.feedback.error },
   outline: { borderWidth: 1, borderColor: colors.border.default, backgroundColor: "transparent" },
   success: { backgroundColor: "rgba(34,197,94,0.2)" },
