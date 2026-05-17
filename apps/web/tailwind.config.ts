@@ -29,6 +29,8 @@ const config: Config = {
           amber: "var(--amber)",
           rose: "var(--rose)",
           cyan: "var(--cyan)",
+          green: "var(--green)",
+          green: "var(--green)",
         },
         border: "hsl(var(--border-hsl))",
         input: "hsl(var(--input))",

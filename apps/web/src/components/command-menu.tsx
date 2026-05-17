@@ -27,10 +27,13 @@ import {
     searchJournalsQueryOptions,
     searchGoalsQueryOptions,
     searchHabitsQueryOptions,
+    habitTrackerQueryOptions,
     useCreateGoal,
     useUpdateGoal,
     useUpdateHabit,
     useCreateHabit,
+    useTrackHabit,
+    useUntrackHabit,
 } from "~/api/hooks";
 import { useAuth } from "~/api/hooks/use-auth";
 import { CreateJournalDialog } from "./journals/create-journal-dialog";
@@ -143,6 +146,24 @@ export const CommandMenu = () => {
                 });
             },
         });
+    };
+
+    const { data: habitTracker } = useQuery({
+        ...habitTrackerQueryOptions(),
+        enabled: Boolean(currentHabit && isEditHabitDialogOpen),
+        refetchOnWindowFocus: false,
+        refetchOnMount: false,
+    });
+
+    const trackHabitMutation = useTrackHabit();
+    const untrackHabitMutation = useUntrackHabit();
+
+    const trackHabit = ({ habitId, date }: { habitId: string; date: string }) => {
+        trackHabitMutation.mutate({ id: habitId, date });
+    };
+
+    const untrackHabit = ({ habitId, date }: { habitId: string; date: string }) => {
+        untrackHabitMutation.mutate({ id: habitId, date });
     };
 
     const { data: journalsSearchResults, isFetching: isFetchingSearchResults } =
@@ -427,6 +448,9 @@ export const CommandMenu = () => {
                     onCancel={() => setIsEditHabitDialogOpen(false)}
                     loading={isUpdatingHabit}
                     defaultMode="view"
+                    habitTracker={(habitTracker as any[]) ?? []}
+                    trackHabit={trackHabit}
+                    untrackHabit={untrackHabit}
                 />
             )}
             <CreateHabitDialog

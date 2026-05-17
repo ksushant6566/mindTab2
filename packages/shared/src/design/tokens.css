@@ -19,6 +19,9 @@
   --amber: #f5b344;
   --rose: #ff4d6d;
   --cyan: #52d9ff;
+  --green: #22c55e;
+  --green-soft: #22c55e26;
+  --green: #22c55e;
 
   --sans: "Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
