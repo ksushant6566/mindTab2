@@ -17,6 +17,7 @@ import { projectsQueryOptions } from "~/api/hooks";
 import { Button } from "~/components/ui/button";
 import { Checkbox } from "~/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "~/components/ui/dialog";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger } from "~/components/ui/select";
 import { cn, getTimeAgo } from "~/lib/utils";
 
 type TGoal = {
@@ -52,11 +53,21 @@ const impactMeta = {
 } as const;
 
 const statusMeta = {
-    pending: { label: "To Do", shortcut: "T", hint: "Define the next move" },
-    in_progress: { label: "In Progress", shortcut: "I", hint: "Currently in motion" },
-    completed: { label: "Done", shortcut: "D", hint: "Ready to archive" },
-    archived: { label: "Archive", shortcut: "A", hint: "Stored out of view" },
+    pending: { label: "To Do", shortcut: "T", hint: "Define the next move", tone: "var(--text-3)" },
+    in_progress: { label: "In Progress", shortcut: "I", hint: "Currently in motion", tone: "var(--cyan)" },
+    completed: { label: "Done", shortcut: "D", hint: "Ready to archive", tone: "var(--amber)" },
+    archived: { label: "Archive", shortcut: "A", hint: "Stored out of view", tone: "var(--text-4)" },
 } as const;
+
+const priorityOptions = ["priority_1", "priority_2", "priority_3", "priority_4"] as const;
+const impactOptions = ["high", "medium", "low"] as const;
+
+const DESCRIPTION_MIN_HEIGHT = 80;
+const DESCRIPTION_MAX_HEIGHT = 180;
+
+const pickerTriggerClassName = "h-8 gap-2 rounded-[var(--r-2)] border-input bg-background px-2 text-xs focus:ring-2 focus:ring-ring/30 focus:ring-offset-0 [&>svg]:h-3.5 [&>svg]:w-3.5";
+const pickerContentClassName = "border-border bg-[var(--bg-elev)] shadow-[0_18px_44px_-34px_rgba(0,0,0,0.95)]";
+const pickerItemClassName = "h-8 rounded-[var(--r-2)] py-1.5 pl-8 pr-2 text-xs text-foreground focus:bg-[var(--bg-soft)] focus:text-foreground data-[state=checked]:bg-[var(--bg-soft)]";
 
 type PriorityMeta = (typeof priorityMeta)[keyof typeof priorityMeta];
 type ImpactMeta = (typeof impactMeta)[keyof typeof impactMeta];
@@ -123,6 +134,7 @@ const GoalCard: React.FC<Required<Pick<GoalProps, "goal" | "onEdit" | "onDelete"
     dragHandleProps,
 }) => {
     const { data: projects } = useQuery(projectsQueryOptions());
+    const descriptionRef = React.useRef<HTMLTextAreaElement>(null);
     const [dialogOpen, setDialogOpen] = React.useState(false);
     const [mode, setMode] = React.useState<"view" | "edit">("view");
     const [formData, setFormData] = React.useState({
@@ -145,6 +157,38 @@ const GoalCard: React.FC<Required<Pick<GoalProps, "goal" | "onEdit" | "onDelete"
         });
         setMode("view");
     }, [goal.id, goal.title, goal.description, goal.priority, goal.impact, goal.status, goal.projectId, goal.project?.id]);
+
+    const resizeDescriptionTextarea = React.useCallback((element: HTMLTextAreaElement | null = descriptionRef.current, animate = true) => {
+        if (!element) return;
+
+        const previousHeight = element.offsetHeight || DESCRIPTION_MIN_HEIGHT;
+        element.style.height = "auto";
+        const contentHeight = element.scrollHeight;
+        const nextHeight = Math.max(DESCRIPTION_MIN_HEIGHT, Math.min(contentHeight, DESCRIPTION_MAX_HEIGHT));
+        const shouldScroll = contentHeight > DESCRIPTION_MAX_HEIGHT;
+
+        const applyHeight = () => {
+            element.style.height = `${nextHeight}px`;
+            element.style.overflowY = shouldScroll ? "auto" : "hidden";
+        };
+
+        if (!animate || Math.abs(previousHeight - nextHeight) <= 1) {
+            applyHeight();
+            return;
+        }
+
+        element.style.height = `${previousHeight}px`;
+        element.style.overflowY = "hidden";
+        void element.offsetHeight;
+
+        requestAnimationFrame(applyHeight);
+    }, []);
+
+    React.useLayoutEffect(() => {
+        if (dialogOpen && mode === "edit") {
+            resizeDescriptionTextarea(descriptionRef.current, false);
+        }
+    }, [dialogOpen, mode, resizeDescriptionTextarea]);
 
     const completed = ["completed", "archived"].includes(goal.status);
     const priority = priorityMeta[goal.priority as keyof typeof priorityMeta] ?? priorityMeta.priority_4;
@@ -364,34 +408,26 @@ const GoalCard: React.FC<Required<Pick<GoalProps, "goal" | "onEdit" | "onDelete"
                                 autoFocus
                             />
                             <textarea
+                                ref={descriptionRef}
                                 value={formData.description}
-                                onChange={(event) => setFormData((prev) => ({ ...prev, description: event.target.value }))}
-                                className="min-h-20 w-full resize-none rounded-[var(--r-2)] border border-input bg-background px-3 py-2 text-sm leading-5 text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-[var(--ink-line)] focus:ring-2 focus:ring-ring/30"
+                                onChange={(event) => {
+                                    setFormData((prev) => ({ ...prev, description: event.target.value }));
+                                    resizeDescriptionTextarea(event.currentTarget);
+                                }}
+                                className="min-h-20 max-h-[180px] w-full resize-none rounded-[var(--r-2)] border border-input bg-background px-3 py-2 text-sm leading-5 text-foreground outline-none transition-[height,border-color,box-shadow] duration-150 [transition-timing-function:var(--ease-out)] placeholder:text-muted-foreground focus:border-[var(--ink-line)] focus:ring-2 focus:ring-ring/30"
                                 placeholder="What does done look like?"
                             />
                             <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
-                                <KanbanSelect
-                                    label="Priority"
+                                <PriorityPicker
                                     value={formData.priority}
                                     onChange={(value) => setFormData((prev) => ({ ...prev, priority: value }))}
-                                    options={[
-                                        ["priority_1", "P1"],
-                                        ["priority_2", "P2"],
-                                        ["priority_3", "P3"],
-                                        ["priority_4", "P4"],
-                                    ]}
                                 />
-                                <KanbanSelect
-                                    label="Impact"
+                                <ImpactPicker
                                     value={formData.impact}
                                     onChange={(value) => setFormData((prev) => ({ ...prev, impact: value }))}
-                                    options={[
-                                        ["low", "Low"],
-                                        ["medium", "Medium"],
-                                        ["high", "High"],
-                                    ]}
                                 />
                                 <KanbanSelect
+                                    kind="status"
                                     label="Status"
                                     value={formData.status}
                                     onChange={(value) => setFormData((prev) => ({ ...prev, status: value }))}
@@ -403,6 +439,7 @@ const GoalCard: React.FC<Required<Pick<GoalProps, "goal" | "onEdit" | "onDelete"
                                     ]}
                                 />
                                 <KanbanSelect
+                                    kind="project"
                                     label="Project"
                                     value={formData.projectId || "none"}
                                     onChange={(value) => setFormData((prev) => ({ ...prev, projectId: value === "none" ? null : value }))}
@@ -460,51 +497,170 @@ function KanbanDetail({
 
 function PriorityMark({ priority }: { priority: PriorityMeta }) {
     return (
-        <span className="inline-flex items-center gap-1" style={{ color: priority.tone }}>
-            <Flag className="h-3 w-3" fill="currentColor" />
-            <span>{priority.label}</span>
+        <span className="inline-flex min-w-0 items-center gap-1 whitespace-nowrap font-mono text-[10.5px] font-medium uppercase leading-none tracking-[0.04em]" style={{ color: priority.tone }}>
+            <Flag className="h-3 w-3 shrink-0" fill="currentColor" />
+            <span className="truncate">{priority.label}</span>
         </span>
     );
 }
 
 function ImpactMark({ impact }: { impact: ImpactMeta }) {
     return (
-        <span className="inline-flex items-center gap-1" style={{ color: impact.tone }}>
-            <span className="inline-flex items-center gap-0.5">
+        <span className="inline-flex min-w-0 items-center gap-1 whitespace-nowrap font-mono text-[10.5px] font-medium uppercase leading-none tracking-[0.04em]" style={{ color: impact.tone }}>
+            <span className="inline-flex shrink-0 items-center gap-0.5">
                 {Array.from({ length: impact.dots }).map((_, index) => (
                     <Zap key={index} className="h-3 w-3" fill="currentColor" />
                 ))}
             </span>
-            <span>{impact.label}</span>
+            <span className="truncate">{impact.label}</span>
         </span>
     );
 }
 
+function PriorityPicker({
+    value,
+    onChange,
+}: {
+    value: string;
+    onChange: (value: string) => void;
+}) {
+    const selectedPriority = priorityMeta[value as keyof typeof priorityMeta] ?? priorityMeta.priority_4;
+
+    return (
+        <div className="space-y-1">
+            <span className="font-mono text-[9px] uppercase tracking-[0.08em] text-muted-foreground">Priority</span>
+            <Select value={value} onValueChange={onChange}>
+                <SelectTrigger className={pickerTriggerClassName}>
+                    <div className="flex min-w-0 flex-1 items-center overflow-hidden">
+                        <PriorityMark priority={selectedPriority} />
+                    </div>
+                </SelectTrigger>
+                <SelectContent className={pickerContentClassName}>
+                    <SelectGroup>
+                        {priorityOptions.map((option) => (
+                            <SelectItem
+                                key={option}
+                                value={option}
+                                className={pickerItemClassName}
+                            >
+                                <PriorityMark priority={priorityMeta[option]} />
+                            </SelectItem>
+                        ))}
+                    </SelectGroup>
+                </SelectContent>
+            </Select>
+        </div>
+    );
+}
+
+function ImpactPicker({
+    value,
+    onChange,
+}: {
+    value: string;
+    onChange: (value: string) => void;
+}) {
+    const selectedImpact = impactMeta[value as keyof typeof impactMeta] ?? impactMeta.low;
+
+    return (
+        <div className="space-y-1">
+            <span className="font-mono text-[9px] uppercase tracking-[0.08em] text-muted-foreground">Impact</span>
+            <Select value={value} onValueChange={onChange}>
+                <SelectTrigger className={pickerTriggerClassName}>
+                    <div className="flex min-w-0 flex-1 items-center overflow-hidden">
+                        <ImpactMark impact={selectedImpact} />
+                    </div>
+                </SelectTrigger>
+                <SelectContent className={pickerContentClassName}>
+                    <SelectGroup>
+                        {impactOptions.map((option) => (
+                            <SelectItem
+                                key={option}
+                                value={option}
+                                className={pickerItemClassName}
+                            >
+                                <ImpactMark impact={impactMeta[option]} />
+                            </SelectItem>
+                        ))}
+                    </SelectGroup>
+                </SelectContent>
+            </Select>
+        </div>
+    );
+}
+
+type KanbanSelectKind = "plain" | "status" | "project";
+
 function KanbanSelect({
+    kind = "plain",
     label,
     value,
     onChange,
     options,
 }: {
+    kind?: KanbanSelectKind;
     label: string;
     value: string;
     onChange: (value: string) => void;
     options: Array<[string, string]>;
 }) {
+    const selectedLabel = options.find(([optionValue]) => optionValue === value)?.[1] ?? options[0]?.[1] ?? "Select";
+
     return (
-        <label className="space-y-1">
+        <div className="space-y-1">
             <span className="font-mono text-[9px] uppercase tracking-[0.08em] text-muted-foreground">{label}</span>
-            <select
-                value={value}
-                onChange={(event) => onChange(event.target.value)}
-                className="h-8 w-full rounded-[var(--r-2)] border border-input bg-background px-2 text-xs text-foreground outline-none focus:border-[var(--ink-line)] focus:ring-2 focus:ring-ring/30"
-            >
-                {options.map(([optionValue, optionLabel]) => (
-                    <option key={optionValue} value={optionValue}>
-                        {optionLabel}
-                    </option>
-                ))}
-            </select>
-        </label>
+            <Select value={value} onValueChange={onChange}>
+                <SelectTrigger aria-label={label} className={pickerTriggerClassName}>
+                    <div className="flex min-w-0 flex-1 items-center overflow-hidden">
+                        <KanbanOptionMark kind={kind} value={value} label={selectedLabel} />
+                    </div>
+                </SelectTrigger>
+                <SelectContent className={pickerContentClassName}>
+                    <SelectGroup>
+                        {options.map(([optionValue, optionLabel]) => (
+                            <SelectItem key={optionValue} value={optionValue} className={pickerItemClassName}>
+                                <KanbanOptionMark kind={kind} value={optionValue} label={optionLabel} />
+                            </SelectItem>
+                        ))}
+                    </SelectGroup>
+                </SelectContent>
+            </Select>
+        </div>
+    );
+}
+
+function KanbanOptionMark({
+    kind,
+    value,
+    label,
+}: {
+    kind: KanbanSelectKind;
+    value: string;
+    label: string;
+}) {
+    if (kind === "status") {
+        const status = statusMeta[value as keyof typeof statusMeta] ?? statusMeta.pending;
+
+        return (
+            <span className="inline-flex min-w-0 items-center gap-1.5 text-xs font-medium leading-none text-foreground">
+                <span className="size-1.5 shrink-0 rounded-full" style={{ background: status.tone }} />
+                <span className="truncate">{label}</span>
+            </span>
+        );
+    }
+
+    if (kind === "project") {
+        return (
+            <span className="inline-flex min-w-0 items-center gap-1.5 text-xs font-medium leading-none text-foreground">
+                <FolderOpen className="h-3 w-3 shrink-0 text-muted-foreground" />
+                <span className="truncate">{label}</span>
+            </span>
+        );
+    }
+
+    return (
+        <span className="inline-flex min-w-0 items-center text-xs font-medium leading-none text-foreground">
+            <span className="truncate">{label}</span>
+        </span>
     );
 }
