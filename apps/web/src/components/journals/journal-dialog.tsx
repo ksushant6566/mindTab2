@@ -1,152 +1,309 @@
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "~/components/ui/dialog";
-import { Button } from "~/components/ui/button";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "~/components/ui/select";
-import React, { useEffect, useState } from "react";
-import { toast } from "sonner";
-import { TipTapEditor } from "~/components/text-editor";
 import { useQuery } from "@tanstack/react-query";
+import {
+    Clock3,
+    FileText,
+    FolderOpen,
+    Repeat2,
+    Save,
+    Target,
+    X,
+} from "lucide-react";
+import React, { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { projectsQueryOptions, useUpdateJournal } from "~/api/hooks";
-import { Edit3, FolderOpen } from "lucide-react";
-import { ToggleGroupItem, ToggleGroup } from "~/components/ui/toggle-group";
-
-type TMentionedItem = { label: string; id: string; type: "journal" | "goal" | "habit"; };
-type TMentionedItems = { journal: TMentionedItem[]; goal: TMentionedItem[]; habit: TMentionedItem[]; };
+import { TipTapEditor } from "~/components/text-editor";
+import { Button } from "~/components/ui/button";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "~/components/ui/dialog";
+import { cn, getTimeAgo } from "~/lib/utils";
+import { JournalProjectSelect } from "./journal-project-select";
+import {
+    countWords,
+    getJournalProjectName,
+    getMentionedItems,
+    type JournalLike,
+    type MentionType,
+    type MentionedItem,
+} from "./note-utils";
 
 type TJournalDialogProps = {
     isOpen: boolean;
     onOpenChange: (open: boolean) => void;
     defaultMode: "edit" | "view" | null;
-    journal: {
-        id: string; title: string; content: string; projectId?: string | null;
-        project?: { id: string; name: string | null; status: string; } | null;
-    } | null;
+    journal: JournalLike | null;
 };
 
-export const JournalDialog = ({ isOpen, onOpenChange, defaultMode, journal }: TJournalDialogProps) => {
-    const { data: projects } = useQuery(projectsQueryOptions());
+const mentionMeta: Record<
+    MentionType,
+    {
+        label: string;
+        icon: React.ComponentType<{ className?: string }>;
+        className: string;
+    }
+> = {
+    goal: {
+        label: "Goal",
+        icon: Target,
+        className: "text-[var(--green)]",
+    },
+    habit: {
+        label: "Habit",
+        icon: Repeat2,
+        className: "text-[var(--cyan)]",
+    },
+    journal: {
+        label: "Note",
+        icon: FileText,
+        className: "text-[var(--amber)]",
+    },
+};
 
-    const [mode, setMode] = useState<"edit" | "view" | null>(defaultMode);
+export const JournalDialog = ({
+    isOpen,
+    onOpenChange,
+    defaultMode,
+    journal,
+}: TJournalDialogProps) => {
+    const { data: projects } = useQuery(projectsQueryOptions());
+    const [mode, setMode] = useState<"edit" | "view">(defaultMode ?? "view");
     const [info, setInfo] = useState({
-        id: journal?.id ?? "", title: journal?.title ?? "", content: journal?.content ?? "", projectId: journal?.projectId ?? null,
+        id: journal?.id ?? "",
+        title: journal?.title ?? "",
+        content: journal?.content ?? "",
+        projectId: journal?.projectId ?? null,
     });
 
     const { mutate: updateJournal, isPending: isUpdatingJournal } = useUpdateJournal();
 
     useEffect(() => {
-        setMode(defaultMode ?? mode ?? "view");
-        setInfo({ id: journal?.id ?? "", title: journal?.title ?? "", content: journal?.content ?? "", projectId: journal?.projectId ?? null });
-    }, [defaultMode, journal]);
+        if (!isOpen) return;
 
-    if (!journal || !info) return null;
+        setMode(defaultMode ?? "view");
+        setInfo({
+            id: journal?.id ?? "",
+            title: journal?.title ?? "",
+            content: journal?.content ?? "",
+            projectId: journal?.projectId ?? null,
+        });
+    }, [defaultMode, isOpen, journal]);
+
+    const mentionedItems = useMemo(() => {
+        const mentions = getMentionedItems(info.content);
+        return [...mentions.goal, ...mentions.habit, ...mentions.journal];
+    }, [info.content]);
+
+    const wordCount = useMemo(() => countWords(info.content), [info.content]);
+
+    if (!journal) return null;
+
+    const selectedProject = (projects as any[])?.find((project: any) => project.id === info.projectId);
+    const projectName = selectedProject?.name || getJournalProjectName(journal);
+    const updatedAt = journal.updatedAt || journal.createdAt;
+    const updatedLabel = updatedAt ? getTimeAgo(new Date(updatedAt)) : "Unknown";
+    const displayTitle = info.title.trim() || "Untitled note";
+
+    const resetInfo = () => {
+        setInfo({
+            id: journal.id,
+            title: journal.title ?? "",
+            content: journal.content ?? "",
+            projectId: journal.projectId ?? null,
+        });
+    };
 
     const handleSubmit = () => {
-        updateJournal({ id: journal.id, content: info.content, title: info.title, projectId: info.projectId } as any, {
-            onSuccess: () => setMode("view"),
-            onError: (error: any) => toast.error(error.message || "Failed to update note"),
-        });
-    };
+        if (!info.title.trim() || !info.content) return;
 
-    const toggleMode = () => setMode(mode === "edit" ? "view" : "edit");
-
-    const getMentionedItems = () => {
-        const mentionedItems: TMentionedItems = { journal: [], goal: [], habit: [] };
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(info.content, "text/html");
-        const mentionSpans = doc.querySelectorAll(".mention");
-        if (!mentionSpans) return mentionedItems;
-        const mentionedIdsSet = new Set<string>();
-        mentionSpans.forEach((span) => {
-            const [type, id] = span.getAttribute("data-id")?.split(":") || [];
-            const label = span.getAttribute("data-label");
-            if (id && label && type) {
-                if (!mentionedIdsSet.has(id)) {
-                    mentionedItems[type as keyof TMentionedItems].push({ id, label, type } as TMentionedItem);
-                    mentionedIdsSet.add(id);
-                }
+        updateJournal(
+            {
+                id: journal.id,
+                content: info.content,
+                title: info.title.trim(),
+                projectId: info.projectId,
+            } as any,
+            {
+                onSuccess: () => setMode("view"),
+                onError: (error: any) => toast.error(error.message || "Failed to update note"),
             }
-        });
-        return mentionedItems;
+        );
     };
 
-    const mentionedItems = getMentionedItems();
+    const handleCancel = () => {
+        resetInfo();
+        if (defaultMode === "edit") {
+            onOpenChange(false);
+            return;
+        }
+        setMode("view");
+    };
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
-            <DialogContent className={`sm:max-w-[1000px] ${mode === "view" ? "p-0" : ""}`}>
-                {mode === "edit" ? (
-                    <><DialogTitle>Edit note</DialogTitle><DialogDescription className="-mt-2">Edit your note.</DialogDescription></>
-                ) : (
-                    <><DialogTitle className="sr-only">{info.title}</DialogTitle><DialogDescription className="sr-only">{info.content}</DialogDescription></>
-                )}
-                <ToggleGroup type="single" className="absolute top-2.5 right-9 cursor-pointer z-10">
-                    <ToggleGroupItem value="edit" aria-label="Toggle edit" onClick={toggleMode} data-state={mode === "edit" ? "on" : "off"} className="p-1.5 h-7 w-7">
-                        <Edit3 className="h-3 w-3" />
-                    </ToggleGroupItem>
-                </ToggleGroup>
+            <DialogContent className="max-h-[88vh] max-w-4xl gap-0 overflow-hidden border border-border bg-[var(--bg-elev)] p-0 shadow-[0_20px_64px_-48px_rgba(0,0,0,0.95)] sm:rounded-[var(--r-4)]">
+                <DialogHeader className="border-b border-border px-5 py-4 text-left">
+                    <DialogTitle className="pr-8 text-lg font-semibold leading-6 tracking-normal text-foreground">
+                        {displayTitle}
+                    </DialogTitle>
+                    <DialogDescription className="flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[10.5px] uppercase tracking-[0.06em] text-muted-foreground">
+                        <span>Note</span>
+                        <span className="text-[var(--text-4)]">·</span>
+                        <span>{projectName || "No project"}</span>
+                        <span className="text-[var(--text-4)]">·</span>
+                        <span>Updated {updatedLabel}</span>
+                    </DialogDescription>
+                </DialogHeader>
 
-                {mode === "edit" && (
-                    <div className="flex gap-2 pb-2">
-                        <Select onValueChange={(value) => setInfo({ ...info, projectId: value === "none" ? null : value })} value={info.projectId || "none"}>
-                            <SelectTrigger className="w-fit focus:ring-0">
-                                <SelectValue placeholder="Project">
-                                    <span className="flex items-center gap-1 text-sm">
-                                        <FolderOpen className="h-4 w-4" />
-                                        {info.projectId ? (projects as any[])?.find((p: any) => p.id === info.projectId)?.name || "Project" : "No Project"}
-                                    </span>
-                                </SelectValue>
-                            </SelectTrigger>
-                            <SelectContent className="text-sm">
-                                <SelectGroup>
-                                    <SelectLabel>Project</SelectLabel>
-                                    <SelectItem value="none"><span className="flex items-center gap-2 text-sm">No Project</span></SelectItem>
-                                    {(projects as any[])?.map((project: any) => (
-                                        <SelectItem key={project.id} value={project.id}>
-                                            <span className="flex items-center gap-2 text-sm"><FolderOpen className="h-4 w-4" />{project.name || "Unnamed Project"}</span>
-                                        </SelectItem>
-                                    ))}
-                                </SelectGroup>
-                            </SelectContent>
-                        </Select>
+                <div
+                    className="min-h-0 bg-[var(--bg)]/45 px-5 pb-5 pt-4"
+                    onKeyDown={(event) => {
+                        if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+                            event.preventDefault();
+                            handleSubmit();
+                        }
+                    }}
+                >
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                        <ModeSwitch mode={mode} onChange={setMode} />
+                        {mode === "edit" ? (
+                            <JournalProjectSelect
+                                value={info.projectId}
+                                projects={projects as any[]}
+                                onValueChange={(projectId) => setInfo((current) => ({ ...current, projectId }))}
+                                className="w-[220px]"
+                            />
+                        ) : (
+                            <div className="flex min-w-0 items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
+                                <FolderOpen className="h-3 w-3 text-[var(--cyan)]" />
+                                <span className="truncate">{projectName || "No project"}</span>
+                            </div>
+                        )}
                     </div>
-                )}
 
-                <div className={`border border-input rounded-lg overflow-y-auto overflow-x-visible ${mode === "view" ? "max-h-[calc(100vh-8rem)] p-4 pb-0 rounded-b-none" : "max-h-[calc(100vh-18rem)] p-1 pb-0"}`}>
-                    <TipTapEditor content={info.content} onContentChange={(content) => setInfo({ ...info, content })} title={info.title} onTitleChange={(title) => setInfo({ ...info, title })} editable={mode !== "view"} />
-                </div>
-                {mode === "edit" ? (
-                    <DialogFooter>
-                        <Button onClick={() => onOpenChange(false)} size={"sm"} variant="outline">Cancel</Button>
-                        <Button onClick={handleSubmit} size={"sm"} disabled={isUpdatingJournal || !info.title || !info.content}>
-                            {isUpdatingJournal ? "Saving..." : "Save"}
-                        </Button>
-                    </DialogFooter>
-                ) : (
-                    <div className="p-4 pt-2 flex flex-wrap gap-1 -mt-2">
-                        <div className="flex flex-wrap gap-1">
-                            {(journal.project || (journal as any).projectName) && (
-                                <span className="flex items-center gap-1 rounded-md bg-blue-100 dark:bg-blue-900 px-2 py-0.5 text-sm text-blue-800 dark:text-blue-200">
-                                    <FolderOpen className="h-3 w-3" />{journal.project?.name || (journal as any).projectName || "Project"}
+                    {mode === "view" ? (
+                        <div className="custom-scrollbar max-h-[min(58vh,540px)] min-w-0 overflow-auto rounded-[var(--r-3)] border border-border bg-background">
+                            <article
+                                className="note-prose px-4 py-4"
+                                dangerouslySetInnerHTML={{ __html: info.content || "<p>No content yet.</p>" }}
+                            />
+                        </div>
+                    ) : (
+                        <div className="overflow-hidden rounded-[var(--r-3)] border border-border bg-background">
+                            <TipTapEditor
+                                content={info.content}
+                                onContentChange={(content) => setInfo((current) => ({ ...current, content }))}
+                                title={info.title}
+                                onTitleChange={(title) => setInfo((current) => ({ ...current, title }))}
+                                editable
+                                className="note-editor"
+                                titleClassName="text-lg"
+                            />
+                        </div>
+                    )}
+
+                    {mode === "view" ? (
+                        <div className="mt-3 flex flex-wrap items-center gap-1">
+                            <span className="inline-flex items-center gap-1 rounded-[var(--r-2)] border border-border bg-[var(--bg-soft)] px-2 py-1 font-mono text-[10px] uppercase tracking-[0.05em] text-muted-foreground">
+                                <Clock3 className="h-3 w-3" />
+                                {wordCount} words
+                            </span>
+                            {projectName && (
+                                <span className="inline-flex max-w-[170px] items-center gap-1 rounded-[var(--r-2)] border border-border bg-[var(--bg-soft)] px-2 py-1 font-mono text-[10px] uppercase tracking-[0.05em] text-[var(--cyan)]">
+                                    <FolderOpen className="h-3 w-3 shrink-0" />
+                                    <span className="truncate">{projectName}</span>
                                 </span>
                             )}
-                            {mentionedItems.goal.map((item) => (
-                                <span key={item.id} data-id={`goal:${item.id}`} data-label={item.label} className="text-sm bg-secondary rounded-md px-2 py-0.5 hover:bg-secondary/50 text-green-500 cursor-pointer">
-                                    {item.label.split(":")[1]}
-                                </span>
-                            ))}
-                            {mentionedItems.habit.map((item) => (
-                                <span key={item.id} data-id={`habit:${item.id}`} data-label={item.label} className="text-sm bg-secondary rounded-md px-2 py-0.5 hover:bg-secondary/50 text-fuchsia-400 cursor-pointer">
-                                    {item.label.split(":")[1]}
-                                </span>
-                            ))}
-                            {mentionedItems.journal.map((item) => (
-                                <span key={item.id} data-id={`journal:${item.id}`} data-label={item.label} className="text-sm bg-secondary rounded-md px-2 py-0.5 hover:bg-secondary/50 text-orange-400 cursor-pointer">
-                                    {item.label.split(":")[1]}
-                                </span>
-                            ))}
+                            <MentionPills items={mentionedItems} />
                         </div>
-                    </div>
-                )}
+                    ) : (
+                        <DialogFooter className="mt-4 gap-2 sm:space-x-0">
+                            <Button
+                                type="button"
+                                onClick={handleCancel}
+                                size="sm"
+                                variant="ghost"
+                                className="gap-2"
+                            >
+                                <X className="h-3.5 w-3.5" />
+                                Cancel
+                            </Button>
+                            <Button
+                                type="button"
+                                onClick={handleSubmit}
+                                size="sm"
+                                className="gap-2"
+                                disabled={isUpdatingJournal || !info.title.trim() || !info.content}
+                                loading={isUpdatingJournal}
+                            >
+                                <Save className="h-3.5 w-3.5" />
+                                Save
+                            </Button>
+                        </DialogFooter>
+                    )}
+                </div>
             </DialogContent>
         </Dialog>
     );
 };
+
+function ModeSwitch({
+    mode,
+    onChange,
+}: {
+    mode: "view" | "edit";
+    onChange: (mode: "view" | "edit") => void;
+}) {
+    return (
+        <div className="inline-flex rounded-[var(--r-2)] border border-border bg-[var(--bg-soft)] p-0.5">
+            {(["view", "edit"] as const).map((item) => (
+                <button
+                    key={item}
+                    type="button"
+                    onClick={() => onChange(item)}
+                    className={cn(
+                        "h-6 rounded-[calc(var(--r-2)-1px)] px-2 font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground transition-colors",
+                        mode === item && "bg-primary text-primary-foreground"
+                    )}
+                >
+                    {item}
+                </button>
+            ))}
+        </div>
+    );
+}
+
+function MentionPills({ items }: { items: MentionedItem[] }) {
+    if (!items.length) return null;
+
+    return (
+        <>
+            {items.slice(0, 8).map((item) => {
+                const meta = mentionMeta[item.type];
+                const Icon = meta.icon;
+
+                return (
+                    <span
+                        key={`${item.type}-${item.id}`}
+                        className={cn(
+                            "inline-flex max-w-[170px] items-center gap-1 rounded-[var(--r-2)] border border-border bg-[var(--bg-soft)] px-2 py-1 font-mono text-[10px] uppercase tracking-[0.05em]",
+                            meta.className
+                        )}
+                    >
+                        <Icon className="h-3 w-3 shrink-0" />
+                        <span className="truncate">{item.label || meta.label}</span>
+                    </span>
+                );
+            })}
+            {items.length > 8 && (
+                <span className="rounded-[var(--r-2)] border border-border bg-[var(--bg-soft)] px-2 py-1 font-mono text-[10px] uppercase tracking-[0.05em] text-muted-foreground">
+                    +{items.length - 8}
+                </span>
+            )}
+        </>
+    );
+}

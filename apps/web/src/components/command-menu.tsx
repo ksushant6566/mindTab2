@@ -44,6 +44,9 @@ import { EditHabitDialog } from "./habits/edit-habit-dialog";
 import { useAppStore } from "@mindtab/core";
 import { toast } from "sonner";
 import { CreateHabitDialog } from "./habits/create-habit-dialog";
+import { cn } from "~/lib/utils";
+
+const COMMAND_PROMPT_INTERVAL_MS = 3000;
 
 export const CommandMenu = () => {
     const { logout } = useAuth();
@@ -342,7 +345,7 @@ export const CommandMenu = () => {
                 const nextIndex = (currentIndex + 1) % placeholders.length;
                 return placeholders[nextIndex]!;
             });
-        }, 3000);
+        }, COMMAND_PROMPT_INTERVAL_MS);
         return () => clearInterval(interval);
     }, []);
 
@@ -353,15 +356,15 @@ export const CommandMenu = () => {
             <Button
                 size={"sm"}
                 variant="outline"
-                className="flex items-center justify-between text-sm text-muted-foreground font-light rounded-md gap-2 h-9 w-56 animate-shimmer bg-[linear-gradient(110deg,#0a0a0a,45%,#1e2631,55%,#0a0a0a)] bg-[length:200%_100%] transition-colors"
+                className="command-trigger-shimmer flex items-center justify-between text-sm text-muted-foreground font-light rounded-md gap-2 h-9 w-56 bg-[linear-gradient(110deg,#0a0a0a,45%,#1e2631,55%,#0a0a0a)] bg-[length:200%_100%] transition-colors"
                 onClick={toggleOpen}
             >
-                <span className="animate-moveUpDown">{currentPlaceholder}</span>
+                <span className="command-placeholder-roll">{currentPlaceholder}</span>
                 <span>&#8984;K</span>
             </Button>
             <CommandDialog open={open} onOpenChange={toggleOpen}>
                 <CommandInput
-                    placeholder="Type a command or search..."
+                    placeholder="Search notes, goals, habits, commands..."
                     value={searchQuery ?? ""}
                     onValueChange={setSearchQuery}
                 />
@@ -475,6 +478,8 @@ type TCommandMenuGroupProps = {
 };
 
 const CommandMenuGroup = ({ heading, items }: TCommandMenuGroupProps) => {
+    const tone = getCommandGroupTone(heading);
+
     return (
         <CommandGroup key={heading} heading={heading}>
             {items.map((item, index) => (
@@ -484,15 +489,33 @@ const CommandMenuGroup = ({ heading, items }: TCommandMenuGroupProps) => {
                     className="group"
                     value={item.label}
                 >
-                    <span className="flex items-center gap-2 text-muted-foreground group-hover:text-primary group-active:text-primary group-data-[selected=true]:text-primary">
-                        {item.icon && <item.icon className="!h-4 !w-4" />}
+                    <span
+                        className={cn(
+                            "flex size-7 shrink-0 items-center justify-center rounded-[var(--r-2)] border border-border bg-background text-muted-foreground transition-colors",
+                            tone,
+                            "group-data-[selected=true]:border-[var(--border-2)] group-data-[selected=true]:bg-[var(--bg-elev)]"
+                        )}
+                    >
+                        {item.icon && <item.icon className="!h-3.5 !w-3.5" />}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium text-muted-foreground transition-colors group-data-[selected=true]:text-foreground">
                         {item.label}
                     </span>
                     {"shortcut" in item && (
-                        <CommandShortcut>{item.shortcut}</CommandShortcut>
+                        <CommandShortcut className="border-0 bg-transparent px-0 py-0 text-[9.5px] text-[var(--text-3)]">
+                            {item.shortcut}
+                        </CommandShortcut>
                     )}
                 </CommandItem>
             ))}
         </CommandGroup>
     );
 };
+
+function getCommandGroupTone(heading: string) {
+    if (heading === "Goals" || heading === "Search Results") return "text-[var(--green)]";
+    if (heading === "Notes") return "text-[var(--amber)]";
+    if (heading === "Habits") return "text-[var(--cyan)]";
+    if (heading === "Settings") return "text-[var(--rose)]";
+    return "text-muted-foreground";
+}
