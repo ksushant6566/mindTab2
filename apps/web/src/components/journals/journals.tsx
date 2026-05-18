@@ -1,33 +1,39 @@
-import { Plus } from "lucide-react";
-import React, { useState, useRef, useEffect, useCallback } from "react";
-import { TipTapEditor } from "~/components/text-editor";
+import { FileText, Plus } from "lucide-react";
+import React, { useCallback, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useAppStore } from "@mindtab/core";
+import { journalsQueryOptions, useDeleteJournal } from "~/api/hooks";
 import { Button } from "~/components/ui/button";
 import { Skeleton } from "~/components/ui/skeleton";
-import { ScrollArea } from "~/components/ui/scroll-area";
-import { useQuery } from "@tanstack/react-query";
-import { journalsQueryOptions, useDeleteJournal } from "~/api/hooks";
-import { useAppStore } from "@mindtab/core";
-
-import "~/styles/text-editor.css";
 import { JournalDialog } from "./journal-dialog";
 import { CreateJournalDialog } from "./create-journal-dialog";
 import { JournalPreview } from "./journal-preview";
+import type { JournalLike } from "./note-utils";
 
 const JournalSkeleton: React.FC = () => {
     return (
-        <div className="pr-4 space-y-6">
-            {[...Array(2)].map((_, index) => (
-                <div key={index} className="p-4 relative rounded-lg border shadow-sm space-y-4">
-                    <div><Skeleton className="h-8 w-44" /></div>
-                    <Skeleton className="h-40 w-full rounded-t-lg" />
-                    <div className="flex justify-between items-center">
-                        <div className="flex flex-col justify-end">
-                            <Skeleton className="h-4 w-32 rounded-md inline-block" />
+        <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+            {[...Array(4)].map((_, index) => (
+                <div
+                    key={index}
+                    className="min-h-[220px] rounded-[var(--r-3)] border border-border bg-card p-4"
+                >
+                    <div className="flex items-start justify-between gap-3">
+                        <div className="space-y-3">
+                            <Skeleton className="h-3 w-24" />
+                            <Skeleton className="h-5 w-48" />
                         </div>
-                        <div className="space-x-2">
-                            <Skeleton className="h-8 w-32 rounded-md inline-block" />
-                            <Skeleton className="h-8 w-32 rounded-md inline-block" />
-                        </div>
+                        <Skeleton className="h-7 w-24 rounded-[var(--r-2)]" />
+                    </div>
+                    <div className="mt-5 space-y-2">
+                        <Skeleton className="h-3 w-full" />
+                        <Skeleton className="h-3 w-11/12" />
+                        <Skeleton className="h-3 w-4/5" />
+                        <Skeleton className="h-3 w-3/5" />
+                    </div>
+                    <div className="mt-7 flex gap-2">
+                        <Skeleton className="h-6 w-24 rounded-[var(--r-2)]" />
+                        <Skeleton className="h-6 w-20 rounded-[var(--r-2)]" />
                     </div>
                 </div>
             ))}
@@ -42,95 +48,109 @@ export const Journals: React.FC = () => {
         journalsQueryOptions(activeProjectId ? { projectId: activeProjectId } : undefined)
     );
 
-    const { mutate: deleteJournal, isPending: isDeletingJournal, variables: deleteJournalVariables } = useDeleteJournal();
+    const journalsList = useMemo(() => ((journals as JournalLike[]) ?? []), [journals]);
+    const {
+        mutate: deleteJournal,
+        isPending: isDeletingJournal,
+        variables: deleteJournalVariables,
+    } = useDeleteJournal();
 
-    const [overflowingJournals, setOverflowingJournals] = useState<Set<string>>(new Set());
     const [mode, setMode] = useState<"edit" | "view" | null>(null);
     const [isJournalDialogOpen, setIsJournalDialogOpen] = useState(false);
     const [isCreateJournalDialogOpen, setIsCreateJournalDialogOpen] = useState(false);
-    const [currentJournal, setCurrentJournal] = useState<{
-        id: string; title: string; content: string; projectId?: string | null;
-        project?: { id: string; name: string | null; status: string; } | null;
-    } | null>(null);
-
-    const contentRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
-
-    const checkOverflow = useCallback(() => {
-        const newOverflowingJournals = new Set<string>();
-        Object.entries(contentRefs.current).forEach(([journalId, element]) => {
-            if (element && element.scrollHeight > element.clientHeight) {
-                newOverflowingJournals.add(journalId);
-            }
-        });
-        setOverflowingJournals(newOverflowingJournals);
-    }, []);
-
-    useEffect(() => {
-        const timer = setTimeout(checkOverflow, 0);
-        return () => clearTimeout(timer);
-    }, [journals, checkOverflow]);
+    const [currentJournal, setCurrentJournal] = useState<JournalLike | null>(null);
 
     const onCreateJournal = () => setIsCreateJournalDialogOpen(true);
 
     const onJournalDialogOpenChange = (open: boolean) => {
         setIsJournalDialogOpen(open);
-        if (!open) { setCurrentJournal(null); setMode(null); }
+        if (!open) {
+            setCurrentJournal(null);
+            setMode(null);
+        }
     };
 
     const onCreateJournalDialogOpenChange = (open: boolean) => setIsCreateJournalDialogOpen(open);
 
-    const onEditJournal = useCallback((id: string) => {
-        const journal = (journals as any[])?.find((j: any) => j.id === id);
-        if (!journal) return;
-        setCurrentJournal({ id: journal.id, title: journal.title, content: journal.content, projectId: journal.projectId, project: journal.project });
-        setMode("edit");
-        setIsJournalDialogOpen(true);
-    }, [journals]);
+    const openJournal = useCallback(
+        (id: string, nextMode: "edit" | "view") => {
+            const journal = journalsList.find((item) => item.id === id);
+            if (!journal) return;
 
-    const onShowMore = (id: string) => {
-        const journal = (journals as any[])?.find((j: any) => j.id === id);
-        if (!journal) return;
-        setCurrentJournal({ id: journal.id, title: journal.title, content: journal.content, projectId: journal.projectId, project: journal.project });
-        setMode("view");
-        setIsJournalDialogOpen(true);
-    };
+            setCurrentJournal(journal);
+            setMode(nextMode);
+            setIsJournalDialogOpen(true);
+        },
+        [journalsList]
+    );
 
     return (
-        <div className="space-y-2 mt-2">
-            <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold mb-4">Notes</h2>
-                <Button onClick={onCreateJournal} size="sm"><Plus className="h-4 w-4" /></Button>
+        <div className="flex min-h-0 flex-1 flex-col">
+            <div className="mb-3 flex shrink-0 items-center justify-between gap-3">
+                <div>
+                    <div className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
+                        Notes · {journalsList.length}
+                    </div>
+                    <div className="mt-1 text-sm text-muted-foreground">
+                        {activeProjectId ? "Project notes" : "All notes"}
+                    </div>
+                </div>
+                <Button
+                    onClick={onCreateJournal}
+                    size="sm"
+                    className="gap-2"
+                    variant="secondary"
+                >
+                    <Plus className="h-4 w-4" />
+                    Add Note
+                </Button>
             </div>
-            <ScrollArea className="h-[calc(100vh-18rem)]">
+
+            <div className="custom-scrollbar min-h-0 flex-1 overflow-x-hidden overflow-y-auto pr-2">
                 {isFetchingJournals ? (
                     <JournalSkeleton />
+                ) : journalsList.length === 0 ? (
+                    <div className="rounded-[var(--r-3)] border border-dashed border-border bg-[var(--bg-elev)]/55 px-4 py-12 text-center">
+                        <FileText className="mx-auto h-5 w-5 text-muted-foreground" />
+                        <div className="mt-3 text-sm font-medium text-foreground">No notes yet</div>
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            className="mt-4 gap-2"
+                            onClick={onCreateJournal}
+                        >
+                            <Plus className="h-4 w-4" />
+                            Add First Note
+                        </Button>
+                    </div>
                 ) : (
-                    <div className="pr-4">
-                        {(journals as any[])?.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center gap-4 text-center mt-8">
-                                <span className="text-base">No notes found</span>
-                                <Button onClick={onCreateJournal} size="sm"><Plus className="h-4 w-4 mr-1" />Create First Note</Button>
-                            </div>
-                        ) : (
-                            (journals as any[])?.map((journal: any) => (
-                                <JournalPreview
-                                    key={journal.id}
-                                    journal={journal}
-                                    overflowingJournals={overflowingJournals}
-                                    contentRefs={contentRefs}
-                                    onShowMore={onShowMore}
-                                    onEditJournal={onEditJournal}
-                                    deleteJournal={(id: string) => deleteJournal(id)}
-                                    isDeletingJournal={isDeletingJournal}
-                                    deleteJournalVariables={deleteJournalVariables as any}
-                                />
-                            ))
-                        )}
+                    <div className="grid grid-cols-1 gap-3 pb-1 xl:grid-cols-2">
+                        {journalsList.map((journal) => (
+                            <JournalPreview
+                                key={journal.id}
+                                journal={journal}
+                                onOpenJournal={(id) => openJournal(id, "view")}
+                                onEditJournal={(id) => openJournal(id, "edit")}
+                                deleteJournal={(id) => deleteJournal(id)}
+                                isDeletingJournal={isDeletingJournal}
+                                deleteJournalVariables={deleteJournalVariables as string | undefined}
+                            />
+                        ))}
                     </div>
                 )}
-            </ScrollArea>
-            <JournalDialog isOpen={isJournalDialogOpen} onOpenChange={onJournalDialogOpenChange} defaultMode={mode} journal={currentJournal} />
-            <CreateJournalDialog isOpen={isCreateJournalDialogOpen} onOpenChange={onCreateJournalDialogOpenChange} activeProjectId={activeProjectId} />
+            </div>
+
+            <JournalDialog
+                isOpen={isJournalDialogOpen}
+                onOpenChange={onJournalDialogOpenChange}
+                defaultMode={mode}
+                journal={currentJournal}
+            />
+            <CreateJournalDialog
+                isOpen={isCreateJournalDialogOpen}
+                onOpenChange={onCreateJournalDialogOpenChange}
+                activeProjectId={activeProjectId}
+            />
         </div>
     );
 };

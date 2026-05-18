@@ -6,6 +6,8 @@ import React, {
     useRef,
     ForwardRefRenderFunction,
 } from 'react'
+import { FileText, Repeat2, Target } from 'lucide-react'
+import { cn } from '~/lib/utils'
 
 interface MentionListProps {
     items: (any & { resourceType: string })[];
@@ -30,6 +32,7 @@ const MentionList: ForwardRefRenderFunction<MentionListRef, MentionListProps> = 
     }
 
     const upHandler = () => {
+        if (!props.items.length) return
         setSelectedIndex((prevIndex) => {
             const newIndex = (prevIndex + props.items.length - 1) % props.items.length
             scrollToItem(newIndex)
@@ -38,6 +41,7 @@ const MentionList: ForwardRefRenderFunction<MentionListRef, MentionListProps> = 
     }
 
     const downHandler = () => {
+        if (!props.items.length) return
         setSelectedIndex((prevIndex) => {
             const newIndex = (prevIndex + 1) % props.items.length
             scrollToItem(newIndex)
@@ -46,6 +50,7 @@ const MentionList: ForwardRefRenderFunction<MentionListRef, MentionListProps> = 
     }
 
     const enterHandler = () => {
+        if (!props.items.length) return
         selectItem(selectedIndex)
     }
 
@@ -86,31 +91,41 @@ const MentionList: ForwardRefRenderFunction<MentionListRef, MentionListProps> = 
     }))
 
     return (
-        <div className="z-50 bg-background flex flex-col gap-2 justify-start items-start border border-border rounded-md ">
-            <div ref={scrollAreaRef} className="flex flex-col gap-1 justify-start items-start border border-border rounded-md overflow-y-auto max-h-[350px] w-[300px] px-1 py-1">
+        <div className="z-50 overflow-hidden rounded-[var(--r-3)] border border-border bg-[var(--bg-elev)] p-1 shadow-[0_18px_44px_-34px_rgba(0,0,0,0.95)]">
+            <div ref={scrollAreaRef} className="custom-scrollbar flex max-h-[350px] w-[320px] flex-col gap-1 overflow-y-auto">
                 {props.items.length
                     ? props.items.map((item, index) => (
                         <button
-                            className={`${index === selectedIndex ? 'bg-secondary text-secondary-foreground' : ''} px-3 py-2 w-full text-start text-sm first:mt-0 flex flex-col gap-1 rounded-md`}
+                            className={cn(
+                                'flex w-full flex-col gap-1 rounded-[var(--r-2)] px-3 py-2 text-start text-sm text-foreground transition-colors',
+                                index === selectedIndex
+                                    ? 'bg-[var(--bg-soft)]'
+                                    : 'hover:bg-[var(--bg-soft)]'
+                            )}
                             key={item.id}
                             onClick={() => selectItem(index)}
                         >
-                            <span className='text-sm'>{item.title}</span>
-                            <span className='flex items-center gap-1.5'>
-                                <span className={`flex items-center gap-1 rounded-md px-2.5 py-0.5 text-xs border-b 
-                                    ${index === selectedIndex ? 'bg-background ' : 'bg-muted'} 
-                                    text-blue-400`}>{item.resourceType.replace('journal', 'note')}
+                            <span className="truncate text-sm font-medium">{item.title}</span>
+                            <span className="flex items-center gap-1.5">
+                                <span className={cn(
+                                    'inline-flex items-center gap-1 rounded-[var(--r-2)] border border-border bg-background px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.05em]',
+                                    getResourceClassName(item.resourceType)
+                                )}>
+                                    <MentionIcon type={item.resourceType} />
+                                    {item.resourceType.replace('journal', 'note')}
                                 </span>
                                 {item.status && (
-                                    <span className={`flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs border-b 
-                                    ${index === selectedIndex ? 'bg-background px-2.5 py-0.5' : 'bg-muted'} 
-                                    ${item.status === 'completed' ? 'text-green-500' : 'text-white/90'}`}>{item.status}
+                                    <span className={cn(
+                                        'inline-flex items-center rounded-[var(--r-2)] border border-border bg-background px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.05em]',
+                                        item.status === 'completed' ? 'text-[var(--green)]' : 'text-muted-foreground'
+                                    )}>
+                                        {item.status}
                                     </span>
                                 )}
                             </span>
                         </button>
                     ))
-                    : <div className="text-sm text-muted-foreground text-center w-full py-2">No result</div>
+                    : <div className="w-full py-3 text-center text-sm text-muted-foreground">No result</div>
                 }
             </div>
         </div>
@@ -118,3 +133,15 @@ const MentionList: ForwardRefRenderFunction<MentionListRef, MentionListProps> = 
 }
 
 export default forwardRef(MentionList)
+
+function MentionIcon({ type }: { type: string }) {
+    if (type === 'goal') return <Target className="h-3 w-3" />
+    if (type === 'habit') return <Repeat2 className="h-3 w-3" />
+    return <FileText className="h-3 w-3" />
+}
+
+function getResourceClassName(type: string) {
+    if (type === 'goal') return 'text-[var(--green)]'
+    if (type === 'habit') return 'text-[var(--cyan)]'
+    return 'text-[var(--amber)]'
+}

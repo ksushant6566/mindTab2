@@ -118,6 +118,155 @@ html {
     font-weight: 500;
 }
 
+.note-editor .ProseMirror.tiptap {
+  min-height: min(46vh, 440px);
+  max-height: min(46vh, 440px);
+  overflow: auto;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  padding: 0.75rem 1rem 1rem;
+  color: var(--text);
+  font-size: 0.925rem;
+  line-height: 1.65;
+}
+
+.note-editor .ProseMirror.tiptap p {
+  margin: 0.45rem 0;
+}
+
+.note-preview,
+.note-prose {
+  min-width: 0;
+  max-width: 100%;
+  color: var(--text-2);
+  font-size: 0.875rem;
+  line-height: 1.62;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.note-preview {
+  max-height: 8.5rem;
+  overflow: hidden;
+}
+
+.note-preview :first-child,
+.note-prose :first-child {
+  margin-top: 0;
+}
+
+.note-preview :last-child,
+.note-prose :last-child {
+  margin-bottom: 0;
+}
+
+.note-preview p,
+.note-prose p {
+  margin: 0.45rem 0;
+}
+
+.note-preview h1,
+.note-preview h2,
+.note-preview h3,
+.note-prose h1,
+.note-prose h2,
+.note-prose h3 {
+  color: var(--text);
+  font-weight: 650;
+  line-height: 1.2;
+}
+
+.note-preview h1,
+.note-prose h1 {
+  font-size: 1.25rem;
+  margin: 1rem 0 0.45rem;
+}
+
+.note-preview h2,
+.note-prose h2 {
+  font-size: 1.1rem;
+  margin: 0.9rem 0 0.4rem;
+}
+
+.note-preview h3,
+.note-prose h3 {
+  font-size: 1rem;
+  margin: 0.8rem 0 0.35rem;
+}
+
+.note-preview ul,
+.note-preview ol,
+.note-prose ul,
+.note-prose ol {
+  margin: 0.65rem 0;
+  padding-left: 1.25rem;
+}
+
+.note-preview ul,
+.note-prose ul {
+  list-style: disc;
+}
+
+.note-preview ol,
+.note-prose ol {
+  list-style: decimal;
+}
+
+.note-preview blockquote,
+.note-prose blockquote {
+  margin: 0.75rem 0;
+  border-left: 2px solid var(--border-2);
+  padding-left: 0.75rem;
+  color: var(--text-3);
+}
+
+.note-preview code,
+.note-prose code {
+  border-radius: var(--r-1);
+  background: var(--bg-soft);
+  color: var(--rose);
+  padding: 0.1rem 0.3rem;
+  font-size: 0.85em;
+}
+
+.note-preview pre,
+.note-prose pre {
+  max-width: 100%;
+  margin: 0.85rem 0;
+  overflow-x: auto;
+  white-space: pre;
+  overflow-wrap: normal;
+  word-break: normal;
+  border-radius: var(--r-2);
+  background: var(--bg-soft);
+  padding: 0.75rem;
+  color: var(--text);
+}
+
+.note-preview table,
+.note-prose table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+}
+
+.note-preview a,
+.note-prose a {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.note-preview .mention,
+.note-prose .mention {
+  border-radius: var(--r-1);
+  background: var(--ink-soft);
+  color: var(--ink);
+  padding: 0.1rem 0.25rem;
+  font-weight: 600;
+}
+
 @layer utilities {
     .grid-cols-53 {
         grid-template-columns: repeat(53, minmax(0, 1fr));

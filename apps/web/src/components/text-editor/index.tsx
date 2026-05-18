@@ -15,11 +15,12 @@ import {
   X,
   Check,
 } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { Separator } from '../ui/separator'
 import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group'
 import { Input } from '../ui/input'
 import { Button } from '../ui/button'
+import { cn } from '~/lib/utils'
 
 import tippy from 'tippy.js'
 
@@ -33,6 +34,9 @@ type TipTapEditorProps = {
   title: string
   onTitleChange: (title: string) => void
   editable?: boolean
+  className?: string
+  titleClassName?: string
+  editorContentClassName?: string
 }
 
 interface ComponentRef {
@@ -45,10 +49,15 @@ export const TipTapEditor = ({
   title,
   onTitleChange,
   editable = true,
+  className,
+  titleClassName,
+  editorContentClassName,
 }: TipTapEditorProps) => {
+  const titleInputId = useId()
   const [isMenuVisible, setIsMenuVisible] = useState(false)
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 })
   const editorRef = useRef<HTMLDivElement>(null)
+  const titleInputRef = useRef<HTMLInputElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const selectionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -258,15 +267,19 @@ export const TipTapEditor = ({
   }, [isLinkInputVisible, editor])
 
   return (
-    <div ref={editorRef} className={`relative rounded-md px-2 pt-2 w-full`}>
+    <div ref={editorRef} className={cn('relative w-full rounded-md px-2 pt-2', className)}>
       <div className="flex flex-col gap-0 w-full">
         <input
+          ref={titleInputRef}
           type="text"
-          id="title"
+          id={titleInputId}
           placeholder="Title"
           value={title}
           onChange={(e) => onTitleChange(e.target.value)}
-          className="bg-transparent border-none focus:border-none focus:outline-none text-xl font-semibold px-3 my-0"
+          className={cn(
+            'my-0 w-full border-none bg-transparent px-3 text-xl font-semibold tracking-normal text-foreground placeholder:text-muted-foreground focus:border-none focus:outline-none disabled:cursor-default disabled:opacity-100',
+            titleClassName,
+          )}
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
               e.preventDefault()
@@ -280,13 +293,10 @@ export const TipTapEditor = ({
           onKeyDown={(e) => {
             if (e.key === 'Backspace' && editor?.isEmpty) {
               e.preventDefault()
-              const titleInput = document.getElementById(
-                'title'
-              ) as HTMLInputElement
-              titleInput?.focus()
+              titleInputRef.current?.focus()
             }
           }}
-          className="-ml-1 w-full"
+          className={cn('-ml-1 w-full', editorContentClassName)}
         />
       </div>
       {isMenuVisible && editable && (
@@ -299,7 +309,7 @@ export const TipTapEditor = ({
             zIndex: 50,
             transform: 'translateY(-100%)',
           }}
-          className="bg-background border rounded-md shadow-md p-2 flex items-center"
+          className="flex items-center rounded-[var(--r-3)] border border-border bg-[var(--bg-elev)] p-1.5 shadow-[0_18px_44px_-34px_rgba(0,0,0,0.95)]"
         >
           <MenuBar
             editor={editor}
@@ -308,7 +318,7 @@ export const TipTapEditor = ({
           />
           {isLinkInputVisible && (
             <form
-              className="flex items-center space-x-2 ml-2"
+              className="ml-2 flex items-center gap-1.5"
               onSubmit={(e) => {
                 e.preventDefault()
                 if (linkUrl) {
@@ -328,7 +338,7 @@ export const TipTapEditor = ({
                 placeholder="https://formonce.in"
                 value={linkUrl}
                 onChange={(e) => setLinkUrl(e.target.value)}
-                className="focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                className="h-8 w-56 rounded-[var(--r-2)] border-border bg-background text-xs focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
               />
               <Button
                 variant="ghost"
@@ -345,7 +355,7 @@ export const TipTapEditor = ({
                     setIsLinkInputVisible(false)
                   }
                 }}
-                className="text-green-500"
+                className="size-8 rounded-[var(--r-2)] text-[var(--green)]"
               >
                 <Check className="h-4 w-4" />
               </Button>
@@ -356,7 +366,7 @@ export const TipTapEditor = ({
                   setIsLinkInputVisible(false)
                   setLinkUrl('')
                 }}
-                className="text-red-500"
+                className="size-8 rounded-[var(--r-2)] text-[var(--rose)]"
               >
                 <X className="h-4 w-4" />
               </Button>
@@ -381,15 +391,18 @@ const MenuBar = ({
 }: MenuBarProps) => {
   if (!editor) return null
 
+  const toolItemClassName =
+    'size-7 rounded-[var(--r-2)] p-0 text-muted-foreground hover:bg-[var(--bg-soft)] hover:text-foreground data-[state=on]:bg-primary data-[state=on]:text-primary-foreground'
+
   return (
-    <div className="flex gap-0 p-0 w-fit items-center">
-      <ToggleGroup type="multiple">
+    <div className="flex w-fit items-center gap-1 p-0">
+      <ToggleGroup type="multiple" className="gap-0.5">
         <ToggleGroupItem
           value="bold"
           aria-label="Toggle bold"
           onClick={() => editor.chain().focus().toggleBold().run()}
           data-state={editor.isActive('bold') ? 'on' : 'off'}
-          className="gap-0"
+          className={toolItemClassName}
         >
           <Bold className="h-4 w-4" />
         </ToggleGroupItem>
@@ -398,6 +411,7 @@ const MenuBar = ({
           aria-label="Toggle italic"
           onClick={() => editor.chain().focus().toggleItalic().run()}
           data-state={editor.isActive('italic') ? 'on' : 'off'}
+          className={toolItemClassName}
         >
           <Italic className="h-4 w-4" />
         </ToggleGroupItem>
@@ -406,6 +420,7 @@ const MenuBar = ({
           aria-label="Toggle strikethrough"
           onClick={() => editor.chain().focus().toggleStrike().run()}
           data-state={editor.isActive('strike') ? 'on' : 'off'}
+          className={toolItemClassName}
         >
           <Strikethrough className="h-4 w-4" />
         </ToggleGroupItem>
@@ -414,11 +429,12 @@ const MenuBar = ({
           aria-label="Toggle code"
           onClick={() => editor.chain().focus().toggleCode().run()}
           data-state={editor.isActive('code') ? 'on' : 'off'}
+          className={toolItemClassName}
         >
           <Code className="h-4 w-4" />
         </ToggleGroupItem>
       </ToggleGroup>
-      <Separator orientation="vertical" className="h-full" />
+      <Separator orientation="vertical" className="h-5 bg-border" />
       <ToggleGroup
         type="single"
         value={
@@ -428,11 +444,13 @@ const MenuBar = ({
               ? 'ordered'
               : ''
         }
+        className="gap-0.5"
       >
         <ToggleGroupItem
           value="bullet"
           aria-label="Toggle bullet list"
           onClick={() => editor.chain().focus().toggleBulletList().run()}
+          className={toolItemClassName}
         >
           <List className="h-4 w-4" />
         </ToggleGroupItem>
@@ -440,11 +458,12 @@ const MenuBar = ({
           value="ordered"
           aria-label="Toggle ordered list"
           onClick={() => editor.chain().focus().toggleOrderedList().run()}
+          className={toolItemClassName}
         >
           <ListOrdered className="h-4 w-4" />
         </ToggleGroupItem>
       </ToggleGroup>
-      <Separator orientation="vertical" className="h-full" />
+      <Separator orientation="vertical" className="h-5 bg-border" />
       <ToggleGroup
         type="single"
         value={
@@ -454,13 +473,14 @@ const MenuBar = ({
               ? 'codeBlock'
               : ''
         }
-        className="gap-0"
+        className="gap-0.5"
       >
         <ToggleGroupItem
           value="blockquote"
           aria-label="Toggle blockquote"
           onClick={() => editor.chain().focus().toggleBlockquote().run()}
           data-state={editor.isActive('blockquote') ? 'on' : 'off'}
+          className={toolItemClassName}
         >
           <MessageSquareQuote className="h-5 w-5" />
         </ToggleGroupItem>
@@ -469,13 +489,14 @@ const MenuBar = ({
           aria-label="Toggle codeblock"
           onClick={() => editor.chain().focus().toggleCodeBlock().run()}
           data-state={editor.isActive('codeBlock') ? 'on' : 'off'}
+          className={toolItemClassName}
         >
           <MessageSquareCode className="h-5 w-5" />
         </ToggleGroupItem>
       </ToggleGroup>
-      <Separator orientation="vertical" className="h-full" />
+      <Separator orientation="vertical" className="h-5 bg-border" />
       {/* Link Toggle Button */}
-      <ToggleGroup type="single">
+      <ToggleGroup type="single" className="gap-0.5">
         <ToggleGroupItem
           value="link"
           aria-label="Toggle link"
@@ -483,6 +504,7 @@ const MenuBar = ({
             setIsLinkInputVisible(!isLinkInputVisible)
           }}
           data-state={editor.isActive('link') ? 'on' : 'off'}
+          className={toolItemClassName}
         >
           <LinkIcon className="h-4 w-4" />
         </ToggleGroupItem>
