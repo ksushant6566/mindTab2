@@ -23,7 +23,7 @@ func (q *Queries) CompleteOnboarding(ctx context.Context, id string) error {
 const createEmailUser = `-- name: CreateEmailUser :one
 INSERT INTO mindmap_user (id, name, email, email_verified)
 VALUES ($1, $2, $3, NULL)
-RETURNING id, name, email, email_verified, image, xp, onboarding_completed, created_at, updated_at, password_hash
+RETURNING id, name, email, email_verified, image, xp, onboarding_completed, created_at, updated_at, password_hash, theme, font
 `
 
 type CreateEmailUserParams struct {
@@ -46,12 +46,14 @@ func (q *Queries) CreateEmailUser(ctx context.Context, arg CreateEmailUserParams
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.PasswordHash,
+		&i.Theme,
+		&i.Font,
 	)
 	return i, err
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, name, email, email_verified, image, xp, onboarding_completed, created_at, updated_at, password_hash FROM mindmap_user WHERE email = $1
+SELECT id, name, email, email_verified, image, xp, onboarding_completed, created_at, updated_at, password_hash, theme, font FROM mindmap_user WHERE email = $1
 `
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email string) (MindmapUser, error) {
@@ -68,12 +70,14 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (MindmapUser
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.PasswordHash,
+		&i.Theme,
+		&i.Font,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, name, email, email_verified, image, xp, onboarding_completed, created_at, updated_at, password_hash FROM mindmap_user WHERE id = $1
+SELECT id, name, email, email_verified, image, xp, onboarding_completed, created_at, updated_at, password_hash, theme, font FROM mindmap_user WHERE id = $1
 `
 
 func (q *Queries) GetUserByID(ctx context.Context, id string) (MindmapUser, error) {
@@ -90,6 +94,8 @@ func (q *Queries) GetUserByID(ctx context.Context, id string) (MindmapUser, erro
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.PasswordHash,
+		&i.Theme,
+		&i.Font,
 	)
 	return i, err
 }
@@ -117,8 +123,44 @@ func (q *Queries) SetPasswordHash(ctx context.Context, arg SetPasswordHashParams
 	return err
 }
 
+const updateUserAppearance = `-- name: UpdateUserAppearance :one
+UPDATE mindmap_user
+SET
+    theme = COALESCE($1, theme),
+    font = COALESCE($2, font),
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = $3
+RETURNING id, name, email, email_verified, image, xp, onboarding_completed, created_at, updated_at, password_hash, theme, font
+`
+
+type UpdateUserAppearanceParams struct {
+	Theme pgtype.Text `json:"theme"`
+	Font  pgtype.Text `json:"font"`
+	ID    string      `json:"id"`
+}
+
+func (q *Queries) UpdateUserAppearance(ctx context.Context, arg UpdateUserAppearanceParams) (MindmapUser, error) {
+	row := q.db.QueryRow(ctx, updateUserAppearance, arg.Theme, arg.Font, arg.ID)
+	var i MindmapUser
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Email,
+		&i.EmailVerified,
+		&i.Image,
+		&i.Xp,
+		&i.OnboardingCompleted,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.PasswordHash,
+		&i.Theme,
+		&i.Font,
+	)
+	return i, err
+}
+
 const updateUserXP = `-- name: UpdateUserXP :one
-UPDATE mindmap_user SET xp = xp + $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING id, name, email, email_verified, image, xp, onboarding_completed, created_at, updated_at, password_hash
+UPDATE mindmap_user SET xp = xp + $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING id, name, email, email_verified, image, xp, onboarding_completed, created_at, updated_at, password_hash, theme, font
 `
 
 type UpdateUserXPParams struct {
@@ -140,6 +182,8 @@ func (q *Queries) UpdateUserXP(ctx context.Context, arg UpdateUserXPParams) (Min
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.PasswordHash,
+		&i.Theme,
+		&i.Font,
 	)
 	return i, err
 }
@@ -151,7 +195,7 @@ ON CONFLICT (id) DO UPDATE SET
     name = COALESCE(EXCLUDED.name, mindmap_user.name),
     image = COALESCE(EXCLUDED.image, mindmap_user.image),
     updated_at = CURRENT_TIMESTAMP
-RETURNING id, name, email, email_verified, image, xp, onboarding_completed, created_at, updated_at, password_hash
+RETURNING id, name, email, email_verified, image, xp, onboarding_completed, created_at, updated_at, password_hash, theme, font
 `
 
 type UpsertUserParams struct {
@@ -180,6 +224,8 @@ func (q *Queries) UpsertUser(ctx context.Context, arg UpsertUserParams) (Mindmap
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.PasswordHash,
+		&i.Theme,
+		&i.Font,
 	)
 	return i, err
 }

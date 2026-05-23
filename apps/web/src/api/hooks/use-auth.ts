@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { create } from "zustand";
+import type { AppearanceTheme, FontPreset } from "@mindtab/core";
 import { api, setAccessToken } from "../client";
 
 interface User {
@@ -9,6 +10,8 @@ interface User {
   image: string | null;
   xp: number;
   onboardingCompleted: boolean;
+  theme: AppearanceTheme;
+  font: FontPreset;
 }
 
 interface AuthState {
@@ -17,8 +20,13 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   _hasChecked: boolean;
+  _isChecking: boolean;
   _refreshSession: () => Promise<void>;
   login: (googleIdToken: string) => Promise<void>;
+  updateAppearance: (appearance: {
+    theme?: AppearanceTheme;
+    font?: FontPreset;
+  }) => Promise<User>;
   logout: () => void;
 }
 
@@ -28,8 +36,12 @@ const useAuthStore = create<AuthState>((set, get) => ({
   isAuthenticated: false,
   isLoading: true,
   _hasChecked: false,
+  _isChecking: false,
 
   _refreshSession: async () => {
+    if (get()._isChecking) return;
+    set({ _isChecking: true });
+
     try {
       const { data, error } = await api.POST("/auth/refresh");
       if (data && !error) {
@@ -43,6 +55,7 @@ const useAuthStore = create<AuthState>((set, get) => ({
             isAuthenticated: true,
             isLoading: false,
             _hasChecked: true,
+            _isChecking: false,
           });
           return;
         }
@@ -56,6 +69,7 @@ const useAuthStore = create<AuthState>((set, get) => ({
       isAuthenticated: false,
       isLoading: false,
       _hasChecked: true,
+      _isChecking: false,
     });
   },
 
@@ -70,8 +84,23 @@ const useAuthStore = create<AuthState>((set, get) => ({
         accessToken: data.accessToken,
         isAuthenticated: true,
         isLoading: false,
+        _hasChecked: true,
       });
     }
+  },
+
+  updateAppearance: async (appearance) => {
+    const { data, error } = await api.PATCH("/users/me", {
+      body: appearance,
+    });
+
+    if (error || !data) {
+      throw new Error("Failed to update appearance");
+    }
+
+    const user = data as User;
+    set({ user });
+    return user;
   },
 
   logout: () => {
@@ -81,6 +110,8 @@ const useAuthStore = create<AuthState>((set, get) => ({
       accessToken: null,
       isAuthenticated: false,
       isLoading: false,
+      _hasChecked: true,
+      _isChecking: false,
     });
   },
 }));
@@ -101,6 +132,7 @@ export function useAuth() {
     isAuthenticated: store.isAuthenticated,
     isLoading: store.isLoading,
     login: store.login,
+    updateAppearance: store.updateAppearance,
     logout: store.logout,
     refreshSession: store._refreshSession,
   };

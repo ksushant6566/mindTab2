@@ -124,6 +124,7 @@ type Querier interface {
 	UpdateJobStepResults(ctx context.Context, arg UpdateJobStepResultsParams) error
 	UpdateJournal(ctx context.Context, arg UpdateJournalParams) error
 	UpdateProject(ctx context.Context, arg UpdateProjectParams) (MindmapProject, error)
+	UpdateUserAppearance(ctx context.Context, arg UpdateUserAppearanceParams) (MindmapUser, error)
 	UpdateUserXP(ctx context.Context, arg UpdateUserXPParams) (MindmapUser, error)
 	UpsertJournalFromSync(ctx context.Context, arg UpsertJournalFromSyncParams) error
 	UpsertUser(ctx context.Context, arg UpsertUserParams) (MindmapUser, error)

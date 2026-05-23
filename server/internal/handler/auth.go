@@ -53,6 +53,8 @@ type userJSON struct {
 	Image               string `json:"image"`
 	Xp                  int32  `json:"xp"`
 	OnboardingCompleted bool   `json:"onboardingCompleted"`
+	Theme               string `json:"theme"`
+	Font                string `json:"font"`
 }
 
 func toUserJSON(u store.MindmapUser) userJSON {
@@ -63,6 +65,8 @@ func toUserJSON(u store.MindmapUser) userJSON {
 		Image:               u.Image.String,
 		Xp:                  u.Xp,
 		OnboardingCompleted: u.OnboardingCompleted,
+		Theme:               u.Theme,
+		Font:                u.Font,
 	}
 }
 

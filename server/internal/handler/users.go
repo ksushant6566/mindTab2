@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/ksushant6566/mindtab/server/internal/middleware"
 	"github.com/ksushant6566/mindtab/server/internal/store"
 )
@@ -35,8 +36,22 @@ func (h *UsersHandler) GetMe(w http.ResponseWriter, r *http.Request) {
 
 // updateMeRequest is the request body for PATCH /users/me.
 type updateMeRequest struct {
-	XPToAdd             *int32 `json:"xpToAdd,omitempty"`
-	OnboardingCompleted *bool  `json:"onboardingCompleted,omitempty"`
+	XPToAdd             *int32  `json:"xpToAdd,omitempty"`
+	OnboardingCompleted *bool   `json:"onboardingCompleted,omitempty"`
+	Theme               *string `json:"theme,omitempty"`
+	Font                *string `json:"font,omitempty"`
+}
+
+var validUserThemes = map[string]bool{
+	"midnight": true,
+	"graphite": true,
+	"paper":    true,
+}
+
+var validUserFonts = map[string]bool{
+	"inter":  true,
+	"geist":  true,
+	"system": true,
 }
 
 // UpdateMe handles PATCH /users/me.
@@ -65,6 +80,34 @@ func (h *UsersHandler) UpdateMe(w http.ResponseWriter, r *http.Request) {
 		if err := h.queries.CompleteOnboarding(r.Context(), userID); err != nil {
 			slog.Error("failed to complete onboarding", "error", err)
 			WriteError(w, http.StatusInternalServerError, "failed to complete onboarding")
+			return
+		}
+	}
+
+	if req.Theme != nil || req.Font != nil {
+		params := store.UpdateUserAppearanceParams{
+			ID: userID,
+		}
+
+		if req.Theme != nil {
+			if !validUserThemes[*req.Theme] {
+				WriteError(w, http.StatusBadRequest, "invalid theme")
+				return
+			}
+			params.Theme = pgtype.Text{String: *req.Theme, Valid: true}
+		}
+
+		if req.Font != nil {
+			if !validUserFonts[*req.Font] {
+				WriteError(w, http.StatusBadRequest, "invalid font")
+				return
+			}
+			params.Font = pgtype.Text{String: *req.Font, Valid: true}
+		}
+
+		if _, err := h.queries.UpdateUserAppearance(r.Context(), params); err != nil {
+			slog.Error("failed to update user appearance", "error", err)
+			WriteError(w, http.StatusInternalServerError, "failed to update appearance")
 			return
 		}
 	}

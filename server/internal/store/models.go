@@ -187,6 +187,8 @@ type MindmapUser struct {
 	CreatedAt           pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt           pgtype.Timestamptz `json:"updated_at"`
 	PasswordHash        pgtype.Text        `json:"password_hash"`
+	Theme               string             `json:"theme"`
+	Font                string             `json:"font"`
 }
 
 type MindmapVerificationToken struct {
