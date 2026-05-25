@@ -3,6 +3,7 @@ package config
 import (
 	"strings"
 	"testing"
+	"time"
 )
 
 func setBaseRequiredEnv(t *testing.T) {
@@ -23,6 +24,10 @@ func clearSavesEnv(t *testing.T) {
 		"GROQ_API_KEY",
 		"X_BEARER_TOKEN",
 		"REDDIT_USER_AGENT",
+		"WORKER_CONCURRENCY",
+		"WORKER_DEQUEUE_TIMEOUT",
+		"WORKER_RETRY_POLL_INTERVAL",
+		"WORKER_SHUTDOWN_TIMEOUT",
 	} {
 		t.Setenv(key, "")
 	}
@@ -39,6 +44,15 @@ func TestLoad_AllowsServerWithoutSavesWorkerEnv(t *testing.T) {
 	if cfg.RedisURL != "" {
 		t.Fatalf("RedisURL = %q, want empty", cfg.RedisURL)
 	}
+	if cfg.WorkerConcurrency != 1 {
+		t.Fatalf("WorkerConcurrency = %d, want 1", cfg.WorkerConcurrency)
+	}
+	if cfg.WorkerDequeueTimeout != 5*time.Minute {
+		t.Fatalf("WorkerDequeueTimeout = %s, want 5m", cfg.WorkerDequeueTimeout)
+	}
+	if cfg.WorkerRetryPollInterval != time.Minute {
+		t.Fatalf("WorkerRetryPollInterval = %s, want 1m", cfg.WorkerRetryPollInterval)
+	}
 }
 
 func TestLoad_RequiresSavesWorkerEnvWhenRedisEnabled(t *testing.T) {
@@ -54,6 +68,28 @@ func TestLoad_RequiresSavesWorkerEnvWhenRedisEnabled(t *testing.T) {
 		if !strings.Contains(err.Error(), want) {
 			t.Fatalf("Load() error = %q, want missing %s", err.Error(), want)
 		}
+	}
+}
+
+func TestLoad_OverridesWorkerSettings(t *testing.T) {
+	setBaseRequiredEnv(t)
+	clearSavesEnv(t)
+	t.Setenv("WORKER_CONCURRENCY", "3")
+	t.Setenv("WORKER_DEQUEUE_TIMEOUT", "30s")
+	t.Setenv("WORKER_RETRY_POLL_INTERVAL", "45s")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if cfg.WorkerConcurrency != 3 {
+		t.Fatalf("WorkerConcurrency = %d, want 3", cfg.WorkerConcurrency)
+	}
+	if cfg.WorkerDequeueTimeout != 30*time.Second {
+		t.Fatalf("WorkerDequeueTimeout = %s, want 30s", cfg.WorkerDequeueTimeout)
+	}
+	if cfg.WorkerRetryPollInterval != 45*time.Second {
+		t.Fatalf("WorkerRetryPollInterval = %s, want 45s", cfg.WorkerRetryPollInterval)
 	}
 }
 
