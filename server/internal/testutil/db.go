@@ -101,7 +101,7 @@ func SetupTestDB(t *testing.T) *pgxpool.Pool {
 	return pool
 }
 
-// TruncateAllTables discovers all mindmap_ tables dynamically and truncates them
+// TruncateAllTables discovers application tables dynamically and truncates them
 // with CASCADE for test isolation. This avoids a hardcoded list that falls out of
 // sync when new migrations add tables.
 func TruncateAllTables(t *testing.T, pool *pgxpool.Pool) {
@@ -110,10 +110,13 @@ func TruncateAllTables(t *testing.T, pool *pgxpool.Pool) {
 	ctx := context.Background()
 
 	rows, err := pool.Query(ctx,
-		`SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename LIKE 'mindmap_%'`,
+		`SELECT tablename
+		 FROM pg_tables
+		 WHERE schemaname = 'public'
+		   AND tablename <> 'schema_migrations'`,
 	)
 	if err != nil {
-		t.Fatalf("failed to discover mindmap_ tables: %v", err)
+		t.Fatalf("failed to discover application tables: %v", err)
 	}
 	defer rows.Close()
 
@@ -127,7 +130,8 @@ func TruncateAllTables(t *testing.T, pool *pgxpool.Pool) {
 	}
 
 	for _, table := range tables {
-		if _, err := pool.Exec(ctx, fmt.Sprintf("TRUNCATE TABLE %s CASCADE", table)); err != nil {
+		tableName := pgx.Identifier{"public", table}.Sanitize()
+		if _, err := pool.Exec(ctx, fmt.Sprintf("TRUNCATE TABLE %s CASCADE", tableName)); err != nil {
 			t.Logf("truncate %s: %v", table, err)
 		}
 	}

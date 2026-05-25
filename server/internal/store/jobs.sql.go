@@ -12,7 +12,7 @@ import (
 )
 
 const completeJob = `-- name: CompleteJob :exec
-UPDATE mindmap_jobs
+UPDATE jobs
 SET status = 'completed',
     completed_at = CURRENT_TIMESTAMP,
     updated_at = CURRENT_TIMESTAMP
@@ -25,7 +25,7 @@ func (q *Queries) CompleteJob(ctx context.Context, id pgtype.UUID) error {
 }
 
 const createJob = `-- name: CreateJob :one
-INSERT INTO mindmap_jobs (content_id, user_id, content_type, status)
+INSERT INTO jobs (content_id, user_id, content_type, status)
 VALUES ($1, $2, $3, 'pending')
 RETURNING id
 `
@@ -44,7 +44,7 @@ func (q *Queries) CreateJob(ctx context.Context, arg CreateJobParams) (pgtype.UU
 }
 
 const failJob = `-- name: FailJob :exec
-UPDATE mindmap_jobs
+UPDATE jobs
 SET status = 'failed',
     last_error = $2,
     updated_at = CURRENT_TIMESTAMP
@@ -65,13 +65,13 @@ const getJobByContentID = `-- name: GetJobByContentID :one
 SELECT id, content_id, user_id, content_type, status, current_step,
        attempt_count, max_attempts, last_error, next_retry_at,
        step_results, started_at, completed_at, created_at, updated_at
-FROM mindmap_jobs
+FROM jobs
 WHERE content_id = $1
 `
 
-func (q *Queries) GetJobByContentID(ctx context.Context, contentID pgtype.UUID) (MindmapJob, error) {
+func (q *Queries) GetJobByContentID(ctx context.Context, contentID pgtype.UUID) (Job, error) {
 	row := q.db.QueryRow(ctx, getJobByContentID, contentID)
-	var i MindmapJob
+	var i Job
 	err := row.Scan(
 		&i.ID,
 		&i.ContentID,
@@ -93,7 +93,7 @@ func (q *Queries) GetJobByContentID(ctx context.Context, contentID pgtype.UUID) 
 }
 
 const startJob = `-- name: StartJob :exec
-UPDATE mindmap_jobs
+UPDATE jobs
 SET status = 'processing',
     started_at = CURRENT_TIMESTAMP,
     updated_at = CURRENT_TIMESTAMP
@@ -106,7 +106,7 @@ func (q *Queries) StartJob(ctx context.Context, id pgtype.UUID) error {
 }
 
 const updateJobStatus = `-- name: UpdateJobStatus :exec
-UPDATE mindmap_jobs
+UPDATE jobs
 SET status = $2,
     current_step = $3,
     last_error = $4,
@@ -135,7 +135,7 @@ func (q *Queries) UpdateJobStatus(ctx context.Context, arg UpdateJobStatusParams
 }
 
 const updateJobStepResults = `-- name: UpdateJobStepResults :exec
-UPDATE mindmap_jobs
+UPDATE jobs
 SET step_results = $2,
     current_step = $3,
     updated_at = CURRENT_TIMESTAMP

@@ -34,7 +34,7 @@ func upsertTestUser(t *testing.T, ctx context.Context, q *store.Queries, userID 
 	}
 }
 
-// insertContent inserts a mindmap_content row with the given embedding directly
+// insertContent inserts a content row with the given embedding directly
 // via raw SQL so we can set the vector column without going through sqlc.
 // Returns the ID of the inserted row.
 func insertContent(t *testing.T, ctx context.Context, pool *pgxpool.Pool, userID, sourceType string, vec []float32) uuid.UUID {
@@ -42,7 +42,7 @@ func insertContent(t *testing.T, ctx context.Context, pool *pgxpool.Pool, userID
 	id := uuid.New()
 	v := pgvector.NewVector(vec)
 	_, err := pool.Exec(ctx, `
-		INSERT INTO mindmap_content (id, user_id, source_type, embedding, processing_status)
+		INSERT INTO content (id, user_id, source_type, embedding, processing_status)
 		VALUES ($1, $2, $3, $4, 'completed')
 	`, id, userID, sourceType, v)
 	if err != nil {
@@ -57,7 +57,7 @@ func insertDraftContent(t *testing.T, ctx context.Context, pool *pgxpool.Pool, u
 	id := uuid.New()
 	v := pgvector.NewVector(vec)
 	_, err := pool.Exec(ctx, `
-		INSERT INTO mindmap_content (id, user_id, source_type, embedding, processing_status, commit_status)
+		INSERT INTO content (id, user_id, source_type, embedding, processing_status, commit_status)
 		VALUES ($1, $2, $3, $4, 'completed', 'draft')
 	`, id, userID, sourceType, v)
 	if err != nil {
@@ -69,7 +69,7 @@ func insertDraftContent(t *testing.T, ctx context.Context, pool *pgxpool.Pool, u
 // softDeleteContent sets deleted_at for the given content row.
 func softDeleteContent(t *testing.T, ctx context.Context, pool *pgxpool.Pool, id uuid.UUID) {
 	t.Helper()
-	_, err := pool.Exec(ctx, `UPDATE mindmap_content SET deleted_at = $1 WHERE id = $2`, time.Now(), id)
+	_, err := pool.Exec(ctx, `UPDATE content SET deleted_at = $1 WHERE id = $2`, time.Now(), id)
 	if err != nil {
 		t.Fatalf("softDeleteContent(%v): %v", id, err)
 	}

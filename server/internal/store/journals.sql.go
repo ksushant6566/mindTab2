@@ -12,7 +12,7 @@ import (
 )
 
 const archiveJournalsByProject = `-- name: ArchiveJournalsByProject :exec
-UPDATE mindmap_journal SET archived_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+UPDATE notes SET archived_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
 WHERE project_id = $1 AND user_id = $2
 `
 
@@ -28,7 +28,7 @@ func (q *Queries) ArchiveJournalsByProject(ctx context.Context, arg ArchiveJourn
 
 const checkJournalTitleExists = `-- name: CheckJournalTitleExists :one
 SELECT EXISTS(
-    SELECT 1 FROM mindmap_journal
+    SELECT 1 FROM notes
     WHERE user_id = $1 AND title = $2 AND deleted_at IS NULL
     AND ($3::uuid IS NULL OR id != $3::uuid)
 ) AS "exists"
@@ -48,7 +48,7 @@ func (q *Queries) CheckJournalTitleExists(ctx context.Context, arg CheckJournalT
 }
 
 const countJournals = `-- name: CountJournals :one
-SELECT COUNT(*)::int FROM mindmap_journal WHERE user_id = $1 AND deleted_at IS NULL
+SELECT COUNT(*)::int FROM notes WHERE user_id = $1 AND deleted_at IS NULL
 `
 
 func (q *Queries) CountJournals(ctx context.Context, userID string) (int32, error) {
@@ -59,7 +59,7 @@ func (q *Queries) CountJournals(ctx context.Context, userID string) (int32, erro
 }
 
 const createJournal = `-- name: CreateJournal :exec
-INSERT INTO mindmap_journal (title, content, user_id, project_id)
+INSERT INTO notes (title, content, user_id, project_id)
 VALUES ($1, $2, $3, $4)
 `
 
@@ -81,7 +81,7 @@ func (q *Queries) CreateJournal(ctx context.Context, arg CreateJournalParams) er
 }
 
 const deleteJournal = `-- name: DeleteJournal :exec
-UPDATE mindmap_journal SET deleted_at = CURRENT_TIMESTAMP WHERE id = $1 AND user_id = $2
+UPDATE notes SET deleted_at = CURRENT_TIMESTAMP WHERE id = $1 AND user_id = $2
 `
 
 type DeleteJournalParams struct {
@@ -98,8 +98,8 @@ const getJournalByID = `-- name: GetJournalByID :one
 SELECT j.id, j.title, j.content, j.type, j.source,
        j.created_at, j.updated_at, j.deleted_at, j.archived_at, j.user_id, j.project_id,
        p.id as "project_ref_id", p.name as "project_name", p.status as "project_status"
-FROM mindmap_journal j
-LEFT JOIN mindmap_project p ON j.project_id = p.id
+FROM notes j
+LEFT JOIN projects p ON j.project_id = p.id
 WHERE j.id = $1 AND j.user_id = $2
 `
 
@@ -151,8 +151,8 @@ const listJournals = `-- name: ListJournals :many
 SELECT j.id, j.title, j.content, j.type, j.source,
        j.created_at, j.updated_at, j.deleted_at, j.archived_at, j.user_id, j.project_id,
        p.id as "project_ref_id", p.name as "project_name", p.status as "project_status"
-FROM mindmap_journal j
-LEFT JOIN mindmap_project p ON j.project_id = p.id
+FROM notes j
+LEFT JOIN projects p ON j.project_id = p.id
 WHERE j.user_id = $1
   AND j.deleted_at IS NULL
   AND ($2::uuid IS NULL OR j.project_id = $2::uuid)
@@ -217,7 +217,7 @@ func (q *Queries) ListJournals(ctx context.Context, arg ListJournalsParams) ([]L
 }
 
 const searchJournals = `-- name: SearchJournals :many
-SELECT id, title, content, type, source, created_at, updated_at, user_id, project_id, deleted_at, archived_at FROM mindmap_journal
+SELECT id, title, content, type, source, created_at, updated_at, user_id, project_id, deleted_at, archived_at FROM notes
 WHERE user_id = $1 AND deleted_at IS NULL AND title ILIKE '%' || $2 || '%'
 ORDER BY created_at DESC LIMIT 5
 `
@@ -227,15 +227,15 @@ type SearchJournalsParams struct {
 	Column2 pgtype.Text `json:"column_2"`
 }
 
-func (q *Queries) SearchJournals(ctx context.Context, arg SearchJournalsParams) ([]MindmapJournal, error) {
+func (q *Queries) SearchJournals(ctx context.Context, arg SearchJournalsParams) ([]Note, error) {
 	rows, err := q.db.Query(ctx, searchJournals, arg.UserID, arg.Column2)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []MindmapJournal
+	var items []Note
 	for rows.Next() {
-		var i MindmapJournal
+		var i Note
 		if err := rows.Scan(
 			&i.ID,
 			&i.Title,
@@ -260,7 +260,7 @@ func (q *Queries) SearchJournals(ctx context.Context, arg SearchJournalsParams) 
 }
 
 const softDeleteJournalsByProject = `-- name: SoftDeleteJournalsByProject :exec
-UPDATE mindmap_journal SET deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+UPDATE notes SET deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
 WHERE project_id = $1 AND user_id = $2
 `
 
@@ -275,7 +275,7 @@ func (q *Queries) SoftDeleteJournalsByProject(ctx context.Context, arg SoftDelet
 }
 
 const updateJournal = `-- name: UpdateJournal :exec
-UPDATE mindmap_journal SET
+UPDATE notes SET
     title = COALESCE($3, title),
     content = COALESCE($4, content),
     project_id = $5,
@@ -303,7 +303,7 @@ func (q *Queries) UpdateJournal(ctx context.Context, arg UpdateJournalParams) er
 }
 
 const upsertJournalFromSync = `-- name: UpsertJournalFromSync :exec
-INSERT INTO mindmap_journal (title, content, user_id, source, type)
+INSERT INTO notes (title, content, user_id, source, type)
 VALUES ($1, $2, $3, $4, $5)
 ON CONFLICT (user_id, title) WHERE deleted_at IS NULL
 DO UPDATE SET content = EXCLUDED.content, updated_at = CURRENT_TIMESTAMP

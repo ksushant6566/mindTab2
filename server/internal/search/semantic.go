@@ -63,7 +63,7 @@ func (s *SemanticSearch) Search(ctx context.Context, userID string, query string
 		SELECT id, source_url, source_type, source_title, summary, tags, media_key,
 		       1 - (embedding <=> $1) AS similarity,
 		       created_at
-		FROM mindmap_content
+		FROM content
 		WHERE user_id = $2
 		  AND deleted_at IS NULL
 		  AND commit_status = 'committed'

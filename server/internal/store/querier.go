@@ -14,12 +14,12 @@ type Querier interface {
 	ArchiveCompletedGoals(ctx context.Context, userID string) (int32, error)
 	ArchiveGoalsByProject(ctx context.Context, arg ArchiveGoalsByProjectParams) error
 	ArchiveJournalsByProject(ctx context.Context, arg ArchiveJournalsByProjectParams) error
-	ArchiveProject(ctx context.Context, arg ArchiveProjectParams) (MindmapProject, error)
+	ArchiveProject(ctx context.Context, arg ArchiveProjectParams) (Project, error)
 	CheckHabitTitleExists(ctx context.Context, arg CheckHabitTitleExistsParams) (bool, error)
 	CheckJournalTitleExists(ctx context.Context, arg CheckJournalTitleExistsParams) (bool, error)
 	CompleteJob(ctx context.Context, id pgtype.UUID) error
 	CompleteOnboarding(ctx context.Context, id string) error
-	ConsumeWSTicket(ctx context.Context, tokenHash string) (MindmapRefreshToken, error)
+	ConsumeWSTicket(ctx context.Context, tokenHash string) (RefreshToken, error)
 	CountContent(ctx context.Context, userID string) (int64, error)
 	CountConversations(ctx context.Context, userID string) (int64, error)
 	CountGoals(ctx context.Context, arg CountGoalsParams) (int32, error)
@@ -29,13 +29,13 @@ type Querier interface {
 	CreateContent(ctx context.Context, arg CreateContentParams) (CreateContentRow, error)
 	CreateContentWithExtracted(ctx context.Context, arg CreateContentWithExtractedParams) (CreateContentWithExtractedRow, error)
 	CreateConversation(ctx context.Context, userID string) (CreateConversationRow, error)
-	CreateEmailUser(ctx context.Context, arg CreateEmailUserParams) (MindmapUser, error)
+	CreateEmailUser(ctx context.Context, arg CreateEmailUserParams) (User, error)
 	CreateGoal(ctx context.Context, arg CreateGoalParams) error
 	CreateHabit(ctx context.Context, arg CreateHabitParams) error
 	CreateJob(ctx context.Context, arg CreateJobParams) (pgtype.UUID, error)
 	CreateJournal(ctx context.Context, arg CreateJournalParams) error
-	CreateMessage(ctx context.Context, arg CreateMessageParams) (MindmapMessage, error)
-	CreateProject(ctx context.Context, arg CreateProjectParams) (MindmapProject, error)
+	CreateMessage(ctx context.Context, arg CreateMessageParams) (Message, error)
+	CreateProject(ctx context.Context, arg CreateProjectParams) (Project, error)
 	CreateRefreshToken(ctx context.Context, arg CreateRefreshTokenParams) error
 	CreateVerificationToken(ctx context.Context, arg CreateVerificationTokenParams) error
 	// Atomically deletes expired drafts and returns the media_key of each deleted
@@ -64,21 +64,21 @@ type Querier interface {
 	GetGoalActivity(ctx context.Context, arg GetGoalActivityParams) ([]GetGoalActivityRow, error)
 	GetGoalByID(ctx context.Context, arg GetGoalByIDParams) (GetGoalByIDRow, error)
 	GetHabitActivity(ctx context.Context, arg GetHabitActivityParams) ([]pgtype.Timestamptz, error)
-	GetHabitByID(ctx context.Context, arg GetHabitByIDParams) (MindmapHabit, error)
+	GetHabitByID(ctx context.Context, arg GetHabitByIDParams) (Habit, error)
 	GetHabitCompletionStats(ctx context.Context, arg GetHabitCompletionStatsParams) ([]GetHabitCompletionStatsRow, error)
 	GetHabitTrackerActivity(ctx context.Context, arg GetHabitTrackerActivityParams) ([]pgtype.Date, error)
 	// Fetch habits by a list of IDs for a given user.
-	GetHabitsByIDs(ctx context.Context, arg GetHabitsByIDsParams) ([]MindmapHabit, error)
-	GetJobByContentID(ctx context.Context, contentID pgtype.UUID) (MindmapJob, error)
+	GetHabitsByIDs(ctx context.Context, arg GetHabitsByIDsParams) ([]Habit, error)
+	GetJobByContentID(ctx context.Context, contentID pgtype.UUID) (Job, error)
 	GetJournalActivity(ctx context.Context, arg GetJournalActivityParams) ([]GetJournalActivityRow, error)
 	GetJournalByID(ctx context.Context, arg GetJournalByIDParams) (GetJournalByIDRow, error)
-	GetMessage(ctx context.Context, id pgtype.UUID) (MindmapMessage, error)
-	GetProjectByID(ctx context.Context, arg GetProjectByIDParams) (MindmapProject, error)
-	GetRefreshToken(ctx context.Context, tokenHash string) (MindmapRefreshToken, error)
-	GetUserByEmail(ctx context.Context, email string) (MindmapUser, error)
-	GetUserByID(ctx context.Context, id string) (MindmapUser, error)
-	GetVerificationToken(ctx context.Context, arg GetVerificationTokenParams) (MindmapVerificationToken, error)
-	GetVerificationTokenByUserAndType(ctx context.Context, arg GetVerificationTokenByUserAndTypeParams) (MindmapVerificationToken, error)
+	GetMessage(ctx context.Context, id pgtype.UUID) (Message, error)
+	GetProjectByID(ctx context.Context, arg GetProjectByIDParams) (Project, error)
+	GetRefreshToken(ctx context.Context, tokenHash string) (RefreshToken, error)
+	GetUserByEmail(ctx context.Context, email string) (User, error)
+	GetUserByID(ctx context.Context, id string) (User, error)
+	GetVerificationToken(ctx context.Context, arg GetVerificationTokenParams) (VerificationToken, error)
+	GetVerificationTokenByUserAndType(ctx context.Context, arg GetVerificationTokenByUserAndTypeParams) (VerificationToken, error)
 	IncrementVerificationAttempts(ctx context.Context, id pgtype.UUID) error
 	IsContentDeleted(ctx context.Context, id pgtype.UUID) (bool, error)
 	IsHabitTrackedOnDate(ctx context.Context, arg IsHabitTrackedOnDateParams) (bool, error)
@@ -86,16 +86,16 @@ type Querier interface {
 	ListConversations(ctx context.Context, arg ListConversationsParams) ([]ListConversationsRow, error)
 	ListGoalStatsByProject(ctx context.Context, arg ListGoalStatsByProjectParams) ([]ListGoalStatsByProjectRow, error)
 	ListGoals(ctx context.Context, arg ListGoalsParams) ([]ListGoalsRow, error)
-	ListGoalsByProject(ctx context.Context, arg ListGoalsByProjectParams) ([]MindmapGoal, error)
-	ListHabitTrackerRecords(ctx context.Context, userID string) ([]MindmapHabitTracker, error)
-	ListHabits(ctx context.Context, userID string) ([]MindmapHabit, error)
+	ListGoalsByProject(ctx context.Context, arg ListGoalsByProjectParams) ([]Task, error)
+	ListHabitTrackerRecords(ctx context.Context, userID string) ([]HabitRecord, error)
+	ListHabits(ctx context.Context, userID string) ([]Habit, error)
 	ListJournals(ctx context.Context, arg ListJournalsParams) ([]ListJournalsRow, error)
-	ListMessages(ctx context.Context, arg ListMessagesParams) ([]MindmapMessage, error)
-	ListProjects(ctx context.Context, arg ListProjectsParams) ([]MindmapProject, error)
-	ListUnassignedGoals(ctx context.Context, userID string) ([]MindmapGoal, error)
-	SearchGoals(ctx context.Context, arg SearchGoalsParams) ([]MindmapGoal, error)
-	SearchHabits(ctx context.Context, arg SearchHabitsParams) ([]MindmapHabit, error)
-	SearchJournals(ctx context.Context, arg SearchJournalsParams) ([]MindmapJournal, error)
+	ListMessages(ctx context.Context, arg ListMessagesParams) ([]Message, error)
+	ListProjects(ctx context.Context, arg ListProjectsParams) ([]Project, error)
+	ListUnassignedGoals(ctx context.Context, userID string) ([]Task, error)
+	SearchGoals(ctx context.Context, arg SearchGoalsParams) ([]Task, error)
+	SearchHabits(ctx context.Context, arg SearchHabitsParams) ([]Habit, error)
+	SearchJournals(ctx context.Context, arg SearchJournalsParams) ([]Note, error)
 	SetEmailVerified(ctx context.Context, id string) error
 	SetPasswordHash(ctx context.Context, arg SetPasswordHashParams) error
 	SoftDeleteContent(ctx context.Context, arg SoftDeleteContentParams) error
@@ -123,11 +123,11 @@ type Querier interface {
 	UpdateJobStatus(ctx context.Context, arg UpdateJobStatusParams) error
 	UpdateJobStepResults(ctx context.Context, arg UpdateJobStepResultsParams) error
 	UpdateJournal(ctx context.Context, arg UpdateJournalParams) error
-	UpdateProject(ctx context.Context, arg UpdateProjectParams) (MindmapProject, error)
-	UpdateUserAppearance(ctx context.Context, arg UpdateUserAppearanceParams) (MindmapUser, error)
-	UpdateUserXP(ctx context.Context, arg UpdateUserXPParams) (MindmapUser, error)
+	UpdateProject(ctx context.Context, arg UpdateProjectParams) (Project, error)
+	UpdateUserAppearance(ctx context.Context, arg UpdateUserAppearanceParams) (User, error)
+	UpdateUserXP(ctx context.Context, arg UpdateUserXPParams) (User, error)
 	UpsertJournalFromSync(ctx context.Context, arg UpsertJournalFromSyncParams) error
-	UpsertUser(ctx context.Context, arg UpsertUserParams) (MindmapUser, error)
+	UpsertUser(ctx context.Context, arg UpsertUserParams) (User, error)
 }
 
 var _ Querier = (*Queries)(nil)

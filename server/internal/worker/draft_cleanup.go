@@ -12,7 +12,7 @@ import (
 )
 
 // StartDraftCleanup runs an indefinite loop that, every interval, deletes any
-// mindmap_content rows with commit_status='draft' and updated_at older than
+// content rows with commit_status='draft' and updated_at older than
 // expireAfter. Storage files for those rows are best-effort deleted before the
 // rows go. The goroutine exits when ctx is cancelled.
 func StartDraftCleanup(

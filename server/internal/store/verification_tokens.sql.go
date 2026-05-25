@@ -12,7 +12,7 @@ import (
 )
 
 const createVerificationToken = `-- name: CreateVerificationToken :exec
-INSERT INTO mindmap_verification_token (user_id, token_hash, type, password_hash, expires_at)
+INSERT INTO verification_tokens (user_id, token_hash, type, password_hash, expires_at)
 VALUES ($1, $2, $3, $4, $5)
 `
 
@@ -36,7 +36,7 @@ func (q *Queries) CreateVerificationToken(ctx context.Context, arg CreateVerific
 }
 
 const deleteExpiredVerificationTokens = `-- name: DeleteExpiredVerificationTokens :exec
-DELETE FROM mindmap_verification_token WHERE expires_at <= CURRENT_TIMESTAMP
+DELETE FROM verification_tokens WHERE expires_at <= CURRENT_TIMESTAMP
 `
 
 func (q *Queries) DeleteExpiredVerificationTokens(ctx context.Context) error {
@@ -45,7 +45,7 @@ func (q *Queries) DeleteExpiredVerificationTokens(ctx context.Context) error {
 }
 
 const deleteVerificationToken = `-- name: DeleteVerificationToken :exec
-DELETE FROM mindmap_verification_token WHERE id = $1
+DELETE FROM verification_tokens WHERE id = $1
 `
 
 func (q *Queries) DeleteVerificationToken(ctx context.Context, id pgtype.UUID) error {
@@ -54,7 +54,7 @@ func (q *Queries) DeleteVerificationToken(ctx context.Context, id pgtype.UUID) e
 }
 
 const deleteVerificationTokensByUserAndType = `-- name: DeleteVerificationTokensByUserAndType :exec
-DELETE FROM mindmap_verification_token WHERE user_id = $1 AND type = $2
+DELETE FROM verification_tokens WHERE user_id = $1 AND type = $2
 `
 
 type DeleteVerificationTokensByUserAndTypeParams struct {
@@ -68,7 +68,7 @@ func (q *Queries) DeleteVerificationTokensByUserAndType(ctx context.Context, arg
 }
 
 const getVerificationToken = `-- name: GetVerificationToken :one
-SELECT id, user_id, token_hash, type, password_hash, attempts, expires_at, created_at FROM mindmap_verification_token
+SELECT id, user_id, token_hash, type, password_hash, attempts, expires_at, created_at FROM verification_tokens
 WHERE token_hash = $1 AND type = $2 AND expires_at > CURRENT_TIMESTAMP
 `
 
@@ -77,9 +77,9 @@ type GetVerificationTokenParams struct {
 	Type      string `json:"type"`
 }
 
-func (q *Queries) GetVerificationToken(ctx context.Context, arg GetVerificationTokenParams) (MindmapVerificationToken, error) {
+func (q *Queries) GetVerificationToken(ctx context.Context, arg GetVerificationTokenParams) (VerificationToken, error) {
 	row := q.db.QueryRow(ctx, getVerificationToken, arg.TokenHash, arg.Type)
-	var i MindmapVerificationToken
+	var i VerificationToken
 	err := row.Scan(
 		&i.ID,
 		&i.UserID,
@@ -94,7 +94,7 @@ func (q *Queries) GetVerificationToken(ctx context.Context, arg GetVerificationT
 }
 
 const getVerificationTokenByUserAndType = `-- name: GetVerificationTokenByUserAndType :one
-SELECT id, user_id, token_hash, type, password_hash, attempts, expires_at, created_at FROM mindmap_verification_token
+SELECT id, user_id, token_hash, type, password_hash, attempts, expires_at, created_at FROM verification_tokens
 WHERE user_id = $1 AND type = $2 AND expires_at > CURRENT_TIMESTAMP
 `
 
@@ -103,9 +103,9 @@ type GetVerificationTokenByUserAndTypeParams struct {
 	Type   string `json:"type"`
 }
 
-func (q *Queries) GetVerificationTokenByUserAndType(ctx context.Context, arg GetVerificationTokenByUserAndTypeParams) (MindmapVerificationToken, error) {
+func (q *Queries) GetVerificationTokenByUserAndType(ctx context.Context, arg GetVerificationTokenByUserAndTypeParams) (VerificationToken, error) {
 	row := q.db.QueryRow(ctx, getVerificationTokenByUserAndType, arg.UserID, arg.Type)
-	var i MindmapVerificationToken
+	var i VerificationToken
 	err := row.Scan(
 		&i.ID,
 		&i.UserID,
@@ -120,7 +120,7 @@ func (q *Queries) GetVerificationTokenByUserAndType(ctx context.Context, arg Get
 }
 
 const incrementVerificationAttempts = `-- name: IncrementVerificationAttempts :exec
-UPDATE mindmap_verification_token SET attempts = attempts + 1 WHERE id = $1
+UPDATE verification_tokens SET attempts = attempts + 1 WHERE id = $1
 `
 
 func (q *Queries) IncrementVerificationAttempts(ctx context.Context, id pgtype.UUID) error {

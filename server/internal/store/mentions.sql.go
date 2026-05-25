@@ -13,7 +13,7 @@ import (
 
 const getConnectedHabitIDs = `-- name: GetConnectedHabitIDs :many
 SELECT DISTINCT (regexp_matches(j.content, 'data-id="habit:([0-9a-f\-]{36})"', 'g'))[1]::uuid AS habit_id
-FROM mindmap_journal j
+FROM notes j
 WHERE j.user_id = $1
   AND j.deleted_at IS NULL
   AND j.content LIKE $2
@@ -49,7 +49,7 @@ func (q *Queries) GetConnectedHabitIDs(ctx context.Context, arg GetConnectedHabi
 
 const getConnectedNotes = `-- name: GetConnectedNotes :many
 SELECT j.id, j.title, j.content, j.updated_at, j.created_at
-FROM mindmap_journal j
+FROM notes j
 WHERE j.user_id = $1
   AND j.deleted_at IS NULL
   AND j.content LIKE $2
@@ -99,7 +99,7 @@ func (q *Queries) GetConnectedNotes(ctx context.Context, arg GetConnectedNotesPa
 }
 
 const getHabitsByIDs = `-- name: GetHabitsByIDs :many
-SELECT id, title, description, frequency, created_at, updated_at, deleted_at, user_id FROM mindmap_habit
+SELECT id, title, description, frequency, created_at, updated_at, deleted_at, user_id FROM habits
 WHERE user_id = $1
   AND deleted_at IS NULL
   AND id = ANY($2::uuid[])
@@ -111,15 +111,15 @@ type GetHabitsByIDsParams struct {
 }
 
 // Fetch habits by a list of IDs for a given user.
-func (q *Queries) GetHabitsByIDs(ctx context.Context, arg GetHabitsByIDsParams) ([]MindmapHabit, error) {
+func (q *Queries) GetHabitsByIDs(ctx context.Context, arg GetHabitsByIDsParams) ([]Habit, error) {
 	rows, err := q.db.Query(ctx, getHabitsByIDs, arg.UserID, arg.Column2)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []MindmapHabit
+	var items []Habit
 	for rows.Next() {
-		var i MindmapHabit
+		var i Habit
 		if err := rows.Scan(
 			&i.ID,
 			&i.Title,

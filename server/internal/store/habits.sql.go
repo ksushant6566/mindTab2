@@ -13,7 +13,7 @@ import (
 
 const checkHabitTitleExists = `-- name: CheckHabitTitleExists :one
 SELECT EXISTS(
-    SELECT 1 FROM mindmap_habit
+    SELECT 1 FROM habits
     WHERE user_id = $1 AND title = $2 AND deleted_at IS NULL
     AND ($3::uuid IS NULL OR id != $3::uuid)
 ) AS "exists"
@@ -33,7 +33,7 @@ func (q *Queries) CheckHabitTitleExists(ctx context.Context, arg CheckHabitTitle
 }
 
 const createHabit = `-- name: CreateHabit :exec
-INSERT INTO mindmap_habit (title, description, frequency, user_id)
+INSERT INTO habits (title, description, frequency, user_id)
 VALUES ($1, $2, $3, $4)
 `
 
@@ -55,7 +55,7 @@ func (q *Queries) CreateHabit(ctx context.Context, arg CreateHabitParams) error 
 }
 
 const deleteHabit = `-- name: DeleteHabit :exec
-DELETE FROM mindmap_habit WHERE id = $1 AND user_id = $2
+DELETE FROM habits WHERE id = $1 AND user_id = $2
 `
 
 type DeleteHabitParams struct {
@@ -69,7 +69,7 @@ func (q *Queries) DeleteHabit(ctx context.Context, arg DeleteHabitParams) error 
 }
 
 const getHabitByID = `-- name: GetHabitByID :one
-SELECT id, title, description, frequency, created_at, updated_at, deleted_at, user_id FROM mindmap_habit WHERE id = $1 AND user_id = $2
+SELECT id, title, description, frequency, created_at, updated_at, deleted_at, user_id FROM habits WHERE id = $1 AND user_id = $2
 `
 
 type GetHabitByIDParams struct {
@@ -77,9 +77,9 @@ type GetHabitByIDParams struct {
 	UserID string      `json:"user_id"`
 }
 
-func (q *Queries) GetHabitByID(ctx context.Context, arg GetHabitByIDParams) (MindmapHabit, error) {
+func (q *Queries) GetHabitByID(ctx context.Context, arg GetHabitByIDParams) (Habit, error) {
 	row := q.db.QueryRow(ctx, getHabitByID, arg.ID, arg.UserID)
-	var i MindmapHabit
+	var i Habit
 	err := row.Scan(
 		&i.ID,
 		&i.Title,
@@ -94,18 +94,18 @@ func (q *Queries) GetHabitByID(ctx context.Context, arg GetHabitByIDParams) (Min
 }
 
 const listHabits = `-- name: ListHabits :many
-SELECT id, title, description, frequency, created_at, updated_at, deleted_at, user_id FROM mindmap_habit WHERE user_id = $1 AND deleted_at IS NULL ORDER BY created_at DESC
+SELECT id, title, description, frequency, created_at, updated_at, deleted_at, user_id FROM habits WHERE user_id = $1 AND deleted_at IS NULL ORDER BY created_at DESC
 `
 
-func (q *Queries) ListHabits(ctx context.Context, userID string) ([]MindmapHabit, error) {
+func (q *Queries) ListHabits(ctx context.Context, userID string) ([]Habit, error) {
 	rows, err := q.db.Query(ctx, listHabits, userID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []MindmapHabit
+	var items []Habit
 	for rows.Next() {
-		var i MindmapHabit
+		var i Habit
 		if err := rows.Scan(
 			&i.ID,
 			&i.Title,
@@ -127,7 +127,7 @@ func (q *Queries) ListHabits(ctx context.Context, userID string) ([]MindmapHabit
 }
 
 const searchHabits = `-- name: SearchHabits :many
-SELECT id, title, description, frequency, created_at, updated_at, deleted_at, user_id FROM mindmap_habit
+SELECT id, title, description, frequency, created_at, updated_at, deleted_at, user_id FROM habits
 WHERE user_id = $1 AND deleted_at IS NULL AND title ILIKE '%' || $2 || '%'
 ORDER BY created_at DESC LIMIT 5
 `
@@ -137,15 +137,15 @@ type SearchHabitsParams struct {
 	Column2 pgtype.Text `json:"column_2"`
 }
 
-func (q *Queries) SearchHabits(ctx context.Context, arg SearchHabitsParams) ([]MindmapHabit, error) {
+func (q *Queries) SearchHabits(ctx context.Context, arg SearchHabitsParams) ([]Habit, error) {
 	rows, err := q.db.Query(ctx, searchHabits, arg.UserID, arg.Column2)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []MindmapHabit
+	var items []Habit
 	for rows.Next() {
-		var i MindmapHabit
+		var i Habit
 		if err := rows.Scan(
 			&i.ID,
 			&i.Title,
@@ -167,7 +167,7 @@ func (q *Queries) SearchHabits(ctx context.Context, arg SearchHabitsParams) ([]M
 }
 
 const updateHabit = `-- name: UpdateHabit :exec
-UPDATE mindmap_habit SET
+UPDATE habits SET
     title = COALESCE($3, title),
     description = COALESCE($4, description),
     frequency = COALESCE($5, frequency),

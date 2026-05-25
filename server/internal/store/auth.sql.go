@@ -12,14 +12,14 @@ import (
 )
 
 const consumeWSTicket = `-- name: ConsumeWSTicket :one
-DELETE FROM mindmap_refresh_token
+DELETE FROM refresh_tokens
 WHERE token_hash = $1 AND expires_at > CURRENT_TIMESTAMP
 RETURNING id, user_id, token_hash, expires_at, created_at
 `
 
-func (q *Queries) ConsumeWSTicket(ctx context.Context, tokenHash string) (MindmapRefreshToken, error) {
+func (q *Queries) ConsumeWSTicket(ctx context.Context, tokenHash string) (RefreshToken, error) {
 	row := q.db.QueryRow(ctx, consumeWSTicket, tokenHash)
-	var i MindmapRefreshToken
+	var i RefreshToken
 	err := row.Scan(
 		&i.ID,
 		&i.UserID,
@@ -31,7 +31,7 @@ func (q *Queries) ConsumeWSTicket(ctx context.Context, tokenHash string) (Mindma
 }
 
 const createRefreshToken = `-- name: CreateRefreshToken :exec
-INSERT INTO mindmap_refresh_token (user_id, token_hash, expires_at) VALUES ($1, $2, $3)
+INSERT INTO refresh_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)
 `
 
 type CreateRefreshTokenParams struct {
@@ -46,7 +46,7 @@ func (q *Queries) CreateRefreshToken(ctx context.Context, arg CreateRefreshToken
 }
 
 const deleteExpiredRefreshTokens = `-- name: DeleteExpiredRefreshTokens :exec
-DELETE FROM mindmap_refresh_token WHERE expires_at <= CURRENT_TIMESTAMP
+DELETE FROM refresh_tokens WHERE expires_at <= CURRENT_TIMESTAMP
 `
 
 func (q *Queries) DeleteExpiredRefreshTokens(ctx context.Context) error {
@@ -55,7 +55,7 @@ func (q *Queries) DeleteExpiredRefreshTokens(ctx context.Context) error {
 }
 
 const deleteRefreshToken = `-- name: DeleteRefreshToken :exec
-DELETE FROM mindmap_refresh_token WHERE token_hash = $1
+DELETE FROM refresh_tokens WHERE token_hash = $1
 `
 
 func (q *Queries) DeleteRefreshToken(ctx context.Context, tokenHash string) error {
@@ -64,7 +64,7 @@ func (q *Queries) DeleteRefreshToken(ctx context.Context, tokenHash string) erro
 }
 
 const deleteUserRefreshTokens = `-- name: DeleteUserRefreshTokens :exec
-DELETE FROM mindmap_refresh_token WHERE user_id = $1
+DELETE FROM refresh_tokens WHERE user_id = $1
 `
 
 func (q *Queries) DeleteUserRefreshTokens(ctx context.Context, userID string) error {
@@ -73,12 +73,12 @@ func (q *Queries) DeleteUserRefreshTokens(ctx context.Context, userID string) er
 }
 
 const getRefreshToken = `-- name: GetRefreshToken :one
-SELECT id, user_id, token_hash, expires_at, created_at FROM mindmap_refresh_token WHERE token_hash = $1 AND expires_at > CURRENT_TIMESTAMP
+SELECT id, user_id, token_hash, expires_at, created_at FROM refresh_tokens WHERE token_hash = $1 AND expires_at > CURRENT_TIMESTAMP
 `
 
-func (q *Queries) GetRefreshToken(ctx context.Context, tokenHash string) (MindmapRefreshToken, error) {
+func (q *Queries) GetRefreshToken(ctx context.Context, tokenHash string) (RefreshToken, error) {
 	row := q.db.QueryRow(ctx, getRefreshToken, tokenHash)
-	var i MindmapRefreshToken
+	var i RefreshToken
 	err := row.Scan(
 		&i.ID,
 		&i.UserID,

@@ -13,7 +13,7 @@ import (
 )
 
 const countContent = `-- name: CountContent :one
-SELECT count(*) FROM mindmap_content
+SELECT count(*) FROM content
 WHERE user_id = $1 AND deleted_at IS NULL
   AND commit_status = 'committed'
 `
@@ -26,7 +26,7 @@ func (q *Queries) CountContent(ctx context.Context, userID string) (int64, error
 }
 
 const createContent = `-- name: CreateContent :one
-INSERT INTO mindmap_content (
+INSERT INTO content (
     id,
     user_id, source_url, source_type, source_title,
     extracted_text, media_key, media_mime, media_file_bytes,
@@ -142,7 +142,7 @@ func (q *Queries) CreateContent(ctx context.Context, arg CreateContentParams) (C
 }
 
 const createContentWithExtracted = `-- name: CreateContentWithExtracted :one
-INSERT INTO mindmap_content (
+INSERT INTO content (
     id,
     user_id, source_url, source_type, source_title,
     extracted_text, media_key, media_mime, media_file_bytes,
@@ -258,7 +258,7 @@ func (q *Queries) CreateContentWithExtracted(ctx context.Context, arg CreateCont
 }
 
 const deleteExpiredDraftsReturningKeys = `-- name: DeleteExpiredDraftsReturningKeys :many
-DELETE FROM mindmap_content
+DELETE FROM content
 WHERE commit_status = 'draft'
   AND updated_at < $1
 RETURNING id, media_key
@@ -301,7 +301,7 @@ SELECT id, user_id, source_url, source_type, source_title, source_thumbnail_url,
        media_key, processing_status, processing_error,
        duration_seconds, video_thumbnail_url, video_channel, transcript_source,
        commit_status, created_at, updated_at
-FROM mindmap_content
+FROM content
 WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL
 `
 
@@ -373,7 +373,7 @@ func (q *Queries) GetContentByID(ctx context.Context, arg GetContentByIDParams) 
 
 const isContentDeleted = `-- name: IsContentDeleted :one
 SELECT (deleted_at IS NOT NULL)::bool AS is_deleted
-FROM mindmap_content
+FROM content
 WHERE id = $1
 `
 
@@ -390,7 +390,7 @@ SELECT id, user_id, source_url, source_type, source_title, source_thumbnail_url,
        processing_status, processing_error,
        duration_seconds, video_thumbnail_url, video_channel,
        commit_status, created_at, updated_at
-FROM mindmap_content
+FROM content
 WHERE user_id = $1 AND deleted_at IS NULL
   AND commit_status = 'committed'
 ORDER BY created_at DESC
@@ -464,7 +464,7 @@ func (q *Queries) ListContent(ctx context.Context, arg ListContentParams) ([]Lis
 }
 
 const softDeleteContent = `-- name: SoftDeleteContent :exec
-UPDATE mindmap_content
+UPDATE content
 SET deleted_at = CURRENT_TIMESTAMP,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL
@@ -481,7 +481,7 @@ func (q *Queries) SoftDeleteContent(ctx context.Context, arg SoftDeleteContentPa
 }
 
 const updateContentCommitStatus = `-- name: UpdateContentCommitStatus :exec
-UPDATE mindmap_content
+UPDATE content
 SET commit_status = $2,
     source_title  = COALESCE($3, source_title),
     updated_at    = CURRENT_TIMESTAMP
@@ -508,7 +508,7 @@ func (q *Queries) UpdateContentCommitStatus(ctx context.Context, arg UpdateConte
 }
 
 const updateContentEmbedding = `-- name: UpdateContentEmbedding :exec
-UPDATE mindmap_content
+UPDATE content
 SET embedding = $2,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = $1
@@ -525,7 +525,7 @@ func (q *Queries) UpdateContentEmbedding(ctx context.Context, arg UpdateContentE
 }
 
 const updateContentProcessingStatusToPending = `-- name: UpdateContentProcessingStatusToPending :exec
-UPDATE mindmap_content
+UPDATE content
 SET processing_status = 'pending',
     updated_at        = CURRENT_TIMESTAMP
 WHERE id = $1
@@ -539,7 +539,7 @@ func (q *Queries) UpdateContentProcessingStatusToPending(ctx context.Context, id
 }
 
 const updateContentResults = `-- name: UpdateContentResults :exec
-UPDATE mindmap_content
+UPDATE content
 SET extracted_text = $2,
     visual_description = $3,
     summary = $4,
@@ -588,7 +588,7 @@ func (q *Queries) UpdateContentResults(ctx context.Context, arg UpdateContentRes
 }
 
 const updateContentSourceMetadata = `-- name: UpdateContentSourceMetadata :exec
-UPDATE mindmap_content
+UPDATE content
 SET source_metadata = $2,
     updated_at = NOW()
 WHERE id = $1 AND deleted_at IS NULL
@@ -605,7 +605,7 @@ func (q *Queries) UpdateContentSourceMetadata(ctx context.Context, arg UpdateCon
 }
 
 const updateContentStatus = `-- name: UpdateContentStatus :exec
-UPDATE mindmap_content
+UPDATE content
 SET processing_status = $2,
     processing_error = $3,
     updated_at = CURRENT_TIMESTAMP
@@ -624,7 +624,7 @@ func (q *Queries) UpdateContentStatus(ctx context.Context, arg UpdateContentStat
 }
 
 const updateContentTranscriptSource = `-- name: UpdateContentTranscriptSource :exec
-UPDATE mindmap_content
+UPDATE content
 SET transcript_source = $2,
     updated_at = NOW()
 WHERE id = $1 AND deleted_at IS NULL
@@ -641,7 +641,7 @@ func (q *Queries) UpdateContentTranscriptSource(ctx context.Context, arg UpdateC
 }
 
 const updateContentVideoFields = `-- name: UpdateContentVideoFields :exec
-UPDATE mindmap_content
+UPDATE content
 SET duration_seconds = $2,
     video_thumbnail_url = $3,
     video_channel = $4,
