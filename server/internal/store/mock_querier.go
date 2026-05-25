@@ -292,6 +292,9 @@ var _ Querier = &QuerierMock{}
 //			UpdateContentResultsFunc: func(ctx context.Context, arg UpdateContentResultsParams) error {
 //				panic("mock out the UpdateContentResults method")
 //			},
+//			UpdateContentSourceMetadataFunc: func(ctx context.Context, arg UpdateContentSourceMetadataParams) error {
+//				panic("mock out the UpdateContentSourceMetadata method")
+//			},
 //			UpdateContentStatusFunc: func(ctx context.Context, arg UpdateContentStatusParams) error {
 //				panic("mock out the UpdateContentStatus method")
 //			},
@@ -324,6 +327,9 @@ var _ Querier = &QuerierMock{}
 //			},
 //			UpdateProjectFunc: func(ctx context.Context, arg UpdateProjectParams) (MindmapProject, error) {
 //				panic("mock out the UpdateProject method")
+//			},
+//			UpdateUserAppearanceFunc: func(ctx context.Context, arg UpdateUserAppearanceParams) (MindmapUser, error) {
+//				panic("mock out the UpdateUserAppearance method")
 //			},
 //			UpdateUserXPFunc: func(ctx context.Context, arg UpdateUserXPParams) (MindmapUser, error) {
 //				panic("mock out the UpdateUserXP method")
@@ -649,6 +655,9 @@ type QuerierMock struct {
 
 	// UpdateProjectFunc mocks the UpdateProject method.
 	UpdateProjectFunc func(ctx context.Context, arg UpdateProjectParams) (MindmapProject, error)
+
+	// UpdateUserAppearanceFunc mocks the UpdateUserAppearance method.
+	UpdateUserAppearanceFunc func(ctx context.Context, arg UpdateUserAppearanceParams) (MindmapUser, error)
 
 	// UpdateUserXPFunc mocks the UpdateUserXP method.
 	UpdateUserXPFunc func(ctx context.Context, arg UpdateUserXPParams) (MindmapUser, error)
@@ -1378,6 +1387,13 @@ type QuerierMock struct {
 			// Arg is the arg argument value.
 			Arg UpdateProjectParams
 		}
+		// UpdateUserAppearance holds details about calls to the UpdateUserAppearance method.
+		UpdateUserAppearance []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Arg is the arg argument value.
+			Arg UpdateUserAppearanceParams
+		}
 		// UpdateUserXP holds details about calls to the UpdateUserXP method.
 		UpdateUserXP []struct {
 			// Ctx is the ctx argument value.
@@ -1503,6 +1519,7 @@ type QuerierMock struct {
 	lockUpdateJobStepResults                   sync.RWMutex
 	lockUpdateJournal                          sync.RWMutex
 	lockUpdateProject                          sync.RWMutex
+	lockUpdateUserAppearance                   sync.RWMutex
 	lockUpdateUserXP                           sync.RWMutex
 	lockUpsertJournalFromSync                  sync.RWMutex
 	lockUpsertUser                             sync.RWMutex
@@ -5205,6 +5222,42 @@ func (mock *QuerierMock) UpdateProjectCalls() []struct {
 	mock.lockUpdateProject.RLock()
 	calls = mock.calls.UpdateProject
 	mock.lockUpdateProject.RUnlock()
+	return calls
+}
+
+// UpdateUserAppearance calls UpdateUserAppearanceFunc.
+func (mock *QuerierMock) UpdateUserAppearance(ctx context.Context, arg UpdateUserAppearanceParams) (MindmapUser, error) {
+	if mock.UpdateUserAppearanceFunc == nil {
+		panic("QuerierMock.UpdateUserAppearanceFunc: method is nil but Querier.UpdateUserAppearance was just called")
+	}
+	callInfo := struct {
+		Ctx context.Context
+		Arg UpdateUserAppearanceParams
+	}{
+		Ctx: ctx,
+		Arg: arg,
+	}
+	mock.lockUpdateUserAppearance.Lock()
+	mock.calls.UpdateUserAppearance = append(mock.calls.UpdateUserAppearance, callInfo)
+	mock.lockUpdateUserAppearance.Unlock()
+	return mock.UpdateUserAppearanceFunc(ctx, arg)
+}
+
+// UpdateUserAppearanceCalls gets all the calls that were made to UpdateUserAppearance.
+// Check the length with:
+//
+//	len(mockedQuerier.UpdateUserAppearanceCalls())
+func (mock *QuerierMock) UpdateUserAppearanceCalls() []struct {
+	Ctx context.Context
+	Arg UpdateUserAppearanceParams
+} {
+	var calls []struct {
+		Ctx context.Context
+		Arg UpdateUserAppearanceParams
+	}
+	mock.lockUpdateUserAppearance.RLock()
+	calls = mock.calls.UpdateUserAppearance
+	mock.lockUpdateUserAppearance.RUnlock()
 	return calls
 }
 

@@ -13,7 +13,7 @@ import (
 
 const archiveCompletedGoals = `-- name: ArchiveCompletedGoals :one
 WITH updated AS (
-    UPDATE mindmap_goal SET status = 'archived', updated_at = CURRENT_TIMESTAMP
+    UPDATE tasks SET status = 'archived', updated_at = CURRENT_TIMESTAMP
     WHERE user_id = $1 AND status = 'completed'
     RETURNING id
 )
@@ -28,7 +28,7 @@ func (q *Queries) ArchiveCompletedGoals(ctx context.Context, userID string) (int
 }
 
 const archiveGoalsByProject = `-- name: ArchiveGoalsByProject :exec
-UPDATE mindmap_goal SET status = 'archived', updated_at = CURRENT_TIMESTAMP
+UPDATE tasks SET status = 'archived', updated_at = CURRENT_TIMESTAMP
 WHERE project_id = $1 AND user_id = $2
 `
 
@@ -43,7 +43,7 @@ func (q *Queries) ArchiveGoalsByProject(ctx context.Context, arg ArchiveGoalsByP
 }
 
 const countGoals = `-- name: CountGoals :one
-SELECT COUNT(*)::int FROM mindmap_goal
+SELECT COUNT(*)::int FROM tasks
 WHERE user_id = $1
   AND deleted_at IS NULL
   AND ($2::boolean OR status != 'archived')
@@ -64,7 +64,7 @@ func (q *Queries) CountGoals(ctx context.Context, arg CountGoalsParams) (int32, 
 }
 
 const createGoal = `-- name: CreateGoal :exec
-INSERT INTO mindmap_goal (title, description, status, priority, impact, position, user_id, project_id, completed_at)
+INSERT INTO tasks (title, description, status, priority, impact, position, user_id, project_id, completed_at)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 `
 
@@ -99,8 +99,8 @@ const getGoalByID = `-- name: GetGoalByID :one
 SELECT g.id, g.title, g.description, g.status, g.priority, g.impact, g.position,
        g.created_at, g.updated_at, g.completed_at, g.deleted_at, g.user_id, g.project_id,
        p.id as "project_ref_id", p.name as "project_name", p.status as "project_status"
-FROM mindmap_goal g
-LEFT JOIN mindmap_project p ON g.project_id = p.id
+FROM tasks g
+LEFT JOIN projects p ON g.project_id = p.id
 WHERE g.id = $1 AND g.user_id = $2
 `
 
@@ -156,8 +156,8 @@ const listGoals = `-- name: ListGoals :many
 SELECT g.id, g.title, g.description, g.status, g.priority, g.impact, g.position,
        g.created_at, g.updated_at, g.completed_at, g.deleted_at, g.user_id, g.project_id,
        p.id as "project_ref_id", p.name as "project_name", p.status as "project_status"
-FROM mindmap_goal g
-LEFT JOIN mindmap_project p ON g.project_id = p.id
+FROM tasks g
+LEFT JOIN projects p ON g.project_id = p.id
 WHERE g.user_id = $1
   AND g.deleted_at IS NULL
   AND ($2::boolean OR g.status != 'archived')
@@ -228,20 +228,20 @@ func (q *Queries) ListGoals(ctx context.Context, arg ListGoalsParams) ([]ListGoa
 }
 
 const listUnassignedGoals = `-- name: ListUnassignedGoals :many
-SELECT id, title, description, status, priority, impact, position, created_at, updated_at, completed_at, deleted_at, user_id, project_id FROM mindmap_goal
+SELECT id, title, description, status, priority, impact, position, created_at, updated_at, completed_at, deleted_at, user_id, project_id FROM tasks
 WHERE user_id = $1 AND project_id IS NULL AND deleted_at IS NULL AND status != 'archived'
 ORDER BY position ASC, priority ASC, created_at DESC
 `
 
-func (q *Queries) ListUnassignedGoals(ctx context.Context, userID string) ([]MindmapGoal, error) {
+func (q *Queries) ListUnassignedGoals(ctx context.Context, userID string) ([]Task, error) {
 	rows, err := q.db.Query(ctx, listUnassignedGoals, userID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []MindmapGoal
+	var items []Task
 	for rows.Next() {
-		var i MindmapGoal
+		var i Task
 		if err := rows.Scan(
 			&i.ID,
 			&i.Title,
@@ -268,7 +268,7 @@ func (q *Queries) ListUnassignedGoals(ctx context.Context, userID string) ([]Min
 }
 
 const searchGoals = `-- name: SearchGoals :many
-SELECT id, title, description, status, priority, impact, position, created_at, updated_at, completed_at, deleted_at, user_id, project_id FROM mindmap_goal
+SELECT id, title, description, status, priority, impact, position, created_at, updated_at, completed_at, deleted_at, user_id, project_id FROM tasks
 WHERE user_id = $1 AND deleted_at IS NULL AND status != 'archived'
   AND title ILIKE '%' || $2 || '%'
 ORDER BY created_at DESC LIMIT 5
@@ -279,15 +279,15 @@ type SearchGoalsParams struct {
 	Column2 pgtype.Text `json:"column_2"`
 }
 
-func (q *Queries) SearchGoals(ctx context.Context, arg SearchGoalsParams) ([]MindmapGoal, error) {
+func (q *Queries) SearchGoals(ctx context.Context, arg SearchGoalsParams) ([]Task, error) {
 	rows, err := q.db.Query(ctx, searchGoals, arg.UserID, arg.Column2)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []MindmapGoal
+	var items []Task
 	for rows.Next() {
-		var i MindmapGoal
+		var i Task
 		if err := rows.Scan(
 			&i.ID,
 			&i.Title,
@@ -314,7 +314,7 @@ func (q *Queries) SearchGoals(ctx context.Context, arg SearchGoalsParams) ([]Min
 }
 
 const softDeleteGoal = `-- name: SoftDeleteGoal :exec
-UPDATE mindmap_goal SET deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+UPDATE tasks SET deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
 WHERE id = $1 AND user_id = $2
 `
 
@@ -329,7 +329,7 @@ func (q *Queries) SoftDeleteGoal(ctx context.Context, arg SoftDeleteGoalParams) 
 }
 
 const softDeleteGoalsByProject = `-- name: SoftDeleteGoalsByProject :exec
-UPDATE mindmap_goal SET deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+UPDATE tasks SET deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
 WHERE project_id = $1 AND user_id = $2
 `
 
@@ -344,7 +344,7 @@ func (q *Queries) SoftDeleteGoalsByProject(ctx context.Context, arg SoftDeleteGo
 }
 
 const updateGoal = `-- name: UpdateGoal :exec
-UPDATE mindmap_goal SET
+UPDATE tasks SET
     title = COALESCE($3, title),
     description = COALESCE($4, description),
     status = COALESCE($5, status),
@@ -387,7 +387,7 @@ func (q *Queries) UpdateGoal(ctx context.Context, arg UpdateGoalParams) error {
 }
 
 const updateGoalPosition = `-- name: UpdateGoalPosition :exec
-UPDATE mindmap_goal SET
+UPDATE tasks SET
     position = $3,
     status = COALESCE($4, status),
     completed_at = CASE

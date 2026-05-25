@@ -12,7 +12,7 @@ import (
 )
 
 const countConversations = `-- name: CountConversations :one
-SELECT count(*) FROM mindmap_conversations
+SELECT count(*) FROM conversations
 WHERE user_id = $1 AND deleted_at IS NULL
 `
 
@@ -24,7 +24,7 @@ func (q *Queries) CountConversations(ctx context.Context, userID string) (int64,
 }
 
 const createConversation = `-- name: CreateConversation :one
-INSERT INTO mindmap_conversations (user_id)
+INSERT INTO conversations (user_id)
 VALUES ($1)
 RETURNING id, user_id, title, created_at, updated_at
 `
@@ -52,7 +52,7 @@ func (q *Queries) CreateConversation(ctx context.Context, userID string) (Create
 
 const getConversation = `-- name: GetConversation :one
 SELECT id, user_id, title, created_at, updated_at
-FROM mindmap_conversations
+FROM conversations
 WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL
 `
 
@@ -84,7 +84,7 @@ func (q *Queries) GetConversation(ctx context.Context, arg GetConversationParams
 
 const listConversations = `-- name: ListConversations :many
 SELECT id, user_id, title, created_at, updated_at
-FROM mindmap_conversations
+FROM conversations
 WHERE user_id = $1 AND deleted_at IS NULL
 ORDER BY updated_at DESC
 LIMIT $2 OFFSET $3
@@ -131,7 +131,7 @@ func (q *Queries) ListConversations(ctx context.Context, arg ListConversationsPa
 }
 
 const softDeleteConversation = `-- name: SoftDeleteConversation :exec
-UPDATE mindmap_conversations
+UPDATE conversations
 SET deleted_at = now()
 WHERE id = $1 AND user_id = $2
 `
@@ -147,7 +147,7 @@ func (q *Queries) SoftDeleteConversation(ctx context.Context, arg SoftDeleteConv
 }
 
 const touchConversation = `-- name: TouchConversation :exec
-UPDATE mindmap_conversations
+UPDATE conversations
 SET updated_at = now()
 WHERE id = $1
 `
@@ -158,7 +158,7 @@ func (q *Queries) TouchConversation(ctx context.Context, id pgtype.UUID) error {
 }
 
 const updateConversationTitle = `-- name: UpdateConversationTitle :exec
-UPDATE mindmap_conversations
+UPDATE conversations
 SET title = $3, updated_at = now()
 WHERE id = $1 AND user_id = $2
 `

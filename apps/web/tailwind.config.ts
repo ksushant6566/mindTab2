@@ -8,8 +8,8 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["Inter", ...fontFamily.sans],
-        mono: ["JetBrains Mono", ...fontFamily.mono],
+        sans: ["var(--sans)", ...fontFamily.sans],
+        mono: ["var(--mono)", ...fontFamily.mono],
       },
       colors: {
         mt: {
@@ -29,7 +29,6 @@ const config: Config = {
           amber: "var(--amber)",
           rose: "var(--rose)",
           cyan: "var(--cyan)",
-          green: "var(--green)",
           green: "var(--green)",
         },
         border: "hsl(var(--border-hsl))",

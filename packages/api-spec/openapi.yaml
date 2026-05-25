@@ -284,7 +284,7 @@ paths:
     patch:
       operationId: updateCurrentUser
       tags: [Users]
-      summary: Update current user (XP or onboarding)
+      summary: Update current user preferences, XP, or onboarding
       requestBody:
         required: true
         content:
@@ -296,6 +296,12 @@ paths:
                   type: integer
                 onboardingCompleted:
                   type: boolean
+                theme:
+                  type: string
+                  enum: [midnight, graphite, paper]
+                font:
+                  type: string
+                  enum: [inter, geist, system]
       responses:
         "200":
           description: Updated user
@@ -1588,7 +1594,7 @@ components:
     # ── User ───────────────────────────────────────────────────────────
     User:
       type: object
-      required: [id, email, xp, onboardingCompleted, createdAt]
+      required: [id, email, xp, onboardingCompleted, theme, font, createdAt]
       properties:
         id:
           type: string
@@ -1609,6 +1615,14 @@ components:
         onboardingCompleted:
           type: boolean
           default: false
+        theme:
+          type: string
+          enum: [midnight, graphite, paper]
+          default: midnight
+        font:
+          type: string
+          enum: [inter, geist, system]
+          default: inter
         createdAt:
           type: string
           format: date-time

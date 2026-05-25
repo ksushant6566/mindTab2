@@ -12,7 +12,7 @@ import (
 )
 
 const completeOnboarding = `-- name: CompleteOnboarding :exec
-UPDATE mindmap_user SET onboarding_completed = true, updated_at = CURRENT_TIMESTAMP WHERE id = $1
+UPDATE users SET onboarding_completed = true, updated_at = CURRENT_TIMESTAMP WHERE id = $1
 `
 
 func (q *Queries) CompleteOnboarding(ctx context.Context, id string) error {
@@ -21,9 +21,9 @@ func (q *Queries) CompleteOnboarding(ctx context.Context, id string) error {
 }
 
 const createEmailUser = `-- name: CreateEmailUser :one
-INSERT INTO mindmap_user (id, name, email, email_verified)
+INSERT INTO users (id, name, email, email_verified)
 VALUES ($1, $2, $3, NULL)
-RETURNING id, name, email, email_verified, image, xp, onboarding_completed, created_at, updated_at, password_hash
+RETURNING id, name, email, email_verified, image, xp, onboarding_completed, created_at, updated_at, password_hash, theme, font
 `
 
 type CreateEmailUserParams struct {
@@ -32,9 +32,9 @@ type CreateEmailUserParams struct {
 	Email string      `json:"email"`
 }
 
-func (q *Queries) CreateEmailUser(ctx context.Context, arg CreateEmailUserParams) (MindmapUser, error) {
+func (q *Queries) CreateEmailUser(ctx context.Context, arg CreateEmailUserParams) (User, error) {
 	row := q.db.QueryRow(ctx, createEmailUser, arg.ID, arg.Name, arg.Email)
-	var i MindmapUser
+	var i User
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
@@ -46,17 +46,19 @@ func (q *Queries) CreateEmailUser(ctx context.Context, arg CreateEmailUserParams
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.PasswordHash,
+		&i.Theme,
+		&i.Font,
 	)
 	return i, err
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, name, email, email_verified, image, xp, onboarding_completed, created_at, updated_at, password_hash FROM mindmap_user WHERE email = $1
+SELECT id, name, email, email_verified, image, xp, onboarding_completed, created_at, updated_at, password_hash, theme, font FROM users WHERE email = $1
 `
 
-func (q *Queries) GetUserByEmail(ctx context.Context, email string) (MindmapUser, error) {
+func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
 	row := q.db.QueryRow(ctx, getUserByEmail, email)
-	var i MindmapUser
+	var i User
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
@@ -68,17 +70,19 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (MindmapUser
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.PasswordHash,
+		&i.Theme,
+		&i.Font,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, name, email, email_verified, image, xp, onboarding_completed, created_at, updated_at, password_hash FROM mindmap_user WHERE id = $1
+SELECT id, name, email, email_verified, image, xp, onboarding_completed, created_at, updated_at, password_hash, theme, font FROM users WHERE id = $1
 `
 
-func (q *Queries) GetUserByID(ctx context.Context, id string) (MindmapUser, error) {
+func (q *Queries) GetUserByID(ctx context.Context, id string) (User, error) {
 	row := q.db.QueryRow(ctx, getUserByID, id)
-	var i MindmapUser
+	var i User
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
@@ -90,12 +94,14 @@ func (q *Queries) GetUserByID(ctx context.Context, id string) (MindmapUser, erro
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.PasswordHash,
+		&i.Theme,
+		&i.Font,
 	)
 	return i, err
 }
 
 const setEmailVerified = `-- name: SetEmailVerified :exec
-UPDATE mindmap_user SET email_verified = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = $1
+UPDATE users SET email_verified = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = $1
 `
 
 func (q *Queries) SetEmailVerified(ctx context.Context, id string) error {
@@ -104,7 +110,7 @@ func (q *Queries) SetEmailVerified(ctx context.Context, id string) error {
 }
 
 const setPasswordHash = `-- name: SetPasswordHash :exec
-UPDATE mindmap_user SET password_hash = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1
+UPDATE users SET password_hash = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1
 `
 
 type SetPasswordHashParams struct {
@@ -117,18 +123,25 @@ func (q *Queries) SetPasswordHash(ctx context.Context, arg SetPasswordHashParams
 	return err
 }
 
-const updateUserXP = `-- name: UpdateUserXP :one
-UPDATE mindmap_user SET xp = xp + $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING id, name, email, email_verified, image, xp, onboarding_completed, created_at, updated_at, password_hash
+const updateUserAppearance = `-- name: UpdateUserAppearance :one
+UPDATE users
+SET
+    theme = COALESCE($1, theme),
+    font = COALESCE($2, font),
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = $3
+RETURNING id, name, email, email_verified, image, xp, onboarding_completed, created_at, updated_at, password_hash, theme, font
 `
 
-type UpdateUserXPParams struct {
-	ID string `json:"id"`
-	Xp int32  `json:"xp"`
+type UpdateUserAppearanceParams struct {
+	Theme pgtype.Text `json:"theme"`
+	Font  pgtype.Text `json:"font"`
+	ID    string      `json:"id"`
 }
 
-func (q *Queries) UpdateUserXP(ctx context.Context, arg UpdateUserXPParams) (MindmapUser, error) {
-	row := q.db.QueryRow(ctx, updateUserXP, arg.ID, arg.Xp)
-	var i MindmapUser
+func (q *Queries) UpdateUserAppearance(ctx context.Context, arg UpdateUserAppearanceParams) (User, error) {
+	row := q.db.QueryRow(ctx, updateUserAppearance, arg.Theme, arg.Font, arg.ID)
+	var i User
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
@@ -140,18 +153,49 @@ func (q *Queries) UpdateUserXP(ctx context.Context, arg UpdateUserXPParams) (Min
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.PasswordHash,
+		&i.Theme,
+		&i.Font,
+	)
+	return i, err
+}
+
+const updateUserXP = `-- name: UpdateUserXP :one
+UPDATE users SET xp = xp + $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING id, name, email, email_verified, image, xp, onboarding_completed, created_at, updated_at, password_hash, theme, font
+`
+
+type UpdateUserXPParams struct {
+	ID string `json:"id"`
+	Xp int32  `json:"xp"`
+}
+
+func (q *Queries) UpdateUserXP(ctx context.Context, arg UpdateUserXPParams) (User, error) {
+	row := q.db.QueryRow(ctx, updateUserXP, arg.ID, arg.Xp)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Email,
+		&i.EmailVerified,
+		&i.Image,
+		&i.Xp,
+		&i.OnboardingCompleted,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.PasswordHash,
+		&i.Theme,
+		&i.Font,
 	)
 	return i, err
 }
 
 const upsertUser = `-- name: UpsertUser :one
-INSERT INTO mindmap_user (id, name, email, image, email_verified)
+INSERT INTO users (id, name, email, image, email_verified)
 VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
 ON CONFLICT (id) DO UPDATE SET
-    name = COALESCE(EXCLUDED.name, mindmap_user.name),
-    image = COALESCE(EXCLUDED.image, mindmap_user.image),
+    name = COALESCE(EXCLUDED.name, users.name),
+    image = COALESCE(EXCLUDED.image, users.image),
     updated_at = CURRENT_TIMESTAMP
-RETURNING id, name, email, email_verified, image, xp, onboarding_completed, created_at, updated_at, password_hash
+RETURNING id, name, email, email_verified, image, xp, onboarding_completed, created_at, updated_at, password_hash, theme, font
 `
 
 type UpsertUserParams struct {
@@ -161,14 +205,14 @@ type UpsertUserParams struct {
 	Image pgtype.Text `json:"image"`
 }
 
-func (q *Queries) UpsertUser(ctx context.Context, arg UpsertUserParams) (MindmapUser, error) {
+func (q *Queries) UpsertUser(ctx context.Context, arg UpsertUserParams) (User, error) {
 	row := q.db.QueryRow(ctx, upsertUser,
 		arg.ID,
 		arg.Name,
 		arg.Email,
 		arg.Image,
 	)
-	var i MindmapUser
+	var i User
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
@@ -180,6 +224,8 @@ func (q *Queries) UpsertUser(ctx context.Context, arg UpsertUserParams) (Mindmap
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.PasswordHash,
+		&i.Theme,
+		&i.Font,
 	)
 	return i, err
 }

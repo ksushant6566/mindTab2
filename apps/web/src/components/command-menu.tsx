@@ -1,4 +1,5 @@
 import {
+    Check,
     FileText,
     Goal,
     Grid,
@@ -10,8 +11,9 @@ import {
     Notebook,
     PlusIcon,
     Sun,
+    Type,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "~/components/ui/button";
 import {
     CommandDialog,
@@ -41,15 +43,42 @@ import { JournalDialog } from "./journals/journal-dialog";
 import { CreateGoalDialog } from "./goals/create-goal-dialog";
 import { EditGoalDialog } from "./goals/edit-goal-dialog";
 import { EditHabitDialog } from "./habits/edit-habit-dialog";
-import { useAppStore } from "@mindtab/core";
+import {
+    useAppStore,
+    type AppearanceTheme,
+    type FontPreset,
+} from "@mindtab/core";
 import { toast } from "sonner";
 import { CreateHabitDialog } from "./habits/create-habit-dialog";
 import { cn } from "~/lib/utils";
 
 const COMMAND_PROMPT_INTERVAL_MS = 3000;
 
+const themeOptions: {
+    value: AppearanceTheme;
+    label: string;
+    icon: LucideIcon;
+}[] = [
+    { value: "midnight", label: "Theme: Midnight", icon: Moon },
+    { value: "graphite", label: "Theme: Graphite", icon: Laptop },
+    { value: "paper", label: "Theme: Paper", icon: Sun },
+];
+
+const fontOptions: {
+    value: FontPreset;
+    label: string;
+    icon: LucideIcon;
+}[] = [
+    { value: "inter", label: "Font: Inter", icon: Type },
+    { value: "geist", label: "Font: Geist", icon: Type },
+    { value: "system", label: "Font: System", icon: Type },
+];
+
 export const CommandMenu = () => {
-    const { logout } = useAuth();
+    const { logout, updateAppearance } = useAuth();
+    const appearanceTheme = useAppStore((state) => state.appearanceTheme);
+    const fontPreset = useAppStore((state) => state.fontPreset);
+    const setAppearance = useAppStore((state) => state.setAppearance);
 
     const [searchQuery, setSearchQuery] = useState<string | null>(null);
     const [open, setOpen] = useState(false);
@@ -210,6 +239,39 @@ export const CommandMenu = () => {
         }
     };
 
+    const handleAppearanceChange = useCallback(
+        async (appearance: {
+            theme?: AppearanceTheme;
+            font?: FontPreset;
+        }) => {
+            if (
+                appearance.theme === appearanceTheme ||
+                appearance.font === fontPreset
+            ) {
+                setOpen(false);
+                return;
+            }
+
+            const previousAppearance = {
+                theme: appearanceTheme,
+                font: fontPreset,
+            };
+
+            setAppearance(appearance);
+            setOpen(false);
+
+            try {
+                await updateAppearance(appearance);
+            } catch (error: any) {
+                setAppearance(previousAppearance);
+                toast.error(error?.message || "Failed to update appearance", {
+                    position: "top-right",
+                });
+            }
+        },
+        [appearanceTheme, fontPreset, setAppearance, updateAppearance]
+    );
+
     const commandMenuGroups = useMemo(
         () => [
             {
@@ -226,7 +288,7 @@ export const CommandMenu = () => {
                     {
                         label: "Search Goals",
                         icon: Goal,
-                        shortcut: "Type to search...",
+                        shortcut: "Keep typing",
                         onClick: () => {},
                     },
                 ],
@@ -245,7 +307,7 @@ export const CommandMenu = () => {
                     {
                         label: "Search Notes",
                         icon: Notebook,
-                        shortcut: "Type to search...",
+                        shortcut: "Keep typing",
                         onClick: () => {},
                     },
                 ],
@@ -264,9 +326,28 @@ export const CommandMenu = () => {
                     {
                         label: "Search Habits",
                         icon: Grid,
-                        shortcut: "Type to search...",
+                        shortcut: "Keep typing",
                         onClick: () => {},
                     },
+                ],
+            },
+            {
+                heading: "Appearance",
+                items: [
+                    ...themeOptions.map((option) => ({
+                        label: option.label,
+                        icon: option.icon,
+                        active: option.value === appearanceTheme,
+                        onClick: () =>
+                            handleAppearanceChange({ theme: option.value }),
+                    })),
+                    ...fontOptions.map((option) => ({
+                        label: option.label,
+                        icon: option.icon,
+                        active: option.value === fontPreset,
+                        onClick: () =>
+                            handleAppearanceChange({ font: option.value }),
+                    })),
                 ],
             },
             {
@@ -283,7 +364,7 @@ export const CommandMenu = () => {
                 ],
             },
         ],
-        []
+        [appearanceTheme, fontPreset, handleAppearanceChange, logout]
     );
 
     const searchResults = useMemo(() => {
@@ -356,7 +437,12 @@ export const CommandMenu = () => {
             <Button
                 size={"sm"}
                 variant="outline"
-                className="command-trigger-shimmer flex items-center justify-between text-sm text-muted-foreground font-light rounded-md gap-2 h-9 w-56 bg-[linear-gradient(110deg,#0a0a0a,45%,#1e2631,55%,#0a0a0a)] bg-[length:200%_100%] transition-colors"
+                className="command-trigger-shimmer flex h-9 w-56 items-center justify-between gap-2 rounded-md text-sm font-light text-muted-foreground transition-colors"
+                style={{
+                    backgroundImage:
+                        "linear-gradient(110deg, var(--command-shimmer-from), 45%, var(--command-shimmer-to), 55%, var(--command-shimmer-from))",
+                    backgroundSize: "200% 100%",
+                }}
                 onClick={toggleOpen}
             >
                 <span className="command-placeholder-roll">{currentPlaceholder}</span>
@@ -473,6 +559,7 @@ type TCommandMenuGroupProps = {
         label: string;
         shortcut?: string;
         icon?: LucideIcon;
+        active?: boolean;
         onClick: () => void;
     }[];
 };
@@ -501,7 +588,12 @@ const CommandMenuGroup = ({ heading, items }: TCommandMenuGroupProps) => {
                     <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium text-muted-foreground transition-colors group-data-[selected=true]:text-foreground">
                         {item.label}
                     </span>
-                    {"shortcut" in item && (
+                    {item.active ? (
+                        <CommandShortcut className="inline-flex items-center gap-1 border-0 bg-transparent px-0 py-0 text-[9.5px] text-[var(--text-3)]">
+                            <Check className="h-3 w-3" />
+                            Active
+                        </CommandShortcut>
+                    ) : "shortcut" in item && (
                         <CommandShortcut className="border-0 bg-transparent px-0 py-0 text-[9.5px] text-[var(--text-3)]">
                             {item.shortcut}
                         </CommandShortcut>
@@ -516,6 +608,7 @@ function getCommandGroupTone(heading: string) {
     if (heading === "Goals" || heading === "Search Results") return "text-[var(--green)]";
     if (heading === "Notes") return "text-[var(--amber)]";
     if (heading === "Habits") return "text-[var(--cyan)]";
+    if (heading === "Appearance") return "text-[var(--violet)]";
     if (heading === "Settings") return "text-[var(--rose)]";
     return "text-muted-foreground";
 }

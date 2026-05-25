@@ -71,7 +71,7 @@ func setupAudioE2EEnv(t *testing.T, userID string) *audioE2EEnv {
 	q := store.New(pool)
 	ctx := context.Background()
 
-	// Insert test user (required for FK constraints on mindmap_content.user_id).
+	// Insert test user (required for FK constraints on content.user_id).
 	_, err := q.UpsertUser(ctx, store.UpsertUserParams{
 		ID:    userID,
 		Name:  testutil.PgText("E2E User"),

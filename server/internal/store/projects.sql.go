@@ -12,7 +12,7 @@ import (
 )
 
 const archiveProject = `-- name: ArchiveProject :one
-UPDATE mindmap_project SET status = 'archived', last_updated_by = $2, updated_at = CURRENT_TIMESTAMP
+UPDATE projects SET status = 'archived', last_updated_by = $2, updated_at = CURRENT_TIMESTAMP
 WHERE id = $1 AND created_by = $2 AND deleted_at IS NULL
 RETURNING id, name, description, status, start_date, end_date, created_at, updated_at, created_by, last_updated_by, deleted_at
 `
@@ -22,9 +22,9 @@ type ArchiveProjectParams struct {
 	LastUpdatedBy string      `json:"last_updated_by"`
 }
 
-func (q *Queries) ArchiveProject(ctx context.Context, arg ArchiveProjectParams) (MindmapProject, error) {
+func (q *Queries) ArchiveProject(ctx context.Context, arg ArchiveProjectParams) (Project, error) {
 	row := q.db.QueryRow(ctx, archiveProject, arg.ID, arg.LastUpdatedBy)
-	var i MindmapProject
+	var i Project
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
@@ -42,7 +42,7 @@ func (q *Queries) ArchiveProject(ctx context.Context, arg ArchiveProjectParams) 
 }
 
 const countJournalsByProject = `-- name: CountJournalsByProject :one
-SELECT COUNT(*)::int FROM mindmap_journal
+SELECT COUNT(*)::int FROM notes
 WHERE project_id = $1 AND user_id = $2 AND deleted_at IS NULL
 `
 
@@ -59,7 +59,7 @@ func (q *Queries) CountJournalsByProject(ctx context.Context, arg CountJournalsB
 }
 
 const createProject = `-- name: CreateProject :one
-INSERT INTO mindmap_project (name, description, status, start_date, end_date, created_by, last_updated_by)
+INSERT INTO projects (name, description, status, start_date, end_date, created_by, last_updated_by)
 VALUES ($1, $2, $3, $4, $5, $6, $6)
 RETURNING id, name, description, status, start_date, end_date, created_at, updated_at, created_by, last_updated_by, deleted_at
 `
@@ -73,7 +73,7 @@ type CreateProjectParams struct {
 	CreatedBy   string      `json:"created_by"`
 }
 
-func (q *Queries) CreateProject(ctx context.Context, arg CreateProjectParams) (MindmapProject, error) {
+func (q *Queries) CreateProject(ctx context.Context, arg CreateProjectParams) (Project, error) {
 	row := q.db.QueryRow(ctx, createProject,
 		arg.Name,
 		arg.Description,
@@ -82,7 +82,7 @@ func (q *Queries) CreateProject(ctx context.Context, arg CreateProjectParams) (M
 		arg.EndDate,
 		arg.CreatedBy,
 	)
-	var i MindmapProject
+	var i Project
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
@@ -100,7 +100,7 @@ func (q *Queries) CreateProject(ctx context.Context, arg CreateProjectParams) (M
 }
 
 const getProjectByID = `-- name: GetProjectByID :one
-SELECT id, name, description, status, start_date, end_date, created_at, updated_at, created_by, last_updated_by, deleted_at FROM mindmap_project WHERE id = $1 AND created_by = $2 AND deleted_at IS NULL
+SELECT id, name, description, status, start_date, end_date, created_at, updated_at, created_by, last_updated_by, deleted_at FROM projects WHERE id = $1 AND created_by = $2 AND deleted_at IS NULL
 `
 
 type GetProjectByIDParams struct {
@@ -108,9 +108,9 @@ type GetProjectByIDParams struct {
 	CreatedBy string      `json:"created_by"`
 }
 
-func (q *Queries) GetProjectByID(ctx context.Context, arg GetProjectByIDParams) (MindmapProject, error) {
+func (q *Queries) GetProjectByID(ctx context.Context, arg GetProjectByIDParams) (Project, error) {
 	row := q.db.QueryRow(ctx, getProjectByID, arg.ID, arg.CreatedBy)
-	var i MindmapProject
+	var i Project
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
@@ -128,7 +128,7 @@ func (q *Queries) GetProjectByID(ctx context.Context, arg GetProjectByIDParams) 
 }
 
 const listGoalStatsByProject = `-- name: ListGoalStatsByProject :many
-SELECT id, status FROM mindmap_goal
+SELECT id, status FROM tasks
 WHERE project_id = $1 AND user_id = $2 AND deleted_at IS NULL
 `
 
@@ -163,7 +163,7 @@ func (q *Queries) ListGoalStatsByProject(ctx context.Context, arg ListGoalStatsB
 }
 
 const listGoalsByProject = `-- name: ListGoalsByProject :many
-SELECT id, title, description, status, priority, impact, position, created_at, updated_at, completed_at, deleted_at, user_id, project_id FROM mindmap_goal
+SELECT id, title, description, status, priority, impact, position, created_at, updated_at, completed_at, deleted_at, user_id, project_id FROM tasks
 WHERE project_id = $1 AND user_id = $2 AND deleted_at IS NULL AND status != 'archived'
 ORDER BY position ASC, priority ASC, created_at DESC
 `
@@ -173,15 +173,15 @@ type ListGoalsByProjectParams struct {
 	UserID    string      `json:"user_id"`
 }
 
-func (q *Queries) ListGoalsByProject(ctx context.Context, arg ListGoalsByProjectParams) ([]MindmapGoal, error) {
+func (q *Queries) ListGoalsByProject(ctx context.Context, arg ListGoalsByProjectParams) ([]Task, error) {
 	rows, err := q.db.Query(ctx, listGoalsByProject, arg.ProjectID, arg.UserID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []MindmapGoal
+	var items []Task
 	for rows.Next() {
-		var i MindmapGoal
+		var i Task
 		if err := rows.Scan(
 			&i.ID,
 			&i.Title,
@@ -208,7 +208,7 @@ func (q *Queries) ListGoalsByProject(ctx context.Context, arg ListGoalsByProject
 }
 
 const listProjects = `-- name: ListProjects :many
-SELECT id, name, description, status, start_date, end_date, created_at, updated_at, created_by, last_updated_by, deleted_at FROM mindmap_project
+SELECT id, name, description, status, start_date, end_date, created_at, updated_at, created_by, last_updated_by, deleted_at FROM projects
 WHERE created_by = $1 AND deleted_at IS NULL
   AND ($2::boolean OR status != 'archived')
   AND ($3::project_status IS NULL OR status = $3::project_status)
@@ -221,15 +221,15 @@ type ListProjectsParams struct {
 	Column3   interface{} `json:"column_3"`
 }
 
-func (q *Queries) ListProjects(ctx context.Context, arg ListProjectsParams) ([]MindmapProject, error) {
+func (q *Queries) ListProjects(ctx context.Context, arg ListProjectsParams) ([]Project, error) {
 	rows, err := q.db.Query(ctx, listProjects, arg.CreatedBy, arg.Column2, arg.Column3)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []MindmapProject
+	var items []Project
 	for rows.Next() {
-		var i MindmapProject
+		var i Project
 		if err := rows.Scan(
 			&i.ID,
 			&i.Name,
@@ -254,7 +254,7 @@ func (q *Queries) ListProjects(ctx context.Context, arg ListProjectsParams) ([]M
 }
 
 const softDeleteProject = `-- name: SoftDeleteProject :exec
-UPDATE mindmap_project SET deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+UPDATE projects SET deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
 WHERE id = $1 AND created_by = $2
 `
 
@@ -269,7 +269,7 @@ func (q *Queries) SoftDeleteProject(ctx context.Context, arg SoftDeleteProjectPa
 }
 
 const updateProject = `-- name: UpdateProject :one
-UPDATE mindmap_project SET
+UPDATE projects SET
     name = COALESCE($3, name),
     description = COALESCE($4, description),
     status = COALESCE($5, status),
@@ -287,7 +287,7 @@ type UpdateProjectParams struct {
 	Status        interface{} `json:"status"`
 }
 
-func (q *Queries) UpdateProject(ctx context.Context, arg UpdateProjectParams) (MindmapProject, error) {
+func (q *Queries) UpdateProject(ctx context.Context, arg UpdateProjectParams) (Project, error) {
 	row := q.db.QueryRow(ctx, updateProject,
 		arg.ID,
 		arg.LastUpdatedBy,
@@ -295,7 +295,7 @@ func (q *Queries) UpdateProject(ctx context.Context, arg UpdateProjectParams) (M
 		arg.Description,
 		arg.Status,
 	)
-	var i MindmapProject
+	var i Project
 	err := row.Scan(
 		&i.ID,
 		&i.Name,

@@ -1,31 +1,40 @@
 -- name: GetUserByID :one
-SELECT * FROM mindmap_user WHERE id = $1;
+SELECT * FROM users WHERE id = $1;
 
 -- name: GetUserByEmail :one
-SELECT * FROM mindmap_user WHERE email = $1;
+SELECT * FROM users WHERE email = $1;
 
 -- name: UpsertUser :one
-INSERT INTO mindmap_user (id, name, email, image, email_verified)
+INSERT INTO users (id, name, email, image, email_verified)
 VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
 ON CONFLICT (id) DO UPDATE SET
-    name = COALESCE(EXCLUDED.name, mindmap_user.name),
-    image = COALESCE(EXCLUDED.image, mindmap_user.image),
+    name = COALESCE(EXCLUDED.name, users.name),
+    image = COALESCE(EXCLUDED.image, users.image),
     updated_at = CURRENT_TIMESTAMP
 RETURNING *;
 
 -- name: UpdateUserXP :one
-UPDATE mindmap_user SET xp = xp + $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *;
+UPDATE users SET xp = xp + $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *;
 
 -- name: CompleteOnboarding :exec
-UPDATE mindmap_user SET onboarding_completed = true, updated_at = CURRENT_TIMESTAMP WHERE id = $1;
+UPDATE users SET onboarding_completed = true, updated_at = CURRENT_TIMESTAMP WHERE id = $1;
+
+-- name: UpdateUserAppearance :one
+UPDATE users
+SET
+    theme = COALESCE(sqlc.narg('theme'), theme),
+    font = COALESCE(sqlc.narg('font'), font),
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = sqlc.arg('id')
+RETURNING *;
 
 -- name: CreateEmailUser :one
-INSERT INTO mindmap_user (id, name, email, email_verified)
+INSERT INTO users (id, name, email, email_verified)
 VALUES ($1, $2, $3, NULL)
 RETURNING *;
 
 -- name: SetPasswordHash :exec
-UPDATE mindmap_user SET password_hash = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1;
+UPDATE users SET password_hash = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1;
 
 -- name: SetEmailVerified :exec
-UPDATE mindmap_user SET email_verified = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = $1;
+UPDATE users SET email_verified = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = $1;

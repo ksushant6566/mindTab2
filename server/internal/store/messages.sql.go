@@ -12,7 +12,7 @@ import (
 )
 
 const countMessages = `-- name: CountMessages :one
-SELECT count(*) FROM mindmap_messages
+SELECT count(*) FROM messages
 WHERE conversation_id = $1
 `
 
@@ -24,7 +24,7 @@ func (q *Queries) CountMessages(ctx context.Context, conversationID pgtype.UUID)
 }
 
 const createMessage = `-- name: CreateMessage :one
-INSERT INTO mindmap_messages (conversation_id, role, content, attachments, tool_calls, tool_call_id)
+INSERT INTO messages (conversation_id, role, content, attachments, tool_calls, tool_call_id)
 VALUES ($1, $2, $3, $4, $5, $6)
 RETURNING id, conversation_id, role, content, attachments, tool_calls, tool_call_id, created_at
 `
@@ -38,7 +38,7 @@ type CreateMessageParams struct {
 	ToolCallID     pgtype.Text `json:"tool_call_id"`
 }
 
-func (q *Queries) CreateMessage(ctx context.Context, arg CreateMessageParams) (MindmapMessage, error) {
+func (q *Queries) CreateMessage(ctx context.Context, arg CreateMessageParams) (Message, error) {
 	row := q.db.QueryRow(ctx, createMessage,
 		arg.ConversationID,
 		arg.Role,
@@ -47,7 +47,7 @@ func (q *Queries) CreateMessage(ctx context.Context, arg CreateMessageParams) (M
 		arg.ToolCalls,
 		arg.ToolCallID,
 	)
-	var i MindmapMessage
+	var i Message
 	err := row.Scan(
 		&i.ID,
 		&i.ConversationID,
@@ -63,13 +63,13 @@ func (q *Queries) CreateMessage(ctx context.Context, arg CreateMessageParams) (M
 
 const getMessage = `-- name: GetMessage :one
 SELECT id, conversation_id, role, content, attachments, tool_calls, tool_call_id, created_at
-FROM mindmap_messages
+FROM messages
 WHERE id = $1
 `
 
-func (q *Queries) GetMessage(ctx context.Context, id pgtype.UUID) (MindmapMessage, error) {
+func (q *Queries) GetMessage(ctx context.Context, id pgtype.UUID) (Message, error) {
 	row := q.db.QueryRow(ctx, getMessage, id)
-	var i MindmapMessage
+	var i Message
 	err := row.Scan(
 		&i.ID,
 		&i.ConversationID,
@@ -85,7 +85,7 @@ func (q *Queries) GetMessage(ctx context.Context, id pgtype.UUID) (MindmapMessag
 
 const listMessages = `-- name: ListMessages :many
 SELECT id, conversation_id, role, content, attachments, tool_calls, tool_call_id, created_at
-FROM mindmap_messages
+FROM messages
 WHERE conversation_id = $1
 ORDER BY created_at ASC
 LIMIT $2 OFFSET $3
@@ -97,15 +97,15 @@ type ListMessagesParams struct {
 	Offset         int32       `json:"offset"`
 }
 
-func (q *Queries) ListMessages(ctx context.Context, arg ListMessagesParams) ([]MindmapMessage, error) {
+func (q *Queries) ListMessages(ctx context.Context, arg ListMessagesParams) ([]Message, error) {
 	rows, err := q.db.Query(ctx, listMessages, arg.ConversationID, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []MindmapMessage
+	var items []Message
 	for rows.Next() {
-		var i MindmapMessage
+		var i Message
 		if err := rows.Scan(
 			&i.ID,
 			&i.ConversationID,

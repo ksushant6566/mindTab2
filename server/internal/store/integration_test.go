@@ -300,7 +300,7 @@ func TestStore_UpdateContentEmbedding(t *testing.T) {
 	// Read back via raw SQL since no sqlc query returns the embedding column.
 	var got pgvector.Vector
 	err = pool.QueryRow(ctx,
-		"SELECT embedding FROM mindmap_content WHERE id = $1", content.ID,
+		"SELECT embedding FROM content WHERE id = $1", content.ID,
 	).Scan(&got)
 	require.NoError(t, err, "failed to read back embedding")
 	require.Equal(t, len(dims), len(got.Slice()), "embedding dimension mismatch")

@@ -9,7 +9,7 @@ import (
 	"github.com/pgvector/pgvector-go"
 )
 
-type MindmapContent struct {
+type Content struct {
 	ID                 pgtype.UUID        `json:"id"`
 	UserID             string             `json:"user_id"`
 	SourceUrl          pgtype.Text        `json:"source_url"`
@@ -49,7 +49,7 @@ type MindmapContent struct {
 	SourceMetadata []byte `json:"source_metadata"`
 }
 
-type MindmapConversation struct {
+type Conversation struct {
 	ID        pgtype.UUID        `json:"id"`
 	UserID    string             `json:"user_id"`
 	Title     pgtype.Text        `json:"title"`
@@ -58,23 +58,7 @@ type MindmapConversation struct {
 	DeletedAt pgtype.Timestamptz `json:"deleted_at"`
 }
 
-type MindmapGoal struct {
-	ID          pgtype.UUID        `json:"id"`
-	Title       pgtype.Text        `json:"title"`
-	Description pgtype.Text        `json:"description"`
-	Status      interface{}        `json:"status"`
-	Priority    interface{}        `json:"priority"`
-	Impact      interface{}        `json:"impact"`
-	Position    int32              `json:"position"`
-	CreatedAt   pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
-	CompletedAt pgtype.Timestamptz `json:"completed_at"`
-	DeletedAt   pgtype.Timestamptz `json:"deleted_at"`
-	UserID      string             `json:"user_id"`
-	ProjectID   pgtype.UUID        `json:"project_id"`
-}
-
-type MindmapHabit struct {
+type Habit struct {
 	ID          pgtype.UUID        `json:"id"`
 	Title       pgtype.Text        `json:"title"`
 	Description pgtype.Text        `json:"description"`
@@ -85,7 +69,7 @@ type MindmapHabit struct {
 	UserID      string             `json:"user_id"`
 }
 
-type MindmapHabitTracker struct {
+type HabitRecord struct {
 	ID        pgtype.UUID        `json:"id"`
 	HabitID   pgtype.UUID        `json:"habit_id"`
 	Status    interface{}        `json:"status"`
@@ -95,7 +79,7 @@ type MindmapHabitTracker struct {
 	UserID    string             `json:"user_id"`
 }
 
-type MindmapJob struct {
+type Job struct {
 	ID           pgtype.UUID        `json:"id"`
 	ContentID    pgtype.UUID        `json:"content_id"`
 	UserID       string             `json:"user_id"`
@@ -113,7 +97,18 @@ type MindmapJob struct {
 	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
 }
 
-type MindmapJournal struct {
+type Message struct {
+	ID             pgtype.UUID        `json:"id"`
+	ConversationID pgtype.UUID        `json:"conversation_id"`
+	Role           string             `json:"role"`
+	Content        string             `json:"content"`
+	Attachments    []byte             `json:"attachments"`
+	ToolCalls      []byte             `json:"tool_calls"`
+	ToolCallID     pgtype.Text        `json:"tool_call_id"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+}
+
+type Note struct {
 	ID         pgtype.UUID        `json:"id"`
 	Title      string             `json:"title"`
 	Content    string             `json:"content"`
@@ -127,34 +122,23 @@ type MindmapJournal struct {
 	ArchivedAt pgtype.Timestamptz `json:"archived_at"`
 }
 
-type MindmapJournalGoal struct {
+type NoteHabit struct {
 	ID        pgtype.UUID        `json:"id"`
-	JournalID pgtype.UUID        `json:"journal_id"`
-	GoalID    pgtype.UUID        `json:"goal_id"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
-}
-
-type MindmapJournalHabit struct {
-	ID        pgtype.UUID        `json:"id"`
-	JournalID pgtype.UUID        `json:"journal_id"`
+	NoteID    pgtype.UUID        `json:"note_id"`
 	HabitID   pgtype.UUID        `json:"habit_id"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
 }
 
-type MindmapMessage struct {
-	ID             pgtype.UUID        `json:"id"`
-	ConversationID pgtype.UUID        `json:"conversation_id"`
-	Role           string             `json:"role"`
-	Content        string             `json:"content"`
-	Attachments    []byte             `json:"attachments"`
-	ToolCalls      []byte             `json:"tool_calls"`
-	ToolCallID     pgtype.Text        `json:"tool_call_id"`
-	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+type NoteTask struct {
+	ID        pgtype.UUID        `json:"id"`
+	NoteID    pgtype.UUID        `json:"note_id"`
+	TaskID    pgtype.UUID        `json:"task_id"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
 }
 
-type MindmapProject struct {
+type Project struct {
 	ID            pgtype.UUID        `json:"id"`
 	Name          pgtype.Text        `json:"name"`
 	Description   pgtype.Text        `json:"description"`
@@ -168,7 +152,7 @@ type MindmapProject struct {
 	DeletedAt     pgtype.Timestamptz `json:"deleted_at"`
 }
 
-type MindmapRefreshToken struct {
+type RefreshToken struct {
 	ID        pgtype.UUID        `json:"id"`
 	UserID    string             `json:"user_id"`
 	TokenHash string             `json:"token_hash"`
@@ -176,7 +160,23 @@ type MindmapRefreshToken struct {
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
-type MindmapUser struct {
+type Task struct {
+	ID          pgtype.UUID        `json:"id"`
+	Title       pgtype.Text        `json:"title"`
+	Description pgtype.Text        `json:"description"`
+	Status      interface{}        `json:"status"`
+	Priority    interface{}        `json:"priority"`
+	Impact      interface{}        `json:"impact"`
+	Position    int32              `json:"position"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+	CompletedAt pgtype.Timestamptz `json:"completed_at"`
+	DeletedAt   pgtype.Timestamptz `json:"deleted_at"`
+	UserID      string             `json:"user_id"`
+	ProjectID   pgtype.UUID        `json:"project_id"`
+}
+
+type User struct {
 	ID                  string             `json:"id"`
 	Name                pgtype.Text        `json:"name"`
 	Email               string             `json:"email"`
@@ -187,9 +187,11 @@ type MindmapUser struct {
 	CreatedAt           pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt           pgtype.Timestamptz `json:"updated_at"`
 	PasswordHash        pgtype.Text        `json:"password_hash"`
+	Theme               string             `json:"theme"`
+	Font                string             `json:"font"`
 }
 
-type MindmapVerificationToken struct {
+type VerificationToken struct {
 	ID           pgtype.UUID        `json:"id"`
 	UserID       string             `json:"user_id"`
 	TokenHash    string             `json:"token_hash"`
