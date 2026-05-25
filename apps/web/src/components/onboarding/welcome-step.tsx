@@ -3,7 +3,7 @@ import { Button } from "~/components/ui/button";
 import { ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
 import { TipTapEditor } from "~/components/text-editor";
-import { useCreateJournal } from "~/api/hooks";
+import { useCreateNote } from "~/api/hooks";
 import { toast } from "sonner";
 
 type WelcomeStepProps = {
@@ -12,7 +12,7 @@ type WelcomeStepProps = {
 };
 
 function getDefaultContent(_firstName: string) {
-    return `<p>Most productivity tools ask you to change how you work. MindTab just asks you to open a new tab.</p><p></p><p>You're reading a <strong>note</strong> right now — the same editor you'll use to journal, plan, and reflect. Everything you type here is real. Edit freely.</p><h3>How MindTab works</h3><p>Your dashboard replaces the new tab page. Every time you open one, you see:</p><ul><li><p><strong>Projects</strong> — containers for different areas of your life</p></li><li><p><strong>Goals</strong> — with priorities, impact levels, and statuses that track real progress</p></li><li><p><strong>Habits</strong> — daily check-ins that build streaks and earn you XP</p></li><li><p><strong>Notes</strong> — a rich editor (this one) with <strong>@mentions</strong> that link directly to your goals, habits, and other notes</p></li></ul><p>Everything is connected. A goal belongs to a project. A note can reference a habit. Your progress is visible at a glance.</p><h3>Let's build your workspace</h3><p>The next steps take about a minute: pick a layout, name a project, set one goal, start one habit. Small moves — but after this, your new tab will never feel empty again.</p><p></p><p>Hit <strong>Continue</strong> when you're ready. This note saves to your dashboard.</p>`;
+    return `<p>Most productivity tools ask you to change how you work. MindTab just asks you to open a new tab.</p><p></p><p>You're reading a <strong>note</strong> right now — the same editor you'll use to note, plan, and reflect. Everything you type here is real. Edit freely.</p><h3>How MindTab works</h3><p>Your dashboard replaces the new tab page. Every time you open one, you see:</p><ul><li><p><strong>Projects</strong> — containers for different areas of your life</p></li><li><p><strong>Tasks</strong> — with priorities, impact levels, and statuses that track real progress</p></li><li><p><strong>Habits</strong> — daily check-ins that build streaks and earn you XP</p></li><li><p><strong>Notes</strong> — a rich editor (this one) with <strong>@mentions</strong> that link directly to your tasks, habits, and other notes</p></li></ul><p>Everything is connected. A task belongs to a project. A note can reference a habit. Your progress is visible at a glance.</p><h3>Let's build your workspace</h3><p>The next steps take about a minute: pick a layout, name a project, set one task, start one habit. Small moves — but after this, your new tab will never feel empty again.</p><p></p><p>Hit <strong>Continue</strong> when you're ready. This note saves to your dashboard.</p>`;
 }
 
 export function WelcomeStep({ userName, onNext }: WelcomeStepProps) {
@@ -20,11 +20,11 @@ export function WelcomeStep({ userName, onNext }: WelcomeStepProps) {
     const [title, setTitle] = useState("Your new starting line");
     const [content, setContent] = useState(() => getDefaultContent(firstName));
 
-    const createJournal = useCreateJournal();
+    const createNote = useCreateNote();
 
     const handleContinue = () => {
         if (title.trim() && content.trim()) {
-            (createJournal.mutate as any)(
+            (createNote.mutate as any)(
                 {
                     title: title.trim(),
                     content,
@@ -74,8 +74,8 @@ export function WelcomeStep({ userName, onNext }: WelcomeStepProps) {
                 <Button
                     size="sm"
                     onClick={handleContinue}
-                    disabled={createJournal.isPending}
-                    loading={createJournal.isPending}
+                    disabled={createNote.isPending}
+                    loading={createNote.isPending}
                     className="group"
                 >
                     Continue

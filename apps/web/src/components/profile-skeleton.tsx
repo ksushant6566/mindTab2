@@ -46,7 +46,7 @@ export const ProfileSkeleton = () => {
                     {/* Statistics Skeleton */}
                     <Card>
                         <CardHeader>
-                            <CardTitle>Goals Completed</CardTitle>
+                            <CardTitle>Tasks Completed</CardTitle>
                         </CardHeader>
                         <CardContent>
                             <Skeleton className="h-8 w-16" />

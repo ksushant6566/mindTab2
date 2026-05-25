@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "~/hooks/use-auth";
 import { colors } from "~/styles/colors";
 
-export type SearchContext = "goals" | "habits" | "notes";
+export type SearchContext = "tasks" | "habits" | "notes";
 
 type ListHeaderProps = {
   title: string;

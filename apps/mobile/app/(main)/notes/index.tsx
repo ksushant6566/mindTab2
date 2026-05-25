@@ -20,7 +20,7 @@ import {
   Globe,
   StickyNote,
 } from "lucide-react-native";
-import { journalsQueryOptions, useDeleteJournal } from "@mindtab/core";
+import { notesQueryOptions, useDeleteNote } from "@mindtab/core";
 
 import { ProjectPills } from "~/components/dashboard/project-pills";
 import { Chip } from "~/components/ui/chip";
@@ -224,10 +224,10 @@ export default function NotesScreen() {
 
   const projectId = selectedProjectId ?? undefined;
   const { data: notes, isLoading, refetch } = useQuery(
-    journalsQueryOptions(api, { projectId }),
+    notesQueryOptions(api, { projectId }),
   );
 
-  const deleteJournal = useDeleteJournal(api);
+  const deleteNote = useDeleteNote(api);
 
   // Stable callbacks for NoteRow
   const handleNotePress = useCallback((id: string) => {
@@ -239,8 +239,8 @@ export default function NotesScreen() {
   }, [router]);
 
   const handleNoteDelete = useCallback((id: string) => {
-    deleteJournal.mutate(id);
-  }, [deleteJournal]);
+    deleteNote.mutate(id);
+  }, [deleteNote]);
 
   // Filter by type + sort
   const filteredNotes = useMemo(() => {

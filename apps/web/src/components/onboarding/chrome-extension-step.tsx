@@ -68,7 +68,7 @@ export function ChromeExtensionStep({ onNext, onBack }: ChromeExtensionStepProps
                             <div className="flex items-center justify-between">
                                 <div className="text-[8px] text-muted-foreground font-mono">12:00 PM</div>
                                 <div className="flex gap-1">
-                                    <div className="px-1.5 py-0.5 rounded text-[7px] bg-primary/20 text-primary font-medium">Goals</div>
+                                    <div className="px-1.5 py-0.5 rounded text-[7px] bg-primary/20 text-primary font-medium">Tasks</div>
                                     <div className="px-1.5 py-0.5 rounded text-[7px] bg-muted/30 text-muted-foreground font-medium">Notes</div>
                                 </div>
                             </div>

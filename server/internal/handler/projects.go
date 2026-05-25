@@ -32,10 +32,10 @@ type projectJSON struct {
 	EndDate     *string    `json:"endDate"`
 	CreatedAt   *time.Time `json:"createdAt"`
 	UpdatedAt   *time.Time `json:"updatedAt"`
-	Goals       []goalJSON `json:"goals,omitempty"`
+	Tasks       []taskJSON `json:"tasks,omitempty"`
 }
 
-func projectFromModel(p store.MindmapProject) projectJSON {
+func projectFromModel(p store.Project) projectJSON {
 	return projectJSON{
 		ID:          uuidToString(p.ID),
 		Name:        textToString(p.Name),
@@ -74,17 +74,17 @@ func (h *ProjectsHandler) List(w http.ResponseWriter, r *http.Request) {
 	result := make([]projectJSON, 0, len(projects))
 	for _, p := range projects {
 		pj := projectFromModel(p)
-		// Fetch goals for each project.
-		goals, err := h.queries.ListGoalsByProject(r.Context(), store.ListGoalsByProjectParams{
+		// Fetch tasks for each project.
+		tasks, err := h.queries.ListTasksByProject(r.Context(), store.ListTasksByProjectParams{
 			ProjectID: p.ID,
 			UserID:    userID,
 		})
 		if err != nil {
-			slog.Error("failed to list goals for project", "error", err, "projectId", uuidToString(p.ID))
+			slog.Error("failed to list tasks for project", "error", err, "projectId", uuidToString(p.ID))
 		} else {
-			pj.Goals = make([]goalJSON, 0, len(goals))
-			for _, g := range goals {
-				pj.Goals = append(pj.Goals, goalFromModel(g))
+			pj.Tasks = make([]taskJSON, 0, len(tasks))
+			for _, g := range tasks {
+				pj.Tasks = append(pj.Tasks, taskFromModel(g))
 			}
 		}
 		result = append(result, pj)
@@ -167,17 +167,17 @@ func (h *ProjectsHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 	pj := projectFromModel(project)
 
-	// Fetch goals for the project.
-	goals, err := h.queries.ListGoalsByProject(r.Context(), store.ListGoalsByProjectParams{
+	// Fetch tasks for the project.
+	tasks, err := h.queries.ListTasksByProject(r.Context(), store.ListTasksByProjectParams{
 		ProjectID: project.ID,
 		UserID:    userID,
 	})
 	if err != nil {
-		slog.Error("failed to list goals for project", "error", err)
+		slog.Error("failed to list tasks for project", "error", err)
 	} else {
-		pj.Goals = make([]goalJSON, 0, len(goals))
-		for _, g := range goals {
-			pj.Goals = append(pj.Goals, goalFromModel(g))
+		pj.Tasks = make([]taskJSON, 0, len(tasks))
+		for _, g := range tasks {
+			pj.Tasks = append(pj.Tasks, taskFromModel(g))
 		}
 	}
 
@@ -261,20 +261,20 @@ func (h *ProjectsHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := qtx.SoftDeleteGoalsByProject(r.Context(), store.SoftDeleteGoalsByProjectParams{
+	if err := qtx.SoftDeleteTasksByProject(r.Context(), store.SoftDeleteTasksByProjectParams{
 		ProjectID: pgID,
 		UserID:    userID,
 	}); err != nil {
-		slog.Error("failed to soft delete goals by project", "error", err)
+		slog.Error("failed to soft delete tasks by project", "error", err)
 		WriteError(w, http.StatusInternalServerError, "failed to delete project")
 		return
 	}
 
-	if err := qtx.SoftDeleteJournalsByProject(r.Context(), store.SoftDeleteJournalsByProjectParams{
+	if err := qtx.SoftDeleteNotesByProject(r.Context(), store.SoftDeleteNotesByProjectParams{
 		ProjectID: pgID,
 		UserID:    userID,
 	}); err != nil {
-		slog.Error("failed to soft delete journals by project", "error", err)
+		slog.Error("failed to soft delete notes by project", "error", err)
 		WriteError(w, http.StatusInternalServerError, "failed to delete project")
 		return
 	}
@@ -297,11 +297,11 @@ type projectStatsJSON struct {
 	EndDate     *string    `json:"endDate"`
 	CreatedAt   *time.Time `json:"createdAt"`
 	UpdatedAt   *time.Time `json:"updatedAt"`
-	GoalStats   goalStats  `json:"goalStats"`
-	JournalCount int32     `json:"journalCount"`
+	TaskStats   taskStats  `json:"taskStats"`
+	NoteCount   int32      `json:"noteCount"`
 }
 
-type goalStats struct {
+type taskStats struct {
 	Total      int32 `json:"total"`
 	Pending    int32 `json:"pending"`
 	InProgress int32 `json:"inProgress"`
@@ -336,36 +336,36 @@ func (h *ProjectsHandler) GetWithStats(w http.ResponseWriter, r *http.Request) {
 			UpdatedAt:   timestamptzToPtr(p.UpdatedAt),
 		}
 
-		// Get goal stats.
-		goalStatRows, err := h.queries.ListGoalStatsByProject(r.Context(), store.ListGoalStatsByProjectParams{
+		// Get task stats.
+		taskStatRows, err := h.queries.ListTaskStatsByProject(r.Context(), store.ListTaskStatsByProjectParams{
 			ProjectID: p.ID,
 			UserID:    userID,
 		})
 		if err != nil {
-			slog.Error("failed to get goal stats", "error", err)
+			slog.Error("failed to get task stats", "error", err)
 		} else {
-			for _, gs := range goalStatRows {
-				ps.GoalStats.Total++
+			for _, gs := range taskStatRows {
+				ps.TaskStats.Total++
 				switch ifaceToString(gs.Status) {
 				case "pending":
-					ps.GoalStats.Pending++
+					ps.TaskStats.Pending++
 				case "in_progress":
-					ps.GoalStats.InProgress++
+					ps.TaskStats.InProgress++
 				case "completed":
-					ps.GoalStats.Completed++
+					ps.TaskStats.Completed++
 				}
 			}
 		}
 
-		// Get journal count.
-		jCount, err := h.queries.CountJournalsByProject(r.Context(), store.CountJournalsByProjectParams{
+		// Get note count.
+		jCount, err := h.queries.CountNotesByProject(r.Context(), store.CountNotesByProjectParams{
 			ProjectID: p.ID,
 			UserID:    userID,
 		})
 		if err != nil {
-			slog.Error("failed to count journals by project", "error", err)
+			slog.Error("failed to count notes by project", "error", err)
 		} else {
-			ps.JournalCount = jCount
+			ps.NoteCount = jCount
 		}
 
 		result = append(result, ps)
@@ -406,20 +406,20 @@ func (h *ProjectsHandler) Archive(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := qtx.ArchiveGoalsByProject(r.Context(), store.ArchiveGoalsByProjectParams{
+	if err := qtx.ArchiveTasksByProject(r.Context(), store.ArchiveTasksByProjectParams{
 		ProjectID: pgID,
 		UserID:    userID,
 	}); err != nil {
-		slog.Error("failed to archive goals by project", "error", err)
+		slog.Error("failed to archive tasks by project", "error", err)
 		WriteError(w, http.StatusInternalServerError, "failed to archive project")
 		return
 	}
 
-	if err := qtx.ArchiveJournalsByProject(r.Context(), store.ArchiveJournalsByProjectParams{
+	if err := qtx.ArchiveNotesByProject(r.Context(), store.ArchiveNotesByProjectParams{
 		ProjectID: pgID,
 		UserID:    userID,
 	}); err != nil {
-		slog.Error("failed to archive journals by project", "error", err)
+		slog.Error("failed to archive notes by project", "error", err)
 		WriteError(w, http.StatusInternalServerError, "failed to archive project")
 		return
 	}

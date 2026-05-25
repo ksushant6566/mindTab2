@@ -57,7 +57,7 @@ type userJSON struct {
 	Font                string `json:"font"`
 }
 
-func toUserJSON(u store.MindmapUser) userJSON {
+func toUserJSON(u store.User) userJSON {
 	return userJSON{
 		ID:                  u.ID,
 		Name:                u.Name.String,

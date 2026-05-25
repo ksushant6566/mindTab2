@@ -22,7 +22,7 @@ const PRESETS = [
   { title: "Read", desc: "Read for 30 minutes", Icon: BookOpen },
   { title: "Meditate", desc: "Practice mindfulness", Icon: Brain },
   { title: "Drink Water", desc: "Stay hydrated", Icon: Droplets },
-  { title: "Journal", desc: "Write daily reflections", Icon: PenLine },
+  { title: "Note", desc: "Write daily reflections", Icon: PenLine },
   { title: "Sleep Early", desc: "Lights off by 11pm", Icon: Moon },
   { title: "Eat Healthy", desc: "No junk food", Icon: Salad },
 ];

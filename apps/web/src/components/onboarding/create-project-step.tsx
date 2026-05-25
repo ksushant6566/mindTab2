@@ -70,7 +70,7 @@ export function CreateProjectStep({
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.4, delay: 0.12 }}
                 >
-                    Projects group your goals and notes into focused spaces.
+                    Projects group your tasks and notes into focused spaces.
                 </motion.p>
             </div>
 

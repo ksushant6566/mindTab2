@@ -5,8 +5,8 @@ import type { PagerViewOnPageSelectedEvent } from "react-native-pager-view";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { SharedValue } from "react-native-reanimated";
 import {
-  journalQueryOptions,
-  journalsQueryOptions,
+  noteQueryOptions,
+  notesQueryOptions,
 } from "@mindtab/core";
 import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
@@ -52,7 +52,7 @@ function PagerPageContent({
   onDismiss: () => void;
 }) {
   const { data: note } = useQuery({
-    ...journalQueryOptions(api, noteId),
+    ...noteQueryOptions(api, noteId),
     enabled: isNear,
   });
 
@@ -95,7 +95,7 @@ export function NotePager({
 
   // Fetch the full sorted note list for paging
   const { data: allNotes } = useQuery(
-    journalsQueryOptions(api, {
+    notesQueryOptions(api, {
       projectId: filterProjectId || undefined,
     }),
   );
@@ -124,9 +124,9 @@ export function NotePager({
   useEffect(() => {
     const idx = noteIds.indexOf(activeId);
     if (idx > 0)
-      queryClient.prefetchQuery(journalQueryOptions(api, noteIds[idx - 1]));
+      queryClient.prefetchQuery(noteQueryOptions(api, noteIds[idx - 1]));
     if (idx >= 0 && idx < noteIds.length - 1)
-      queryClient.prefetchQuery(journalQueryOptions(api, noteIds[idx + 1]));
+      queryClient.prefetchQuery(noteQueryOptions(api, noteIds[idx + 1]));
   }, [activeId, noteIds, queryClient]);
 
   const handlePageSelected = useCallback(

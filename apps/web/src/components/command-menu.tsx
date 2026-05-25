@@ -1,9 +1,9 @@
 import {
     Check,
     FileText,
-    Goal,
     Grid,
     Laptop,
+    ListTodo,
     Loader,
     LogOut,
     LucideIcon,
@@ -26,22 +26,22 @@ import {
 } from "~/components/ui/command";
 import { useQuery } from "@tanstack/react-query";
 import {
-    searchJournalsQueryOptions,
-    searchGoalsQueryOptions,
+    searchNotesQueryOptions,
+    searchTasksQueryOptions,
     searchHabitsQueryOptions,
     habitTrackerQueryOptions,
-    useCreateGoal,
-    useUpdateGoal,
+    useCreateTask,
+    useUpdateTask,
     useUpdateHabit,
     useCreateHabit,
     useTrackHabit,
     useUntrackHabit,
 } from "~/api/hooks";
 import { useAuth } from "~/api/hooks/use-auth";
-import { CreateJournalDialog } from "./journals/create-journal-dialog";
-import { JournalDialog } from "./journals/journal-dialog";
-import { CreateGoalDialog } from "./goals/create-goal-dialog";
-import { EditGoalDialog } from "./goals/edit-goal-dialog";
+import { CreateNoteDialog } from "./notes/create-note-dialog";
+import { NoteDialog } from "./notes/note-dialog";
+import { CreateTaskDialog } from "./tasks/create-task-dialog";
+import { EditTaskDialog } from "./tasks/edit-task-dialog";
 import { EditHabitDialog } from "./habits/edit-habit-dialog";
 import {
     useAppStore,
@@ -83,41 +83,41 @@ export const CommandMenu = () => {
     const [searchQuery, setSearchQuery] = useState<string | null>(null);
     const [open, setOpen] = useState(false);
 
-    // Create Journal Dialog states
-    const [isCreateJournalDialogOpen, setIsCreateJournalDialogOpen] =
+    // Create Note Dialog states
+    const [isCreateNoteDialogOpen, setIsCreateNoteDialogOpen] =
         useState(false);
-    const onCreateJournalDialogOpenChange = (open: boolean) => {
-        setIsCreateJournalDialogOpen(open);
+    const onCreateNoteDialogOpenChange = (open: boolean) => {
+        setIsCreateNoteDialogOpen(open);
     };
 
-    // Journal Dialog states
-    const [currentJournal, setCurrentJournal] = useState<{
+    // Note Dialog states
+    const [currentNote, setCurrentNote] = useState<{
         id: string;
         title: string;
         content: string;
     } | null>(null);
 
-    const [isJournalDialogOpen, setIsJournalDialogOpen] = useState(false);
+    const [isNoteDialogOpen, setIsNoteDialogOpen] = useState(false);
 
-    const onJournalDialogOpenChange = (open: boolean) => {
-        setIsJournalDialogOpen(open);
+    const onNoteDialogOpenChange = (open: boolean) => {
+        setIsNoteDialogOpen(open);
         if (!open) {
-            setCurrentJournal(null);
+            setCurrentNote(null);
         }
     };
 
-    const [isCreateGoalDialogOpen, setIsCreateGoalDialogOpen] = useState(false);
+    const [isCreateTaskDialogOpen, setIsCreateTaskDialogOpen] = useState(false);
 
-    const onCreateGoalDialogOpenChange = (open: boolean) => {
-        setIsCreateGoalDialogOpen(open);
+    const onCreateTaskDialogOpenChange = (open: boolean) => {
+        setIsCreateTaskDialogOpen(open);
     };
 
-    const [isEditGoalDialogOpen, setIsEditGoalDialogOpen] = useState(false);
+    const [isEditTaskDialogOpen, setIsEditTaskDialogOpen] = useState(false);
 
-    const [currentGoal, setCurrentGoal] = useState<any | null>(null);
+    const [currentTask, setCurrentTask] = useState<any | null>(null);
 
-    const onEditGoalDialogOpenChange = (open: boolean) => {
-        setIsEditGoalDialogOpen(open);
+    const onEditTaskDialogOpenChange = (open: boolean) => {
+        setIsEditTaskDialogOpen(open);
     };
 
     const [currentHabit, setCurrentHabit] = useState<any | null>(null);
@@ -138,19 +138,19 @@ export const CommandMenu = () => {
         setIsCreateHabitDialogOpen(open);
     };
 
-    const createGoalMutation = useCreateGoal();
-    const isCreatingGoal = createGoalMutation.isPending;
-    const createGoal = (values: any) => {
-        createGoalMutation.mutate(values, {
-            onSettled: () => setIsCreateGoalDialogOpen(false),
+    const createTaskMutation = useCreateTask();
+    const isCreatingTask = createTaskMutation.isPending;
+    const createTask = (values: any) => {
+        createTaskMutation.mutate(values, {
+            onSettled: () => setIsCreateTaskDialogOpen(false),
         });
     };
 
-    const updateGoalMutation = useUpdateGoal();
-    const isUpdatingGoal = updateGoalMutation.isPending;
-    const updateGoal = (values: any) => {
-        updateGoalMutation.mutate(values, {
-            onSettled: () => setIsEditGoalDialogOpen(false),
+    const updateTaskMutation = useUpdateTask();
+    const isUpdatingTask = updateTaskMutation.isPending;
+    const updateTask = (values: any) => {
+        updateTaskMutation.mutate(values, {
+            onSettled: () => setIsEditTaskDialogOpen(false),
         });
     };
 
@@ -198,17 +198,17 @@ export const CommandMenu = () => {
         untrackHabitMutation.mutate({ id: habitId, date });
     };
 
-    const { data: journalsSearchResults, isFetching: isFetchingSearchResults } =
+    const { data: notesSearchResults, isFetching: isFetchingSearchResults } =
         useQuery({
-            ...searchJournalsQueryOptions(searchQuery ?? ""),
+            ...searchNotesQueryOptions(searchQuery ?? ""),
             enabled: open,
             refetchOnWindowFocus: false,
             refetchOnMount: false,
         });
 
-    const { data: goalsSearchResults, isFetching: isFetchingGoals } =
+    const { data: tasksSearchResults, isFetching: isFetchingTasks } =
         useQuery({
-            ...searchGoalsQueryOptions(searchQuery ?? ""),
+            ...searchTasksQueryOptions(searchQuery ?? ""),
             enabled: open,
             refetchOnWindowFocus: false,
             refetchOnMount: false,
@@ -275,19 +275,19 @@ export const CommandMenu = () => {
     const commandMenuGroups = useMemo(
         () => [
             {
-                heading: "Goals",
+                heading: "Tasks",
                 items: [
                     {
-                        label: "Create Goal",
+                        label: "Create Task",
                         icon: PlusIcon,
                         onClick: () => {
-                            setIsCreateGoalDialogOpen(true);
+                            setIsCreateTaskDialogOpen(true);
                             setOpen(false);
                         },
                     },
                     {
-                        label: "Search Goals",
-                        icon: Goal,
+                        label: "Search Tasks",
+                        icon: ListTodo,
                         shortcut: "Keep typing",
                         onClick: () => {},
                     },
@@ -300,7 +300,7 @@ export const CommandMenu = () => {
                         label: "Create Note",
                         icon: PlusIcon,
                         onClick: () => {
-                            setIsCreateJournalDialogOpen(true);
+                            setIsCreateNoteDialogOpen(true);
                             setOpen(false);
                         },
                     },
@@ -368,26 +368,26 @@ export const CommandMenu = () => {
     );
 
     const searchResults = useMemo(() => {
-        const journalResults =
-            (journalsSearchResults as any[])?.map((journal: any) => ({
-                label: journal.title!,
+        const noteResults =
+            (notesSearchResults as any[])?.map((note: any) => ({
+                label: note.title!,
                 icon: FileText,
                 onClick: () => {
-                    setCurrentJournal(journal);
+                    setCurrentNote(note);
                     setSearchQuery(null);
-                    setIsJournalDialogOpen(true);
+                    setIsNoteDialogOpen(true);
                     setOpen(false);
                 },
             })) || [];
 
-        const goalResults =
-            (goalsSearchResults as any[])?.map((goal: any) => ({
-                label: goal.title!,
-                icon: Goal,
+        const taskResults =
+            (tasksSearchResults as any[])?.map((task: any) => ({
+                label: task.title!,
+                icon: ListTodo,
                 onClick: () => {
-                    setCurrentGoal(goal);
+                    setCurrentTask(task);
                     setSearchQuery(null);
-                    setIsEditGoalDialogOpen(true);
+                    setIsEditTaskDialogOpen(true);
                     setOpen(false);
                 },
             })) || [];
@@ -404,13 +404,13 @@ export const CommandMenu = () => {
                 },
             })) || [];
 
-        return [...journalResults, ...goalResults, ...habitResults];
-    }, [journalsSearchResults, goalsSearchResults, habitsSearchResults]);
+        return [...noteResults, ...taskResults, ...habitResults];
+    }, [notesSearchResults, tasksSearchResults, habitsSearchResults]);
 
     const placeholders = [
         "Search for anything ...",
-        "Create a new Goal",
-        "Search your Goals",
+        "Create a new Task",
+        "Search your Tasks",
         "Add a new Note",
         "Find your Notes",
     ];
@@ -450,14 +450,14 @@ export const CommandMenu = () => {
             </Button>
             <CommandDialog open={open} onOpenChange={toggleOpen}>
                 <CommandInput
-                    placeholder="Search notes, goals, habits, commands..."
+                    placeholder="Search notes, tasks, habits, commands..."
                     value={searchQuery ?? ""}
                     onValueChange={setSearchQuery}
                 />
                 <CommandList>
                     <CommandEmpty>
                         {isFetchingSearchResults ||
-                        isFetchingGoals ||
+                        isFetchingTasks ||
                         isFetchingHabits ? (
                             <div className="flex items-center justify-center">
                                 <span className="animate-spin">
@@ -483,42 +483,42 @@ export const CommandMenu = () => {
                     )}
                 </CommandList>
             </CommandDialog>
-            <CreateJournalDialog
-                isOpen={isCreateJournalDialogOpen}
-                onOpenChange={onCreateJournalDialogOpenChange}
+            <CreateNoteDialog
+                isOpen={isCreateNoteDialogOpen}
+                onOpenChange={onCreateNoteDialogOpenChange}
                 activeProjectId={activeProjectId}
             />
-            <JournalDialog
-                isOpen={isJournalDialogOpen}
-                onOpenChange={onJournalDialogOpenChange}
+            <NoteDialog
+                isOpen={isNoteDialogOpen}
+                onOpenChange={onNoteDialogOpenChange}
                 defaultMode={"view"}
-                journal={currentJournal}
+                note={currentNote}
             />
-            <CreateGoalDialog
-                open={isCreateGoalDialogOpen}
-                onOpenChange={onCreateGoalDialogOpenChange}
-                onSave={createGoal as any}
-                onCancel={() => setIsCreateGoalDialogOpen(false)}
-                loading={isCreatingGoal}
+            <CreateTaskDialog
+                open={isCreateTaskDialogOpen}
+                onOpenChange={onCreateTaskDialogOpenChange}
+                onSave={createTask as any}
+                onCancel={() => setIsCreateTaskDialogOpen(false)}
+                loading={isCreatingTask}
                 defaultValues={{
                     projectId: activeProjectId,
                 }}
             />
-            {currentGoal && (
-                <EditGoalDialog
-                    open={isEditGoalDialogOpen}
-                    onOpenChange={onEditGoalDialogOpenChange}
-                    goal={currentGoal}
+            {currentTask && (
+                <EditTaskDialog
+                    open={isEditTaskDialogOpen}
+                    onOpenChange={onEditTaskDialogOpenChange}
+                    task={currentTask}
                     onSave={(values: any) =>
-                        (updateGoal as any)({
+                        (updateTask as any)({
                             ...values,
                             id: values.id!,
                             title: values.title ?? undefined,
                             description: values.description ?? undefined,
                         })
                     }
-                    onCancel={() => setIsEditGoalDialogOpen(false)}
-                    loading={isUpdatingGoal}
+                    onCancel={() => setIsEditTaskDialogOpen(false)}
+                    loading={isUpdatingTask}
                 />
             )}
             {currentHabit && (
@@ -605,7 +605,7 @@ const CommandMenuGroup = ({ heading, items }: TCommandMenuGroupProps) => {
 };
 
 function getCommandGroupTone(heading: string) {
-    if (heading === "Goals" || heading === "Search Results") return "text-[var(--green)]";
+    if (heading === "Tasks" || heading === "Search Results") return "text-[var(--green)]";
     if (heading === "Notes") return "text-[var(--amber)]";
     if (heading === "Habits") return "text-[var(--cyan)]";
     if (heading === "Appearance") return "text-[var(--violet)]";

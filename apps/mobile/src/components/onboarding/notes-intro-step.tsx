@@ -10,7 +10,7 @@ type NotesIntroStepProps = {
 
 const features = [
   { icon: FileEdit, title: "Rich notes", desc: "Write and format your thoughts" },
-  { icon: AtSign, title: "@mentions", desc: "Link notes to goals, habits, and more" },
+  { icon: AtSign, title: "@mentions", desc: "Link notes to tasks, habits, and more" },
   { icon: Link, title: "Connected", desc: "Notes pair with everything in MindTab" },
 ];
 
@@ -21,7 +21,7 @@ export function NotesIntroStep({ onNext, onBack }: NotesIntroStepProps) {
         Notes — your thinking space
       </Text>
       <Text className="text-muted-foreground text-sm mb-8">
-        Journal, plan, and reflect. Everything you write is saved and organized by project.
+        Note, plan, and reflect. Everything you write is saved and organized by project.
       </Text>
 
       <View className="mb-8">

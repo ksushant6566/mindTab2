@@ -18,7 +18,7 @@ import (
 )
 
 // createTestUser inserts a user and returns it; fails the test on error.
-func createTestUser(t *testing.T, ctx context.Context, q *store.Queries) store.MindmapUser {
+func createTestUser(t *testing.T, ctx context.Context, q *store.Queries) store.User {
 	t.Helper()
 	user, err := q.UpsertUser(ctx, store.UpsertUserParams{
 		ID:    "test-user-1",

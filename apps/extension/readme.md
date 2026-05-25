@@ -1,11 +1,11 @@
 # MindTab
 
-MindTab is a lightweight and intuitive Chrome extension designed to make goal tracking and micro journaling as effortless as possible. Set as your default new tab, MindTab seamlessly integrates into your daily browsing experience, providing a clutter-free environment to stay focused on what matters most.
+MindTab is a lightweight and intuitive Chrome extension designed to make task tracking and note capture as effortless as possible. Set as your default new tab, MindTab seamlessly integrates into your daily browsing experience, providing a clutter-free environment to stay focused on what matters most.
 
 ## 🚀 Features
 
-- **Streamlined Goal Tracking**: Easily set, view, and update your goals right from your new tab.
-- **Micro Journaling**: Capture your thoughts, ideas, and reflections in a minimalist journaling space.
+- **Streamlined Task Tracking**: Easily set, view, and update your tasks right from your new tab.
+- **Fast Note Capture**: Capture your thoughts, ideas, and reflections in a minimalist notes space.
 - **Unbloated Experience**: MindTab is designed to be simple and effective, without unnecessary features or distractions.
 - **Seamless Integration**: Installed as a Chrome extension, MindTab becomes your new tab, always accessible whenever you open a new browser window.
 
@@ -17,9 +17,9 @@ MindTab is a lightweight and intuitive Chrome extension designed to make goal tr
 
 ## 🤔 How to Use
 
-1. Set your goals in the dedicated goal tracking section
+1. Set your tasks in the dedicated task tracking section
 2. Effortlessly setup habits you want to track
-3. Use the micro journaling area to jot down quick thoughts or reflections
+3. Use the notes area to jot down quick thoughts or reflections
 4. Enjoy a distraction-free new tab experience focused on your personal growth
 
 ## 🤝 Contributing
@@ -36,4 +36,4 @@ If you encounter any issues or have questions, please file an issue on our [GitH
 
 ---
 
-Stay focused, achieve your goals, and reflect on your journey with MindTab!
+Stay focused, finish your tasks, and reflect on your journey with MindTab!

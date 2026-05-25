@@ -8,11 +8,11 @@ type ToolIndicatorProps = {
 };
 
 const TOOL_NAMES: Record<string, string> = {
-  list_goals: "Checking your goals",
-  get_goal: "Reading goal details",
-  create_goal: "Creating goal",
-  update_goal: "Updating goal",
-  delete_goal: "Deleting goal",
+  list_tasks: "Checking your tasks",
+  get_task: "Reading task details",
+  create_task: "Creating task",
+  update_task: "Updating task",
+  delete_task: "Deleting task",
   list_habits: "Checking your habits",
   get_habit: "Reading habit details",
   create_habit: "Creating habit",
@@ -30,10 +30,6 @@ const TOOL_NAMES: Record<string, string> = {
   get_project: "Reading project",
   create_project: "Creating project",
   update_project: "Updating project",
-  list_journals: "Reading journals",
-  create_journal: "Writing journal entry",
-  update_journal: "Updating journal",
-  delete_journal: "Deleting journal",
   toggle_habit: "Updating habit",
   get_user_profile: "Checking your profile",
 };

@@ -17,7 +17,7 @@ import (
 
 func buildSystemPrompt() string {
 	now := time.Now()
-	return fmt.Sprintf(`You are MindTab, a personal productivity assistant. You have access to the user's goals, habits, journals, projects, and saved vault items.
+	return fmt.Sprintf(`You are MindTab, a personal productivity assistant. You have access to the user's tasks, habits, notes, projects, and saved vault items.
 
 CURRENT DATE & TIME: %s (timezone: %s)
 
@@ -231,7 +231,7 @@ func (o *Orchestrator) HandleMessage(ctx context.Context, userID string, msg WSC
 func (o *Orchestrator) streamWithTools(
 	ctx context.Context,
 	userPrompt string,
-	history []store.MindmapMessage,
+	history []store.Message,
 	writeChan chan<- WSServerMessage,
 	userID string,
 	conversationID pgtype.UUID,
@@ -417,7 +417,7 @@ func (o *Orchestrator) generateTitle(
 
 // buildConversationPrompt converts DB message history into a single text prompt
 // suitable for the LLM. This flattens multi-turn history into a readable format.
-func buildConversationPrompt(messages []store.MindmapMessage) string {
+func buildConversationPrompt(messages []store.Message) string {
 	if len(messages) == 0 {
 		return ""
 	}

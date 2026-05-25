@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -29,6 +30,26 @@ func ReadJSON(r *http.Request, dst any) error {
 	if err := dec.Decode(dst); err != nil {
 		return fmt.Errorf("invalid JSON: %w", err)
 	}
+	return nil
+}
+
+type optionalNullableString struct {
+	Set   bool
+	Value *string
+}
+
+func (s *optionalNullableString) UnmarshalJSON(data []byte) error {
+	s.Set = true
+	if strings.TrimSpace(string(data)) == "null" {
+		s.Value = nil
+		return nil
+	}
+
+	var value string
+	if err := json.Unmarshal(data, &value); err != nil {
+		return err
+	}
+	s.Value = &value
 	return nil
 }
 

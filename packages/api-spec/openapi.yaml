@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: MindTab API
-  description: API for MindTab — goal tracking and micro journaling platform.
+  description: API for MindTab — task tracking and micro-notes platform.
   version: 0.1.0
   contact:
     name: MindTab
@@ -19,14 +19,14 @@ tags:
     description: Authentication endpoints
   - name: Users
     description: User profile management
-  - name: Goals
-    description: Goal CRUD and batch operations
+  - name: Tasks
+    description: Task CRUD and batch operations
   - name: Habits
     description: Habit CRUD and tracking
   - name: HabitTracker
     description: Habit tracking records
-  - name: Journals
-    description: Journal CRUD
+  - name: Notes
+    description: Note CRUD
   - name: Projects
     description: Project CRUD and stats
   - name: Activity
@@ -335,12 +335,12 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
-  # ─── Goals ──────────────────────────────────────────────────────────────
-  /goals:
+  # ─── Tasks ──────────────────────────────────────────────────────────────
+  /tasks:
     get:
-      operationId: listGoals
-      tags: [Goals]
-      summary: List goals
+      operationId: listTasks
+      tags: [Tasks]
+      summary: List tasks
       parameters:
         - name: projectId
           in: query
@@ -354,59 +354,59 @@ paths:
             default: false
       responses:
         "200":
-          description: List of goals
+          description: List of tasks
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/Goal"
+                  $ref: "#/components/schemas/Task"
         "401":
           $ref: "#/components/responses/Unauthorized"
     post:
-      operationId: createGoal
-      tags: [Goals]
-      summary: Create a goal
+      operationId: createTask
+      tags: [Tasks]
+      summary: Create a task
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/GoalCreate"
+              $ref: "#/components/schemas/TaskCreate"
       responses:
         "201":
-          description: Goal created
+          description: Task created
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Goal"
+                $ref: "#/components/schemas/Task"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "422":
           $ref: "#/components/responses/ValidationError"
 
-  /goals/{id}:
+  /tasks/{id}:
     get:
-      operationId: getGoal
-      tags: [Goals]
-      summary: Get a single goal
+      operationId: getTask
+      tags: [Tasks]
+      summary: Get a single task
       parameters:
         - $ref: "#/components/parameters/UuidId"
       responses:
         "200":
-          description: Goal with project summary
+          description: Task with project summary
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Goal"
+                $ref: "#/components/schemas/Task"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
     patch:
-      operationId: updateGoal
-      tags: [Goals]
-      summary: Update a goal
+      operationId: updateTask
+      tags: [Tasks]
+      summary: Update a task
       parameters:
         - $ref: "#/components/parameters/UuidId"
       requestBody:
@@ -414,37 +414,37 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/GoalUpdate"
+              $ref: "#/components/schemas/TaskUpdate"
       responses:
         "200":
-          description: Updated goal
+          description: Updated task
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Goal"
+                $ref: "#/components/schemas/Task"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
     delete:
-      operationId: deleteGoal
-      tags: [Goals]
-      summary: Soft-delete a goal
+      operationId: deleteTask
+      tags: [Tasks]
+      summary: Soft-delete a task
       parameters:
         - $ref: "#/components/parameters/UuidId"
       responses:
         "204":
-          description: Goal deleted
+          description: Task deleted
         "401":
           $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
 
-  /goals/count:
+  /tasks/count:
     get:
-      operationId: countGoals
-      tags: [Goals]
-      summary: Count goals
+      operationId: countTasks
+      tags: [Tasks]
+      summary: Count tasks
       parameters:
         - name: projectId
           in: query
@@ -458,7 +458,7 @@ paths:
             default: false
       responses:
         "200":
-          description: Goal count
+          description: Task count
           content:
             application/json:
               schema:
@@ -470,37 +470,37 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
 
-  /goals/unassigned:
+  /tasks/unassigned:
     get:
-      operationId: listUnassignedGoals
-      tags: [Goals]
-      summary: List goals without a project
+      operationId: listUnassignedTasks
+      tags: [Tasks]
+      summary: List tasks without a project
       responses:
         "200":
-          description: Unassigned goals
+          description: Unassigned tasks
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/Goal"
+                  $ref: "#/components/schemas/Task"
         "401":
           $ref: "#/components/responses/Unauthorized"
 
-  /goals/positions:
+  /tasks/positions:
     patch:
-      operationId: updateGoalPositions
-      tags: [Goals]
-      summary: Batch update goal positions
+      operationId: updateTaskPositions
+      tags: [Tasks]
+      summary: Batch update task positions
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [goals, sequence]
+              required: [tasks, sequence]
               properties:
-                goals:
+                tasks:
                   type: array
                   items:
                     type: object
@@ -512,7 +512,7 @@ paths:
                       position:
                         type: integer
                       status:
-                        $ref: "#/components/schemas/GoalStatus"
+                        $ref: "#/components/schemas/TaskStatus"
                 sequence:
                   type: integer
       responses:
@@ -531,14 +531,14 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
 
-  /goals/archive-completed:
+  /tasks/archive-completed:
     post:
-      operationId: archiveCompletedGoals
-      tags: [Goals]
-      summary: Archive all completed goals
+      operationId: archiveCompletedTasks
+      tags: [Tasks]
+      summary: Archive all completed tasks
       responses:
         "200":
-          description: Completed goals archived
+          description: Completed tasks archived
           content:
             application/json:
               schema:
@@ -735,12 +735,12 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
 
-  # ─── Journals ───────────────────────────────────────────────────────────
-  /journals:
+  # ─── Notes ───────────────────────────────────────────────────────────
+  /notes:
     get:
-      operationId: listJournals
-      tags: [Journals]
-      summary: List journals
+      operationId: listNotes
+      tags: [Notes]
+      summary: List notes
       parameters:
         - name: projectId
           in: query
@@ -749,63 +749,63 @@ paths:
             format: uuid
       responses:
         "200":
-          description: List of journals
+          description: List of notes
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/Journal"
+                  $ref: "#/components/schemas/Note"
         "401":
           $ref: "#/components/responses/Unauthorized"
     post:
-      operationId: createJournal
-      tags: [Journals]
-      summary: Create a journal
+      operationId: createNote
+      tags: [Notes]
+      summary: Create a note
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/JournalCreate"
+              $ref: "#/components/schemas/NoteCreate"
       responses:
         "201":
-          description: Journal created
+          description: Note created
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Journal"
+                $ref: "#/components/schemas/Note"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "409":
-          description: Duplicate journal title
+          description: Duplicate note title
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
 
-  /journals/{id}:
+  /notes/{id}:
     get:
-      operationId: getJournal
-      tags: [Journals]
-      summary: Get a single journal
+      operationId: getNote
+      tags: [Notes]
+      summary: Get a single note
       parameters:
         - $ref: "#/components/parameters/UuidId"
       responses:
         "200":
-          description: Journal with project summary
+          description: Note with project summary
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Journal"
+                $ref: "#/components/schemas/Note"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
     patch:
-      operationId: updateJournal
-      tags: [Journals]
-      summary: Update a journal
+      operationId: updateNote
+      tags: [Notes]
+      summary: Update a note
       parameters:
         - $ref: "#/components/parameters/UuidId"
       requestBody:
@@ -813,46 +813,46 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/JournalUpdate"
+              $ref: "#/components/schemas/NoteUpdate"
       responses:
         "200":
-          description: Updated journal
+          description: Updated note
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Journal"
+                $ref: "#/components/schemas/Note"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
         "409":
-          description: Duplicate journal title
+          description: Duplicate note title
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
     delete:
-      operationId: deleteJournal
-      tags: [Journals]
-      summary: Hard-delete a journal
+      operationId: deleteNote
+      tags: [Notes]
+      summary: Hard-delete a note
       parameters:
         - $ref: "#/components/parameters/UuidId"
       responses:
         "204":
-          description: Journal deleted
+          description: Note deleted
         "401":
           $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
 
-  /journals/count:
+  /notes/count:
     get:
-      operationId: countJournals
-      tags: [Journals]
-      summary: Count journals
+      operationId: countNotes
+      tags: [Notes]
+      summary: Count notes
       responses:
         "200":
-          description: Journal count
+          description: Note count
           content:
             application/json:
               schema:
@@ -869,7 +869,7 @@ paths:
     get:
       operationId: listProjects
       tags: [Projects]
-      summary: List projects with nested goals
+      summary: List projects with nested tasks
       parameters:
         - name: includeArchived
           in: query
@@ -917,7 +917,7 @@ paths:
     get:
       operationId: getProject
       tags: [Projects]
-      summary: Get a project with nested goals
+      summary: Get a project with nested tasks
       parameters:
         - $ref: "#/components/parameters/UuidId"
       responses:
@@ -957,7 +957,7 @@ paths:
     delete:
       operationId: deleteProject
       tags: [Projects]
-      summary: Soft-delete a project (cascades to goals and journals)
+      summary: Soft-delete a project (cascades to tasks and notes)
       parameters:
         - $ref: "#/components/parameters/UuidId"
       responses:
@@ -980,7 +980,7 @@ paths:
     get:
       operationId: getProjectStats
       tags: [Projects]
-      summary: List projects with goal and journal counts
+      summary: List projects with task and note counts
       responses:
         "200":
           description: Projects with stats
@@ -1043,11 +1043,11 @@ paths:
                 $ref: "#/components/schemas/Error"
 
   # ─── Search ─────────────────────────────────────────────────────────────
-  /search/goals:
+  /search/tasks:
     get:
-      operationId: searchGoals
+      operationId: searchTasks
       tags: [Search]
-      summary: Search goals by title (max 5 results)
+      summary: Search tasks by title (max 5 results)
       parameters:
         - name: q
           in: query
@@ -1057,14 +1057,14 @@ paths:
             minLength: 1
       responses:
         "200":
-          description: Matching goals
+          description: Matching tasks
           content:
             application/json:
               schema:
                 type: array
                 maxItems: 5
                 items:
-                  $ref: "#/components/schemas/Goal"
+                  $ref: "#/components/schemas/Task"
         "401":
           $ref: "#/components/responses/Unauthorized"
 
@@ -1093,11 +1093,11 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
 
-  /search/journals:
+  /search/notes:
     get:
-      operationId: searchJournals
+      operationId: searchNotes
       tags: [Search]
-      summary: Search journals by title (max 5 results)
+      summary: Search notes by title (max 5 results)
       parameters:
         - name: q
           in: query
@@ -1107,14 +1107,14 @@ paths:
             minLength: 1
       responses:
         "200":
-          description: Matching journals
+          description: Matching notes
           content:
             application/json:
               schema:
                 type: array
                 maxItems: 5
                 items:
-                  $ref: "#/components/schemas/Journal"
+                  $ref: "#/components/schemas/Note"
         "401":
           $ref: "#/components/responses/Unauthorized"
 
@@ -1524,15 +1524,15 @@ components:
   # ─── Schemas ──────────────────────────────────────────────────────────
   schemas:
     # ── Enums ──────────────────────────────────────────────────────────
-    GoalStatus:
+    TaskStatus:
       type: string
       enum: [pending, in_progress, completed, archived]
 
-    GoalPriority:
+    TaskPriority:
       type: string
       enum: [priority_1, priority_2, priority_3, priority_4]
 
-    GoalImpact:
+    TaskImpact:
       type: string
       enum: [low, medium, high]
 
@@ -1544,7 +1544,7 @@ components:
       type: string
       enum: [pending, completed]
 
-    JournalType:
+    NoteType:
       type: string
       enum: [article, book, video, podcast, website]
 
@@ -1631,8 +1631,8 @@ components:
           format: date-time
           nullable: true
 
-    # ── Goal ───────────────────────────────────────────────────────────
-    Goal:
+    # ── Task ───────────────────────────────────────────────────────────
+    Task:
       type: object
       required: [id, status, priority, impact, position, createdAt]
       properties:
@@ -1646,11 +1646,11 @@ components:
           type: string
           nullable: true
         status:
-          $ref: "#/components/schemas/GoalStatus"
+          $ref: "#/components/schemas/TaskStatus"
         priority:
-          $ref: "#/components/schemas/GoalPriority"
+          $ref: "#/components/schemas/TaskPriority"
         impact:
-          $ref: "#/components/schemas/GoalImpact"
+          $ref: "#/components/schemas/TaskImpact"
         position:
           type: integer
         projectId:
@@ -1671,7 +1671,7 @@ components:
           format: date-time
           nullable: true
 
-    GoalCreate:
+    TaskCreate:
       type: object
       required: [title]
       properties:
@@ -1681,11 +1681,11 @@ components:
         description:
           type: string
         status:
-          $ref: "#/components/schemas/GoalStatus"
+          $ref: "#/components/schemas/TaskStatus"
         priority:
-          $ref: "#/components/schemas/GoalPriority"
+          $ref: "#/components/schemas/TaskPriority"
         impact:
-          $ref: "#/components/schemas/GoalImpact"
+          $ref: "#/components/schemas/TaskImpact"
         position:
           type: integer
         projectId:
@@ -1696,7 +1696,7 @@ components:
           type: string
           format: date-time
 
-    GoalUpdate:
+    TaskUpdate:
       type: object
       properties:
         title:
@@ -1706,11 +1706,11 @@ components:
           type: string
           nullable: true
         status:
-          $ref: "#/components/schemas/GoalStatus"
+          $ref: "#/components/schemas/TaskStatus"
         priority:
-          $ref: "#/components/schemas/GoalPriority"
+          $ref: "#/components/schemas/TaskPriority"
         impact:
-          $ref: "#/components/schemas/GoalImpact"
+          $ref: "#/components/schemas/TaskImpact"
         position:
           type: integer
         projectId:
@@ -1801,8 +1801,8 @@ components:
           format: date-time
           nullable: true
 
-    # ── Journal ────────────────────────────────────────────────────────
-    Journal:
+    # ── Note ────────────────────────────────────────────────────────
+    Note:
       type: object
       required: [id, title, content, type, source, createdAt]
       properties:
@@ -1814,7 +1814,7 @@ components:
         content:
           type: string
         type:
-          $ref: "#/components/schemas/JournalType"
+          $ref: "#/components/schemas/NoteType"
         source:
           type: string
         projectId:
@@ -1839,7 +1839,7 @@ components:
           format: date-time
           nullable: true
 
-    JournalCreate:
+    NoteCreate:
       type: object
       required: [title, content]
       properties:
@@ -1855,7 +1855,7 @@ components:
           format: uuid
           nullable: true
 
-    JournalUpdate:
+    NoteUpdate:
       type: object
       properties:
         title:
@@ -1866,7 +1866,7 @@ components:
           type: string
           minLength: 1
         type:
-          $ref: "#/components/schemas/JournalType"
+          $ref: "#/components/schemas/NoteType"
         source:
           type: string
         projectId:
@@ -1923,10 +1923,10 @@ components:
           type: string
           format: date-time
           nullable: true
-        goals:
+        tasks:
           type: array
           items:
-            $ref: "#/components/schemas/Goal"
+            $ref: "#/components/schemas/Task"
 
     ProjectCreate:
       type: object
@@ -1970,9 +1970,9 @@ components:
       allOf:
         - $ref: "#/components/schemas/Project"
         - type: object
-          required: [goalStats, journalStats]
+          required: [taskStats, noteStats]
           properties:
-            goalStats:
+            taskStats:
               type: object
               required: [total, pending, inProgress, completed]
               properties:
@@ -1984,7 +1984,7 @@ components:
                   type: integer
                 completed:
                   type: integer
-            journalStats:
+            noteStats:
               type: object
               required: [total]
               properties:
@@ -2004,24 +2004,24 @@ components:
         details:
           type: object
           required:
-            - goalsCreated
-            - goalsCompleted
+            - tasksCreated
+            - tasksCompleted
             - habitsCreated
             - habitsMarked
-            - journalsCreated
-            - journalsUpdated
+            - notesCreated
+            - notesUpdated
           properties:
-            goalsCreated:
+            tasksCreated:
               type: integer
-            goalsCompleted:
+            tasksCompleted:
               type: integer
             habitsCreated:
               type: integer
             habitsMarked:
               type: integer
-            journalsCreated:
+            notesCreated:
               type: integer
-            journalsUpdated:
+            notesUpdated:
               type: integer
 
     # ── Sync ───────────────────────────────────────────────────────────

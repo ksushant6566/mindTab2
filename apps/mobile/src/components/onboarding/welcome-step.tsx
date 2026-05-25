@@ -10,9 +10,9 @@ type WelcomeStepProps = {
 
 const features = [
   { icon: FolderOpen, label: "Projects", desc: "Organize areas of your life" },
-  { icon: Target, label: "Goals", desc: "Track progress with priorities" },
+  { icon: Target, label: "Tasks", desc: "Track progress with priorities" },
   { icon: CheckSquare, label: "Habits", desc: "Build streaks and earn XP" },
-  { icon: FileEdit, label: "Notes", desc: "Journal and reflect" },
+  { icon: FileEdit, label: "Notes", desc: "Note and reflect" },
 ];
 
 export function WelcomeStep({ userName, onNext }: WelcomeStepProps) {

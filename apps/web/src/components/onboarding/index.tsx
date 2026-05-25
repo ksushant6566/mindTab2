@@ -6,7 +6,7 @@ import { api } from "~/api/client";
 
 import { WelcomeStep } from "./welcome-step";
 import { CreateProjectStep } from "./create-project-step";
-import { CreateGoalStep, type CreatedGoalData } from "./create-goal-step";
+import { CreateTaskStep, type CreatedTaskData } from "./create-task-step";
 import { CreateHabitStep, type CreatedHabitData } from "./create-habit-step";
 import { NotesIntroStep } from "./notes-intro-step";
 import { ChromeExtensionStep } from "./chrome-extension-step";
@@ -17,7 +17,7 @@ const TOTAL_STEPS = 7;
 const STEP_LABELS = [
     "Welcome",
     "Project",
-    "Goal",
+    "Task",
     "Habit",
     "Notes",
     "Extension",
@@ -59,7 +59,7 @@ export function Onboarding({ userName, onComplete }: OnboardingProps) {
     // Data passed between steps
     const [createdProjectId, setCreatedProjectId] = useState<string | null>(null);
     const [createdProjectName, setCreatedProjectName] = useState<string | null>(null);
-    const [createdGoalData, setCreatedGoalData] = useState<CreatedGoalData | null>(null);
+    const [createdTaskData, setCreatedTaskData] = useState<CreatedTaskData | null>(null);
     const [createdHabitData, setCreatedHabitData] = useState<CreatedHabitData | null>(null);
 
     const handleNext = () => {
@@ -78,8 +78,8 @@ export function Onboarding({ userName, onComplete }: OnboardingProps) {
         handleNext();
     };
 
-    const handleGoalCreated = (data: CreatedGoalData) => {
-        setCreatedGoalData(data);
+    const handleTaskCreated = (data: CreatedTaskData) => {
+        setCreatedTaskData(data);
         handleNext();
     };
 
@@ -258,12 +258,12 @@ export function Onboarding({ userName, onComplete }: OnboardingProps) {
                         )}
 
                         {currentStep === 3 && (
-                            <CreateGoalStep
+                            <CreateTaskStep
                                 projectId={createdProjectId}
                                 projectName={createdProjectName}
-                                onGoalCreated={handleGoalCreated}
+                                onTaskCreated={handleTaskCreated}
                                 onBack={handleBack}
-                                initialData={createdGoalData}
+                                initialData={createdTaskData}
                             />
                         )}
 
@@ -278,7 +278,7 @@ export function Onboarding({ userName, onComplete }: OnboardingProps) {
 
                         {currentStep === 5 && (
                             <NotesIntroStep
-                                goalTitle={createdGoalData?.title ?? null}
+                                taskTitle={createdTaskData?.title ?? null}
                                 onNext={handleNext}
                                 onBack={handleBack}
                             />

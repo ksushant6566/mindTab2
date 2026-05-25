@@ -18,8 +18,8 @@ type mockTool struct {
 	execute     func(context.Context, string, any) (any, error)
 }
 
-func (m *mockTool) Name() string        { return m.name }
-func (m *mockTool) Description() string { return m.description }
+func (m *mockTool) Name() string               { return m.name }
+func (m *mockTool) Description() string        { return m.description }
 func (m *mockTool) Schema() llm.ToolDefinition { return m.schema }
 func (m *mockTool) ParseArgs(raw json.RawMessage) (any, error) {
 	return m.parseArgs(raw)

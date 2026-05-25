@@ -5,17 +5,17 @@ import { motion } from "framer-motion";
 import { TipTapEditor } from "~/components/text-editor";
 
 type NotesIntroStepProps = {
-    goalTitle: string | null;
+    taskTitle: string | null;
     onNext: () => void;
     onBack: () => void;
 };
 
-function getNotesContent(goalTitle: string) {
-    return `<h3>What you can do with Notes</h3><p>Notes are your space to think, plan, and reflect. Everything you write is <strong>saved automatically</strong> and organized by project.</p><h3>Rich formatting</h3><p>You can write in <strong>bold</strong>, <em>italic</em>, <s>strikethrough</s>, or use <code>inline code</code> for technical notes. Structure your thoughts with headings, lists, and more.</p><ul><li><p>Bullet lists for quick ideas</p></li><li><p>Nested thoughts and outlines</p></li></ul><ol><li><p>Numbered steps for processes</p></li><li><p>Sequential instructions</p></li></ol><blockquote><p>"The faintest ink is more powerful than the strongest memory." — Start writing, and your future self will thank you.</p></blockquote><h3>@mentions</h3><p>Link your notes to anything in your workspace. Type <code>@</code> to reference goals, habits, and other notes. For example, you could mention your goal <strong>${goalTitle}</strong> and it becomes a clickable link in your note.</p><p>Notes pair with everything else in MindTab — use them to plan goals, log habit reflections, or just capture what's on your mind.</p>`;
+function getNotesContent(taskTitle: string) {
+    return `<h3>What you can do with Notes</h3><p>Notes are your space to think, plan, and reflect. Everything you write is <strong>saved automatically</strong> and organized by project.</p><h3>Rich formatting</h3><p>You can write in <strong>bold</strong>, <em>italic</em>, <s>strikethrough</s>, or use <code>inline code</code> for technical notes. Structure your thoughts with headings, lists, and more.</p><ul><li><p>Bullet lists for quick ideas</p></li><li><p>Nested thoughts and outlines</p></li></ul><ol><li><p>Numbered steps for processes</p></li><li><p>Sequential instructions</p></li></ol><blockquote><p>"The faintest ink is more powerful than the strongest memory." — Start writing, and your future self will thank you.</p></blockquote><h3>@mentions</h3><p>Link your notes to anything in your workspace. Type <code>@</code> to reference tasks, habits, and other notes. For example, you could mention your task <strong>${taskTitle}</strong> and it becomes a clickable link in your note.</p><p>Notes pair with everything else in MindTab — use them to plan tasks, log habit reflections, or just capture what's on your mind.</p>`;
 }
 
-export function NotesIntroStep({ goalTitle, onNext, onBack }: NotesIntroStepProps) {
-    const mentionText = goalTitle ?? "Learn TypeScript";
+export function NotesIntroStep({ taskTitle, onNext, onBack }: NotesIntroStepProps) {
+    const mentionText = taskTitle ?? "Learn TypeScript";
     const [title, setTitle] = useState("Notes — your thinking space");
     const [content, setContent] = useState(() => getNotesContent(mentionText));
 

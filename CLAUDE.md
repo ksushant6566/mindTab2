@@ -1,6 +1,6 @@
 # MindTab
 
-Cross-platform monorepo for goal tracking and micro journaling. Available at [mindtab.in](https://mindtab.in).
+Cross-platform monorepo for task tracking and notes. Available at [mindtab.in](https://mindtab.in).
 
 ## Tech Stack
 
@@ -80,7 +80,7 @@ migrate -path migrations -database $DATABASE_URL down           # Roll back migr
 - OpenAPI spec is the source of truth for API types
 - sqlc for type-safe Go database queries
 - Path alias: `~/` maps to `src/` in the web app
-- Database tables prefixed with `mindmap_`
+- Database tables use clean domain names; historical migrations still include legacy table names
 
 ## Domains
 

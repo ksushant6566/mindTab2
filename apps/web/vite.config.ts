@@ -17,10 +17,10 @@ export default defineConfig({
     proxy: {
       "/auth": apiUrl,
       "/users": apiUrl,
-      "/goals": apiUrl,
+      "/tasks": apiUrl,
       "/habits": apiUrl,
       "/habit-tracker": apiUrl,
-      "/journals": apiUrl,
+      "/notes": apiUrl,
       "/projects": apiUrl,
       "/activity": apiUrl,
       "/search": apiUrl,

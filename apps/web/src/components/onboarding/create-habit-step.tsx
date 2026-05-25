@@ -36,7 +36,7 @@ const PRESET_HABITS = [
     { title: "Read", description: "Read for 30 minutes", icon: BookOpen },
     { title: "Meditate", description: "Practice mindfulness", icon: Brain },
     { title: "Drink Water", description: "Stay hydrated", icon: Droplets },
-    { title: "Journal", description: "Write daily reflections", icon: PenLine },
+    { title: "Note", description: "Write daily reflections", icon: PenLine },
     { title: "Sleep Early", description: "Lights off by 11pm", icon: Moon },
     { title: "Eat Healthy", description: "No junk food", icon: Salad },
 ];

@@ -1,4 +1,4 @@
-export * from "./goals";
+export * from "./tasks";
 export * from "./habits";
-export * from "./journals";
+export * from "./notes";
 export * from "./projects";

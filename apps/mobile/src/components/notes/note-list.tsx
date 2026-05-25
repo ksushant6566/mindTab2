@@ -1,6 +1,6 @@
 import { FlatList, RefreshControl } from "react-native";
 import { useQuery } from "@tanstack/react-query";
-import { journalsQueryOptions } from "@mindtab/core";
+import { notesQueryOptions } from "@mindtab/core";
 import { api } from "~/lib/api-client";
 import { NoteCard } from "./note-card";
 import { EmptyState } from "~/components/ui/empty-state";
@@ -16,7 +16,7 @@ type Note = {
 };
 
 export function NoteList() {
-  const { data: notes = [], isLoading, isFetching, refetch } = useQuery(journalsQueryOptions(api));
+  const { data: notes = [], isLoading, isFetching, refetch } = useQuery(notesQueryOptions(api));
 
   if (isLoading) return <Loading />;
 

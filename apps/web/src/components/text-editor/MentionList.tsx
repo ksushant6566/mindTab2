@@ -27,7 +27,7 @@ const MentionList: ForwardRefRenderFunction<MentionListRef, MentionListProps> = 
 
         if (item) {
             const resourceType = item.resourceType
-            props.command({ id: `${resourceType}:${item.id}`, label: `${resourceType.replace('journal', 'note')}:${item.title}` })
+            props.command({ id: `${resourceType}:${item.id}`, label: `${resourceType.replace('note', 'note')}:${item.title}` })
         }
     }
 
@@ -112,7 +112,7 @@ const MentionList: ForwardRefRenderFunction<MentionListRef, MentionListProps> = 
                                     getResourceClassName(item.resourceType)
                                 )}>
                                     <MentionIcon type={item.resourceType} />
-                                    {item.resourceType.replace('journal', 'note')}
+                                    {item.resourceType.replace('note', 'note')}
                                 </span>
                                 {item.status && (
                                     <span className={cn(
@@ -135,13 +135,13 @@ const MentionList: ForwardRefRenderFunction<MentionListRef, MentionListProps> = 
 export default forwardRef(MentionList)
 
 function MentionIcon({ type }: { type: string }) {
-    if (type === 'goal') return <Target className="h-3 w-3" />
+    if (type === 'task') return <Target className="h-3 w-3" />
     if (type === 'habit') return <Repeat2 className="h-3 w-3" />
     return <FileText className="h-3 w-3" />
 }
 
 function getResourceClassName(type: string) {
-    if (type === 'goal') return 'text-[var(--green)]'
+    if (type === 'task') return 'text-[var(--green)]'
     if (type === 'habit') return 'text-[var(--cyan)]'
     return 'text-[var(--amber)]'
 }

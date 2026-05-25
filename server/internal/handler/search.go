@@ -20,29 +20,29 @@ func NewSearchHandler(queries store.Querier) *SearchHandler {
 	return &SearchHandler{queries: queries}
 }
 
-// Goals handles GET /search/goals?q=.
-func (h *SearchHandler) Goals(w http.ResponseWriter, r *http.Request) {
+// Tasks handles GET /search/tasks?q=.
+func (h *SearchHandler) Tasks(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.UserIDFromContext(r.Context())
 	q := r.URL.Query().Get("q")
 
 	if q == "" {
-		WriteJSON(w, http.StatusOK, []goalJSON{})
+		WriteJSON(w, http.StatusOK, []taskJSON{})
 		return
 	}
 
-	goals, err := h.queries.SearchGoals(r.Context(), store.SearchGoalsParams{
+	tasks, err := h.queries.SearchTasks(r.Context(), store.SearchTasksParams{
 		UserID:  userID,
 		Column2: pgtype.Text{String: q, Valid: true},
 	})
 	if err != nil {
-		slog.Error("failed to search goals", "error", err)
-		WriteError(w, http.StatusInternalServerError, "failed to search goals")
+		slog.Error("failed to search tasks", "error", err)
+		WriteError(w, http.StatusInternalServerError, "failed to search tasks")
 		return
 	}
 
-	result := make([]goalJSON, 0, len(goals))
-	for _, g := range goals {
-		result = append(result, goalFromModel(g))
+	result := make([]taskJSON, 0, len(tasks))
+	for _, g := range tasks {
+		result = append(result, taskFromModel(g))
 	}
 
 	WriteJSON(w, http.StatusOK, result)
@@ -76,29 +76,29 @@ func (h *SearchHandler) Habits(w http.ResponseWriter, r *http.Request) {
 	WriteJSON(w, http.StatusOK, result)
 }
 
-// Journals handles GET /search/journals?q=.
-func (h *SearchHandler) Journals(w http.ResponseWriter, r *http.Request) {
+// Notes handles GET /search/notes?q=.
+func (h *SearchHandler) Notes(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.UserIDFromContext(r.Context())
 	q := r.URL.Query().Get("q")
 
 	if q == "" {
-		WriteJSON(w, http.StatusOK, []journalJSON{})
+		WriteJSON(w, http.StatusOK, []noteJSON{})
 		return
 	}
 
-	journals, err := h.queries.SearchJournals(r.Context(), store.SearchJournalsParams{
+	notes, err := h.queries.SearchNotes(r.Context(), store.SearchNotesParams{
 		UserID:  userID,
 		Column2: pgtype.Text{String: q, Valid: true},
 	})
 	if err != nil {
-		slog.Error("failed to search journals", "error", err)
-		WriteError(w, http.StatusInternalServerError, "failed to search journals")
+		slog.Error("failed to search notes", "error", err)
+		WriteError(w, http.StatusInternalServerError, "failed to search notes")
 		return
 	}
 
-	result := make([]journalJSON, 0, len(journals))
-	for _, j := range journals {
-		result = append(result, journalFromModel(j))
+	result := make([]noteJSON, 0, len(notes))
+	for _, j := range notes {
+		result = append(result, noteFromModel(j))
 	}
 
 	WriteJSON(w, http.StatusOK, result)

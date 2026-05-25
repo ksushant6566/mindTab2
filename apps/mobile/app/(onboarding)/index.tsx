@@ -13,14 +13,14 @@ import { toast } from "sonner-native";
 
 import { WelcomeStep } from "~/components/onboarding/welcome-step";
 import { CreateProjectStep } from "~/components/onboarding/create-project-step";
-import { CreateGoalStep } from "~/components/onboarding/create-goal-step";
+import { CreateTaskStep } from "~/components/onboarding/create-task-step";
 import { CreateHabitStep } from "~/components/onboarding/create-habit-step";
 import { NotesIntroStep } from "~/components/onboarding/notes-intro-step";
 import { ExtensionStep } from "~/components/onboarding/extension-step";
 import { CompleteStep } from "~/components/onboarding/complete-step";
 
 const TOTAL_STEPS = 7;
-const STEP_LABELS = ["Welcome", "Project", "Goal", "Habit", "Notes", "Extension", "Complete"];
+const STEP_LABELS = ["Welcome", "Project", "Task", "Habit", "Notes", "Extension", "Complete"];
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 export default function OnboardingScreen() {
@@ -61,7 +61,7 @@ export default function OnboardingScreen() {
     handleNext();
   }, [handleNext]);
 
-  const handleGoalCreated = useCallback(() => {
+  const handleTaskCreated = useCallback(() => {
     handleNext();
   }, [handleNext]);
 
@@ -76,7 +76,7 @@ export default function OnboardingScreen() {
         body: { onboardingCompleted: true },
       });
       if (error) throw error;
-      router.replace("/(main)/goals");
+      router.replace("/(main)/tasks");
     } catch {
       toast.error("Failed to complete onboarding");
       setIsCompleting(false);
@@ -128,9 +128,9 @@ export default function OnboardingScreen() {
           />
         </View>
         <View style={{ width: SCREEN_WIDTH }}>
-          <CreateGoalStep
+          <CreateTaskStep
             projectId={createdProjectId}
-            onGoalCreated={handleGoalCreated}
+            onTaskCreated={handleTaskCreated}
             onBack={handleBack}
           />
         </View>

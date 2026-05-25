@@ -24,7 +24,7 @@ export function ProjectList() {
       <EmptyState
         icon={FolderOpen}
         title="No projects yet"
-        description="Create a project to organize your goals and notes."
+        description="Create a project to organize your tasks and notes."
       />
     );
   }

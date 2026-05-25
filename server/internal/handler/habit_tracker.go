@@ -28,7 +28,7 @@ type habitTrackerJSON struct {
 	UpdatedAt *time.Time `json:"updatedAt"`
 }
 
-func habitTrackerFromModel(ht store.MindmapHabitTracker) habitTrackerJSON {
+func habitTrackerFromModel(ht store.HabitRecord) habitTrackerJSON {
 	return habitTrackerJSON{
 		ID:        uuidToString(ht.ID),
 		HabitID:   uuidToString(ht.HabitID),

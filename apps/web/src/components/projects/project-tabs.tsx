@@ -16,8 +16,8 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import {
     projectsStatsQueryOptions,
-    goalsCountQueryOptions,
-    journalsCountQueryOptions,
+    tasksCountQueryOptions,
+    notesCountQueryOptions,
     useCreateProject,
     useUpdateProject,
     useDeleteProject,
@@ -31,14 +31,14 @@ type ProjectTabsProps = {
     activeProjectId: string | null;
     onProjectChange: (projectId: string | null) => void;
     layoutVersion: number;
-    activeTab?: "Goals" | "Notes" | "Habits";
+    activeTab?: "Tasks" | "Notes" | "Habits";
 };
 
 export const ProjectTabs: React.FC<ProjectTabsProps> = ({
     activeProjectId,
     onProjectChange,
     layoutVersion,
-    activeTab = "Goals",
+    activeTab = "Tasks",
 }) => {
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
     const [editingProject, setEditingProject] = useState<any>(null);
@@ -57,8 +57,8 @@ export const ProjectTabs: React.FC<ProjectTabsProps> = ({
 
     const { mutateAsync: archiveProject } = useArchiveProject();
 
-    const { data: goalsCount } = useQuery(goalsCountQueryOptions());
-    const { data: journalsCount } = useQuery(journalsCountQueryOptions());
+    const { data: tasksCount } = useQuery(tasksCountQueryOptions());
+    const { data: notesCount } = useQuery(notesCountQueryOptions());
 
     const handleCreateProject = async (project: any) => {
         await createProject(project);
@@ -73,7 +73,7 @@ export const ProjectTabs: React.FC<ProjectTabsProps> = ({
     const handleDeleteProject = async (projectId: string) => {
         if (
             confirm(
-                "Are you sure you want to delete this project? Goals and Notes in this project will be deleted."
+                "Are you sure you want to delete this project? Tasks and Notes in this project will be deleted."
             )
         ) {
             await deleteProject(projectId);
@@ -86,7 +86,7 @@ export const ProjectTabs: React.FC<ProjectTabsProps> = ({
     const handleArchiveProject = async (projectId: string) => {
         if (
             confirm(
-                "Are you sure you want to archive this project? Goals and Notes in this project will be archived."
+                "Are you sure you want to archive this project? Tasks and Notes in this project will be archived."
             )
         ) {
             await archiveProject(projectId);
@@ -125,11 +125,11 @@ export const ProjectTabs: React.FC<ProjectTabsProps> = ({
                         {projects && (
                             <span className="text-xs opacity-70">
                                 (
-                                {activeTab === "Goals"
-                                    ? ((goalsCount as any) ?? 0)
+                                {activeTab === "Tasks"
+                                    ? ((tasksCount as any) ?? 0)
                                     : activeTab === "Notes"
-                                      ? ((journalsCount as any) ?? 0)
-                                      : ((goalsCount as any) ?? 0)}
+                                      ? ((notesCount as any) ?? 0)
+                                      : ((tasksCount as any) ?? 0)}
                                 )
                             </span>
                         )}
@@ -153,12 +153,12 @@ export const ProjectTabs: React.FC<ProjectTabsProps> = ({
                                 <span>{project.name || "Unnamed Project"}</span>
                                 <span className="text-xs opacity-70">
                                     (
-                                    {activeTab === "Goals"
-                                        ? project.goalStats?.total ?? 0
+                                    {activeTab === "Tasks"
+                                        ? project.taskStats?.total ?? 0
                                         : activeTab === "Notes"
-                                          ? project.journalCount ?? 0
-                                          : (project.goalStats?.total ?? 0) +
-                                            (project.journalCount ?? 0)}
+                                          ? project.noteCount ?? 0
+                                          : (project.taskStats?.total ?? 0) +
+                                            (project.noteCount ?? 0)}
                                     )
                                 </span>
                                 <DropdownMenu>

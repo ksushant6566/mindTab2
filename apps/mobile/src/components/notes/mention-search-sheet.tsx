@@ -14,9 +14,9 @@ import BottomSheet, {
 } from "@gorhom/bottom-sheet";
 import { useQuery } from "@tanstack/react-query";
 import {
-  searchGoalsQueryOptions,
+  searchTasksQueryOptions,
   searchHabitsQueryOptions,
-  searchJournalsQueryOptions,
+  searchNotesQueryOptions,
 } from "@mindtab/core";
 import { Target, Repeat, FileText, Search } from "lucide-react-native";
 import { colors } from "~/styles/colors";
@@ -27,7 +27,7 @@ import { api } from "~/lib/api-client";
 // ---------------------------------------------------------------------------
 
 export type MentionResult = {
-  type: "goal" | "habit" | "note";
+  type: "task" | "habit" | "note";
   id: string;
   title: string;
 };
@@ -53,14 +53,14 @@ export const MentionSearchSheet = forwardRef<BottomSheet, MentionSearchSheetProp
       return () => clearTimeout(t);
     }, [query]);
 
-    const { data: goals = [] } = useQuery(searchGoalsQueryOptions(api, debouncedQuery));
+    const { data: tasks = [] } = useQuery(searchTasksQueryOptions(api, debouncedQuery));
     const { data: habits = [] } = useQuery(searchHabitsQueryOptions(api, debouncedQuery));
-    const { data: notes = [] } = useQuery(searchJournalsQueryOptions(api, debouncedQuery));
+    const { data: notes = [] } = useQuery(searchNotesQueryOptions(api, debouncedQuery));
 
     const results: MentionResult[] = useMemo(() => {
       const items: MentionResult[] = [];
-      for (const g of goals as any[]) {
-        items.push({ type: "goal", id: g.id, title: g.title || "Untitled" });
+      for (const g of tasks as any[]) {
+        items.push({ type: "task", id: g.id, title: g.title || "Untitled" });
       }
       for (const h of habits as any[]) {
         items.push({ type: "habit", id: h.id, title: h.name || h.title || "Untitled" });
@@ -69,7 +69,7 @@ export const MentionSearchSheet = forwardRef<BottomSheet, MentionSearchSheetProp
         items.push({ type: "note", id: n.id, title: n.title || "Untitled" });
       }
       return items;
-    }, [goals, habits, notes]);
+    }, [tasks, habits, notes]);
 
     const renderBackdrop = useCallback(
       (props: BottomSheetBackdropProps) => (
@@ -83,10 +83,10 @@ export const MentionSearchSheet = forwardRef<BottomSheet, MentionSearchSheetProp
       [],
     );
 
-    const typeIcon = (type: "goal" | "habit" | "note") => {
+    const typeIcon = (type: "task" | "habit" | "note") => {
       const size = 16;
       switch (type) {
-        case "goal":
+        case "task":
           return <Target size={size} color={colors.accent.indigo} />;
         case "habit":
           return <Repeat size={size} color={colors.feedback.success} />;
@@ -143,7 +143,7 @@ export const MentionSearchSheet = forwardRef<BottomSheet, MentionSearchSheetProp
               ref={inputRef}
               value={query}
               onChangeText={setQuery}
-              placeholder="Search goals, habits, notes..."
+              placeholder="Search tasks, habits, notes..."
               placeholderTextColor={colors.text.muted}
               style={styles.searchInput}
             />
@@ -159,7 +159,7 @@ export const MentionSearchSheet = forwardRef<BottomSheet, MentionSearchSheetProp
                 <Text style={styles.emptyText}>No results</Text>
               ) : (
                 <Text style={styles.emptyText}>
-                  Type to search for goals, habits, or notes
+                  Type to search for tasks, habits, or notes
                 </Text>
               )
             }
