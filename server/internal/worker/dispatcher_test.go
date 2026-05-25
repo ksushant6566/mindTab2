@@ -61,7 +61,7 @@ func newTestDispatcher(t *testing.T, client *redis.Client, queries store.Querier
 	t.Helper()
 	consumer := queue.NewConsumer(client)
 	retry := queue.NewRetryScheduler(client, slog.Default())
-	return NewDispatcher(consumer, retry, queries, slog.Default(), 1)
+	return NewDispatcher(consumer, retry, queries, slog.Default(), 1, WithDequeueTimeout(50*time.Millisecond))
 }
 
 func TestDispatcherCleanupVideoTempDirUsesConfiguredPath(t *testing.T) {
@@ -80,6 +80,37 @@ func TestDispatcherCleanupVideoTempDirUsesConfiguredPath(t *testing.T) {
 
 	if _, err := os.Stat(tempDir); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("temp dir still exists or unexpected stat error: %v", err)
+	}
+}
+
+func TestDispatcherOptionsSetDequeueTimeout(t *testing.T) {
+	d := NewDispatcher(
+		nil,
+		nil,
+		nil,
+		slog.Default(),
+		1,
+		WithDequeueTimeout(30*time.Second),
+		WithRetryPollInterval(45*time.Second),
+	)
+
+	if d.dequeueTimeout != 30*time.Second {
+		t.Fatalf("dequeueTimeout = %s, want 30s", d.dequeueTimeout)
+	}
+	if d.retryPollInterval != 45*time.Second {
+		t.Fatalf("retryPollInterval = %s, want 45s", d.retryPollInterval)
+	}
+}
+
+func TestNextDequeueErrorBackoffCapsAtMaximum(t *testing.T) {
+	if got := nextDequeueErrorBackoff(0); got != initialDequeueErrorBackoff {
+		t.Fatalf("nextDequeueErrorBackoff(0) = %s, want %s", got, initialDequeueErrorBackoff)
+	}
+	if got := nextDequeueErrorBackoff(initialDequeueErrorBackoff); got != 2*time.Second {
+		t.Fatalf("nextDequeueErrorBackoff(1s) = %s, want 2s", got)
+	}
+	if got := nextDequeueErrorBackoff(maxDequeueErrorBackoff); got != maxDequeueErrorBackoff {
+		t.Fatalf("nextDequeueErrorBackoff(max) = %s, want %s", got, maxDequeueErrorBackoff)
 	}
 }
 

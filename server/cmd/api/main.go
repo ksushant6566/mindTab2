@@ -123,6 +123,8 @@ func main() {
 			queries,
 			slog.Default(),
 			cfg.WorkerConcurrency,
+			worker.WithDequeueTimeout(cfg.WorkerDequeueTimeout),
+			worker.WithRetryPollInterval(cfg.WorkerRetryPollInterval),
 			worker.WithVideoTempPath(cfg.YoutubeTempPath),
 		)
 		dispatcher.Register(processors.NewArticleProcessor(jina, registry.LLM, registry.Embedding, queries, pool))

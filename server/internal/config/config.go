@@ -25,18 +25,20 @@ type Config struct {
 	ResendAPIKey   string
 
 	// Saves feature
-	RedisURL              string
-	GeminiAPIKey          string
-	OpenAIAPIKey          string
-	JinaAPIKey            string
-	GeminiModel           string
-	OpenAIEmbeddingModel  string
-	EmbeddingDimensions   int
-	StorageProvider       string
-	StorageLocalPath      string
-	WorkerConcurrency     int
-	WorkerShutdownTimeout time.Duration
-	MaxFileSizeMB         int
+	RedisURL                string
+	GeminiAPIKey            string
+	OpenAIAPIKey            string
+	JinaAPIKey              string
+	GeminiModel             string
+	OpenAIEmbeddingModel    string
+	EmbeddingDimensions     int
+	StorageProvider         string
+	StorageLocalPath        string
+	WorkerConcurrency       int
+	WorkerDequeueTimeout    time.Duration
+	WorkerRetryPollInterval time.Duration
+	WorkerShutdownTimeout   time.Duration
+	MaxFileSizeMB           int
 
 	// YouTube (Phase 2)
 	GroqAPIKey          string
@@ -82,10 +84,22 @@ func Load() (*Config, error) {
 		cfg.EmbeddingDimensions = 1536
 	}
 
-	concStr := getEnv("WORKER_CONCURRENCY", "4")
+	concStr := getEnv("WORKER_CONCURRENCY", "1")
 	cfg.WorkerConcurrency, _ = strconv.Atoi(concStr)
 	if cfg.WorkerConcurrency == 0 {
-		cfg.WorkerConcurrency = 4
+		cfg.WorkerConcurrency = 1
+	}
+
+	dequeueTimeoutStr := getEnv("WORKER_DEQUEUE_TIMEOUT", "5m")
+	cfg.WorkerDequeueTimeout, _ = time.ParseDuration(dequeueTimeoutStr)
+	if cfg.WorkerDequeueTimeout == 0 {
+		cfg.WorkerDequeueTimeout = 5 * time.Minute
+	}
+
+	retryPollIntervalStr := getEnv("WORKER_RETRY_POLL_INTERVAL", "1m")
+	cfg.WorkerRetryPollInterval, _ = time.ParseDuration(retryPollIntervalStr)
+	if cfg.WorkerRetryPollInterval == 0 {
+		cfg.WorkerRetryPollInterval = time.Minute
 	}
 
 	shutdownStr := getEnv("WORKER_SHUTDOWN_TIMEOUT", "30s")

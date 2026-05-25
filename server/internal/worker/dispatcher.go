@@ -21,19 +21,27 @@ import (
 
 // Dispatcher orchestrates job processing using registered Processors.
 type Dispatcher struct {
-	consumer      *queue.Consumer
-	retry         *queue.RetryScheduler
-	queries       store.Querier
-	logger        *slog.Logger
-	processors    map[string]Processor
-	workers       int
-	videoTempPath string
-	wg            sync.WaitGroup
-	quit          chan struct{}
-	cancel        context.CancelFunc
+	consumer          *queue.Consumer
+	retry             *queue.RetryScheduler
+	queries           store.Querier
+	logger            *slog.Logger
+	processors        map[string]Processor
+	workers           int
+	dequeueTimeout    time.Duration
+	retryPollInterval time.Duration
+	videoTempPath     string
+	wg                sync.WaitGroup
+	quit              chan struct{}
+	cancel            context.CancelFunc
 }
 
-const defaultVideoTempPath = "/tmp/mindtab/youtube"
+const (
+	defaultVideoTempPath       = "/tmp/mindtab/youtube"
+	defaultDequeueTimeout      = 5 * time.Minute
+	defaultRetryPollInterval   = time.Minute
+	initialDequeueErrorBackoff = 1 * time.Second
+	maxDequeueErrorBackoff     = 1 * time.Minute
+)
 
 // DispatcherOption customizes Dispatcher behavior.
 type DispatcherOption func(*Dispatcher)
@@ -43,6 +51,24 @@ func WithVideoTempPath(path string) DispatcherOption {
 	return func(d *Dispatcher) {
 		if path != "" {
 			d.videoTempPath = path
+		}
+	}
+}
+
+// WithDequeueTimeout sets how long idle workers block while waiting for a job.
+func WithDequeueTimeout(timeout time.Duration) DispatcherOption {
+	return func(d *Dispatcher) {
+		if timeout > 0 {
+			d.dequeueTimeout = timeout
+		}
+	}
+}
+
+// WithRetryPollInterval sets how often the retry queue is checked for due jobs.
+func WithRetryPollInterval(interval time.Duration) DispatcherOption {
+	return func(d *Dispatcher) {
+		if interval > 0 {
+			d.retryPollInterval = interval
 		}
 	}
 }
@@ -57,14 +83,16 @@ func NewDispatcher(
 	opts ...DispatcherOption,
 ) *Dispatcher {
 	d := &Dispatcher{
-		consumer:      consumer,
-		retry:         retry,
-		queries:       queries,
-		logger:        logger,
-		processors:    make(map[string]Processor),
-		workers:       workers,
-		videoTempPath: defaultVideoTempPath,
-		quit:          make(chan struct{}),
+		consumer:          consumer,
+		retry:             retry,
+		queries:           queries,
+		logger:            logger,
+		processors:        make(map[string]Processor),
+		workers:           workers,
+		dequeueTimeout:    defaultDequeueTimeout,
+		retryPollInterval: defaultRetryPollInterval,
+		videoTempPath:     defaultVideoTempPath,
+		quit:              make(chan struct{}),
 	}
 	for _, opt := range opts {
 		opt(d)
@@ -114,6 +142,7 @@ func (d *Dispatcher) Stop() {
 func (d *Dispatcher) runWorker(ctx context.Context, id int) {
 	defer d.wg.Done()
 	d.logger.Info("worker started", "worker_id", id)
+	errorBackoff := initialDequeueErrorBackoff
 
 	for {
 		select {
@@ -123,11 +152,20 @@ func (d *Dispatcher) runWorker(ctx context.Context, id int) {
 		default:
 		}
 
-		payload, err := d.consumer.Dequeue(ctx, 2*time.Second)
+		payload, err := d.consumer.Dequeue(ctx, d.dequeueTimeout)
 		if err != nil {
-			d.logger.Error("dequeue error", "worker_id", id, "error", err)
+			if errors.Is(err, context.Canceled) || ctx.Err() != nil {
+				d.logger.Info("worker stopping", "worker_id", id)
+				return
+			}
+			d.logger.Error("dequeue error", "worker_id", id, "error", err, "backoff", errorBackoff)
+			if !d.sleepOrStop(ctx, errorBackoff) {
+				return
+			}
+			errorBackoff = nextDequeueErrorBackoff(errorBackoff)
 			continue
 		}
+		errorBackoff = initialDequeueErrorBackoff
 		if payload == nil {
 			// Timeout — no jobs, loop again
 			continue
@@ -137,10 +175,35 @@ func (d *Dispatcher) runWorker(ctx context.Context, id int) {
 	}
 }
 
-// runRetryPoller polls the retry sorted set every 5 seconds.
+func (d *Dispatcher) sleepOrStop(ctx context.Context, duration time.Duration) bool {
+	timer := time.NewTimer(duration)
+	defer timer.Stop()
+
+	select {
+	case <-d.quit:
+		return false
+	case <-ctx.Done():
+		return false
+	case <-timer.C:
+		return true
+	}
+}
+
+func nextDequeueErrorBackoff(current time.Duration) time.Duration {
+	if current <= 0 {
+		return initialDequeueErrorBackoff
+	}
+	next := current * 2
+	if next > maxDequeueErrorBackoff {
+		return maxDequeueErrorBackoff
+	}
+	return next
+}
+
+// runRetryPoller polls the retry sorted set for due jobs.
 func (d *Dispatcher) runRetryPoller(ctx context.Context) {
 	defer d.wg.Done()
-	ticker := time.NewTicker(5 * time.Second)
+	ticker := time.NewTicker(d.retryPollInterval)
 	defer ticker.Stop()
 
 	for {
