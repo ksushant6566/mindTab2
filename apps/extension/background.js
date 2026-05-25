@@ -17,7 +17,7 @@ chrome.alarms.onAlarm.addListener(handleAlarms);
 
 // Installation Handler
 async function handleInstall() {
-    chrome.tabs.create({ url: "https://app.mindtab.in" });
+    chrome.tabs.create({ url: "https://app.mindtab.in/" });
     setupSyncAlarm();
 }
 
