@@ -2,17 +2,17 @@
 
 **Your second brain that actually does things.**
 
-MindTab is a personal productivity platform that combines goal tracking, habit building, journaling, and a knowledge vault — all tied together by an AI assistant that understands your entire workflow.
+MindTab is a personal productivity platform that combines task tracking, habit building, notes, and a knowledge vault — all tied together by an AI assistant that understands your entire workflow.
 
 ## What it does
 
 ### Track what matters
-Set goals with priorities, organize them into projects, and watch your progress. MindTab doesn't just store your goals — it helps you move through them, one status change at a time.
+Set tasks with priorities, organize them into projects, and watch your progress. MindTab doesn't just store your tasks — it helps you move through them, one status change at a time.
 
 ### Build better habits
 Create daily or weekly habits and track them with a single tap. Streaks, completion rings, and XP rewards make consistency feel rewarding instead of tedious.
 
-### Journal your thinking
+### Capture your thinking
 Capture notes, articles, book highlights, video takeaways, and podcast insights. Everything is searchable, project-tagged, and always accessible.
 
 ### Save anything to your Vault
@@ -24,12 +24,12 @@ Works from:
 - The **web app** (paste a URL or upload an image)
 
 ### Ask your assistant
-This is where it all comes together. MindTab's built-in AI assistant knows your goals, habits, journals, and saved content. You can:
+This is where it all comes together. MindTab's built-in AI assistant knows your tasks, habits, notes, and saved content. You can:
 
-- Ask "What are my active goals this week?" and get a real answer
+- Ask "What are my active tasks this week?" and get a real answer
 - Say "Mark my morning run habit as done" and it happens
 - Ask "Summarize what I saved about React performance" and get insights from your own vault
-- Say "Create a new goal to launch the MVP by Friday" and it's created
+- Say "Create a new task to launch the MVP by Friday" and it's created
 
 It's not a generic chatbot. It's *your* assistant, with *your* context.
 
@@ -37,7 +37,7 @@ It's not a generic chatbot. It's *your* assistant, with *your* context.
 
 | Platform | What you get |
 |----------|-------------|
-| **Web app** | Full dashboard — goals, habits, journals, vault, assistant |
+| **Web app** | Full dashboard — tasks, habits, notes, vault, assistant |
 | **Mobile app** | Everything in your pocket, plus share-to-save from any app |
 | **Chrome extension** | One-click article saving while you browse |
 
@@ -46,7 +46,7 @@ All platforms sync in real-time. Save an article on your phone, ask about it on 
 ## Who it's for
 
 MindTab is for people who:
-- Have goals scattered across Notion, Notes, and their head
+- Have tasks scattered across Notion, Notes, and their head
 - Save articles they never go back to read
 - Want a habit tracker that doesn't feel like homework
 - Wish their notes app could actually *answer questions* about what they've saved

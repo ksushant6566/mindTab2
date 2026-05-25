@@ -2,7 +2,7 @@
 	"manifest_version": 3,
 	"name": "MindTab",
 	"version": "1.2",
-	"description": "Manage goals, track progress, note down ideas, and stay focused with MindTab.",
+	"description": "Manage tasks, track progress, note down ideas, and stay focused with MindTab.",
 	"host_permissions": [
 		"https://app.mindtab.in/*",
 		"https://api.mindtab.in/*"
