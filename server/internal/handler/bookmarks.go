@@ -70,7 +70,7 @@ func (h *BookmarksHandler) Sync(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, item := range req.Items {
-		journalType := categorizeURL(item.URL)
+		noteType := categorizeURL(item.URL)
 		content := buildSyncContent(item.URL)
 
 		title := item.Title
@@ -78,14 +78,14 @@ func (h *BookmarksHandler) Sync(w http.ResponseWriter, r *http.Request) {
 			title = item.URL
 		}
 
-		if err := h.queries.UpsertJournalFromSync(r.Context(), store.UpsertJournalFromSyncParams{
+		if err := h.queries.UpsertNoteFromSync(r.Context(), store.UpsertNoteFromSyncParams{
 			Title:   title,
 			Content: content,
 			UserID:  userID,
 			Source:  "bookmark",
-			Type:    journalType,
+			Type:    noteType,
 		}); err != nil {
-			slog.Error("failed to upsert journal from bookmark sync", "error", err, "title", title)
+			slog.Error("failed to upsert note from bookmark sync", "error", err, "title", title)
 		}
 	}
 

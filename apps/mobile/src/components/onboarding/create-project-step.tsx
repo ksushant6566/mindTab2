@@ -51,7 +51,7 @@ export function CreateProjectStep({
         Create your first project
       </Text>
       <Text className="text-muted-foreground text-sm mb-6">
-        Projects group your goals and notes into focused spaces.
+        Projects group your tasks and notes into focused spaces.
       </Text>
 
       <Text className="text-xs text-muted-foreground uppercase tracking-wider mb-1.5">

@@ -7,12 +7,12 @@ type Activity = {
     date: Date;
     count: number;
     details: {
-        goalsCreated: number;
-        goalsCompleted: number;
+        tasksCreated: number;
+        tasksCompleted: number;
         habitsCreated: number;
         habitsMarked: number;
-        journalsCreated: number;
-        journalsUpdated: number;
+        notesCreated: number;
+        notesUpdated: number;
     };
 };
 
@@ -42,12 +42,12 @@ export function ActivityChart({ activities }: ActivityChartProps) {
             date: day,
             count: 0,
             details: {
-                goalsCreated: 0,
-                goalsCompleted: 0,
+                tasksCreated: 0,
+                tasksCompleted: 0,
                 habitsCreated: 0,
                 habitsMarked: 0,
-                journalsCreated: 0,
-                journalsUpdated: 0
+                notesCreated: 0,
+                notesUpdated: 0
             }
         };
     };
@@ -139,11 +139,11 @@ export function ActivityChart({ activities }: ActivityChartProps) {
                                                                 </p>
                                                                 {activity.count > 0 && (
                                                                     <div className="mt-1 space-y-1 text-xs">
-                                                                        {activity.details.goalsCreated > 0 && (
-                                                                            <p>{activity.details.goalsCreated} goals created</p>
+                                                                        {activity.details.tasksCreated > 0 && (
+                                                                            <p>{activity.details.tasksCreated} tasks created</p>
                                                                         )}
-                                                                        {activity.details.goalsCompleted > 0 && (
-                                                                            <p>{activity.details.goalsCompleted} goals completed</p>
+                                                                        {activity.details.tasksCompleted > 0 && (
+                                                                            <p>{activity.details.tasksCompleted} tasks completed</p>
                                                                         )}
                                                                         {activity.details.habitsCreated > 0 && (
                                                                             <p>{activity.details.habitsCreated} habits created</p>
@@ -151,11 +151,11 @@ export function ActivityChart({ activities }: ActivityChartProps) {
                                                                         {activity.details.habitsMarked > 0 && (
                                                                             <p>{activity.details.habitsMarked} habits marked</p>
                                                                         )}
-                                                                        {activity.details.journalsCreated > 0 && (
-                                                                            <p>{activity.details.journalsCreated} journals created</p>
+                                                                        {activity.details.notesCreated > 0 && (
+                                                                            <p>{activity.details.notesCreated} notes created</p>
                                                                         )}
-                                                                        {activity.details.journalsUpdated > 0 && (
-                                                                            <p>{activity.details.journalsUpdated} journals updated</p>
+                                                                        {activity.details.notesUpdated > 0 && (
+                                                                            <p>{activity.details.notesUpdated} notes updated</p>
                                                                         )}
                                                                     </div>
                                                                 )}

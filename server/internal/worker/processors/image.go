@@ -131,4 +131,3 @@ func (p *ImageProcessor) embed(ctx context.Context, prevResults worker.StepResul
 
 	return steps.Embed(ctx, p.embeddingChain, buf.String())
 }
-

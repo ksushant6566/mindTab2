@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 export const EActiveLayout = {
-  Goals: "Goals",
+  Tasks: "Tasks",
   Habits: "Habits",
   Notes: "Notes",
 } as const;
@@ -36,7 +36,7 @@ export const useAppStore = create<AppState>()(
   persist(
     (set) => ({
       layoutVersion: 1,
-      activeElement: EActiveLayout.Goals,
+      activeElement: EActiveLayout.Tasks,
       activeProjectId: null,
       appearanceTheme: "midnight",
       fontPreset: "inter",

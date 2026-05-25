@@ -25,12 +25,12 @@ import {
 } from "lucide-react-native";
 import {
   projectQueryOptions,
-  goalsQueryOptions,
-  journalsQueryOptions,
+  tasksQueryOptions,
+  notesQueryOptions,
   useUpdateProject,
   useDeleteProject,
   useArchiveProject,
-  useUpdateGoal,
+  useUpdateTask,
 } from "@mindtab/core";
 
 import { Loading } from "~/components/ui/loading";
@@ -118,21 +118,21 @@ export default function ProjectDetailScreen() {
     isLoading,
     refetch: refetchProject,
   } = useQuery(projectQueryOptions(api, id));
-  const { data: goals = [], refetch: refetchGoals } = useQuery(
-    goalsQueryOptions(api, { projectId: id }),
+  const { data: tasks = [], refetch: refetchTasks } = useQuery(
+    tasksQueryOptions(api, { projectId: id }),
   );
   const { data: notes = [], refetch: refetchNotes } = useQuery(
-    journalsQueryOptions(api, { projectId: id }),
+    notesQueryOptions(api, { projectId: id }),
   );
 
   // Mutations
   const updateProject = useUpdateProject(api);
   const deleteProject = useDeleteProject(api);
   const archiveProject = useArchiveProject(api);
-  const updateGoal = useUpdateGoal(api);
+  const updateTask = useUpdateTask(api);
 
   // UI state
-  const [activeTab, setActiveTab] = useState<"goals" | "notes">("goals");
+  const [activeTab, setActiveTab] = useState<"tasks" | "notes">("tasks");
   const [refreshing, setRefreshing] = useState(false);
   const [showOverflow, setShowOverflow] = useState(false);
 
@@ -159,19 +159,19 @@ export default function ProjectDetailScreen() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([refetchProject(), refetchGoals(), refetchNotes()]);
+    await Promise.all([refetchProject(), refetchTasks(), refetchNotes()]);
     setRefreshing(false);
-  }, [refetchProject, refetchGoals, refetchNotes]);
+  }, [refetchProject, refetchTasks, refetchNotes]);
 
   // ── Computed stats ──
 
-  const goalCount = (goals as any[]).length;
+  const taskCount = (tasks as any[]).length;
   const noteCount = (notes as any[]).length;
-  const completedGoals = useMemo(
-    () => (goals as any[]).filter((g) => g.status === "completed").length,
-    [goals],
+  const completedTasks = useMemo(
+    () => (tasks as any[]).filter((g) => g.status === "completed").length,
+    [tasks],
   );
-  const progressValue = goalCount > 0 ? completedGoals / goalCount : 0;
+  const progressValue = taskCount > 0 ? completedTasks / taskCount : 0;
 
   // ── Edit handlers ──
 
@@ -241,28 +241,28 @@ export default function ProjectDetailScreen() {
     });
   };
 
-  // ── Goal actions ──
+  // ── Task actions ──
 
-  const handleGoalStatusChange = useCallback(
-    async (goalId: string, newStatus: string) => {
+  const handleTaskStatusChange = useCallback(
+    async (taskId: string, newStatus: string) => {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      updateGoal.mutate({
-        id: goalId,
+      updateTask.mutate({
+        id: taskId,
         status: newStatus,
         ...(newStatus === "completed"
           ? { completedAt: new Date().toISOString() }
           : {}),
       });
     },
-    [updateGoal],
+    [updateTask],
   );
 
-  const handleGoalArchive = useCallback(
-    async (goalId: string) => {
+  const handleTaskArchive = useCallback(
+    async (taskId: string) => {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      updateGoal.mutate({ id: goalId, status: "archived" });
+      updateTask.mutate({ id: taskId, status: "archived" });
     },
-    [updateGoal],
+    [updateTask],
   );
 
   // ── Loading ──
@@ -341,7 +341,7 @@ export default function ProjectDetailScreen() {
       {showDeleteConfirm && (
         <View style={styles.deleteBar}>
           <Text style={styles.deleteText}>
-            Delete this project and affect {goalCount} goals and {noteCount} notes?
+            Delete this project and affect {taskCount} tasks and {noteCount} notes?
           </Text>
           <View style={styles.deleteActions}>
             <Pressable
@@ -448,11 +448,11 @@ export default function ProjectDetailScreen() {
         {/* ── Stats row ── */}
         {!isEditing && (
           <View style={styles.statsRow}>
-            <Pressable style={styles.statCard} onPress={() => setActiveTab("goals")}>
+            <Pressable style={styles.statCard} onPress={() => setActiveTab("tasks")}>
               <Target size={18} color={colors.accent.indigo} />
-              <Text style={styles.statNumber}>{goalCount}</Text>
+              <Text style={styles.statNumber}>{taskCount}</Text>
               <Text style={styles.statLabel}>
-                {goalCount === 1 ? "Goal" : "Goals"}
+                {taskCount === 1 ? "Task" : "Tasks"}
               </Text>
             </Pressable>
             <Pressable style={styles.statCard} onPress={() => setActiveTab("notes")}>
@@ -466,12 +466,12 @@ export default function ProjectDetailScreen() {
         )}
 
         {/* ── Progress bar ── */}
-        {!isEditing && goalCount > 0 && (
+        {!isEditing && taskCount > 0 && (
           <View style={styles.progressSection}>
             <View style={styles.progressHeader}>
               <Text style={styles.progressTitle}>Completion</Text>
               <Text style={styles.progressPercentage}>
-                {completedGoals}/{goalCount} ({Math.round(progressValue * 100)}
+                {completedTasks}/{taskCount} ({Math.round(progressValue * 100)}
                 %)
               </Text>
             </View>
@@ -490,14 +490,14 @@ export default function ProjectDetailScreen() {
               <Pressable
                 style={[
                   styles.segmentButton,
-                  activeTab === "goals" && styles.segmentButtonActive,
+                  activeTab === "tasks" && styles.segmentButtonActive,
                 ]}
-                onPress={() => setActiveTab("goals")}
+                onPress={() => setActiveTab("tasks")}
               >
                 <Target
                   size={14}
                   color={
-                    activeTab === "goals"
+                    activeTab === "tasks"
                       ? colors.text.primary
                       : colors.text.muted
                   }
@@ -505,10 +505,10 @@ export default function ProjectDetailScreen() {
                 <Text
                   style={[
                     styles.segmentText,
-                    activeTab === "goals" && styles.segmentTextActive,
+                    activeTab === "tasks" && styles.segmentTextActive,
                   ]}
                 >
-                  Goals
+                  Tasks
                 </Text>
               </Pressable>
               <Pressable
@@ -537,11 +537,11 @@ export default function ProjectDetailScreen() {
               </Pressable>
             </View>
 
-            {activeTab === "goals" ? (
-              <GoalsTab
-                goals={goals as any[]}
-                onStatusChange={handleGoalStatusChange}
-                onArchive={handleGoalArchive}
+            {activeTab === "tasks" ? (
+              <TasksTab
+                tasks={tasks as any[]}
+                onStatusChange={handleTaskStatusChange}
+                onArchive={handleTaskArchive}
                 router={router}
               />
             ) : (
@@ -555,48 +555,48 @@ export default function ProjectDetailScreen() {
   );
 }
 
-// ── Goals Tab ──
+// ── Tasks Tab ──
 
-function GoalsTab({
-  goals,
+function TasksTab({
+  tasks,
   onStatusChange,
   onArchive,
   router,
 }: {
-  goals: any[];
+  tasks: any[];
   onStatusChange: (id: string, status: string) => void;
   onArchive: (id: string) => void;
   router: ReturnType<typeof useRouter>;
 }) {
-  if (goals.length === 0) {
+  if (tasks.length === 0) {
     return (
       <EmptyState
         icon={Target}
-        title="No goals yet"
-        description="Goals linked to this project will appear here"
+        title="No tasks yet"
+        description="Tasks linked to this project will appear here"
       />
     );
   }
 
   return (
     <View style={styles.tabContent}>
-      {goals.map((goal) => {
-        const nextAction = getNextStatusAction(goal.status);
-        const priorityKey = goal.priority as string | undefined;
-        const impactKey = goal.impact as string | undefined;
-        const goalStatus = statusConfig[goal.status as string];
-        const goalDotColor = goalStatus?.color ?? colors.text.muted;
+      {tasks.map((task) => {
+        const nextAction = getNextStatusAction(task.status);
+        const priorityKey = task.priority as string | undefined;
+        const impactKey = task.impact as string | undefined;
+        const taskStatus = statusConfig[task.status as string];
+        const taskDotColor = taskStatus?.color ?? colors.text.muted;
 
         return (
           <SwipeableRow
-            key={goal.id}
+            key={task.id}
             leftAction={
               nextAction
                 ? {
                     label: nextAction.label,
                     color: nextAction.color,
                     onAction: () =>
-                      onStatusChange(goal.id, nextAction.nextStatus),
+                      onStatusChange(task.id, nextAction.nextStatus),
                   }
                 : undefined
             }
@@ -604,26 +604,26 @@ function GoalsTab({
               {
                 label: "Archive",
                 color: colors.feedback.warning,
-                onAction: () => onArchive(goal.id),
+                onAction: () => onArchive(task.id),
               },
             ]}
           >
             <PressableCard
-              onPress={() => router.push(`/(main)/goals/${goal.id}`)}
-              style={styles.goalCard}
+              onPress={() => router.push(`/(main)/tasks/${task.id}`)}
+              style={styles.taskCard}
             >
-              <View style={styles.goalTopRow}>
+              <View style={styles.taskTopRow}>
                 <View
                   style={[
-                    styles.goalStatusDot,
-                    { backgroundColor: goalDotColor },
+                    styles.taskStatusDot,
+                    { backgroundColor: taskDotColor },
                   ]}
                 />
-                <Text style={styles.goalTitle} numberOfLines={1}>
-                  {goal.title}
+                <Text style={styles.taskTitle} numberOfLines={1}>
+                  {task.title}
                 </Text>
               </View>
-              <View style={styles.goalMeta}>
+              <View style={styles.taskMeta}>
                 {priorityKey && priorityConfig[priorityKey] && (
                   <View
                     style={[
@@ -1059,27 +1059,27 @@ const styles = StyleSheet.create({
     minHeight: 100,
   },
 
-  // Goal card
-  goalCard: {
+  // Task card
+  taskCard: {
     padding: 14,
   },
-  goalTopRow: {
+  taskTopRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
   },
-  goalStatusDot: {
+  taskStatusDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
   },
-  goalTitle: {
+  taskTitle: {
     flex: 1,
     fontSize: 16,
     fontWeight: "500",
     color: colors.text.primary,
   },
-  goalMeta: {
+  taskMeta: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,

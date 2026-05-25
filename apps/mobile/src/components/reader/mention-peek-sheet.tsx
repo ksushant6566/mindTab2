@@ -27,7 +27,7 @@ import { authedFetch } from "~/lib/api-client";
 // ---------------------------------------------------------------------------
 
 type MentionEntity = {
-  type: "goal" | "habit" | "note";
+  type: "task" | "habit" | "note";
   id: string;
   title: string;
   status?: string;
@@ -83,10 +83,10 @@ async function fetchConnectedNotes(
 }
 
 async function fetchConnectedHabits(
-  goalId: string,
+  taskId: string,
 ): Promise<ConnectedHabit[]> {
   const res = await authedFetch(
-    `${API_URL}/goals/${goalId}/connected-habits`,
+    `${API_URL}/tasks/${taskId}/connected-habits`,
   );
   if (!res.ok) return [];
   return res.json();
@@ -103,9 +103,9 @@ function capitalize(s: string | undefined | null): string {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-function typeIcon(type: "goal" | "habit" | "note") {
+function typeIcon(type: "task" | "habit" | "note") {
   switch (type) {
-    case "goal":
+    case "task":
       return <Target size={20} color={colors.accent.indigo} />;
     case "habit":
       return <Repeat size={20} color={colors.feedback.success} />;
@@ -114,9 +114,9 @@ function typeIcon(type: "goal" | "habit" | "note") {
   }
 }
 
-function typeColor(type: "goal" | "habit" | "note"): string {
+function typeColor(type: "task" | "habit" | "note"): string {
   switch (type) {
-    case "goal":
+    case "task":
       return colors.accent.indigo;
     case "habit":
       return colors.feedback.success;
@@ -195,7 +195,7 @@ export const MentionPeekSheet = forwardRef<BottomSheet, MentionPeekSheetProps>(
     const { data: connectedHabits } = useQuery({
       queryKey: ["connected-habits", entity?.id],
       queryFn: () => fetchConnectedHabits(entity!.id),
-      enabled: !!entity && entity.type === "goal",
+      enabled: !!entity && entity.type === "task",
       staleTime: 60_000,
     });
 
@@ -255,7 +255,7 @@ export const MentionPeekSheet = forwardRef<BottomSheet, MentionPeekSheetProps>(
 
                 {/* Pills — type-specific */}
                 <View style={styles.pills}>
-                  {entity.type === "goal" && status && (
+                  {entity.type === "task" && status && (
                     <View style={[styles.pill, pillTint(status.color)]}>
                       <View
                         style={[
@@ -270,7 +270,7 @@ export const MentionPeekSheet = forwardRef<BottomSheet, MentionPeekSheetProps>(
                       </Text>
                     </View>
                   )}
-                  {entity.type === "goal" && impact && (
+                  {entity.type === "task" && impact && (
                     <View style={[styles.pill, pillTint(impact.color)]}>
                       <Text
                         style={[styles.pillLabel, { color: impact.color }]}

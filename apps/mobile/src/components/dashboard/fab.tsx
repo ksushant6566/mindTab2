@@ -29,15 +29,15 @@ import { springs } from "~/lib/animations";
 
 type FABProps = {
   visible: boolean;
-  contextFilter?: "goal" | "habit" | "note" | "project";
+  contextFilter?: "task" | "habit" | "note" | "project";
 };
 
 const MENU_OPTIONS = [
   {
-    key: "goal" as const,
-    label: "Goal",
+    key: "task" as const,
+    label: "Task",
     Icon: Target,
-    route: "/(modals)/create-goal" as const,
+    route: "/(modals)/create-task" as const,
     translateX: 0,
     translateY: -120,
   },
@@ -128,7 +128,7 @@ export function FAB({ visible, contextFilter }: FABProps) {
 
   const showLongPressMenu = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    router.push("/(main)/goals" as never);
+    router.push("/(main)/tasks" as never);
   }, [router]);
 
   const fabTapGesture = Gesture.Tap().onEnd(() => {

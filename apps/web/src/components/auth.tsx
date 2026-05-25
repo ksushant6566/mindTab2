@@ -64,7 +64,7 @@ export default function Auth() {
                 </h1>
                 <p className="text-xl max-w-xl text-center bg-clip-text text-transparent bg-gradient-to-b from-neutral-200 to-neutral-500">
                     Turn every new tab into a productivity dashboard <br />
-                    Track goals, take notes and build habits.
+                    Track tasks, take notes and build habits.
                 </p>
             </div>
             <div className="flex flex-col sm:flex-row items-center gap-4">

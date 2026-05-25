@@ -33,7 +33,7 @@ type habitJSON struct {
 	UpdatedAt   *time.Time `json:"updatedAt"`
 }
 
-func habitFromModel(h store.MindmapHabit) habitJSON {
+func habitFromModel(h store.Habit) habitJSON {
 	return habitJSON{
 		ID:          uuidToString(h.ID),
 		Title:       textToString(h.Title),

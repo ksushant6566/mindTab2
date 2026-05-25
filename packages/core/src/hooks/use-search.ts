@@ -1,12 +1,12 @@
 import { queryOptions } from "@tanstack/react-query";
 import type { ApiClient } from "./types";
 
-export function searchGoalsQueryOptions(api: ApiClient, query: string) {
+export function searchTasksQueryOptions(api: ApiClient, query: string) {
   return queryOptions({
-    queryKey: ["search", "goals", query],
+    queryKey: ["search", "tasks", query],
     enabled: !!query,
     queryFn: async () => {
-      const { data, error } = await api.GET("/search/goals", {
+      const { data, error } = await api.GET("/search/tasks", {
         params: { query: { q: query } },
       });
       if (error) throw error;
@@ -29,12 +29,12 @@ export function searchHabitsQueryOptions(api: ApiClient, query: string) {
   });
 }
 
-export function searchJournalsQueryOptions(api: ApiClient, query: string) {
+export function searchNotesQueryOptions(api: ApiClient, query: string) {
   return queryOptions({
-    queryKey: ["search", "journals", query],
+    queryKey: ["search", "notes", query],
     enabled: !!query,
     queryFn: async () => {
-      const { data, error } = await api.GET("/search/journals", {
+      const { data, error } = await api.GET("/search/notes", {
         params: { query: { q: query } },
       });
       if (error) throw error;

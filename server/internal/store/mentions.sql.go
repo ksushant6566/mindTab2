@@ -24,8 +24,8 @@ type GetConnectedHabitIDsParams struct {
 	Content string `json:"content"`
 }
 
-// Find habit UUIDs mentioned in notes that also mention a given goal.
-// goal_pattern should be like '%data-id="goal:UUID"%'.
+// Find habit UUIDs mentioned in notes that also mention a given task.
+// task_pattern should be like '%data-id="task:UUID"%'.
 // Returns distinct habit IDs extracted via regex from note content.
 func (q *Queries) GetConnectedHabitIDs(ctx context.Context, arg GetConnectedHabitIDsParams) ([]pgtype.UUID, error) {
 	rows, err := q.db.Query(ctx, getConnectedHabitIDs, arg.UserID, arg.Content)
@@ -70,8 +70,8 @@ type GetConnectedNotesRow struct {
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
-// Find notes/journals whose content contains a mention of the given entity.
-// mention_pattern should be like '%data-id="goal:UUID"%' or '%data-id="habit:UUID"%'.
+// Find notes/notes whose content contains a mention of the given entity.
+// mention_pattern should be like '%data-id="task:UUID"%' or '%data-id="habit:UUID"%'.
 func (q *Queries) GetConnectedNotes(ctx context.Context, arg GetConnectedNotesParams) ([]GetConnectedNotesRow, error) {
 	rows, err := q.db.Query(ctx, getConnectedNotes, arg.UserID, arg.Content)
 	if err != nil {

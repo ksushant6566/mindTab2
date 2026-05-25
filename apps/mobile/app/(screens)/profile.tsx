@@ -12,8 +12,8 @@ import { useQuery } from "@tanstack/react-query";
 import {
   habitTrackerQueryOptions,
   habitsQueryOptions,
-  goalsQueryOptions,
-  journalsQueryOptions,
+  tasksQueryOptions,
+  notesQueryOptions,
 } from "@mindtab/core";
 import { api } from "~/lib/api-client";
 import { useAuth } from "~/hooks/use-auth";
@@ -45,8 +45,8 @@ export default function ProfileModal() {
   const { user, logout } = useAuth();
   const { data: tracker = [] } = useQuery(habitTrackerQueryOptions(api));
   const { data: habits = [] } = useQuery(habitsQueryOptions(api));
-  const { data: goals = [] } = useQuery(goalsQueryOptions(api));
-  const { data: notes = [] } = useQuery(journalsQueryOptions(api));
+  const { data: tasks = [] } = useQuery(tasksQueryOptions(api));
+  const { data: notes = [] } = useQuery(notesQueryOptions(api));
 
   const streak = calculateStreak(tracker as any[]);
   const xp = user?.xp ?? 0;
@@ -160,7 +160,7 @@ export default function ProfileModal() {
 
         {/* Stats cards (item 3) */}
         <StatsCards
-          goals={goals as any[]}
+          tasks={tasks as any[]}
           habits={habits as any[]}
           tracker={tracker as any[]}
           notesCount={(notes as any[]).length}

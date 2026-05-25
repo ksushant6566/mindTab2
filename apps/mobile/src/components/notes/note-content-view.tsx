@@ -77,7 +77,7 @@ function buildHtml(content: string) {
         if (el.getAttribute('data-type') === 'mention' || el.classList.contains('mention')) {
           e.preventDefault();
           var rawId = el.getAttribute('data-id') || '';
-          // data-id is "type:uuid" (e.g. "goal:abc-123")
+          // data-id is "type:uuid" (e.g. "task:abc-123")
           var idColonIdx = rawId.indexOf(':');
           var type = idColonIdx > 0 ? rawId.substring(0, idColonIdx) : 'unknown';
           var id = idColonIdx > 0 ? rawId.substring(idColonIdx + 1) : rawId;

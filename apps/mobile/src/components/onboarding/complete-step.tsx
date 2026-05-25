@@ -19,7 +19,7 @@ export function CompleteStep({ onComplete, loading }: CompleteStepProps) {
         You're all set!
       </Text>
       <Text className="text-muted-foreground text-sm text-center mb-8">
-        Your workspace is ready. Start tracking goals, building habits, and capturing thoughts.
+        Your workspace is ready. Start tracking tasks, building habits, and capturing thoughts.
       </Text>
 
       <Button size="lg" onPress={onComplete} loading={loading} className="w-full">

@@ -8,8 +8,8 @@ import {
 } from "react-native";
 import { useQueryClient } from "@tanstack/react-query";
 import {
-  journalQueryOptions,
-  goalQueryOptions,
+  noteQueryOptions,
+  taskQueryOptions,
   habitQueryOptions,
 } from "@mindtab/core";
 import { WebView } from "react-native-webview";
@@ -143,7 +143,7 @@ function buildReaderHtml(content: string): string {
         if (el.querySelector('.mention-icon')) return;
         var rawId = el.getAttribute('data-id') || '';
         var type = rawId.split(':')[0];
-        var icon = type === 'goal' ? '🎯' : type === 'habit' ? '🔄' : type === 'note' ? '📝' : '';
+        var icon = type === 'task' ? '🎯' : type === 'habit' ? '🔄' : type === 'note' ? '📝' : '';
         var labelText = el.textContent;
         el.textContent = '';
         var topRow = document.createElement('span');
@@ -292,15 +292,15 @@ export function ReaderPage({
           const type = rawId.substring(0, colonIdx);
           const entityId = rawId.substring(colonIdx + 1);
           try {
-            if (type === "goal") {
-              const goal = (await queryClient.fetchQuery(
-                goalQueryOptions(api, entityId),
+            if (type === "task") {
+              const task = (await queryClient.fetchQuery(
+                taskQueryOptions(api, entityId),
               )) as any;
-              if (goal) {
+              if (task) {
                 result[rawId] = {
-                  status: goal.status,
-                  priority: goal.priority,
-                  projectName: goal.project?.name,
+                  status: task.status,
+                  priority: task.priority,
+                  projectName: task.project?.name,
                 };
               }
             } else if (type === "habit") {
@@ -314,12 +314,12 @@ export function ReaderPage({
                 };
               }
             } else if (type === "note") {
-              const journal = (await queryClient.fetchQuery(
-                journalQueryOptions(api, entityId),
+              const note = (await queryClient.fetchQuery(
+                noteQueryOptions(api, entityId),
               )) as any;
-              if (journal) {
+              if (note) {
                 result[rawId] = {
-                  projectName: journal.project?.name,
+                  projectName: note.project?.name,
                 };
               }
             }

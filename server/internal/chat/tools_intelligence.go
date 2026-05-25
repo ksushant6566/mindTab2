@@ -20,7 +20,7 @@ import (
 // ---------------------------------------------------------------------------
 
 // GetDailyBriefingTool provides a comprehensive daily briefing including habits,
-// goals, activity summaries, and proactive alerts. Designed to answer
+// tasks, activity summaries, and proactive alerts. Designed to answer
 // "What should I do today?" in a single call.
 type GetDailyBriefingTool struct {
 	queries store.Querier
@@ -34,7 +34,7 @@ func NewGetDailyBriefingTool(queries store.Querier) *GetDailyBriefingTool {
 func (t *GetDailyBriefingTool) Name() string { return "get_daily_briefing" }
 
 func (t *GetDailyBriefingTool) Description() string {
-	return "Get a comprehensive daily briefing including today's habits status, active goals, recent activity, and proactive alerts. Use this as the first tool call when the user asks what they should do today or wants a summary of their current state."
+	return "Get a comprehensive daily briefing including today's habits status, active tasks, recent activity, and proactive alerts. Use this as the first tool call when the user asks what they should do today or wants a summary of their current state."
 }
 
 func (t *GetDailyBriefingTool) Schema() llm.ToolDefinition {
@@ -118,25 +118,25 @@ func (t *GetDailyBriefingTool) Execute(ctx context.Context, userID string, _ any
 	}
 
 	habitSection := map[string]any{
-		"total":      len(habits),
-		"completed":  todayHabitCompletions,
-		"incomplete": incompleteHabits,
+		"total":          len(habits),
+		"completed":      todayHabitCompletions,
+		"incomplete":     incompleteHabits,
 		"completed_list": completedHabits,
 	}
 
 	// -----------------------------------------------------------------
-	// 2. Goals section
+	// 2. Tasks section
 	// -----------------------------------------------------------------
-	goals, err := t.queries.ListGoals(ctx, store.ListGoalsParams{
+	tasks, err := t.queries.ListTasks(ctx, store.ListTasksParams{
 		UserID:  userID,
-		Column2: false,            // non-archived
-		Column3: pgtype.UUID{},    // no project filter
+		Column2: false,         // non-archived
+		Column3: pgtype.UUID{}, // no project filter
 	})
 	if err != nil {
-		return nil, fmt.Errorf("daily briefing: list goals: %w", err)
+		return nil, fmt.Errorf("daily briefing: list tasks: %w", err)
 	}
 
-	type goalBriefItem struct {
+	type taskBriefItem struct {
 		ID           string `json:"id"`
 		Title        string `json:"title"`
 		Status       string `json:"status"`
@@ -144,18 +144,18 @@ func (t *GetDailyBriefingTool) Execute(ctx context.Context, userID string, _ any
 		DaysInStatus int    `json:"days_in_status"`
 	}
 
-	inProgressGoals := make([]goalBriefItem, 0)
-	pendingGoals := make([]goalBriefItem, 0)
-	todayGoalCompletions := 0
+	inProgressTasks := make([]taskBriefItem, 0)
+	pendingTasks := make([]taskBriefItem, 0)
+	todayTaskCompletions := 0
 
-	for _, g := range goals {
+	for _, g := range tasks {
 		status := ifaceToString(g.Status)
 		daysInStatus := 0
 		if g.UpdatedAt.Valid {
 			daysInStatus = int(now.Sub(g.UpdatedAt.Time).Hours() / 24)
 		}
 
-		item := goalBriefItem{
+		item := taskBriefItem{
 			ID:           uuidToString(g.ID),
 			Title:        pgtextToString(g.Title),
 			Status:       status,
@@ -165,20 +165,20 @@ func (t *GetDailyBriefingTool) Execute(ctx context.Context, userID string, _ any
 
 		switch status {
 		case "in_progress":
-			inProgressGoals = append(inProgressGoals, item)
+			inProgressTasks = append(inProgressTasks, item)
 		case "pending":
-			pendingGoals = append(pendingGoals, item)
+			pendingTasks = append(pendingTasks, item)
 		case "completed":
 			if g.CompletedAt.Valid && g.CompletedAt.Time.Format("2006-01-02") == today {
-				todayGoalCompletions++
+				todayTaskCompletions++
 			}
 		}
 	}
 
-	goalSection := map[string]any{
-		"in_progress":        inProgressGoals,
-		"pending":            pendingGoals,
-		"completed_today":    todayGoalCompletions,
+	taskSection := map[string]any{
+		"in_progress":     inProgressTasks,
+		"pending":         pendingTasks,
+		"completed_today": todayTaskCompletions,
 	}
 
 	// -----------------------------------------------------------------
@@ -187,18 +187,18 @@ func (t *GetDailyBriefingTool) Execute(ctx context.Context, userID string, _ any
 	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 	todayTimestamp := pgtype.Timestamptz{Time: todayStart, Valid: true}
 
-	journalRowsToday, err := t.queries.GetJournalActivity(ctx, store.GetJournalActivityParams{
+	noteRowsToday, err := t.queries.GetNoteActivity(ctx, store.GetNoteActivityParams{
 		UserID:    userID,
 		CreatedAt: todayTimestamp,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("daily briefing: get journal activity today: %w", err)
+		return nil, fmt.Errorf("daily briefing: get note activity today: %w", err)
 	}
 
 	activityToday := map[string]any{
 		"habit_completions": todayHabitCompletions,
-		"goal_completions":  todayGoalCompletions,
-		"journal_entries":   len(journalRowsToday),
+		"task_completions":  todayTaskCompletions,
+		"note_entries":      len(noteRowsToday),
 	}
 
 	// -----------------------------------------------------------------
@@ -229,35 +229,35 @@ func (t *GetDailyBriefingTool) Execute(ctx context.Context, userID string, _ any
 	// Use the query result for week count to be consistent.
 	weekHabitCompletions = len(weekHabitDates)
 
-	goalRowsWeek, err := t.queries.GetGoalActivity(ctx, store.GetGoalActivityParams{
+	taskRowsWeek, err := t.queries.GetTaskActivity(ctx, store.GetTaskActivityParams{
 		UserID:    userID,
 		CreatedAt: weekStartTimestamp,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("daily briefing: get goal activity week: %w", err)
+		return nil, fmt.Errorf("daily briefing: get task activity week: %w", err)
 	}
-	weekGoalCompletions := 0
-	for _, row := range goalRowsWeek {
+	weekTaskCompletions := 0
+	for _, row := range taskRowsWeek {
 		if ifaceToString(row.Status) == "completed" {
-			weekGoalCompletions++
+			weekTaskCompletions++
 		}
 	}
 
-	journalRowsWeek, err := t.queries.GetJournalActivity(ctx, store.GetJournalActivityParams{
+	noteRowsWeek, err := t.queries.GetNoteActivity(ctx, store.GetNoteActivityParams{
 		UserID:    userID,
 		CreatedAt: weekStartTimestamp,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("daily briefing: get journal activity week: %w", err)
+		return nil, fmt.Errorf("daily briefing: get note activity week: %w", err)
 	}
 
 	avgDailyHabits := float64(weekHabitCompletions) / 7.0
 
 	activityWeek := map[string]any{
-		"habit_completions":  weekHabitCompletions,
-		"goal_completions":   weekGoalCompletions,
-		"journal_entries":    len(journalRowsWeek),
-		"avg_daily_habits":   math.Round(avgDailyHabits*100) / 100,
+		"habit_completions": weekHabitCompletions,
+		"task_completions":  weekTaskCompletions,
+		"note_entries":      len(noteRowsWeek),
+		"avg_daily_habits":  math.Round(avgDailyHabits*100) / 100,
 	}
 
 	// -----------------------------------------------------------------
@@ -265,17 +265,17 @@ func (t *GetDailyBriefingTool) Execute(ctx context.Context, userID string, _ any
 	// -----------------------------------------------------------------
 	alerts := make([]string, 0)
 
-	// Alert: Goal pending > 14 days
-	for _, g := range pendingGoals {
+	// Alert: Task pending > 14 days
+	for _, g := range pendingTasks {
 		if g.DaysInStatus > 14 {
-			alerts = append(alerts, fmt.Sprintf("Goal '%s' has been pending for %d days", g.Title, g.DaysInStatus))
+			alerts = append(alerts, fmt.Sprintf("Task '%s' has been pending for %d days", g.Title, g.DaysInStatus))
 		}
 	}
 
-	// Alert: Goal in_progress > 30 days
-	for _, g := range inProgressGoals {
+	// Alert: Task in_progress > 30 days
+	for _, g := range inProgressTasks {
 		if g.DaysInStatus > 30 {
-			alerts = append(alerts, fmt.Sprintf("Goal '%s' has been in progress for %d days", g.Title, g.DaysInStatus))
+			alerts = append(alerts, fmt.Sprintf("Task '%s' has been in progress for %d days", g.Title, g.DaysInStatus))
 		}
 	}
 
@@ -335,7 +335,7 @@ func (t *GetDailyBriefingTool) Execute(ctx context.Context, userID string, _ any
 	briefing := map[string]any{
 		"date":           today,
 		"habits":         habitSection,
-		"goals":          goalSection,
+		"tasks":          taskSection,
 		"activity_today": activityToday,
 		"activity_week":  activityWeek,
 		"alerts":         alerts,
@@ -382,7 +382,7 @@ type SearchEverythingArgs struct {
 	Query string `json:"query" validate:"required,min=1"`
 }
 
-// SearchEverythingTool searches across goals, journals, habits, and vault items.
+// SearchEverythingTool searches across tasks, notes, habits, and vault items.
 type SearchEverythingTool struct {
 	queries store.Querier
 	search  *search.SemanticSearch // may be nil
@@ -396,7 +396,7 @@ func NewSearchEverythingTool(queries store.Querier, s *search.SemanticSearch) *S
 func (t *SearchEverythingTool) Name() string { return "search_everything" }
 
 func (t *SearchEverythingTool) Description() string {
-	return "Search across all user data — goals, journals, habits, and saved vault items — using a keyword query. Returns the top matches from each domain. Use this when the user asks to find something or wants to search their data."
+	return "Search across all user data — tasks, notes, habits, and saved vault items — using a keyword query. Returns the top matches from each domain. Use this when the user asks to find something or wants to search their data."
 }
 
 func (t *SearchEverythingTool) Schema() llm.ToolDefinition {
@@ -425,44 +425,44 @@ func (t *SearchEverythingTool) Execute(ctx context.Context, userID string, argsA
 
 	// Run keyword searches concurrently.
 	var (
-		wg       sync.WaitGroup
-		mu       sync.Mutex
-		errs     []error
-		goals    []store.MindmapGoal
-		journals []store.MindmapJournal
-		habits   []store.MindmapHabit
-		vault    []search.SearchResult
+		wg     sync.WaitGroup
+		mu     sync.Mutex
+		errs   []error
+		tasks  []store.Task
+		notes  []store.Note
+		habits []store.Habit
+		vault  []search.SearchResult
 	)
 
 	wg.Add(3)
 
 	go func() {
 		defer wg.Done()
-		res, err := t.queries.SearchGoals(ctx, store.SearchGoalsParams{
+		res, err := t.queries.SearchTasks(ctx, store.SearchTasksParams{
 			UserID:  userID,
 			Column2: searchParam,
 		})
 		mu.Lock()
 		defer mu.Unlock()
 		if err != nil {
-			errs = append(errs, fmt.Errorf("search goals: %w", err))
+			errs = append(errs, fmt.Errorf("search tasks: %w", err))
 		} else {
-			goals = res
+			tasks = res
 		}
 	}()
 
 	go func() {
 		defer wg.Done()
-		res, err := t.queries.SearchJournals(ctx, store.SearchJournalsParams{
+		res, err := t.queries.SearchNotes(ctx, store.SearchNotesParams{
 			UserID:  userID,
 			Column2: searchParam,
 		})
 		mu.Lock()
 		defer mu.Unlock()
 		if err != nil {
-			errs = append(errs, fmt.Errorf("search journals: %w", err))
+			errs = append(errs, fmt.Errorf("search notes: %w", err))
 		} else {
-			journals = res
+			notes = res
 		}
 	}()
 
@@ -503,16 +503,16 @@ func (t *SearchEverythingTool) Execute(ctx context.Context, userID string, argsA
 		return nil, errs[0]
 	}
 
-	// Shape goal results.
-	type goalItem struct {
+	// Shape task results.
+	type taskItem struct {
 		ID       string `json:"id"`
 		Title    string `json:"title"`
 		Status   string `json:"status"`
 		Priority string `json:"priority"`
 	}
-	goalItems := make([]goalItem, 0, len(goals))
-	for _, g := range goals {
-		goalItems = append(goalItems, goalItem{
+	taskItems := make([]taskItem, 0, len(tasks))
+	for _, g := range tasks {
+		taskItems = append(taskItems, taskItem{
 			ID:       uuidToString(g.ID),
 			Title:    pgtextToString(g.Title),
 			Status:   ifaceToString(g.Status),
@@ -520,14 +520,14 @@ func (t *SearchEverythingTool) Execute(ctx context.Context, userID string, argsA
 		})
 	}
 
-	// Shape journal results.
-	type journalItem struct {
+	// Shape note results.
+	type noteItem struct {
 		ID    string `json:"id"`
 		Title string `json:"title"`
 	}
-	journalItems := make([]journalItem, 0, len(journals))
-	for _, j := range journals {
-		journalItems = append(journalItems, journalItem{
+	noteItems := make([]noteItem, 0, len(notes))
+	for _, j := range notes {
+		noteItems = append(noteItems, noteItem{
 			ID:    uuidToString(j.ID),
 			Title: j.Title,
 		})
@@ -547,11 +547,11 @@ func (t *SearchEverythingTool) Execute(ctx context.Context, userID string, argsA
 	}
 
 	return map[string]any{
-		"query":    query,
-		"goals":    goalItems,
-		"journals": journalItems,
-		"habits":   habitItems,
-		"vault":    vault,
+		"query":  query,
+		"tasks":  taskItems,
+		"notes":  noteItems,
+		"habits": habitItems,
+		"vault":  vault,
 	}, nil
 }
 
@@ -602,7 +602,7 @@ func (t *GetHabitPatternsTool) Execute(ctx context.Context, userID string, _ any
 
 	// Filter to last 90 days.
 	cutoff := time.Now().AddDate(0, 0, -90).Truncate(24 * time.Hour)
-	var recentRecords []store.MindmapHabitTracker
+	var recentRecords []store.HabitRecord
 	for _, r := range records {
 		if r.Date.Valid && !r.Date.Time.Before(cutoff) {
 			recentRecords = append(recentRecords, r)
@@ -756,7 +756,7 @@ func NewComparePeriodsTool(queries store.Querier) *ComparePeriodsTool {
 func (t *ComparePeriodsTool) Name() string { return "compare_periods" }
 
 func (t *ComparePeriodsTool) Description() string {
-	return "Compare productivity metrics (goals created, goals completed, habit completions, journal entries, habit rate) between two date ranges. Useful for answering 'how did I do this month vs last month?'"
+	return "Compare productivity metrics (tasks created, tasks completed, habit completions, note entries, habit rate) between two date ranges. Useful for answering 'how did I do this month vs last month?'"
 }
 
 func (t *ComparePeriodsTool) Schema() llm.ToolDefinition {
@@ -810,26 +810,26 @@ func (t *ComparePeriodsTool) Execute(ctx context.Context, userID string, a any) 
 	computePeriodStats := func(start, end time.Time) (map[string]any, error) {
 		pgStart := pgtype.Timestamptz{Time: start, Valid: true}
 
-		goalRows, err := t.queries.GetGoalActivity(ctx, store.GetGoalActivityParams{
+		taskRows, err := t.queries.GetTaskActivity(ctx, store.GetTaskActivityParams{
 			UserID:    userID,
 			CreatedAt: pgStart,
 		})
 		if err != nil {
-			return nil, fmt.Errorf("get goal activity: %w", err)
+			return nil, fmt.Errorf("get task activity: %w", err)
 		}
 
 		endDay := end.AddDate(0, 0, 1) // exclusive upper bound for filtering
-		goalsCreated := 0
-		goalsCompleted := 0
-		for _, row := range goalRows {
+		tasksCreated := 0
+		tasksCompleted := 0
+		for _, row := range taskRows {
 			if !row.CreatedAt.Valid {
 				continue
 			}
 			ts := row.CreatedAt.Time
 			if (ts.Equal(start) || ts.After(start)) && ts.Before(endDay) {
-				goalsCreated++
+				tasksCreated++
 				if ifaceToString(row.Status) == "completed" {
-					goalsCompleted++
+					tasksCompleted++
 				}
 			}
 		}
@@ -854,22 +854,22 @@ func (t *ComparePeriodsTool) Execute(ctx context.Context, userID string, a any) 
 			}
 		}
 
-		journalRows, err := t.queries.GetJournalActivity(ctx, store.GetJournalActivityParams{
+		noteRows, err := t.queries.GetNoteActivity(ctx, store.GetNoteActivityParams{
 			UserID:    userID,
 			CreatedAt: pgStart,
 		})
 		if err != nil {
-			return nil, fmt.Errorf("get journal activity: %w", err)
+			return nil, fmt.Errorf("get note activity: %w", err)
 		}
 
-		journalEntries := 0
-		for _, row := range journalRows {
+		noteEntries := 0
+		for _, row := range noteRows {
 			if !row.CreatedAt.Valid {
 				continue
 			}
 			ts := row.CreatedAt.Time
 			if (ts.Equal(start) || ts.After(start)) && ts.Before(endDay) {
-				journalEntries++
+				noteEntries++
 			}
 		}
 
@@ -883,10 +883,10 @@ func (t *ComparePeriodsTool) Execute(ctx context.Context, userID string, a any) 
 			"start":             start.Format("2006-01-02"),
 			"end":               end.Format("2006-01-02"),
 			"days":              days,
-			"goals_created":     goalsCreated,
-			"goals_completed":   goalsCompleted,
+			"tasks_created":     tasksCreated,
+			"tasks_completed":   tasksCompleted,
 			"habit_completions": habitCompletions,
-			"journal_entries":   journalEntries,
+			"note_entries":      noteEntries,
 			"habit_rate":        habitRate,
 		}, nil
 	}
@@ -916,10 +916,10 @@ func (t *ComparePeriodsTool) Execute(ctx context.Context, userID string, a any) 
 	}
 
 	deltas := map[string]any{
-		"goals_created":     formatDelta(stats1["goals_created"].(int), stats2["goals_created"].(int)),
-		"goals_completed":   formatDelta(stats1["goals_completed"].(int), stats2["goals_completed"].(int)),
+		"tasks_created":     formatDelta(stats1["tasks_created"].(int), stats2["tasks_created"].(int)),
+		"tasks_completed":   formatDelta(stats1["tasks_completed"].(int), stats2["tasks_completed"].(int)),
 		"habit_completions": formatDelta(stats1["habit_completions"].(int), stats2["habit_completions"].(int)),
-		"journal_entries":   formatDelta(stats1["journal_entries"].(int), stats2["journal_entries"].(int)),
+		"note_entries":      formatDelta(stats1["note_entries"].(int), stats2["note_entries"].(int)),
 		"habit_rate":        formatDeltaF(stats1["habit_rate"].(float64), stats2["habit_rate"].(float64)),
 	}
 
@@ -939,7 +939,7 @@ type GetStaleItemsArgs struct {
 	DaysThreshold *int `json:"days_threshold" validate:"omitempty,min=1,max=365"`
 }
 
-// GetStaleItemsTool surfaces goals, projects, and habits that have had no
+// GetStaleItemsTool surfaces tasks, projects, and habits that have had no
 // recent activity.
 type GetStaleItemsTool struct {
 	queries store.Querier
@@ -953,7 +953,7 @@ func NewGetStaleItemsTool(queries store.Querier) *GetStaleItemsTool {
 func (t *GetStaleItemsTool) Name() string { return "get_stale_items" }
 
 func (t *GetStaleItemsTool) Description() string {
-	return "Find goals, projects, and habits that have been neglected or have had no activity for longer than a threshold (default 14 days). Useful for 'what have I been ignoring?' questions."
+	return "Find tasks, projects, and habits that have been neglected or have had no activity for longer than a threshold (default 14 days). Useful for 'what have I been ignoring?' questions."
 }
 
 func (t *GetStaleItemsTool) Schema() llm.ToolDefinition {
@@ -986,18 +986,18 @@ func (t *GetStaleItemsTool) Execute(ctx context.Context, userID string, a any) (
 	cutoff := now.AddDate(0, 0, -threshold)
 
 	// -----------------------------------------------------------------
-	// 1. Stale goals — pending/in_progress with UpdatedAt before cutoff
+	// 1. Stale tasks — pending/in_progress with UpdatedAt before cutoff
 	// -----------------------------------------------------------------
-	allGoals, err := t.queries.ListGoals(ctx, store.ListGoalsParams{
+	allTasks, err := t.queries.ListTasks(ctx, store.ListTasksParams{
 		UserID:  userID,
 		Column2: false,
 		Column3: pgtype.UUID{},
 	})
 	if err != nil {
-		return nil, fmt.Errorf("get stale items: list goals: %w", err)
+		return nil, fmt.Errorf("get stale items: list tasks: %w", err)
 	}
 
-	type staleGoal struct {
+	type staleTask struct {
 		ID              string `json:"id"`
 		Title           string `json:"title"`
 		Status          string `json:"status"`
@@ -1005,8 +1005,8 @@ func (t *GetStaleItemsTool) Execute(ctx context.Context, userID string, a any) (
 		DaysSinceUpdate int    `json:"days_since_update"`
 	}
 
-	staleGoals := make([]staleGoal, 0)
-	for _, g := range allGoals {
+	staleTasks := make([]staleTask, 0)
+	for _, g := range allTasks {
 		status := ifaceToString(g.Status)
 		if status != "pending" && status != "in_progress" {
 			continue
@@ -1016,7 +1016,7 @@ func (t *GetStaleItemsTool) Execute(ctx context.Context, userID string, a any) (
 		}
 		if g.UpdatedAt.Time.Before(cutoff) {
 			days := int(now.Sub(g.UpdatedAt.Time).Hours() / 24)
-			staleGoals = append(staleGoals, staleGoal{
+			staleTasks = append(staleTasks, staleTask{
 				ID:              uuidToString(g.ID),
 				Title:           pgtextToString(g.Title),
 				Status:          status,
@@ -1027,7 +1027,7 @@ func (t *GetStaleItemsTool) Execute(ctx context.Context, userID string, a any) (
 	}
 
 	// -----------------------------------------------------------------
-	// 2. Stale projects — no goals updated after cutoff
+	// 2. Stale projects — no tasks updated after cutoff
 	// -----------------------------------------------------------------
 	projects, err := t.queries.ListProjects(ctx, store.ListProjectsParams{
 		CreatedBy: userID,
@@ -1038,10 +1038,10 @@ func (t *GetStaleItemsTool) Execute(ctx context.Context, userID string, a any) (
 		return nil, fmt.Errorf("get stale items: list projects: %w", err)
 	}
 
-	// Build map of project ID -> most recent goal update time and active goal count.
+	// Build map of project ID -> most recent task update time and active task count.
 	type projectActivityInfo struct {
-		mostRecentGoalUpdate time.Time
-		activeGoalCount      int
+		mostRecentTaskUpdate time.Time
+		activeTaskCount      int
 	}
 	projectActivityMap := make(map[string]*projectActivityInfo)
 	for _, p := range projects {
@@ -1049,7 +1049,7 @@ func (t *GetStaleItemsTool) Execute(ctx context.Context, userID string, a any) (
 		projectActivityMap[pID] = &projectActivityInfo{}
 	}
 
-	for _, g := range allGoals {
+	for _, g := range allTasks {
 		if !g.ProjectID.Valid {
 			continue
 		}
@@ -1058,15 +1058,15 @@ func (t *GetStaleItemsTool) Execute(ctx context.Context, userID string, a any) (
 		if !ok {
 			continue
 		}
-		// Count active (non-archived) goals.
+		// Count active (non-archived) tasks.
 		gStatus := ifaceToString(g.Status)
 		if gStatus != "archived" {
-			pa.activeGoalCount++
+			pa.activeTaskCount++
 		}
-		// Track most recent goal update.
+		// Track most recent task update.
 		if g.UpdatedAt.Valid {
-			if pa.mostRecentGoalUpdate.IsZero() || g.UpdatedAt.Time.After(pa.mostRecentGoalUpdate) {
-				pa.mostRecentGoalUpdate = g.UpdatedAt.Time
+			if pa.mostRecentTaskUpdate.IsZero() || g.UpdatedAt.Time.After(pa.mostRecentTaskUpdate) {
+				pa.mostRecentTaskUpdate = g.UpdatedAt.Time
 			}
 		}
 	}
@@ -1075,7 +1075,7 @@ func (t *GetStaleItemsTool) Execute(ctx context.Context, userID string, a any) (
 		ID                string `json:"id"`
 		Name              string `json:"name"`
 		Status            string `json:"status"`
-		ActiveGoalCount   int    `json:"active_goal_count"`
+		ActiveTaskCount   int    `json:"active_task_count"`
 		DaysSinceActivity int    `json:"days_since_activity"`
 	}
 
@@ -1084,13 +1084,13 @@ func (t *GetStaleItemsTool) Execute(ctx context.Context, userID string, a any) (
 		pID := uuidToString(p.ID)
 		pa := projectActivityMap[pID]
 
-		// A project is stale if it has no goals updated after the cutoff.
-		if pa.mostRecentGoalUpdate.IsZero() || pa.mostRecentGoalUpdate.Before(cutoff) {
+		// A project is stale if it has no tasks updated after the cutoff.
+		if pa.mostRecentTaskUpdate.IsZero() || pa.mostRecentTaskUpdate.Before(cutoff) {
 			var daysSince int
-			if !pa.mostRecentGoalUpdate.IsZero() {
-				daysSince = int(now.Sub(pa.mostRecentGoalUpdate).Hours() / 24)
+			if !pa.mostRecentTaskUpdate.IsZero() {
+				daysSince = int(now.Sub(pa.mostRecentTaskUpdate).Hours() / 24)
 			} else {
-				// No goals at all; use project's own updated_at.
+				// No tasks at all; use project's own updated_at.
 				if p.UpdatedAt.Valid {
 					daysSince = int(now.Sub(p.UpdatedAt.Time).Hours() / 24)
 				}
@@ -1099,7 +1099,7 @@ func (t *GetStaleItemsTool) Execute(ctx context.Context, userID string, a any) (
 				ID:                uuidToString(p.ID),
 				Name:              pgtextToString(p.Name),
 				Status:            ifaceToString(p.Status),
-				ActiveGoalCount:   pa.activeGoalCount,
+				ActiveTaskCount:   pa.activeTaskCount,
 				DaysSinceActivity: daysSince,
 			})
 		}
@@ -1178,7 +1178,7 @@ func (t *GetStaleItemsTool) Execute(ctx context.Context, userID string, a any) (
 
 	return map[string]any{
 		"threshold_days":   threshold,
-		"stale_goals":      staleGoals,
+		"stale_tasks":      staleTasks,
 		"stale_projects":   staleProjects,
 		"neglected_habits": neglectedHabits,
 	}, nil

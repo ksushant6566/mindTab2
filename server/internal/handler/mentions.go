@@ -56,7 +56,7 @@ func truncate(s string, maxLen int) string {
 	return string(runes[:maxLen]) + "…"
 }
 
-// ConnectedNotes handles GET /mentions/connected-notes?entityType=goal&entityId=UUID
+// ConnectedNotes handles GET /mentions/connected-notes?entityType=task&entityId=UUID
 func (h *MentionsHandler) ConnectedNotes(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.UserIDFromContext(r.Context())
 
@@ -70,10 +70,10 @@ func (h *MentionsHandler) ConnectedNotes(w http.ResponseWriter, r *http.Request)
 
 	// Validate entityType
 	switch entityType {
-	case "goal", "habit", "note":
+	case "task", "habit", "note":
 		// ok
 	default:
-		WriteError(w, http.StatusBadRequest, "entityType must be goal, habit, or note")
+		WriteError(w, http.StatusBadRequest, "entityType must be task, habit, or note")
 		return
 	}
 
@@ -83,7 +83,7 @@ func (h *MentionsHandler) ConnectedNotes(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// For notes, the data-id format uses "note" on mobile but could also be "journal"
+	// For notes, the data-id format uses "note" on mobile but could also be "note"
 	mentionID := fmt.Sprintf("%s:%s", entityType, entityID)
 	pattern := fmt.Sprintf("%%data-id=\"%s\"%%", mentionID)
 
@@ -112,22 +112,22 @@ func (h *MentionsHandler) ConnectedNotes(w http.ResponseWriter, r *http.Request)
 	WriteJSON(w, http.StatusOK, result)
 }
 
-// ConnectedHabits handles GET /goals/{id}/connected-habits
+// ConnectedHabits handles GET /tasks/{id}/connected-habits
 func (h *MentionsHandler) ConnectedHabits(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.UserIDFromContext(r.Context())
 
-	goalID, err := GetUUIDParam(r, "id")
+	taskID, err := GetUUIDParam(r, "id")
 	if err != nil {
 		WriteError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	// Find habit IDs mentioned in notes that also mention this goal
-	goalPattern := fmt.Sprintf("%%data-id=\"goal:%s\"%%", goalID.String())
+	// Find habit IDs mentioned in notes that also mention this task
+	taskPattern := fmt.Sprintf("%%data-id=\"task:%s\"%%", taskID.String())
 
 	habitIDs, err := h.queries.GetConnectedHabitIDs(r.Context(), store.GetConnectedHabitIDsParams{
 		UserID:  userID,
-		Content: goalPattern,
+		Content: taskPattern,
 	})
 	if err != nil {
 		slog.Error("failed to get connected habit IDs", "error", err)

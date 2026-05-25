@@ -80,18 +80,18 @@ export default function ProjectsScreen() {
   const archiveProject = useArchiveProject(api);
   const deleteProject = useDeleteProject(api);
 
-  // Build stats map: projectId -> { goalCount, noteCount, completedGoals }
+  // Build stats map: projectId -> { taskCount, noteCount, completedTasks }
   const statsMap = useMemo(() => {
     const map = new Map<
       string,
-      { goalCount: number; noteCount: number; completedGoals: number }
+      { taskCount: number; noteCount: number; completedTasks: number }
     >();
     if (!stats) return map;
     for (const s of stats as any[]) {
       map.set(s.projectId, {
-        goalCount: s.goalCount ?? 0,
+        taskCount: s.taskCount ?? 0,
         noteCount: s.noteCount ?? 0,
-        completedGoals: s.completedGoals ?? 0,
+        completedTasks: s.completedTasks ?? 0,
       });
     }
     return map;
@@ -136,10 +136,10 @@ export default function ProjectsScreen() {
   const renderItem = useCallback(
     ({ item: project }: { item: any }) => {
       const st = statsMap.get(project.id);
-      const goalCount = st?.goalCount ?? 0;
+      const taskCount = st?.taskCount ?? 0;
       const noteCount = st?.noteCount ?? 0;
-      const completedGoals = st?.completedGoals ?? 0;
-      const progressValue = goalCount > 0 ? completedGoals / goalCount : 0;
+      const completedTasks = st?.completedTasks ?? 0;
+      const progressValue = taskCount > 0 ? completedTasks / taskCount : 0;
 
       const statusKey = project.status as string;
       const config = STATUS_CONFIG[statusKey] ?? {
@@ -185,12 +185,12 @@ export default function ProjectsScreen() {
               </Text>
             ) : null}
 
-            {/* Metadata: goal count + note count */}
+            {/* Metadata: task count + note count */}
             <View style={styles.metaRow}>
               <View style={styles.countPill}>
-                <Text style={styles.countValue}>{goalCount}</Text>
+                <Text style={styles.countValue}>{taskCount}</Text>
                 <Text style={styles.countLabel}>
-                  {goalCount === 1 ? "goal" : "goals"}
+                  {taskCount === 1 ? "task" : "tasks"}
                 </Text>
               </View>
               <View style={styles.metaDivider} />
@@ -202,8 +202,8 @@ export default function ProjectsScreen() {
               </View>
             </View>
 
-            {/* Progress bar (only when there are goals) */}
-            {goalCount > 0 && (
+            {/* Progress bar (only when there are tasks) */}
+            {taskCount > 0 && (
               <View style={styles.progressSection}>
                 <View style={styles.progressBarWrapper}>
                   <ProgressBar
@@ -230,7 +230,7 @@ export default function ProjectsScreen() {
       <EmptyState
         icon={FolderKanban}
         title="No projects yet"
-        description="Group your goals and notes into projects to stay organised"
+        description="Group your tasks and notes into projects to stay organised"
       />
     );
   }, [isLoading]);

@@ -8,7 +8,7 @@ import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
-import { useCreateJournal, projectsQueryOptions } from "@mindtab/core";
+import { useCreateNote, projectsQueryOptions } from "@mindtab/core";
 import { MMKV } from "react-native-mmkv";
 
 const draftStorage = new MMKV({ id: "mindtab-drafts" });
@@ -34,7 +34,7 @@ export default function CreateNoteModal() {
   const { projectId: activeProjectId } = useLocalSearchParams<{
     projectId?: string;
   }>();
-  const createJournal = useCreateJournal(api);
+  const createNote = useCreateNote(api);
   const { data: projects } = useQuery(projectsQueryOptions(api));
   const didCreate = useRef(false);
   const [didPromptDraft, setDidPromptDraft] = useState(false);
@@ -102,7 +102,7 @@ export default function CreateNoteModal() {
       ? content.split("\n").filter(Boolean).map((line) => `<p>${line}</p>`).join("")
       : "<p></p>";
 
-    createJournal.mutate(
+    createNote.mutate(
       {
         title: title.trim(),
         content: htmlContent,
@@ -281,9 +281,9 @@ export default function CreateNoteModal() {
           {/* Create button */}
           <Button
             onPress={handleCreate}
-            loading={createJournal.isPending}
+            loading={createNote.isPending}
             disabled={!title.trim()}
-            state={createJournal.isSuccess ? "success" : createJournal.isError ? "error" : "idle"}
+            state={createNote.isSuccess ? "success" : createNote.isError ? "error" : "idle"}
             size="lg"
           >
             Create Note

@@ -32,15 +32,15 @@ UPDATE projects SET status = 'archived', last_updated_by = $2, updated_at = CURR
 WHERE id = $1 AND created_by = $2 AND deleted_at IS NULL
 RETURNING *;
 
--- name: ListGoalsByProject :many
+-- name: ListTasksByProject :many
 SELECT * FROM tasks
 WHERE project_id = $1 AND user_id = $2 AND deleted_at IS NULL AND status != 'archived'
 ORDER BY position ASC, priority ASC, created_at DESC;
 
--- name: ListGoalStatsByProject :many
+-- name: ListTaskStatsByProject :many
 SELECT id, status FROM tasks
 WHERE project_id = $1 AND user_id = $2 AND deleted_at IS NULL;
 
--- name: CountJournalsByProject :one
+-- name: CountNotesByProject :one
 SELECT COUNT(*)::int FROM notes
 WHERE project_id = $1 AND user_id = $2 AND deleted_at IS NULL;

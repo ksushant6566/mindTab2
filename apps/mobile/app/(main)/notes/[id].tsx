@@ -12,11 +12,11 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  journalQueryOptions,
-  goalQueryOptions,
+  noteQueryOptions,
+  taskQueryOptions,
   habitQueryOptions,
-  useDeleteJournal,
-  useUpdateJournal,
+  useDeleteNote,
+  useUpdateNote,
 } from "@mindtab/core";
 import * as Haptics from "expo-haptics";
 import { api } from "~/lib/api-client";
@@ -76,7 +76,7 @@ function escapeHtml(str: string): string {
 // ---------------------------------------------------------------------------
 
 type MentionEntity = {
-  type: "goal" | "habit" | "note";
+  type: "task" | "habit" | "note";
   id: string;
   title: string;
   status?: string;
@@ -136,9 +136,9 @@ export default function NoteDetailScreen() {
   const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
   const { data: note, isLoading } = useQuery(
-    journalQueryOptions(api, id),
+    noteQueryOptions(api, id),
   );
-  const deleteJournal = useDeleteJournal(api);
+  const deleteNote = useDeleteNote(api);
 
   // ---------------------------------------------------------------------------
   // Header visibility — starts hidden, fades in after entry animation
@@ -210,7 +210,7 @@ export default function NoteDetailScreen() {
   const handleEditorReady = useCallback(() => setEditorReady(true), []);
   const [editTitle, setEditTitle] = useState("");
   const editorRef = useRef<ReturnType<typeof useEditorBridge> | null>(null);
-  const updateJournal = useUpdateJournal(api);
+  const updateNote = useUpdateNote(api);
 
   // Auto-save tracking
   const editTitleRef = useRef("");
@@ -231,7 +231,7 @@ export default function NoteDetailScreen() {
         title !== lastSavedRef.current.title ||
         html !== lastSavedRef.current.content
       ) {
-        updateJournal.mutate(
+        updateNote.mutate(
           { id, title, content: html },
           {
             onSuccess: () => {
@@ -241,7 +241,7 @@ export default function NoteDetailScreen() {
         );
       }
     }, 2000);
-  }, [id, updateJournal]);
+  }, [id, updateNote]);
 
   // Content changes from the WebView editor — no setState, just reschedule save
   const handleContentChange = useCallback(() => {
@@ -268,17 +268,17 @@ export default function NoteDetailScreen() {
       lastSavedRef.current = { title, content: html };
 
       // Optimistically update cache so the reader shows new content instantly
-      queryClient.setQueryData(["journals", id], (old: any) =>
+      queryClient.setQueryData(["notes", id], (old: any) =>
         old ? { ...old, title, content: html } : old,
       );
 
-      updateJournal.mutate({ id, title, content: html });
+      updateNote.mutate({ id, title, content: html });
     } catch {
       // Save best-effort; still exit edit mode
     }
 
     setIsEditing(false);
-  }, [id, updateJournal, queryClient]);
+  }, [id, updateNote, queryClient]);
 
   // ---------------------------------------------------------------------------
   // Mention search sheet (edit mode)
@@ -363,7 +363,7 @@ export default function NoteDetailScreen() {
         text: "Delete",
         style: "destructive",
         onPress: () => {
-          deleteJournal.mutate(id, { onSuccess: () => goBack() });
+          deleteNote.mutate(id, { onSuccess: () => goBack() });
         },
       },
     ]);
@@ -374,25 +374,25 @@ export default function NoteDetailScreen() {
   const handleMentionPress = useCallback(
     async (type: string, mentionId: string, label: string) => {
       let entity: MentionEntity = {
-        type: type as "goal" | "habit" | "note",
+        type: type as "task" | "habit" | "note",
         id: mentionId,
         title: label || capitalize(type),
       };
 
       try {
-        if (type === "goal") {
-          const goal = (await queryClient.fetchQuery(
-            goalQueryOptions(api, mentionId),
+        if (type === "task") {
+          const task = (await queryClient.fetchQuery(
+            taskQueryOptions(api, mentionId),
           )) as any;
-          if (goal) {
+          if (task) {
             entity = {
               ...entity,
-              title: goal.title || label,
-              status: goal.status,
-              priority: goal.priority,
-              impact: goal.impact,
-              projectName: goal.project?.name,
-              createdAt: goal.createdAt,
+              title: task.title || label,
+              status: task.status,
+              priority: task.priority,
+              impact: task.impact,
+              projectName: task.project?.name,
+              createdAt: task.createdAt,
             };
           }
         } else if (type === "habit") {
@@ -423,9 +423,9 @@ export default function NoteDetailScreen() {
     (type: string, mentionId: string) => {
       const params = { from: currentRoute };
       switch (type) {
-        case "goal":
+        case "task":
           router.push({
-            pathname: "/(main)/goals/[id]",
+            pathname: "/(main)/tasks/[id]",
             params: { id: mentionId, ...params },
           });
           break;

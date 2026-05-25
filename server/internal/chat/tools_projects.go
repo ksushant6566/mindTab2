@@ -162,7 +162,7 @@ func NewGetProjectStatsTool(queries store.Querier) *GetProjectStatsTool {
 func (t *GetProjectStatsTool) Name() string { return "get_project_stats" }
 
 func (t *GetProjectStatsTool) Description() string {
-	return "Get stats for a project: goal counts by status and total journal count."
+	return "Get stats for a project: task counts by status and total note count."
 }
 
 func (t *GetProjectStatsTool) Schema() llm.ToolDefinition {
@@ -200,32 +200,32 @@ func (t *GetProjectStatsTool) Execute(ctx context.Context, userID string, argsAn
 		return nil, fmt.Errorf("get project: %w", err)
 	}
 
-	goalRows, err := t.queries.ListGoalStatsByProject(ctx, store.ListGoalStatsByProjectParams{
+	taskRows, err := t.queries.ListTaskStatsByProject(ctx, store.ListTaskStatsByProjectParams{
 		ProjectID: pgID,
 		UserID:    userID,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("list goal stats: %w", err)
+		return nil, fmt.Errorf("list task stats: %w", err)
 	}
 
 	statusMap := make(map[string]int)
-	for _, row := range goalRows {
+	for _, row := range taskRows {
 		status := ifaceToString(row.Status)
 		statusMap[status]++
 	}
 
-	journalCount, err := t.queries.CountJournalsByProject(ctx, store.CountJournalsByProjectParams{
+	noteCount, err := t.queries.CountNotesByProject(ctx, store.CountNotesByProjectParams{
 		ProjectID: pgID,
 		UserID:    userID,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("count journals: %w", err)
+		return nil, fmt.Errorf("count notes: %w", err)
 	}
 
 	return map[string]interface{}{
 		"name":            pgtextToString(project.Name),
-		"goals_by_status": statusMap,
-		"journal_count":   journalCount,
+		"tasks_by_status": statusMap,
+		"note_count":      noteCount,
 	}, nil
 }
 

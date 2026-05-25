@@ -61,7 +61,7 @@ func NewGetActivitySummaryTool(queries store.Querier) *GetActivitySummaryTool {
 func (t *GetActivitySummaryTool) Name() string { return "get_activity_summary" }
 
 func (t *GetActivitySummaryTool) Description() string {
-	return "Get a summary of the user's activity (goals created/completed, habits tracked, journals written) for a given period. Defaults to the past week."
+	return "Get a summary of the user's activity (tasks created/completed, habits tracked, notes written) for a given period. Defaults to the past week."
 }
 
 func (t *GetActivitySummaryTool) Schema() llm.ToolDefinition {
@@ -123,24 +123,24 @@ func (t *GetActivitySummaryTool) Execute(ctx context.Context, userID string, arg
 	startTimestamp := pgtype.Timestamptz{Time: startTime, Valid: true}
 	startDate := pgtype.Date{Time: startTime, Valid: true}
 
-	// ---- Goals ----
-	goalRows, err := t.queries.GetGoalActivity(ctx, store.GetGoalActivityParams{
+	// ---- Tasks ----
+	taskRows, err := t.queries.GetTaskActivity(ctx, store.GetTaskActivityParams{
 		UserID:    userID,
 		CreatedAt: startTimestamp,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("get goal activity: %w", err)
+		return nil, fmt.Errorf("get task activity: %w", err)
 	}
 
-	goalsCreated := 0
-	goalsCompleted := 0
-	for _, row := range goalRows {
+	tasksCreated := 0
+	tasksCompleted := 0
+	for _, row := range taskRows {
 		if row.CreatedAt.Valid && row.CreatedAt.Time.After(endTime) {
 			continue
 		}
-		goalsCreated++
+		tasksCreated++
 		if ifaceToString(row.Status) == "completed" {
-			goalsCompleted++
+			tasksCompleted++
 		}
 	}
 
@@ -165,21 +165,21 @@ func (t *GetActivitySummaryTool) Execute(ctx context.Context, userID string, arg
 		habitsCompleted++
 	}
 
-	// ---- Journals ----
-	journalRows, err := t.queries.GetJournalActivity(ctx, store.GetJournalActivityParams{
+	// ---- Notes ----
+	noteRows, err := t.queries.GetNoteActivity(ctx, store.GetNoteActivityParams{
 		UserID:    userID,
 		CreatedAt: startTimestamp,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("get journal activity: %w", err)
+		return nil, fmt.Errorf("get note activity: %w", err)
 	}
 
-	journalsWritten := 0
-	for _, row := range journalRows {
+	notesWritten := 0
+	for _, row := range noteRows {
 		if row.CreatedAt.Valid && row.CreatedAt.Time.After(endTime) {
 			continue
 		}
-		journalsWritten++
+		notesWritten++
 	}
 
 	return map[string]interface{}{
@@ -187,10 +187,10 @@ func (t *GetActivitySummaryTool) Execute(ctx context.Context, userID string, arg
 			"start": startTime.Format("2006-01-02"),
 			"end":   endTime.Format("2006-01-02"),
 		},
-		"goals_created":   goalsCreated,
-		"goals_completed": goalsCompleted,
+		"tasks_created":    tasksCreated,
+		"tasks_completed":  tasksCompleted,
 		"habits_completed": habitsCompleted,
-		"journals_written": journalsWritten,
+		"notes_written":    notesWritten,
 	}, nil
 }
 
@@ -237,10 +237,10 @@ func (t *GetUserProfileTool) Execute(ctx context.Context, userID string, _ any) 
 	xpToNextLevel := getXPForLevel(level+1) - xp
 
 	return map[string]interface{}{
-		"name":            pgtextToString(user.Name),
-		"email":           user.Email,
-		"xp":              xp,
-		"level":           level,
+		"name":             pgtextToString(user.Name),
+		"email":            user.Email,
+		"xp":               xp,
+		"level":            level,
 		"xp_to_next_level": xpToNextLevel,
 	}, nil
 }

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { Goals } from "./goals/index";
+import { Tasks } from "./tasks/index";
 import { Habits } from "./habits";
-import { Journals } from "./journals/journals";
+import { Notes } from "./notes/notes";
 import { Button } from "~/components/ui/button";
 import { LayoutGrid, List } from "lucide-react";
 import { Clock } from "./clock";
@@ -17,8 +17,8 @@ const getLayout1 = (_activeProjectId: string | null) => ({
     col1: {
         elements: [
             {
-                element: <Goals viewMode={"list"} />,
-                title: EActiveLayout.Goals as ActiveLayout,
+                element: <Tasks viewMode={"list"} />,
+                title: EActiveLayout.Tasks as ActiveLayout,
             },
         ],
         style: "col-span-4",
@@ -30,7 +30,7 @@ const getLayout1 = (_activeProjectId: string | null) => ({
                 title: EActiveLayout.Habits as ActiveLayout,
             },
             {
-                element: <Journals />,
+                element: <Notes />,
                 title: EActiveLayout.Notes as ActiveLayout,
             },
         ],
@@ -46,11 +46,11 @@ const getLayout2 = (_activeProjectId: string | null) => ({
     col1: {
         elements: [
             {
-                element: <Goals viewMode={"kanban"} />,
-                title: EActiveLayout.Goals as ActiveLayout,
+                element: <Tasks viewMode={"kanban"} />,
+                title: EActiveLayout.Tasks as ActiveLayout,
             },
             {
-                element: <Journals />,
+                element: <Notes />,
                 title: EActiveLayout.Notes as ActiveLayout,
             },
         ],

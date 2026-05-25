@@ -41,18 +41,18 @@ func (q *Queries) ArchiveProject(ctx context.Context, arg ArchiveProjectParams) 
 	return i, err
 }
 
-const countJournalsByProject = `-- name: CountJournalsByProject :one
+const countNotesByProject = `-- name: CountNotesByProject :one
 SELECT COUNT(*)::int FROM notes
 WHERE project_id = $1 AND user_id = $2 AND deleted_at IS NULL
 `
 
-type CountJournalsByProjectParams struct {
+type CountNotesByProjectParams struct {
 	ProjectID pgtype.UUID `json:"project_id"`
 	UserID    string      `json:"user_id"`
 }
 
-func (q *Queries) CountJournalsByProject(ctx context.Context, arg CountJournalsByProjectParams) (int32, error) {
-	row := q.db.QueryRow(ctx, countJournalsByProject, arg.ProjectID, arg.UserID)
+func (q *Queries) CountNotesByProject(ctx context.Context, arg CountNotesByProjectParams) (int32, error) {
+	row := q.db.QueryRow(ctx, countNotesByProject, arg.ProjectID, arg.UserID)
 	var column_1 int32
 	err := row.Scan(&column_1)
 	return column_1, err
@@ -127,86 +127,6 @@ func (q *Queries) GetProjectByID(ctx context.Context, arg GetProjectByIDParams) 
 	return i, err
 }
 
-const listGoalStatsByProject = `-- name: ListGoalStatsByProject :many
-SELECT id, status FROM tasks
-WHERE project_id = $1 AND user_id = $2 AND deleted_at IS NULL
-`
-
-type ListGoalStatsByProjectParams struct {
-	ProjectID pgtype.UUID `json:"project_id"`
-	UserID    string      `json:"user_id"`
-}
-
-type ListGoalStatsByProjectRow struct {
-	ID     pgtype.UUID `json:"id"`
-	Status interface{} `json:"status"`
-}
-
-func (q *Queries) ListGoalStatsByProject(ctx context.Context, arg ListGoalStatsByProjectParams) ([]ListGoalStatsByProjectRow, error) {
-	rows, err := q.db.Query(ctx, listGoalStatsByProject, arg.ProjectID, arg.UserID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []ListGoalStatsByProjectRow
-	for rows.Next() {
-		var i ListGoalStatsByProjectRow
-		if err := rows.Scan(&i.ID, &i.Status); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listGoalsByProject = `-- name: ListGoalsByProject :many
-SELECT id, title, description, status, priority, impact, position, created_at, updated_at, completed_at, deleted_at, user_id, project_id FROM tasks
-WHERE project_id = $1 AND user_id = $2 AND deleted_at IS NULL AND status != 'archived'
-ORDER BY position ASC, priority ASC, created_at DESC
-`
-
-type ListGoalsByProjectParams struct {
-	ProjectID pgtype.UUID `json:"project_id"`
-	UserID    string      `json:"user_id"`
-}
-
-func (q *Queries) ListGoalsByProject(ctx context.Context, arg ListGoalsByProjectParams) ([]Task, error) {
-	rows, err := q.db.Query(ctx, listGoalsByProject, arg.ProjectID, arg.UserID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []Task
-	for rows.Next() {
-		var i Task
-		if err := rows.Scan(
-			&i.ID,
-			&i.Title,
-			&i.Description,
-			&i.Status,
-			&i.Priority,
-			&i.Impact,
-			&i.Position,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-			&i.CompletedAt,
-			&i.DeletedAt,
-			&i.UserID,
-			&i.ProjectID,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const listProjects = `-- name: ListProjects :many
 SELECT id, name, description, status, start_date, end_date, created_at, updated_at, created_by, last_updated_by, deleted_at FROM projects
 WHERE created_by = $1 AND deleted_at IS NULL
@@ -242,6 +162,86 @@ func (q *Queries) ListProjects(ctx context.Context, arg ListProjectsParams) ([]P
 			&i.CreatedBy,
 			&i.LastUpdatedBy,
 			&i.DeletedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listTaskStatsByProject = `-- name: ListTaskStatsByProject :many
+SELECT id, status FROM tasks
+WHERE project_id = $1 AND user_id = $2 AND deleted_at IS NULL
+`
+
+type ListTaskStatsByProjectParams struct {
+	ProjectID pgtype.UUID `json:"project_id"`
+	UserID    string      `json:"user_id"`
+}
+
+type ListTaskStatsByProjectRow struct {
+	ID     pgtype.UUID `json:"id"`
+	Status interface{} `json:"status"`
+}
+
+func (q *Queries) ListTaskStatsByProject(ctx context.Context, arg ListTaskStatsByProjectParams) ([]ListTaskStatsByProjectRow, error) {
+	rows, err := q.db.Query(ctx, listTaskStatsByProject, arg.ProjectID, arg.UserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListTaskStatsByProjectRow
+	for rows.Next() {
+		var i ListTaskStatsByProjectRow
+		if err := rows.Scan(&i.ID, &i.Status); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listTasksByProject = `-- name: ListTasksByProject :many
+SELECT id, title, description, status, priority, impact, position, created_at, updated_at, completed_at, deleted_at, user_id, project_id FROM tasks
+WHERE project_id = $1 AND user_id = $2 AND deleted_at IS NULL AND status != 'archived'
+ORDER BY position ASC, priority ASC, created_at DESC
+`
+
+type ListTasksByProjectParams struct {
+	ProjectID pgtype.UUID `json:"project_id"`
+	UserID    string      `json:"user_id"`
+}
+
+func (q *Queries) ListTasksByProject(ctx context.Context, arg ListTasksByProjectParams) ([]Task, error) {
+	rows, err := q.db.Query(ctx, listTasksByProject, arg.ProjectID, arg.UserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Task
+	for rows.Next() {
+		var i Task
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Description,
+			&i.Status,
+			&i.Priority,
+			&i.Impact,
+			&i.Position,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.CompletedAt,
+			&i.DeletedAt,
+			&i.UserID,
+			&i.ProjectID,
 		); err != nil {
 			return nil, err
 		}

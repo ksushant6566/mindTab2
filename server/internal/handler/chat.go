@@ -38,13 +38,13 @@ type conversationListItem struct {
 
 // messageItem is the JSON shape for a single message in list responses.
 type messageItem struct {
-	ID         string          `json:"id"`
-	Role       string          `json:"role"`
-	Content    string          `json:"content"`
+	ID          string          `json:"id"`
+	Role        string          `json:"role"`
+	Content     string          `json:"content"`
 	Attachments json.RawMessage `json:"attachments"`
-	ToolCalls  json.RawMessage  `json:"tool_calls"`
-	ToolCallID *string          `json:"tool_call_id"`
-	CreatedAt  *time.Time       `json:"created_at"`
+	ToolCalls   json.RawMessage `json:"tool_calls"`
+	ToolCallID  *string         `json:"tool_call_id"`
+	CreatedAt   *time.Time      `json:"created_at"`
 }
 
 // attachmentUploadResponse is the JSON shape for POST /chat/attachments.

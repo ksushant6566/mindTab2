@@ -11,41 +11,6 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const getGoalActivity = `-- name: GetGoalActivity :many
-SELECT created_at, status FROM tasks
-WHERE user_id = $1 AND created_at >= $2
-`
-
-type GetGoalActivityParams struct {
-	UserID    string             `json:"user_id"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
-}
-
-type GetGoalActivityRow struct {
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
-	Status    interface{}        `json:"status"`
-}
-
-func (q *Queries) GetGoalActivity(ctx context.Context, arg GetGoalActivityParams) ([]GetGoalActivityRow, error) {
-	rows, err := q.db.Query(ctx, getGoalActivity, arg.UserID, arg.CreatedAt)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []GetGoalActivityRow
-	for rows.Next() {
-		var i GetGoalActivityRow
-		if err := rows.Scan(&i.CreatedAt, &i.Status); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const getHabitActivity = `-- name: GetHabitActivity :many
 SELECT created_at FROM habits
 WHERE user_id = $1 AND created_at >= $2
@@ -106,31 +71,66 @@ func (q *Queries) GetHabitTrackerActivity(ctx context.Context, arg GetHabitTrack
 	return items, nil
 }
 
-const getJournalActivity = `-- name: GetJournalActivity :many
+const getNoteActivity = `-- name: GetNoteActivity :many
 SELECT created_at, updated_at FROM notes
 WHERE user_id = $1 AND created_at >= $2
 `
 
-type GetJournalActivityParams struct {
+type GetNoteActivityParams struct {
 	UserID    string             `json:"user_id"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
-type GetJournalActivityRow struct {
+type GetNoteActivityRow struct {
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
 }
 
-func (q *Queries) GetJournalActivity(ctx context.Context, arg GetJournalActivityParams) ([]GetJournalActivityRow, error) {
-	rows, err := q.db.Query(ctx, getJournalActivity, arg.UserID, arg.CreatedAt)
+func (q *Queries) GetNoteActivity(ctx context.Context, arg GetNoteActivityParams) ([]GetNoteActivityRow, error) {
+	rows, err := q.db.Query(ctx, getNoteActivity, arg.UserID, arg.CreatedAt)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GetJournalActivityRow
+	var items []GetNoteActivityRow
 	for rows.Next() {
-		var i GetJournalActivityRow
+		var i GetNoteActivityRow
 		if err := rows.Scan(&i.CreatedAt, &i.UpdatedAt); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getTaskActivity = `-- name: GetTaskActivity :many
+SELECT created_at, status FROM tasks
+WHERE user_id = $1 AND created_at >= $2
+`
+
+type GetTaskActivityParams struct {
+	UserID    string             `json:"user_id"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
+type GetTaskActivityRow struct {
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	Status    interface{}        `json:"status"`
+}
+
+func (q *Queries) GetTaskActivity(ctx context.Context, arg GetTaskActivityParams) ([]GetTaskActivityRow, error) {
+	rows, err := q.db.Query(ctx, getTaskActivity, arg.UserID, arg.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetTaskActivityRow
+	for rows.Next() {
+		var i GetTaskActivityRow
+		if err := rows.Scan(&i.CreatedAt, &i.Status); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

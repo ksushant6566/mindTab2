@@ -30,7 +30,7 @@ func (h *ReadingListsHandler) Sync(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, item := range req.Items {
-		journalType := categorizeURL(item.URL)
+		noteType := categorizeURL(item.URL)
 		content := buildSyncContent(item.URL)
 
 		title := item.Title
@@ -38,14 +38,14 @@ func (h *ReadingListsHandler) Sync(w http.ResponseWriter, r *http.Request) {
 			title = item.URL
 		}
 
-		if err := h.queries.UpsertJournalFromSync(r.Context(), store.UpsertJournalFromSyncParams{
+		if err := h.queries.UpsertNoteFromSync(r.Context(), store.UpsertNoteFromSyncParams{
 			Title:   title,
 			Content: content,
 			UserID:  userID,
 			Source:  "reading-list",
-			Type:    journalType,
+			Type:    noteType,
 		}); err != nil {
-			slog.Error("failed to upsert journal from reading list sync", "error", err, "title", title)
+			slog.Error("failed to upsert note from reading list sync", "error", err, "title", title)
 		}
 	}
 

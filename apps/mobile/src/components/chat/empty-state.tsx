@@ -6,7 +6,7 @@ type EmptyStateProps = {
 };
 
 const SUGGESTIONS = [
-  "What are my active goals?",
+  "What are my active tasks?",
   "Summarize my saved articles",
   "Create a new habit",
   "How was my week?",

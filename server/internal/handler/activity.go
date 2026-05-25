@@ -26,12 +26,12 @@ type activityDay struct {
 }
 
 type activityDetail struct {
-	GoalsCreated    int `json:"goalsCreated"`
-	GoalsCompleted  int `json:"goalsCompleted"`
-	HabitsCreated   int `json:"habitsCreated"`
-	HabitsMarked    int `json:"habitsMarked"`
-	JournalsCreated int `json:"journalsCreated"`
-	JournalsUpdated int `json:"journalsUpdated"`
+	TasksCreated   int `json:"tasksCreated"`
+	TasksCompleted int `json:"tasksCompleted"`
+	HabitsCreated  int `json:"habitsCreated"`
+	HabitsMarked   int `json:"habitsMarked"`
+	NotesCreated   int `json:"notesCreated"`
+	NotesUpdated   int `json:"notesUpdated"`
 }
 
 // GetUserActivity handles GET /activity?userId=.
@@ -57,17 +57,17 @@ func (h *ActivityHandler) GetUserActivity(w http.ResponseWriter, r *http.Request
 		return day
 	}
 
-	// Goal activity.
-	goalActivity, err := h.queries.GetGoalActivity(r.Context(), store.GetGoalActivityParams{
+	// Task activity.
+	taskActivity, err := h.queries.GetTaskActivity(r.Context(), store.GetTaskActivityParams{
 		UserID:    userID,
 		CreatedAt: sinceTimestamptz,
 	})
 	if err != nil {
-		slog.Error("failed to get goal activity", "error", err)
+		slog.Error("failed to get task activity", "error", err)
 		WriteError(w, http.StatusInternalServerError, "failed to get activity")
 		return
 	}
-	for _, g := range goalActivity {
+	for _, g := range taskActivity {
 		if !g.CreatedAt.Valid {
 			continue
 		}
@@ -76,9 +76,9 @@ func (h *ActivityHandler) GetUserActivity(w http.ResponseWriter, r *http.Request
 		day.Count++
 		status := ifaceToString(g.Status)
 		if status == "completed" {
-			day.Details.GoalsCompleted++
+			day.Details.TasksCompleted++
 		} else {
-			day.Details.GoalsCreated++
+			day.Details.TasksCreated++
 		}
 	}
 
@@ -122,24 +122,24 @@ func (h *ActivityHandler) GetUserActivity(w http.ResponseWriter, r *http.Request
 		day.Details.HabitsMarked++
 	}
 
-	// Journal activity.
-	journalActivity, err := h.queries.GetJournalActivity(r.Context(), store.GetJournalActivityParams{
+	// Note activity.
+	noteActivity, err := h.queries.GetNoteActivity(r.Context(), store.GetNoteActivityParams{
 		UserID:    userID,
 		CreatedAt: sinceTimestamptz,
 	})
 	if err != nil {
-		slog.Error("failed to get journal activity", "error", err)
+		slog.Error("failed to get note activity", "error", err)
 		WriteError(w, http.StatusInternalServerError, "failed to get activity")
 		return
 	}
-	for _, j := range journalActivity {
+	for _, j := range noteActivity {
 		if !j.CreatedAt.Valid {
 			continue
 		}
 		dateKey := j.CreatedAt.Time.Format("2006-01-02")
 		day := getOrCreate(dateKey)
 		day.Count++
-		day.Details.JournalsCreated++
+		day.Details.NotesCreated++
 
 		// If updatedAt != createdAt, count as updated too.
 		if j.UpdatedAt.Valid && j.UpdatedAt.Time.After(j.CreatedAt.Time.Add(time.Second)) {
@@ -147,9 +147,9 @@ func (h *ActivityHandler) GetUserActivity(w http.ResponseWriter, r *http.Request
 			if updateDateKey != dateKey {
 				updateDay := getOrCreate(updateDateKey)
 				updateDay.Count++
-				updateDay.Details.JournalsUpdated++
+				updateDay.Details.NotesUpdated++
 			} else {
-				day.Details.JournalsUpdated++
+				day.Details.NotesUpdated++
 			}
 		}
 	}

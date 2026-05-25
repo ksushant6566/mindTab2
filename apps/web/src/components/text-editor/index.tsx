@@ -25,7 +25,7 @@ import { cn } from '~/lib/utils'
 import tippy from 'tippy.js'
 
 import { useQuery } from '@tanstack/react-query'
-import { goalsQueryOptions, habitsQueryOptions, journalsQueryOptions } from '~/api/hooks'
+import { tasksQueryOptions, habitsQueryOptions, notesQueryOptions } from '~/api/hooks'
 import MentionList from './MentionList'
 
 type TipTapEditorProps = {
@@ -64,9 +64,9 @@ export const TipTapEditor = ({
   const [isLinkInputVisible, setIsLinkInputVisible] = useState(false)
   const [linkUrl, setLinkUrl] = useState('')
 
-  const { data: goals } = useQuery(goalsQueryOptions())
+  const { data: tasks } = useQuery(tasksQueryOptions())
   const { data: habits } = useQuery(habitsQueryOptions())
-  const { data: journals } = useQuery(journalsQueryOptions())
+  const { data: notes } = useQuery(notesQueryOptions())
 
   const editor = useEditor({
     extensions: [
@@ -86,17 +86,17 @@ export const TipTapEditor = ({
           items: ({ query }: { query: string }) => {
 
             // add type to each item, these are used to data-resource-type for mentioned elements
-            const goalItems = (goals as any[])?.map((goal: any) => ({ ...goal, resourceType: 'goal' })) || []
+            const taskItems = (tasks as any[])?.map((task: any) => ({ ...task, resourceType: 'task' })) || []
             const habitItems = (habits as any[])?.map((habit: any) => ({ ...habit, resourceType: 'habit' })) || []
-            const journalItems = (journals as any[])?.map((journal: any) => ({ ...journal, resourceType: 'journal' })) || []
+            const noteItems = (notes as any[])?.map((note: any) => ({ ...note, resourceType: 'note' })) || []
 
-            const initialItems = [...goalItems.slice(0, 2), ...journalItems.slice(0, 2), ...habitItems.slice(0, 2)]
+            const initialItems = [...taskItems.slice(0, 2), ...noteItems.slice(0, 2), ...habitItems.slice(0, 2)]
 
             if (!query) {
               return initialItems
             }
 
-            const items = [...goalItems, ...habitItems, ...journalItems]
+            const items = [...taskItems, ...habitItems, ...noteItems]
 
             return items
               ?.filter(item => item.title?.toLowerCase().includes(query.toLowerCase()))

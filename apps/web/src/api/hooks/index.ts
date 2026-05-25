@@ -1,14 +1,14 @@
 import { api } from "../client";
 import {
-  goalsQueryOptions as _goalsQueryOptions,
-  goalQueryOptions as _goalQueryOptions,
-  goalsCountQueryOptions as _goalsCountQueryOptions,
-  unassignedGoalsQueryOptions as _unassignedGoalsQueryOptions,
-  useCreateGoal as _useCreateGoal,
-  useUpdateGoal as _useUpdateGoal,
-  useDeleteGoal as _useDeleteGoal,
-  useUpdateGoalPositions as _useUpdateGoalPositions,
-  useArchiveCompletedGoals as _useArchiveCompletedGoals,
+  tasksQueryOptions as _tasksQueryOptions,
+  taskQueryOptions as _taskQueryOptions,
+  tasksCountQueryOptions as _tasksCountQueryOptions,
+  unassignedTasksQueryOptions as _unassignedTasksQueryOptions,
+  useCreateTask as _useCreateTask,
+  useUpdateTask as _useUpdateTask,
+  useDeleteTask as _useDeleteTask,
+  useUpdateTaskPositions as _useUpdateTaskPositions,
+  useArchiveCompletedTasks as _useArchiveCompletedTasks,
   habitsQueryOptions as _habitsQueryOptions,
   habitQueryOptions as _habitQueryOptions,
   habitTrackerQueryOptions as _habitTrackerQueryOptions,
@@ -17,12 +17,12 @@ import {
   useDeleteHabit as _useDeleteHabit,
   useTrackHabit as _useTrackHabit,
   useUntrackHabit as _useUntrackHabit,
-  journalsQueryOptions as _journalsQueryOptions,
-  journalQueryOptions as _journalQueryOptions,
-  journalsCountQueryOptions as _journalsCountQueryOptions,
-  useCreateJournal as _useCreateJournal,
-  useUpdateJournal as _useUpdateJournal,
-  useDeleteJournal as _useDeleteJournal,
+  notesQueryOptions as _notesQueryOptions,
+  noteQueryOptions as _noteQueryOptions,
+  notesCountQueryOptions as _notesCountQueryOptions,
+  useCreateNote as _useCreateNote,
+  useUpdateNote as _useUpdateNote,
+  useDeleteNote as _useDeleteNote,
   projectsQueryOptions as _projectsQueryOptions,
   projectQueryOptions as _projectQueryOptions,
   projectsStatsQueryOptions as _projectsStatsQueryOptions,
@@ -31,21 +31,21 @@ import {
   useDeleteProject as _useDeleteProject,
   useArchiveProject as _useArchiveProject,
   activityQueryOptions as _activityQueryOptions,
-  searchGoalsQueryOptions as _searchGoalsQueryOptions,
+  searchTasksQueryOptions as _searchTasksQueryOptions,
   searchHabitsQueryOptions as _searchHabitsQueryOptions,
-  searchJournalsQueryOptions as _searchJournalsQueryOptions,
+  searchNotesQueryOptions as _searchNotesQueryOptions,
 } from "@mindtab/core";
 
-// Goals - bind api client
-export const goalsQueryOptions = (params?: Parameters<typeof _goalsQueryOptions>[1]) => _goalsQueryOptions(api, params);
-export const goalQueryOptions = (id: string) => _goalQueryOptions(api, id);
-export const goalsCountQueryOptions = (params?: Parameters<typeof _goalsCountQueryOptions>[1]) => _goalsCountQueryOptions(api, params);
-export const unassignedGoalsQueryOptions = () => _unassignedGoalsQueryOptions(api);
-export const useCreateGoal = () => _useCreateGoal(api);
-export const useUpdateGoal = () => _useUpdateGoal(api);
-export const useDeleteGoal = () => _useDeleteGoal(api);
-export const useUpdateGoalPositions = () => _useUpdateGoalPositions(api);
-export const useArchiveCompletedGoals = () => _useArchiveCompletedGoals(api);
+// Tasks - bind api client
+export const tasksQueryOptions = (params?: Parameters<typeof _tasksQueryOptions>[1]) => _tasksQueryOptions(api, params);
+export const taskQueryOptions = (id: string) => _taskQueryOptions(api, id);
+export const tasksCountQueryOptions = (params?: Parameters<typeof _tasksCountQueryOptions>[1]) => _tasksCountQueryOptions(api, params);
+export const unassignedTasksQueryOptions = () => _unassignedTasksQueryOptions(api);
+export const useCreateTask = () => _useCreateTask(api);
+export const useUpdateTask = () => _useUpdateTask(api);
+export const useDeleteTask = () => _useDeleteTask(api);
+export const useUpdateTaskPositions = () => _useUpdateTaskPositions(api);
+export const useArchiveCompletedTasks = () => _useArchiveCompletedTasks(api);
 
 // Habits - bind api client
 export const habitsQueryOptions = () => _habitsQueryOptions(api);
@@ -57,13 +57,13 @@ export const useDeleteHabit = () => _useDeleteHabit(api);
 export const useTrackHabit = () => _useTrackHabit(api);
 export const useUntrackHabit = () => _useUntrackHabit(api);
 
-// Journals - bind api client
-export const journalsQueryOptions = (params?: Parameters<typeof _journalsQueryOptions>[1]) => _journalsQueryOptions(api, params);
-export const journalQueryOptions = (id: string) => _journalQueryOptions(api, id);
-export const journalsCountQueryOptions = () => _journalsCountQueryOptions(api);
-export const useCreateJournal = () => _useCreateJournal(api);
-export const useUpdateJournal = () => _useUpdateJournal(api);
-export const useDeleteJournal = () => _useDeleteJournal(api);
+// Notes - bind api client
+export const notesQueryOptions = (params?: Parameters<typeof _notesQueryOptions>[1]) => _notesQueryOptions(api, params);
+export const noteQueryOptions = (id: string) => _noteQueryOptions(api, id);
+export const notesCountQueryOptions = () => _notesCountQueryOptions(api);
+export const useCreateNote = () => _useCreateNote(api);
+export const useUpdateNote = () => _useUpdateNote(api);
+export const useDeleteNote = () => _useDeleteNote(api);
 
 // Projects - bind api client
 export const projectsQueryOptions = (params?: Parameters<typeof _projectsQueryOptions>[1]) => _projectsQueryOptions(api, params);
@@ -78,9 +78,9 @@ export const useArchiveProject = () => _useArchiveProject(api);
 export const activityQueryOptions = (userId: string) => _activityQueryOptions(api, userId);
 
 // Search - bind api client
-export const searchGoalsQueryOptions = (query: string) => _searchGoalsQueryOptions(api, query);
+export const searchTasksQueryOptions = (query: string) => _searchTasksQueryOptions(api, query);
 export const searchHabitsQueryOptions = (query: string) => _searchHabitsQueryOptions(api, query);
-export const searchJournalsQueryOptions = (query: string) => _searchJournalsQueryOptions(api, query);
+export const searchNotesQueryOptions = (query: string) => _searchNotesQueryOptions(api, query);
 
 // Auth stays web-specific
 export { useAuth } from "./use-auth";

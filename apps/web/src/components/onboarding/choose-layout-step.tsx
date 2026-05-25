@@ -222,7 +222,7 @@ const layouts = [
         title: "List + Table",
         description: "A structured, scannable layout",
         bullets: [
-            "Goals as a checklist with priority badges",
+            "Tasks as a checklist with priority badges",
             "Habits in a weekly grid you check off",
             "Notes stacked below for easy scrolling",
         ],
@@ -232,7 +232,7 @@ const layouts = [
         title: "Kanban + Cards",
         description: "A visual, drag-and-drop layout",
         bullets: [
-            "Goals in columns by status — drag to progress",
+            "Tasks in columns by status — drag to progress",
             "Habits as individual cards with streaks",
             "Notes alongside for quick reference",
         ],

@@ -18,12 +18,12 @@ export default function MainLayout() {
     >
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen
-        name="goals/index"
-        options={{ headerShown: true, title: "Goals", headerRight: () => <HeaderRight /> }}
+        name="tasks/index"
+        options={{ headerShown: true, title: "Tasks", headerRight: () => <HeaderRight /> }}
       />
       <Stack.Screen
-        name="goals/[id]"
-        options={{ headerShown: true, title: "Goal", animation: "fade_from_bottom" }}
+        name="tasks/[id]"
+        options={{ headerShown: true, title: "Task", animation: "fade_from_bottom" }}
       />
       <Stack.Screen
         name="habits/index"

@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { ChevronRight, FileText } from "lucide-react-native";
-import { journalsQueryOptions, useDeleteJournal } from "@mindtab/core";
+import { notesQueryOptions, useDeleteNote } from "@mindtab/core";
 
 import { PressableCard } from "~/components/ui/pressable-card";
 import { SwipeableRow } from "~/components/ui/swipeable-row";
@@ -29,7 +29,7 @@ function formatDate(dateStr: string): string {
 
 export function NotesSection({ projectId }: NotesSectionProps) {
   const router = useRouter();
-  const deleteJournal = useDeleteJournal(api);
+  const deleteNote = useDeleteNote(api);
   const sectionOpacity = useSharedValue(1);
 
   const doNavigate = useCallback(
@@ -66,7 +66,7 @@ export function NotesSection({ projectId }: NotesSectionProps) {
       {
         text: "Delete",
         style: "destructive",
-        onPress: () => deleteJournal.mutate(noteId),
+        onPress: () => deleteNote.mutate(noteId),
       },
     ]);
   };
@@ -101,7 +101,7 @@ export function NotesSection({ projectId }: NotesSectionProps) {
   );
 
   const { data: notes } = useQuery(
-    journalsQueryOptions(api, { projectId: projectId ?? undefined })
+    notesQueryOptions(api, { projectId: projectId ?? undefined })
   );
 
   const sortedNotes = [...(notes ?? [])].sort((a, b) => {

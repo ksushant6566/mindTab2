@@ -4,16 +4,16 @@ import { Target, CheckSquare, FileText } from "lucide-react-native";
 import { colors } from "~/styles/colors";
 
 type StatsCardsProps = {
-  goals: Array<{ id: string; status?: string | null }>;
+  tasks: Array<{ id: string; status?: string | null }>;
   habits: Array<{ id: string; title: string }>;
   tracker: Array<{ habitId: string; date: string; status: string }>;
   notesCount: number;
 };
 
-export function StatsCards({ goals, habits, tracker, notesCount }: StatsCardsProps) {
-  const goalsCompleted = useMemo(
-    () => goals.filter((g) => g.status === "completed").length,
-    [goals],
+export function StatsCards({ tasks, habits, tracker, notesCount }: StatsCardsProps) {
+  const tasksCompleted = useMemo(
+    () => tasks.filter((g) => g.status === "completed").length,
+    [tasks],
   );
 
   const topHabit = useMemo(() => {
@@ -40,11 +40,11 @@ export function StatsCards({ goals, habits, tracker, notesCount }: StatsCardsPro
     <View style={styles.container}>
       <Text style={styles.sectionTitle}>Stats</Text>
       <View style={styles.grid}>
-        {/* Goals completed */}
+        {/* Tasks completed */}
         <View style={styles.statCard}>
           <Target size={20} color={colors.accent.indigo} />
-          <Text style={styles.statValue}>{goalsCompleted}</Text>
-          <Text style={styles.statLabel}>Goals completed</Text>
+          <Text style={styles.statValue}>{tasksCompleted}</Text>
+          <Text style={styles.statLabel}>Tasks completed</Text>
         </View>
 
         {/* Notes written */}

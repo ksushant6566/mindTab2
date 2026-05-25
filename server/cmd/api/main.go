@@ -211,10 +211,10 @@ func main() {
 	authHandler := handler.NewAuthHandler(queries, pool, cfg.JWTSecret, cfg.GoogleClientID)
 	emailAuthHandler := handler.NewEmailAuthHandler(queries, pool, cfg.JWTSecret, emailService)
 	usersHandler := handler.NewUsersHandler(queries)
-	goalsHandler := handler.NewGoalsHandler(queries, pool)
+	tasksHandler := handler.NewTasksHandler(queries, pool)
 	habitsHandler := handler.NewHabitsHandler(queries, pool)
 	habitTrackerHandler := handler.NewHabitTrackerHandler(queries)
-	journalsHandler := handler.NewJournalsHandler(queries)
+	notesHandler := handler.NewNotesHandler(queries)
 	projectsHandler := handler.NewProjectsHandler(queries, pool)
 	activityHandler := handler.NewActivityHandler(queries)
 	bookmarksHandler := handler.NewBookmarksHandler(queries)
@@ -274,17 +274,17 @@ func main() {
 
 	// WebSocket chat — outside auth middleware (auth via query param token).
 	registry := chat.NewRegistry()
-	registry.Register(chat.NewListGoalsTool(queries))
-	registry.Register(chat.NewCreateGoalTool(queries))
-	registry.Register(chat.NewUpdateGoalTool(queries))
-	registry.Register(chat.NewDeleteGoalTool(queries))
+	registry.Register(chat.NewListTasksTool(queries))
+	registry.Register(chat.NewCreateTaskTool(queries))
+	registry.Register(chat.NewUpdateTaskTool(queries))
+	registry.Register(chat.NewDeleteTaskTool(queries))
 	registry.Register(chat.NewListHabitsTool(queries))
 	registry.Register(chat.NewCreateHabitTool(queries))
 	registry.Register(chat.NewToggleHabitTool(queries))
-	registry.Register(chat.NewListJournalsTool(queries))
-	registry.Register(chat.NewCreateJournalTool(queries))
-	registry.Register(chat.NewUpdateJournalTool(queries))
-	registry.Register(chat.NewDeleteJournalTool(queries))
+	registry.Register(chat.NewListNotesTool(queries))
+	registry.Register(chat.NewCreateNoteTool(queries))
+	registry.Register(chat.NewUpdateNoteTool(queries))
+	registry.Register(chat.NewDeleteNoteTool(queries))
 	registry.Register(chat.NewListProjectsTool(queries))
 	registry.Register(chat.NewCreateProjectTool(queries))
 	registry.Register(chat.NewSearchVaultTool(queries, semanticSearch))
@@ -294,10 +294,10 @@ func main() {
 	registry.Register(chat.NewGetActivitySummaryTool(queries))
 	registry.Register(chat.NewGetUserProfileTool(queries))
 	// Tier 2 — Search & Detail
-	registry.Register(chat.NewSearchGoalsTool(queries))
-	registry.Register(chat.NewSearchJournalsTool(queries))
-	registry.Register(chat.NewGetJournalContentTool(queries))
-	registry.Register(chat.NewGetGoalDetailTool(queries))
+	registry.Register(chat.NewSearchTasksTool(queries))
+	registry.Register(chat.NewSearchNotesTool(queries))
+	registry.Register(chat.NewGetNoteContentTool(queries))
+	registry.Register(chat.NewGetTaskDetailTool(queries))
 	// Tier 3 — Power User
 	registry.Register(chat.NewGetProjectStatsTool(queries))
 	registry.Register(chat.NewDeleteHabitTool(queries))
@@ -325,17 +325,17 @@ func main() {
 		r.Get("/users/me", usersHandler.GetMe)
 		r.Patch("/users/me", usersHandler.UpdateMe)
 
-		// Goals — register literal paths before {id} param.
-		r.Get("/goals", goalsHandler.List)
-		r.Post("/goals", goalsHandler.Create)
-		r.Get("/goals/count", goalsHandler.GetCount)
-		r.Get("/goals/unassigned", goalsHandler.GetUnassigned)
-		r.Patch("/goals/positions", goalsHandler.UpdatePositions)
-		r.Post("/goals/archive-completed", goalsHandler.ArchiveCompleted)
-		r.Get("/goals/{id}/connected-habits", mentionsHandler.ConnectedHabits)
-		r.Get("/goals/{id}", goalsHandler.Get)
-		r.Patch("/goals/{id}", goalsHandler.Update)
-		r.Delete("/goals/{id}", goalsHandler.Delete)
+		// Tasks — register literal paths before {id} param.
+		r.Get("/tasks", tasksHandler.List)
+		r.Post("/tasks", tasksHandler.Create)
+		r.Get("/tasks/count", tasksHandler.GetCount)
+		r.Get("/tasks/unassigned", tasksHandler.GetUnassigned)
+		r.Patch("/tasks/positions", tasksHandler.UpdatePositions)
+		r.Post("/tasks/archive-completed", tasksHandler.ArchiveCompleted)
+		r.Get("/tasks/{id}/connected-habits", mentionsHandler.ConnectedHabits)
+		r.Get("/tasks/{id}", tasksHandler.Get)
+		r.Patch("/tasks/{id}", tasksHandler.Update)
+		r.Delete("/tasks/{id}", tasksHandler.Delete)
 
 		// Habits.
 		r.Get("/habits", habitsHandler.List)
@@ -349,13 +349,13 @@ func main() {
 		// Habit tracker.
 		r.Get("/habit-tracker", habitTrackerHandler.List)
 
-		// Journals — register /journals/count before /journals/{id}.
-		r.Get("/journals", journalsHandler.List)
-		r.Post("/journals", journalsHandler.Create)
-		r.Get("/journals/count", journalsHandler.GetCount)
-		r.Get("/journals/{id}", journalsHandler.Get)
-		r.Patch("/journals/{id}", journalsHandler.Update)
-		r.Delete("/journals/{id}", journalsHandler.Delete)
+		// Notes — register /notes/count before /notes/{id}.
+		r.Get("/notes", notesHandler.List)
+		r.Post("/notes", notesHandler.Create)
+		r.Get("/notes/count", notesHandler.GetCount)
+		r.Get("/notes/{id}", notesHandler.Get)
+		r.Patch("/notes/{id}", notesHandler.Update)
+		r.Delete("/notes/{id}", notesHandler.Delete)
 
 		// Projects — register /projects/stats before /projects/{id}.
 		r.Get("/projects", projectsHandler.List)
@@ -367,9 +367,9 @@ func main() {
 		r.Post("/projects/{id}/archive", projectsHandler.Archive)
 
 		// Search.
-		r.Get("/search/goals", searchHandler.Goals)
+		r.Get("/search/tasks", searchHandler.Tasks)
 		r.Get("/search/habits", searchHandler.Habits)
-		r.Get("/search/journals", searchHandler.Journals)
+		r.Get("/search/notes", searchHandler.Notes)
 
 		// Mentions / connected knowledge.
 		r.Get("/mentions/connected-notes", mentionsHandler.ConnectedNotes)
