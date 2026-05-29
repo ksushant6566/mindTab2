@@ -27,7 +27,7 @@ interface AuthState {
     theme?: AppearanceTheme;
     font?: FontPreset;
   }) => Promise<User>;
-  logout: () => void;
+  logout: () => Promise<void>;
 }
 
 const useAuthStore = create<AuthState>((set, get) => ({
@@ -103,7 +103,9 @@ const useAuthStore = create<AuthState>((set, get) => ({
     return user;
   },
 
-  logout: () => {
+  logout: async () => {
+    const logoutRequest = api.POST("/auth/logout");
+
     setAccessToken(null);
     set({
       user: null,
@@ -113,6 +115,12 @@ const useAuthStore = create<AuthState>((set, get) => ({
       _hasChecked: true,
       _isChecking: false,
     });
+
+    try {
+      await logoutRequest;
+    } catch {
+      // Best-effort: without a server response, the httpOnly cookie may remain.
+    }
   },
 }));
 
