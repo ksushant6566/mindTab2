@@ -103,6 +103,35 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /auth/logout:
+    post:
+      operationId: authLogout
+      tags: [Auth]
+      summary: Logout and revoke the refresh token
+      security: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refreshToken:
+                  type: string
+                  description: Mobile refresh token. Web clients use the httpOnly cookie.
+      responses:
+        "200":
+          description: Logged out
+          headers:
+            Set-Cookie:
+              description: Clears the httpOnly refresh token cookie for web clients
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
   /auth/email/signup:
     post:
       operationId: authEmailSignup
