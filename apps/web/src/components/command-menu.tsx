@@ -118,6 +118,9 @@ export const CommandMenu = () => {
 
     const onEditTaskDialogOpenChange = (open: boolean) => {
         setIsEditTaskDialogOpen(open);
+        if (!open) {
+            setCurrentTask(null);
+        }
     };
 
     const [currentHabit, setCurrentHabit] = useState<any | null>(null);
