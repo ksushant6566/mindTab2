@@ -1,9 +1,10 @@
-import { type ChangeEvent, type FormEvent, type KeyboardEvent, useLayoutEffect, useRef, useState } from "react";
+import { type ChangeEvent, type FormEvent, type KeyboardEvent, useRef, useState } from "react";
 import { CheckCircle2, Flag, FolderOpen, Plus, Save, X, Zap } from "lucide-react";
 import { TASK_IMPACT, TASK_PRIORITY } from "@mindtab/shared";
 import { useQuery } from "@tanstack/react-query";
 import { projectsQueryOptions } from "~/api/hooks";
 import { Button } from "~/components/ui/button";
+import { RichTextEditor } from "~/components/text-editor";
 import {
     Select,
     SelectContent,
@@ -14,6 +15,7 @@ import {
     SelectValue,
 } from "~/components/ui/select";
 import { cn, handleCmdEnterSubmit } from "~/lib/utils";
+import { isRichTextEmpty, sanitizeRichText } from "~/lib/rich-text";
 
 type TaskFormProps = {
     mode: "create" | "edit";
@@ -24,9 +26,6 @@ type TaskFormProps = {
     loading?: boolean;
     showHeader?: boolean;
 };
-
-const DESCRIPTION_MIN_HEIGHT = 72;
-const DESCRIPTION_MAX_HEIGHT = 150;
 
 const priorityColors = {
     priority_1: "var(--rose)",
@@ -66,19 +65,8 @@ export function TaskForm({
     });
 
     const titleRef = useRef<HTMLInputElement>(null);
-    const descriptionRef = useRef<HTMLTextAreaElement>(null);
 
-    useLayoutEffect(() => {
-        const element = descriptionRef.current;
-        if (!element) return;
-
-        element.style.height = "auto";
-        const nextHeight = Math.max(DESCRIPTION_MIN_HEIGHT, Math.min(element.scrollHeight, DESCRIPTION_MAX_HEIGHT));
-        element.style.height = `${nextHeight}px`;
-        element.style.overflowY = element.scrollHeight > DESCRIPTION_MAX_HEIGHT ? "auto" : "hidden";
-    }, [formData.description]);
-
-    const handleChange = (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
         const { name, value } = event.target;
         setFormData((prev: any) => ({ ...prev, [name]: value }));
     };
@@ -91,18 +79,15 @@ export function TaskForm({
         onSave({
             ...formData,
             title,
-            description: String(formData.description ?? "").trim(),
+            description: isRichTextEmpty(formData.description) ? "" : sanitizeRichText(formData.description),
             projectId: formData.projectId || null,
         });
     };
 
-    const handleKeyDown = (event: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-        if (event.key === "ArrowUp" && event.target === descriptionRef.current) {
+    const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+        if (event.key === "ArrowUp") {
             event.preventDefault();
             titleRef.current?.focus();
-        } else if (event.key === "ArrowDown" && event.target === titleRef.current) {
-            event.preventDefault();
-            descriptionRef.current?.focus();
         }
     };
 
@@ -138,15 +123,12 @@ export function TaskForm({
                     ref={titleRef}
                     autoFocus
                 />
-                <textarea
-                    id={mode === "create" ? "create-task-description" : "edit-task-description"}
-                    name="description"
+                <RichTextEditor
+                    content={formData.description || ""}
+                    onContentChange={(description) => setFormData((prev: any) => ({ ...prev, description }))}
                     placeholder="Description"
-                    value={formData.description || ""}
-                    onChange={handleChange}
-                    onKeyDown={handleKeyDown}
-                    className="min-h-[72px] max-h-[150px] w-full resize-none rounded-[var(--r-2)] border border-input bg-background px-3 py-2 text-sm leading-5 text-foreground outline-none transition-[height,border-color,box-shadow] duration-150 [transition-timing-function:var(--ease-out)] placeholder:text-muted-foreground focus:border-[var(--ink-line)] focus:ring-2 focus:ring-ring/30"
-                    ref={descriptionRef}
+                    className="task-description-editor overflow-hidden rounded-[var(--r-2)] border border-input bg-background transition-[border-color,box-shadow] duration-150 focus-within:border-[var(--ink-line)] focus-within:ring-2 focus-within:ring-ring/30"
+                    editorContentClassName="w-full"
                 />
 
                 <div className="grid gap-2 sm:grid-cols-3">

@@ -1,3 +1,5 @@
+import { richTextToPlainText } from "~/lib/rich-text";
+
 export type MentionType = "note" | "task" | "habit";
 
 export type MentionedItem = {
@@ -22,15 +24,6 @@ export type NoteLike = {
     [key: string]: unknown;
 };
 
-const entityMap: Record<string, string> = {
-    "&nbsp;": " ",
-    "&amp;": "&",
-    "&lt;": "<",
-    "&gt;": ">",
-    "&quot;": "\"",
-    "&#39;": "'",
-};
-
 export function getNoteProjectName(note?: NoteLike | null) {
     return note?.project?.name || note?.projectName || null;
 }
@@ -45,21 +38,7 @@ export function formatNoteDate(value?: string | null) {
 }
 
 export function stripHtmlToText(html?: string | null) {
-    if (!html) return "";
-
-    if (typeof DOMParser !== "undefined") {
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, "text/html");
-        return normalizeText(doc.body.textContent ?? "");
-    }
-
-    return normalizeText(
-        html
-            .replace(/<script[\s\S]*?<\/script>/gi, " ")
-            .replace(/<style[\s\S]*?<\/style>/gi, " ")
-            .replace(/<[^>]+>/g, " ")
-            .replace(/&(?:nbsp|amp|lt|gt|quot|#39);/g, (entity) => entityMap[entity] ?? " ")
-    );
+    return richTextToPlainText(html);
 }
 
 export function getNoteExcerpt(html?: string | null, maxLength = 220) {
@@ -110,8 +89,4 @@ export function getMentionedItems(content?: string | null) {
     });
 
     return mentionedItems;
-}
-
-function normalizeText(value: string) {
-    return value.replace(/\s+/g, " ").trim();
 }

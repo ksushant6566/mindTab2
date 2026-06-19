@@ -22,6 +22,7 @@ import {
     DialogTitle,
 } from "~/components/ui/dialog";
 import { cn, getTimeAgo } from "~/lib/utils";
+import { sanitizeRichText } from "~/lib/rich-text";
 import { NoteProjectSelect } from "./note-project-select";
 import {
     countWords,
@@ -99,6 +100,7 @@ export const NoteDialog = ({
     }, [info.content]);
 
     const wordCount = useMemo(() => countWords(info.content), [info.content]);
+    const contentHtml = useMemo(() => sanitizeRichText(info.content), [info.content]);
 
     if (!note) return null;
 
@@ -189,7 +191,7 @@ export const NoteDialog = ({
                         <div className="custom-scrollbar max-h-[min(58vh,540px)] min-w-0 overflow-auto rounded-[var(--r-3)] border border-border bg-background">
                             <article
                                 className="note-prose px-4 py-4"
-                                dangerouslySetInnerHTML={{ __html: info.content || "<p>No content yet.</p>" }}
+                                dangerouslySetInnerHTML={{ __html: contentHtml || "<p>No content yet.</p>" }}
                             />
                         </div>
                     ) : (

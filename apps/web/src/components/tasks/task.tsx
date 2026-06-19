@@ -18,7 +18,9 @@ import { Button } from "~/components/ui/button";
 import { Checkbox } from "~/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "~/components/ui/dialog";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger } from "~/components/ui/select";
+import { RichTextEditor } from "~/components/text-editor";
 import { cn, getTimeAgo } from "~/lib/utils";
+import { isRichTextEmpty, sanitizeRichText } from "~/lib/rich-text";
 
 type TTask = {
     id: string;
@@ -61,9 +63,6 @@ const statusMeta = {
 
 const priorityOptions = ["priority_1", "priority_2", "priority_3", "priority_4"] as const;
 const impactOptions = ["high", "medium", "low"] as const;
-
-const DESCRIPTION_MIN_HEIGHT = 80;
-const DESCRIPTION_MAX_HEIGHT = 180;
 
 const pickerTriggerClassName = "h-8 gap-2 rounded-[var(--r-2)] border-input bg-background px-2 text-xs focus:ring-2 focus:ring-ring/30 focus:ring-offset-0 [&>svg]:h-3.5 [&>svg]:w-3.5";
 const pickerContentClassName = "border-border bg-[var(--bg-elev)] shadow-[0_18px_44px_-34px_rgba(0,0,0,0.95)]";
@@ -134,7 +133,6 @@ const TaskCard: React.FC<Required<Pick<TaskProps, "task" | "onEdit" | "onDelete"
     dragHandleProps,
 }) => {
     const { data: projects } = useQuery(projectsQueryOptions());
-    const descriptionRef = React.useRef<HTMLTextAreaElement>(null);
     const [dialogOpen, setDialogOpen] = React.useState(false);
     const [mode, setMode] = React.useState<"view" | "edit">("view");
     const [formData, setFormData] = React.useState({
@@ -158,44 +156,14 @@ const TaskCard: React.FC<Required<Pick<TaskProps, "task" | "onEdit" | "onDelete"
         setMode("view");
     }, [task.id, task.title, task.description, task.priority, task.impact, task.status, task.projectId, task.project?.id]);
 
-    const resizeDescriptionTextarea = React.useCallback((element: HTMLTextAreaElement | null = descriptionRef.current, animate = true) => {
-        if (!element) return;
-
-        const previousHeight = element.offsetHeight || DESCRIPTION_MIN_HEIGHT;
-        element.style.height = "auto";
-        const contentHeight = element.scrollHeight;
-        const nextHeight = Math.max(DESCRIPTION_MIN_HEIGHT, Math.min(contentHeight, DESCRIPTION_MAX_HEIGHT));
-        const shouldScroll = contentHeight > DESCRIPTION_MAX_HEIGHT;
-
-        const applyHeight = () => {
-            element.style.height = `${nextHeight}px`;
-            element.style.overflowY = shouldScroll ? "auto" : "hidden";
-        };
-
-        if (!animate || Math.abs(previousHeight - nextHeight) <= 1) {
-            applyHeight();
-            return;
-        }
-
-        element.style.height = `${previousHeight}px`;
-        element.style.overflowY = "hidden";
-        void element.offsetHeight;
-
-        requestAnimationFrame(applyHeight);
-    }, []);
-
-    React.useLayoutEffect(() => {
-        if (dialogOpen && mode === "edit") {
-            resizeDescriptionTextarea(descriptionRef.current, false);
-        }
-    }, [dialogOpen, mode, resizeDescriptionTextarea]);
-
     const completed = ["completed", "archived"].includes(task.status);
     const priority = priorityMeta[task.priority as keyof typeof priorityMeta] ?? priorityMeta.priority_4;
     const impact = impactMeta[task.impact as keyof typeof impactMeta] ?? impactMeta.low;
     const status = statusMeta[task.status as keyof typeof statusMeta] ?? statusMeta.pending;
     const projectName = task.project?.name || task.projectName;
     const taskCode = task.key || task.code || `TASK-${String(task.id).slice(0, 4).toUpperCase()}`;
+    const descriptionHtml = React.useMemo(() => sanitizeRichText(task.description), [task.description]);
+    const hasDescription = !isRichTextEmpty(task.description);
 
     const saveInlineEdit = (event: React.FormEvent) => {
         event.preventDefault();
@@ -204,7 +172,7 @@ const TaskCard: React.FC<Required<Pick<TaskProps, "task" | "onEdit" | "onDelete"
         if (onUpdate) {
             onUpdate(task.id, {
                 title: formData.title.trim(),
-                description: formData.description.trim() || undefined,
+                description: isRichTextEmpty(formData.description) ? "" : sanitizeRichText(formData.description),
                 priority: formData.priority,
                 impact: formData.impact,
                 status: formData.status,
@@ -284,10 +252,11 @@ const TaskCard: React.FC<Required<Pick<TaskProps, "task" | "onEdit" | "onDelete"
                                 <span className="text-[var(--text-4)]">·</span>
                                 <ImpactMark impact={impact} />
                             </div>
-                            {surface === "list" && task.description && (
-                                <p className={cn("mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground", completed && "line-through decoration-muted-foreground/60")}>
-                                    {task.description}
-                                </p>
+                            {surface === "list" && hasDescription && (
+                                <div
+                                    className={cn("task-description-preview mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground", completed && "line-through decoration-muted-foreground/60")}
+                                    dangerouslySetInnerHTML={{ __html: descriptionHtml }}
+                                />
                             )}
                         </div>
                         <span className="mt-1 size-1.5 shrink-0 rounded-full" style={{ background: priority.tone }} />
@@ -373,9 +342,16 @@ const TaskCard: React.FC<Required<Pick<TaskProps, "task" | "onEdit" | "onDelete"
 
                     {mode === "view" ? (
                         <div className="space-y-3">
-                            <p className="text-sm leading-5 text-muted-foreground">
-                                {task.description || "No description yet. Open edit mode to add a sharper next action."}
-                            </p>
+                            {hasDescription ? (
+                                <article
+                                    className="task-description-prose text-sm leading-5 text-muted-foreground"
+                                    dangerouslySetInnerHTML={{ __html: descriptionHtml }}
+                                />
+                            ) : (
+                                <p className="text-sm leading-5 text-muted-foreground">
+                                    No description yet. Open edit mode to add a sharper next action.
+                                </p>
+                            )}
                             <div className="grid grid-cols-2 gap-2">
                                 <KanbanDetail label="Priority" value={priority.label}>
                                     <PriorityMark priority={priority} />
@@ -407,15 +383,11 @@ const TaskCard: React.FC<Required<Pick<TaskProps, "task" | "onEdit" | "onDelete"
                                 placeholder="Task title"
                                 autoFocus
                             />
-                            <textarea
-                                ref={descriptionRef}
-                                value={formData.description}
-                                onChange={(event) => {
-                                    setFormData((prev) => ({ ...prev, description: event.target.value }));
-                                    resizeDescriptionTextarea(event.currentTarget);
-                                }}
-                                className="min-h-20 max-h-[180px] w-full resize-none rounded-[var(--r-2)] border border-input bg-background px-3 py-2 text-sm leading-5 text-foreground outline-none transition-[height,border-color,box-shadow] duration-150 [transition-timing-function:var(--ease-out)] placeholder:text-muted-foreground focus:border-[var(--ink-line)] focus:ring-2 focus:ring-ring/30"
+                            <RichTextEditor
+                                content={formData.description}
+                                onContentChange={(description) => setFormData((prev) => ({ ...prev, description }))}
                                 placeholder="What does done look like?"
+                                className="task-description-editor overflow-hidden rounded-[var(--r-2)] border border-input bg-background transition-[border-color,box-shadow] duration-150 focus-within:border-[var(--ink-line)] focus-within:ring-2 focus-within:ring-ring/30"
                             />
                             <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
                                 <PriorityPicker

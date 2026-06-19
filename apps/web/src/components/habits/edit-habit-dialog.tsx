@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { CalendarDays, Flame, Repeat2, TrendingUp } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "~/components/ui/dialog";
+import { isRichTextEmpty, sanitizeRichText } from "~/lib/rich-text";
 import { cn, getTimeAgo } from "~/lib/utils";
 import { EditHabit, EditHabitProps } from "./edit-habit";
 import { HabitCell } from "./habit-cell";
@@ -83,6 +84,8 @@ export const EditHabitDialog = ({
         if (!habit.createdAt) return "Unknown";
         return getTimeAgo(new Date(habit.createdAt));
     }, [habit.createdAt]);
+    const descriptionHtml = useMemo(() => sanitizeRichText(habit.description), [habit.description]);
+    const hasDescription = !isRichTextEmpty(habit.description);
 
     const weekSummary = getCompletionSummary(completedSet, habit, weekDates, todayDate);
     const monthSummary = getCompletionSummary(completedSet, habit, monthDates, todayDate);
@@ -172,9 +175,14 @@ export const EditHabitDialog = ({
                                     <HabitDetail label="Year rate" value={`${yearSummary.rate}%`} icon={<CalendarDays className="h-3.5 w-3.5" />} />
                                     <div className="rounded-[var(--r-2)] border border-border bg-[var(--bg-soft)] px-3 py-3">
                                         <div className="font-mono text-[9px] uppercase tracking-[0.08em] text-muted-foreground">Description</div>
-                                        <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                                            {habit.description || "No description yet."}
-                                        </p>
+                                        {hasDescription ? (
+                                            <div
+                                                className="habit-description-prose mt-2 text-xs leading-5 text-muted-foreground"
+                                                dangerouslySetInnerHTML={{ __html: descriptionHtml }}
+                                            />
+                                        ) : (
+                                            <p className="mt-2 text-xs leading-5 text-muted-foreground">No description yet.</p>
+                                        )}
                                     </div>
                                 </aside>
 
