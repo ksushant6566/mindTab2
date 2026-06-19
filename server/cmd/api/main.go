@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -316,6 +317,17 @@ func main() {
 	wsHandler := handler.NewWSHandler(orchestrator, cfg.JWTSecret, cfg.AllowedOrigins, queries)
 	r.Get("/ws/chat", wsHandler.HandleChat)
 
+	spaHandler := handler.NewSPAHandler(cfg.StaticDir)
+	authenticatedHabitList := mw.Auth(cfg.JWTSecret)(http.HandlerFunc(habitsHandler.List))
+	r.Get("/habits", func(w http.ResponseWriter, r *http.Request) {
+		if acceptsHTML(r) {
+			spaHandler.ServeHTTP(w, r)
+			return
+		}
+
+		authenticatedHabitList.ServeHTTP(w, r)
+	})
+
 	// Protected routes.
 	r.Group(func(r chi.Router) {
 		r.Use(mw.Auth(cfg.JWTSecret))
@@ -340,7 +352,6 @@ func main() {
 		r.Delete("/tasks/{id}", tasksHandler.Delete)
 
 		// Habits.
-		r.Get("/habits", habitsHandler.List)
 		r.Post("/habits", habitsHandler.Create)
 		r.Get("/habits/{id}", habitsHandler.Get)
 		r.Patch("/habits/{id}", habitsHandler.Update)
@@ -404,7 +415,6 @@ func main() {
 	}
 
 	// SPA fallback — must be last
-	spaHandler := handler.NewSPAHandler(cfg.StaticDir)
 	r.Handle("/*", spaHandler)
 
 	srv := &http.Server{
@@ -441,4 +451,8 @@ func main() {
 	if err := srv.Shutdown(ctx); err != nil {
 		slog.Error("server shutdown error", "error", err)
 	}
+}
+
+func acceptsHTML(r *http.Request) bool {
+	return strings.Contains(r.Header.Get("Accept"), "text/html")
 }

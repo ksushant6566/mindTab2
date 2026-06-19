@@ -10,9 +10,8 @@ import { CreateTaskStep, type CreatedTaskData } from "./create-task-step";
 import { CreateHabitStep, type CreatedHabitData } from "./create-habit-step";
 import { NotesIntroStep } from "./notes-intro-step";
 import { ChromeExtensionStep } from "./chrome-extension-step";
-import { ChooseLayoutStep } from "./choose-layout-step";
 
-const TOTAL_STEPS = 7;
+const TOTAL_STEPS = 6;
 
 const STEP_LABELS = [
     "Welcome",
@@ -21,11 +20,10 @@ const STEP_LABELS = [
     "Habit",
     "Notes",
     "Extension",
-    "Layout",
 ] as const;
 
 // Steps that use wider container
-const WIDE_STEPS = new Set([1, 5, 7]);
+const WIDE_STEPS = new Set([1, 5, 6]);
 
 type OnboardingProps = {
     userName: string;
@@ -286,13 +284,6 @@ export function Onboarding({ userName, onComplete }: OnboardingProps) {
 
                         {currentStep === 6 && (
                             <ChromeExtensionStep
-                                onNext={handleNext}
-                                onBack={handleBack}
-                            />
-                        )}
-
-                        {currentStep === 7 && (
-                            <ChooseLayoutStep
                                 onNext={handleOnboardingComplete}
                                 onBack={handleBack}
                                 isLastStep

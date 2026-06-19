@@ -1,11 +1,14 @@
 import React, { useEffect, useState } from 'react'
+import { Link, useLocation } from '@tanstack/react-router'
 import { CommandMenu } from './command-menu'
 import Streak from './streak'
 import { XP } from './xp'
 import { useAuth } from '~/api/hooks/use-auth'
+import { Button } from './ui/button'
 
 export const Header = () => {
   const { user } = useAuth()
+  const location = useLocation()
 
   const [isHydrated, setIsHydrated] = useState(false)
 
@@ -17,6 +20,14 @@ export const Header = () => {
 
   return (
     <div className="flex w-full justify-end items-center gap-6">
+      <nav className="flex items-center gap-2">
+        <Button asChild size="sm" variant={location.pathname === '/' ? 'default' : 'secondary'}>
+          <Link to="/">Dashboard</Link>
+        </Button>
+        <Button asChild size="sm" variant={location.pathname === '/habits' ? 'default' : 'secondary'}>
+          <Link to="/habits">Habits</Link>
+        </Button>
+      </nav>
       <CommandMenu />
       <div className="flex items-center gap-4">
         <div className="relative ml-8 flex items-center">

@@ -35,6 +35,7 @@ type THabitTableProps = {
     habitTracker: any[];
     setIsCreateDialogOpen: (open: boolean) => void;
     onOpenHabit: (habit: any, mode: "view" | "edit") => void;
+    weekOffsets?: number[];
 };
 
 export const HabitTable: React.FC<THabitTableProps> = ({
@@ -48,6 +49,7 @@ export const HabitTable: React.FC<THabitTableProps> = ({
     habitTracker,
     setIsCreateDialogOpen,
     onOpenHabit,
+    weekOffsets,
 }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const currentWeekRef = useRef<HTMLElement>(null);
@@ -59,7 +61,7 @@ export const HabitTable: React.FC<THabitTableProps> = ({
 
     const completedSet = useMemo(() => getCompletedSet(habitTracker), [habitTracker]);
     const weeksToRender = useMemo(() => {
-        return [-4, -3, -2, -1, 0, 1].map((offset) => {
+        return (weekOffsets ?? [-4, -3, -2, -1, 0, 1]).map((offset) => {
             const dates = getWeekDates(today, offset);
             return {
                 id: formatDateKey(dates[0]!),
@@ -68,7 +70,7 @@ export const HabitTable: React.FC<THabitTableProps> = ({
                 isCurrentWeek: offset === 0,
             };
         });
-    }, [today]);
+    }, [today, weekOffsets]);
 
     const handleScroll = useCallback(() => {
         if (!containerRef.current || !currentWeekRef.current) return;

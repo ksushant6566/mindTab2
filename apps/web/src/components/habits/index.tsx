@@ -20,9 +20,10 @@ export type ViewMode = "table" | "cards";
 
 type HabitsProps = {
     viewMode: ViewMode;
+    weekOffsets?: number[];
 };
 
-export const Habits: React.FC<HabitsProps> = ({ viewMode }) => {
+export const Habits: React.FC<HabitsProps> = ({ viewMode, weekOffsets }) => {
     const successAudioRef = useRef<HTMLAudioElement | null>(null);
     const errorAudioRef = useRef<HTMLAudioElement | null>(null);
     const [isCreateDialogOpen, setIsCreateDialogOpen] = React.useState(false);
@@ -128,6 +129,7 @@ export const Habits: React.FC<HabitsProps> = ({ viewMode }) => {
                     habitTracker={(habitTracker as any[]) ?? []}
                     setIsCreateDialogOpen={setIsCreateDialogOpen}
                     onOpenHabit={(habit, mode) => setEditHabitState({ habit, mode })}
+                    weekOffsets={weekOffsets}
                 />
             ) : (
                 <CollapsedHabits
