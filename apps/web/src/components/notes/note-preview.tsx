@@ -2,6 +2,7 @@ import { Clock3, Edit3, FileText, FolderOpen, Repeat2, Target, Trash2 } from "lu
 import React, { useMemo } from "react";
 import { Button } from "~/components/ui/button";
 import { cn, getTimeAgo } from "~/lib/utils";
+import { sanitizeRichText } from "~/lib/rich-text";
 import {
     countWords,
     formatNoteDate,
@@ -57,6 +58,7 @@ export const NotePreview = ({
     const updatedAt = note.updatedAt || note.createdAt;
     const updatedLabel = updatedAt ? getTimeAgo(new Date(updatedAt)) : "Unknown";
     const wordCount = useMemo(() => countWords(note.content), [note.content]);
+    const contentHtml = useMemo(() => sanitizeRichText(note.content), [note.content]);
     const mentionedItems = useMemo(() => {
         const mentions = getMentionedItems(note.content);
         return [...mentions.task, ...mentions.habit, ...mentions.note];
@@ -102,10 +104,10 @@ export const NotePreview = ({
                 </div>
 
                 <div className="relative mt-3 min-h-0 flex-1 overflow-hidden">
-                    {note.content ? (
+                    {contentHtml ? (
                         <div
                             className="note-preview"
-                            dangerouslySetInnerHTML={{ __html: note.content }}
+                            dangerouslySetInnerHTML={{ __html: contentHtml }}
                         />
                     ) : (
                         <p className="text-sm text-muted-foreground">No content yet.</p>

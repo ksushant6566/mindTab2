@@ -1,6 +1,8 @@
-import { type ChangeEvent, type FormEvent, type KeyboardEvent, useLayoutEffect, useRef, useState } from "react";
+import { type ChangeEvent, type FormEvent, type KeyboardEvent, useRef, useState } from "react";
 import { Plus, Repeat2, Save, X } from "lucide-react";
+import { RichTextEditor } from "~/components/text-editor";
 import { Button } from "~/components/ui/button";
+import { isRichTextEmpty, sanitizeRichText } from "~/lib/rich-text";
 import { cn, handleCmdEnterSubmit } from "~/lib/utils";
 
 type HabitFormProps = {
@@ -11,9 +13,6 @@ type HabitFormProps = {
     loading?: boolean;
     showHeader?: boolean;
 };
-
-const DESCRIPTION_MIN_HEIGHT = 72;
-const DESCRIPTION_MAX_HEIGHT = 150;
 
 export function HabitForm({
     mode,
@@ -30,19 +29,8 @@ export function HabitForm({
         frequency: habit?.frequency ?? "daily",
     });
     const titleRef = useRef<HTMLInputElement>(null);
-    const descriptionRef = useRef<HTMLTextAreaElement>(null);
 
-    useLayoutEffect(() => {
-        const element = descriptionRef.current;
-        if (!element) return;
-
-        element.style.height = "auto";
-        const nextHeight = Math.max(DESCRIPTION_MIN_HEIGHT, Math.min(element.scrollHeight, DESCRIPTION_MAX_HEIGHT));
-        element.style.height = `${nextHeight}px`;
-        element.style.overflowY = element.scrollHeight > DESCRIPTION_MAX_HEIGHT ? "auto" : "hidden";
-    }, [formData.description]);
-
-    const handleChange = (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
         const { name, value } = event.target;
         setFormData((prev: any) => ({ ...prev, [name]: value }));
     };
@@ -55,18 +43,15 @@ export function HabitForm({
         onSave({
             ...formData,
             title,
-            description: String(formData.description ?? "").trim(),
+            description: isRichTextEmpty(formData.description) ? "" : sanitizeRichText(formData.description),
             frequency: formData.frequency || "daily",
         });
     };
 
-    const handleKeyDown = (event: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-        if (event.key === "ArrowUp" && event.target === descriptionRef.current) {
+    const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+        if (event.key === "ArrowUp") {
             event.preventDefault();
             titleRef.current?.focus();
-        } else if (event.key === "ArrowDown" && event.target === titleRef.current) {
-            event.preventDefault();
-            descriptionRef.current?.focus();
         }
     };
 
@@ -97,15 +82,12 @@ export function HabitForm({
                     ref={titleRef}
                     autoFocus
                 />
-                <textarea
-                    id={mode === "create" ? "create-habit-description" : "edit-habit-description"}
-                    name="description"
+                <RichTextEditor
+                    content={formData.description || ""}
+                    onContentChange={(description) => setFormData((prev: any) => ({ ...prev, description }))}
                     placeholder="Description"
-                    value={formData.description || ""}
-                    onChange={handleChange}
-                    onKeyDown={handleKeyDown}
-                    className="min-h-[72px] max-h-[150px] w-full resize-none rounded-[var(--r-2)] border border-input bg-background px-3 py-2 text-sm leading-5 text-foreground outline-none transition-[height,border-color,box-shadow] duration-150 [transition-timing-function:var(--ease-out)] placeholder:text-muted-foreground focus:border-[var(--ink-line)] focus:ring-2 focus:ring-ring/30"
-                    ref={descriptionRef}
+                    className="habit-description-editor overflow-hidden rounded-[var(--r-2)] border border-input bg-background transition-[border-color,box-shadow] duration-150 focus-within:border-[var(--ink-line)] focus-within:ring-2 focus-within:ring-ring/30"
+                    editorContentClassName="w-full"
                 />
 
                 <div className="space-y-1">

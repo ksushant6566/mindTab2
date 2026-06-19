@@ -1,47 +1,206 @@
-import { Editor, EditorContent, ReactRenderer, useEditor } from '@tiptap/react'
-import StarterKit from '@tiptap/starter-kit'
-import Link from '@tiptap/extension-link' // Import the Link extension
-import Mention from '@tiptap/extension-mention'
+import { Editor, EditorContent, ReactRenderer, useEditor } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import Link from "@tiptap/extension-link";
+import Mention from "@tiptap/extension-mention";
 import {
   Bold,
+  Check,
   Code,
   Italic,
+  Link as LinkIcon,
   List,
   ListOrdered,
   MessageSquareCode,
   MessageSquareQuote,
   Strikethrough,
-  Link as LinkIcon, // Import a link icon
   X,
-  Check,
-} from 'lucide-react'
-import { useEffect, useId, useRef, useState } from 'react'
-import { Separator } from '../ui/separator'
-import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group'
-import { Input } from '../ui/input'
-import { Button } from '../ui/button'
-import { cn } from '~/lib/utils'
+} from "lucide-react";
+import { type KeyboardEvent, useEffect, useId, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import tippy from "tippy.js";
+import { tasksQueryOptions, habitsQueryOptions, notesQueryOptions } from "~/api/hooks";
+import { Button } from "~/components/ui/button";
+import { Input } from "~/components/ui/input";
+import { Separator } from "~/components/ui/separator";
+import { ToggleGroup, ToggleGroupItem } from "~/components/ui/toggle-group";
+import { cn } from "~/lib/utils";
+import { normalizeRichTextInput } from "~/lib/rich-text";
+import MentionList from "./MentionList";
 
-import tippy from 'tippy.js'
+type RichTextEditorProps = {
+  content: string;
+  onContentChange: (content: string) => void;
+  editable?: boolean;
+  placeholder?: string;
+  className?: string;
+  editorContentClassName?: string;
+  withMentions?: boolean;
+  onEditorReady?: (editor: Editor | null) => void;
+  onKeyDown?: (event: KeyboardEvent<HTMLDivElement>, editor: Editor | null) => void;
+};
 
-import { useQuery } from '@tanstack/react-query'
-import { tasksQueryOptions, habitsQueryOptions, notesQueryOptions } from '~/api/hooks'
-import MentionList from './MentionList'
-
-type TipTapEditorProps = {
-  content: string
-  onContentChange: (content: string) => void
-  title: string
-  onTitleChange: (title: string) => void
-  editable?: boolean
-  className?: string
-  titleClassName?: string
-  editorContentClassName?: string
-}
+type TipTapEditorProps = RichTextEditorProps & {
+  title: string;
+  onTitleChange: (title: string) => void;
+  titleClassName?: string;
+};
 
 interface ComponentRef {
   onKeyDown: (props: any) => boolean;
 }
+
+export const RichTextEditor = ({
+  content,
+  onContentChange,
+  editable = true,
+  placeholder,
+  className,
+  editorContentClassName,
+  withMentions = true,
+  onEditorReady,
+  onKeyDown,
+}: RichTextEditorProps) => {
+  const editorRef = useRef<HTMLDivElement>(null);
+  const { data: tasks } = useQuery({ ...tasksQueryOptions(), enabled: withMentions });
+  const { data: habits } = useQuery({ ...habitsQueryOptions(), enabled: withMentions });
+  const { data: notes } = useQuery({ ...notesQueryOptions(), enabled: withMentions });
+
+  const editor = useEditor({
+    extensions: [
+      StarterKit,
+      Link.configure({
+        openOnClick: !editable,
+        HTMLAttributes: {
+          target: "_blank",
+          rel: "noopener noreferrer",
+        },
+      }),
+      ...(withMentions
+        ? [
+            Mention.configure({
+              HTMLAttributes: {
+                class: "mention",
+              },
+              suggestion: {
+                items: ({ query }: { query: string }) => {
+                  const taskItems = (tasks as any[])?.map((task: any) => ({ ...task, resourceType: "task" })) || [];
+                  const habitItems = (habits as any[])?.map((habit: any) => ({ ...habit, resourceType: "habit" })) || [];
+                  const noteItems = (notes as any[])?.map((note: any) => ({ ...note, resourceType: "note" })) || [];
+                  const initialItems = [...taskItems.slice(0, 2), ...noteItems.slice(0, 2), ...habitItems.slice(0, 2)];
+
+                  if (!query) return initialItems;
+
+                  return [...taskItems, ...habitItems, ...noteItems]
+                    .filter((item) => item.title?.toLowerCase().includes(query.toLowerCase()))
+                    .slice(0, 10);
+                },
+                render: () => {
+                  let component: ReactRenderer;
+                  let popup: any[];
+
+                  return {
+                    onStart: (props) => {
+                      component = new ReactRenderer(MentionList, {
+                        props,
+                        editor: props.editor,
+                      });
+
+                      if (!props.clientRect) return;
+
+                      popup = tippy("body", {
+                        getReferenceClientRect: props.clientRect as any,
+                        appendTo: () => document.body,
+                        content: component.element,
+                        showOnCreate: true,
+                        interactive: true,
+                        trigger: "manual",
+                        placement: "bottom-start",
+                      });
+                    },
+                    onUpdate(props) {
+                      component.updateProps(props);
+
+                      if (!props.clientRect) return;
+
+                      popup[0].setProps({
+                        getReferenceClientRect: props.clientRect as any,
+                      });
+                    },
+                    onKeyDown(props) {
+                      if (props.event?.key === "Escape") {
+                        popup[0].hide();
+                        return true;
+                      }
+
+                      return (component.ref as ComponentRef)?.onKeyDown(props);
+                    },
+                    onExit() {
+                      popup[0].destroy();
+                      component.destroy();
+                    },
+                  };
+                },
+                command: ({ editor, range, props }) => {
+                  editor
+                    .chain()
+                    .focus()
+                    .insertContentAt(range, [
+                      {
+                        type: "mention",
+                        attrs: props,
+                      },
+                      {
+                        type: "text",
+                        text: " ",
+                      },
+                    ])
+                    .run();
+                },
+              },
+            }),
+          ]
+        : []),
+    ],
+    content: normalizeRichTextInput(content),
+    editable,
+    immediatelyRender: false,
+    shouldRerenderOnTransaction: false,
+    onUpdate: ({ editor }) => {
+      onContentChange(editor.getHTML());
+    },
+  });
+
+  useEffect(() => {
+    if (!editor || editor.isDestroyed) return;
+
+    const nextContent = normalizeRichTextInput(content);
+    if (nextContent !== editor.getHTML()) {
+      editor.commands.setContent(nextContent, false);
+    }
+  }, [content, editor]);
+
+  useEffect(() => {
+    if (!editor || editor.isDestroyed) return;
+    editor.setEditable(editable);
+  }, [editable, editor]);
+
+  useEffect(() => {
+    onEditorReady?.(editor);
+    return () => onEditorReady?.(null);
+  }, [editor, onEditorReady]);
+
+  return (
+    <div ref={editorRef} className={cn("rich-text-editor relative w-full", className)}>
+      {editable && <MenuBar editor={editor} />}
+      <EditorContent
+        editor={editor}
+        aria-label={placeholder}
+        onKeyDown={(event) => onKeyDown?.(event, editor)}
+        className={cn("w-full", editorContentClassName)}
+      />
+    </div>
+  );
+};
 
 export const TipTapEditor = ({
   content,
@@ -52,356 +211,123 @@ export const TipTapEditor = ({
   className,
   titleClassName,
   editorContentClassName,
+  withMentions = true,
 }: TipTapEditorProps) => {
-  const titleInputId = useId()
-  const [isMenuVisible, setIsMenuVisible] = useState(false)
-  const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 })
-  const editorRef = useRef<HTMLDivElement>(null)
-  const titleInputRef = useRef<HTMLInputElement>(null)
-  const menuRef = useRef<HTMLDivElement>(null)
-  const selectionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  const [isLinkInputVisible, setIsLinkInputVisible] = useState(false)
-  const [linkUrl, setLinkUrl] = useState('')
-
-  const { data: tasks } = useQuery(tasksQueryOptions())
-  const { data: habits } = useQuery(habitsQueryOptions())
-  const { data: notes } = useQuery(notesQueryOptions())
-
-  const editor = useEditor({
-    extensions: [
-      StarterKit,
-      Link.configure({
-        openOnClick: true,
-        HTMLAttributes: {
-          target: '_blank', // Ensure links open in a new tab
-          rel: 'noopener noreferrer',
-        },
-      }),
-      Mention.configure({
-        HTMLAttributes: {
-          class: 'mention',
-        },
-        suggestion: {
-          items: ({ query }: { query: string }) => {
-
-            // add type to each item, these are used to data-resource-type for mentioned elements
-            const taskItems = (tasks as any[])?.map((task: any) => ({ ...task, resourceType: 'task' })) || []
-            const habitItems = (habits as any[])?.map((habit: any) => ({ ...habit, resourceType: 'habit' })) || []
-            const noteItems = (notes as any[])?.map((note: any) => ({ ...note, resourceType: 'note' })) || []
-
-            const initialItems = [...taskItems.slice(0, 2), ...noteItems.slice(0, 2), ...habitItems.slice(0, 2)]
-
-            if (!query) {
-              return initialItems
-            }
-
-            const items = [...taskItems, ...habitItems, ...noteItems]
-
-            return items
-              ?.filter(item => item.title?.toLowerCase().includes(query.toLowerCase()))
-              ?.slice(0, 10)
-              || []
-          },
-
-          render: () => {
-            let component: ReactRenderer
-            let popup: any[]
-
-            return {
-              onStart: (props) => {
-                component = new ReactRenderer(MentionList, {
-                  props,
-                  editor: props.editor,
-                })
-
-                if (!props.clientRect) {
-                  return
-                }
-
-                // @ts-ignore
-                popup = tippy('body', {
-                  getReferenceClientRect: props.clientRect,
-                  appendTo: () => document.body,
-                  content: component.element,
-                  showOnCreate: true,
-                  interactive: true,
-                  trigger: 'manual',
-                  placement: 'bottom-start',
-                })
-              },
-
-              onUpdate(props) {
-                component.updateProps(props)
-
-                if (!props.clientRect) {
-                  return
-                }
-
-                popup[0].setProps({
-                  getReferenceClientRect: props.clientRect,
-                })
-              },
-
-              onKeyDown(props) {
-                if (props.event?.key === 'Escape') {
-                  popup[0].hide()
-
-                  return true
-                }
-
-                return (component.ref as ComponentRef)?.onKeyDown(props)
-              },
-
-              onExit() {
-                popup[0].destroy()
-                component.destroy()
-              },
-            }
-          },
-          command: ({ editor, range, props }) => {
-            editor
-              .chain()
-              .focus()
-              .insertContentAt(range, [
-                {
-                  type: 'mention',
-                  attrs: props,
-                },
-                {
-                  type: 'text',
-                  text: ' ',
-                },
-              ])
-              .run()
-          },
-        }
-      }),
-    ],
-    content: content,
-    shouldRerenderOnTransaction: false,
-    onUpdate: ({ editor }) => {
-      onContentChange(editor.getHTML())
-    },
-    onSelectionUpdate: ({ editor }) => {
-      if (selectionTimeoutRef.current) {
-        clearTimeout(selectionTimeoutRef.current)
-      }
-
-      selectionTimeoutRef.current = setTimeout(() => {
-        const { from, to } = editor.state.selection
-        if (from !== to && editorRef.current) {
-          const editorRect = editorRef.current.getBoundingClientRect()
-          const { rangeRect } = getSelectionRect(editor)
-
-          if (rangeRect) {
-            const left = rangeRect.left - editorRect.left
-            const top = rangeRect.top - editorRect.top
-            setMenuPosition({ x: left, y: top })
-            setIsMenuVisible(true)
-          }
-        } else {
-          setIsMenuVisible(false)
-        }
-      }, 200)
-    },
-    editable: editable,
-    immediatelyRender: false,
-  })
-
-  // Sync content prop changes to the editor (useEditor only uses content on init)
-  useEffect(() => {
-    if (editor && !editor.isDestroyed && content !== editor.getHTML()) {
-      editor.commands.setContent(content, false)
-    }
-  }, [content, editor])
-
-  const getSelectionRect = (editor: Editor) => {
-    const { from, to } = editor.state.selection
-    const start = editor.view.coordsAtPos(from)
-    const end = editor.view.coordsAtPos(to)
-
-    const rangeRect = {
-      left: Math.min(start.left, end.left),
-      top: Math.min(start.top, end.top),
-      right: Math.max(start.right, end.right),
-      bottom: Math.max(start.bottom, end.bottom),
-    }
-
-    return { rangeRect }
-  }
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        editorRef.current &&
-        !editorRef.current.contains(event.target as Node) &&
-        menuRef.current &&
-        !menuRef.current.contains(event.target as Node)
-      ) {
-        setIsMenuVisible(false)
-        setIsLinkInputVisible(false) // Hide link input when clicking outside
-      }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-      if (selectionTimeoutRef.current) {
-        clearTimeout(selectionTimeoutRef.current)
-      }
-    }
-  }, [])
-
-  /**
-   * This useEffect ensures that when the link input becomes visible,
-   * it prepopulates the linkUrl with the current link's href if a link is active.
-   */
-  useEffect(() => {
-    if (isLinkInputVisible && editor?.isActive('link')) {
-      const currentLink = editor.getAttributes('link').href || ''
-      setLinkUrl(currentLink)
-    } else if (!isLinkInputVisible) {
-      setLinkUrl('')
-    }
-  }, [isLinkInputVisible, editor])
+  const titleInputId = useId();
+  const titleInputRef = useRef<HTMLInputElement>(null);
+  const bodyEditorRef = useRef<Editor | null>(null);
 
   return (
-    <div ref={editorRef} className={cn('relative w-full rounded-md px-2 pt-2', className)}>
-      <div className="flex flex-col gap-0 w-full">
+    <div className={cn("relative w-full rounded-md px-2 pt-2", className)}>
+      <div className="flex w-full flex-col gap-0">
         <input
           ref={titleInputRef}
           type="text"
           id={titleInputId}
           placeholder="Title"
           value={title}
-          onChange={(e) => onTitleChange(e.target.value)}
+          onChange={(event) => onTitleChange(event.target.value)}
           className={cn(
-            'my-0 w-full border-none bg-transparent px-3 text-xl font-semibold tracking-normal text-foreground placeholder:text-muted-foreground focus:border-none focus:outline-none disabled:cursor-default disabled:opacity-100',
-            titleClassName,
+            "my-0 w-full border-none bg-transparent px-3 text-xl font-semibold tracking-normal text-foreground placeholder:text-muted-foreground focus:border-none focus:outline-none disabled:cursor-default disabled:opacity-100",
+            titleClassName
           )}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault()
-              editor?.commands.focus()
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              bodyEditorRef.current?.commands.focus();
             }
           }}
           disabled={!editable}
         />
-        <EditorContent
-          editor={editor}
-          onKeyDown={(e) => {
-            if (e.key === 'Backspace' && editor?.isEmpty) {
-              e.preventDefault()
-              titleInputRef.current?.focus()
+        <RichTextEditor
+          content={content}
+          onContentChange={onContentChange}
+          editable={editable}
+          withMentions={withMentions}
+          placeholder="Write the details"
+          className="note-body-editor mt-3"
+          editorContentClassName={cn("-ml-1", editorContentClassName)}
+          onEditorReady={(editor) => {
+            bodyEditorRef.current = editor;
+          }}
+          onKeyDown={(event, editor) => {
+            if (event.key === "Backspace" && editor?.isEmpty) {
+              event.preventDefault();
+              titleInputRef.current?.focus();
             }
           }}
-          className={cn('-ml-1 w-full', editorContentClassName)}
         />
       </div>
-      {isMenuVisible && editable && (
-        <div
-          ref={menuRef}
-          style={{
-            position: 'absolute',
-            top: `${menuPosition.y - 15}px`,
-            left: `${menuPosition.x}px`,
-            zIndex: 50,
-            transform: 'translateY(-100%)',
-          }}
-          className="flex items-center rounded-[var(--r-3)] border border-border bg-[var(--bg-elev)] p-1.5 shadow-[0_18px_44px_-34px_rgba(0,0,0,0.95)]"
-        >
-          <MenuBar
-            editor={editor}
-            isLinkInputVisible={isLinkInputVisible}
-            setIsLinkInputVisible={setIsLinkInputVisible}
-          />
-          {isLinkInputVisible && (
-            <form
-              className="ml-2 flex items-center gap-1.5"
-              onSubmit={(e) => {
-                e.preventDefault()
-                if (linkUrl) {
-                  editor
-                    ?.chain()
-                    .focus()
-                    .extendMarkRange('link')
-                    .setLink({ href: linkUrl, target: '_blank' })
-                    .run()
-                  setLinkUrl('')
-                  setIsLinkInputVisible(false)
-                }
-              }}
-            >
-              <Input
-                type="url"
-                placeholder="https://formonce.in"
-                value={linkUrl}
-                onChange={(e) => setLinkUrl(e.target.value)}
-                className="h-8 w-56 rounded-[var(--r-2)] border-border bg-background text-xs focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
-              />
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  if (linkUrl) {
-                    editor
-                      ?.chain()
-                      .focus()
-                      .extendMarkRange('link')
-                      .setLink({ href: linkUrl, target: '_blank' })
-                      .run()
-                    setLinkUrl('')
-                    setIsLinkInputVisible(false)
-                  }
-                }}
-                className="size-8 rounded-[var(--r-2)] text-[var(--green)]"
-              >
-                <Check className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setIsLinkInputVisible(false)
-                  setLinkUrl('')
-                }}
-                className="size-8 rounded-[var(--r-2)] text-[var(--rose)]"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </form>
-          )}
-        </div>
-      )}
     </div>
-  )
-}
+  );
+};
 
 type MenuBarProps = {
-  editor: Editor | null
-  isLinkInputVisible: boolean
-  setIsLinkInputVisible: (visible: boolean) => void
-}
+  editor: Editor | null;
+};
 
-const MenuBar = ({
-  editor,
-  isLinkInputVisible,
-  setIsLinkInputVisible,
-}: MenuBarProps) => {
-  if (!editor) return null
+const MenuBar = ({ editor }: MenuBarProps) => {
+  const [isLinkInputVisible, setIsLinkInputVisible] = useState(false);
+  const [linkUrl, setLinkUrl] = useState("");
+  const [activeState, setActiveState] = useState(() => getEditorActiveState(editor));
+
+  useEffect(() => {
+    if (!editor) return;
+
+    const updateActiveState = () => setActiveState(getEditorActiveState(editor));
+
+    updateActiveState();
+    editor.on("selectionUpdate", updateActiveState);
+    editor.on("transaction", updateActiveState);
+    editor.on("update", updateActiveState);
+
+    return () => {
+      editor.off("selectionUpdate", updateActiveState);
+      editor.off("transaction", updateActiveState);
+      editor.off("update", updateActiveState);
+    };
+  }, [editor]);
+
+  useEffect(() => {
+    if (isLinkInputVisible && activeState.link && editor) {
+      setLinkUrl(editor.getAttributes("link").href || "");
+    } else if (!isLinkInputVisible) {
+      setLinkUrl("");
+    }
+  }, [activeState.link, isLinkInputVisible, editor]);
+
+  if (!editor) return null;
+
+  const applyLink = () => {
+    const url = linkUrl.trim();
+    if (!url) {
+      editor.chain().focus().unsetLink().run();
+      setIsLinkInputVisible(false);
+      return;
+    }
+
+    editor.chain().focus().extendMarkRange("link").setLink({ href: url, target: "_blank" }).run();
+    setLinkUrl("");
+    setIsLinkInputVisible(false);
+  };
 
   const toolItemClassName =
-    'size-7 rounded-[var(--r-2)] p-0 text-muted-foreground hover:bg-[var(--bg-soft)] hover:text-foreground data-[state=on]:bg-primary data-[state=on]:text-primary-foreground'
+    "size-7 rounded-[var(--r-2)] p-0 text-muted-foreground hover:bg-[var(--bg-soft)] hover:text-foreground data-[state=on]:bg-primary data-[state=on]:text-primary-foreground";
+  const activeMarkValues = [
+    activeState.bold && "bold",
+    activeState.italic && "italic",
+    activeState.strike && "strike",
+    activeState.code && "code",
+  ].filter(Boolean) as string[];
 
   return (
-    <div className="flex w-fit items-center gap-1 p-0">
-      <ToggleGroup type="multiple" className="gap-0.5">
+    <div className="rich-text-toolbar flex flex-wrap items-center gap-1 border-b border-border bg-[var(--bg-soft)]/70 px-2 py-1.5">
+      <ToggleGroup type="multiple" value={activeMarkValues} className="gap-0.5">
         <ToggleGroupItem
           value="bold"
           aria-label="Toggle bold"
+          onMouseDown={(event) => event.preventDefault()}
           onClick={() => editor.chain().focus().toggleBold().run()}
-          data-state={editor.isActive('bold') ? 'on' : 'off'}
           className={toolItemClassName}
         >
           <Bold className="h-4 w-4" />
@@ -409,8 +335,8 @@ const MenuBar = ({
         <ToggleGroupItem
           value="italic"
           aria-label="Toggle italic"
+          onMouseDown={(event) => event.preventDefault()}
           onClick={() => editor.chain().focus().toggleItalic().run()}
-          data-state={editor.isActive('italic') ? 'on' : 'off'}
           className={toolItemClassName}
         >
           <Italic className="h-4 w-4" />
@@ -418,8 +344,8 @@ const MenuBar = ({
         <ToggleGroupItem
           value="strike"
           aria-label="Toggle strikethrough"
+          onMouseDown={(event) => event.preventDefault()}
           onClick={() => editor.chain().focus().toggleStrike().run()}
-          data-state={editor.isActive('strike') ? 'on' : 'off'}
           className={toolItemClassName}
         >
           <Strikethrough className="h-4 w-4" />
@@ -427,8 +353,8 @@ const MenuBar = ({
         <ToggleGroupItem
           value="code"
           aria-label="Toggle code"
+          onMouseDown={(event) => event.preventDefault()}
           onClick={() => editor.chain().focus().toggleCode().run()}
-          data-state={editor.isActive('code') ? 'on' : 'off'}
           className={toolItemClassName}
         >
           <Code className="h-4 w-4" />
@@ -437,18 +363,13 @@ const MenuBar = ({
       <Separator orientation="vertical" className="h-5 bg-border" />
       <ToggleGroup
         type="single"
-        value={
-          editor.isActive('bulletList')
-            ? 'bullet'
-            : editor.isActive('orderedList')
-              ? 'ordered'
-              : ''
-        }
+        value={activeState.bulletList ? "bullet" : activeState.orderedList ? "ordered" : ""}
         className="gap-0.5"
       >
         <ToggleGroupItem
           value="bullet"
           aria-label="Toggle bullet list"
+          onMouseDown={(event) => event.preventDefault()}
           onClick={() => editor.chain().focus().toggleBulletList().run()}
           className={toolItemClassName}
         >
@@ -457,6 +378,7 @@ const MenuBar = ({
         <ToggleGroupItem
           value="ordered"
           aria-label="Toggle ordered list"
+          onMouseDown={(event) => event.preventDefault()}
           onClick={() => editor.chain().focus().toggleOrderedList().run()}
           className={toolItemClassName}
         >
@@ -466,49 +388,91 @@ const MenuBar = ({
       <Separator orientation="vertical" className="h-5 bg-border" />
       <ToggleGroup
         type="single"
-        value={
-          editor.isActive('blockquote')
-            ? 'blockquote'
-            : editor.isActive('codeBlock')
-              ? 'codeBlock'
-              : ''
-        }
+        value={activeState.blockquote ? "blockquote" : activeState.codeBlock ? "codeBlock" : ""}
         className="gap-0.5"
       >
         <ToggleGroupItem
           value="blockquote"
           aria-label="Toggle blockquote"
+          onMouseDown={(event) => event.preventDefault()}
           onClick={() => editor.chain().focus().toggleBlockquote().run()}
-          data-state={editor.isActive('blockquote') ? 'on' : 'off'}
           className={toolItemClassName}
         >
           <MessageSquareQuote className="h-5 w-5" />
         </ToggleGroupItem>
         <ToggleGroupItem
           value="codeBlock"
-          aria-label="Toggle codeblock"
+          aria-label="Toggle code block"
+          onMouseDown={(event) => event.preventDefault()}
           onClick={() => editor.chain().focus().toggleCodeBlock().run()}
-          data-state={editor.isActive('codeBlock') ? 'on' : 'off'}
           className={toolItemClassName}
         >
           <MessageSquareCode className="h-5 w-5" />
         </ToggleGroupItem>
       </ToggleGroup>
       <Separator orientation="vertical" className="h-5 bg-border" />
-      {/* Link Toggle Button */}
-      <ToggleGroup type="single" className="gap-0.5">
-        <ToggleGroupItem
-          value="link"
-          aria-label="Toggle link"
-          onClick={() => {
-            setIsLinkInputVisible(!isLinkInputVisible)
-          }}
-          data-state={editor.isActive('link') ? 'on' : 'off'}
-          className={toolItemClassName}
-        >
-          <LinkIcon className="h-4 w-4" />
-        </ToggleGroupItem>
-      </ToggleGroup>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        aria-label="Add link"
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={() => setIsLinkInputVisible((visible) => !visible)}
+        data-state={activeState.link ? "on" : "off"}
+        className={toolItemClassName}
+      >
+        <LinkIcon className="h-4 w-4" />
+      </Button>
+      {isLinkInputVisible && (
+        <div className="ml-1 flex min-w-[220px] flex-1 items-center gap-1.5">
+          <Input
+            type="url"
+            placeholder="https://mindtab.in"
+            value={linkUrl}
+            onChange={(event) => setLinkUrl(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                applyLink();
+              }
+              if (event.key === "Escape") {
+                event.preventDefault();
+                setIsLinkInputVisible(false);
+              }
+            }}
+            className="h-8 min-w-0 rounded-[var(--r-2)] border-border bg-background text-xs focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+          />
+          <Button type="button" variant="ghost" size="icon" onClick={applyLink} className="size-8 rounded-[var(--r-2)] text-[var(--green)]">
+            <Check className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={() => {
+              setIsLinkInputVisible(false);
+              setLinkUrl("");
+            }}
+            className="size-8 rounded-[var(--r-2)] text-[var(--rose)]"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
     </div>
-  )
+  );
+};
+
+function getEditorActiveState(editor: Editor | null) {
+  return {
+    bold: !!editor?.isActive("bold"),
+    italic: !!editor?.isActive("italic"),
+    strike: !!editor?.isActive("strike"),
+    code: !!editor?.isActive("code"),
+    bulletList: !!editor?.isActive("bulletList"),
+    orderedList: !!editor?.isActive("orderedList"),
+    blockquote: !!editor?.isActive("blockquote"),
+    codeBlock: !!editor?.isActive("codeBlock"),
+    link: !!editor?.isActive("link"),
+  };
 }
