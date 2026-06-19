@@ -1,7 +1,9 @@
 import { CheckedState } from "@radix-ui/react-checkbox";
+import { Link, useLocation } from "@tanstack/react-router";
 import { type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { CalendarDays, Flame, Repeat2, TrendingUp } from "lucide-react";
+import { Button } from "~/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "~/components/ui/dialog";
 import { cn, getTimeAgo } from "~/lib/utils";
 import { EditHabit, EditHabitProps } from "./edit-habit";
@@ -51,6 +53,7 @@ export const EditHabitDialog = ({
     untrackHabit,
     ...props
 }: TEditHabitDialogProps) => {
+    const location = useLocation();
     const [mode, setMode] = useState<"edit" | "view">(defaultMode);
     const [historyRange, setHistoryRange] = useState<HistoryRange>("month");
     const bodyRef = useRef<HTMLDivElement>(null);
@@ -84,6 +87,7 @@ export const EditHabitDialog = ({
     const weekSummary = getCompletionSummary(completedSet, habit, weekDates, todayDate);
     const monthSummary = getCompletionSummary(completedSet, habit, monthDates, todayDate);
     const yearSummary = getCompletionSummary(completedSet, habit, yearDates, todayDate);
+    const showAllHabitsLink = location.pathname !== "/habits";
 
     const handleCancel = () => {
         if (defaultMode === "view") {
@@ -138,9 +142,19 @@ export const EditHabitDialog = ({
                                     </button>
                                 ))}
                             </div>
-                            <div className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
-                                <Repeat2 className="h-3 w-3" />
-                                <span>{frequencyLabel}</span>
+                            <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
+                                    <Repeat2 className="h-3 w-3" />
+                                    <span>{frequencyLabel}</span>
+                                </div>
+                                {showAllHabitsLink && (
+                                    <Button asChild type="button" variant="secondary" size="sm" className="h-7 gap-1.5 px-2">
+                                        <Link to="/habits">
+                                            <CalendarDays className="h-3.5 w-3.5" />
+                                            All habits
+                                        </Link>
+                                    </Button>
+                                )}
                             </div>
                         </div>
 
