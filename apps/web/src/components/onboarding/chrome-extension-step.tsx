@@ -6,9 +6,11 @@ import { motion } from "framer-motion";
 type ChromeExtensionStepProps = {
     onNext: () => void;
     onBack: () => void;
+    isLastStep?: boolean;
+    loading?: boolean;
 };
 
-export function ChromeExtensionStep({ onNext, onBack }: ChromeExtensionStepProps) {
+export function ChromeExtensionStep({ onNext, onBack, isLastStep = false, loading }: ChromeExtensionStepProps) {
     const [installClicked, setInstallClicked] = useState(false);
 
     return (
@@ -142,14 +144,20 @@ export function ChromeExtensionStep({ onNext, onBack }: ChromeExtensionStepProps
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     Back
                 </Button>
-                <Button variant={installClicked ? "default" : "ghost"} size="sm" onClick={onNext}>
+                <Button
+                    variant={installClicked || isLastStep ? "default" : "ghost"}
+                    size="sm"
+                    onClick={onNext}
+                    disabled={loading}
+                    loading={loading}
+                >
                     {installClicked ? (
                         <>
-                            Continue
-                            <ArrowRight className="ml-2 h-4 w-4" />
+                            {isLastStep ? "Go to Dashboard" : "Continue"}
+                            {!isLastStep && <ArrowRight className="ml-2 h-4 w-4" />}
                         </>
                     ) : (
-                        "Skip for now"
+                        isLastStep ? "Go to Dashboard" : "Skip for now"
                     )}
                 </Button>
             </motion.div>

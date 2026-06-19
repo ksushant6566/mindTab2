@@ -7,11 +7,11 @@ type EditTaskDialogProps = EditTaskProps & { open: boolean; onOpenChange: (open:
 export const EditTaskDialog: React.FC<EditTaskDialogProps> = ({ open, onOpenChange, ...props }) => {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogHeader>
-        <DialogTitle className="sr-only">Edit Task</DialogTitle>
-        <DialogDescription className="sr-only">Edit your task.</DialogDescription>
-      </DialogHeader>
-      <DialogContent className="max-w-lg md:max-w-xl border-none p-0">
+      <DialogContent className="max-w-lg overflow-hidden border border-border bg-[var(--bg-elev)] p-0 shadow-[0_20px_64px_-48px_rgba(0,0,0,0.95)] md:max-w-xl">
+        <DialogHeader className="sr-only">
+          <DialogTitle>Edit Task</DialogTitle>
+          <DialogDescription>Edit your task.</DialogDescription>
+        </DialogHeader>
         <EditTask {...props} />
       </DialogContent>
     </Dialog>

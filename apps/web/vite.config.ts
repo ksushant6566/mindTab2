@@ -3,6 +3,15 @@ import react from "@vitejs/plugin-react";
 import path from "path";
 
 const apiUrl = process.env.API_URL || "http://localhost:8080";
+const apiProxy = { target: apiUrl, changeOrigin: true };
+const spaAwareApiProxy = {
+  ...apiProxy,
+  bypass: (req: any) => {
+    if (req.method === "GET" && req.headers.accept?.includes("text/html")) {
+      return req.url;
+    }
+  },
+};
 
 export default defineConfig({
   plugins: [react()],
@@ -15,17 +24,17 @@ export default defineConfig({
     port: 5173,
     host: true,
     proxy: {
-      "/auth": apiUrl,
-      "/users": apiUrl,
-      "/tasks": apiUrl,
-      "/habits": apiUrl,
-      "/habit-tracker": apiUrl,
-      "/notes": apiUrl,
-      "/projects": apiUrl,
-      "/activity": apiUrl,
-      "/search": apiUrl,
-      "/sync": apiUrl,
-      "/health": apiUrl,
+      "/auth": apiProxy,
+      "/users": apiProxy,
+      "/tasks": apiProxy,
+      "/habits": spaAwareApiProxy,
+      "/habit-tracker": apiProxy,
+      "/notes": apiProxy,
+      "/projects": apiProxy,
+      "/activity": apiProxy,
+      "/search": apiProxy,
+      "/sync": apiProxy,
+      "/health": apiProxy,
     },
   },
 });

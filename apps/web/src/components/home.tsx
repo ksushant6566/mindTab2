@@ -1,45 +1,15 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Tasks } from "./tasks/index";
 import { Habits } from "./habits";
 import { Notes } from "./notes/notes";
 import { Button } from "~/components/ui/button";
-import { LayoutGrid, List } from "lucide-react";
 import { Clock } from "./clock";
 import { ProjectTabs } from "./projects";
 import { useAppStore, EActiveLayout } from "@mindtab/core";
 import type { ActiveLayout } from "@mindtab/core";
 import { cn } from "~/lib/utils";
 
-const getLayout1 = (_activeProjectId: string | null) => ({
-    container: {
-        style: "max-w-screen-lg",
-    },
-    col1: {
-        elements: [
-            {
-                element: <Tasks viewMode={"list"} />,
-                title: EActiveLayout.Tasks as ActiveLayout,
-            },
-        ],
-        style: "col-span-4",
-    },
-    col2: {
-        elements: [
-            {
-                element: <Habits viewMode={"table"} />,
-                title: EActiveLayout.Habits as ActiveLayout,
-            },
-            {
-                element: <Notes />,
-                title: EActiveLayout.Notes as ActiveLayout,
-            },
-        ],
-        style: "col-span-6",
-    },
-    activeColumn: "col2",
-});
-
-const getLayout2 = (_activeProjectId: string | null) => ({
+const getDashboardLayout = () => ({
     container: {
         style: "w-full max-w-screen-xl",
     },
@@ -72,51 +42,26 @@ export default function Component() {
     const [isHydrated, setIsHydrated] = useState(false);
 
     const {
-        layoutVersion,
         activeElement,
         activeProjectId,
-        setLayoutVersion: setStoreLayoutVersion,
         setActiveElement: setStoreActiveElement,
         setActiveProjectId: setStoreActiveProjectId,
     } = useAppStore();
 
-    const layout =
-        layoutVersion === 1
-            ? getLayout1(activeProjectId)
-            : getLayout2(activeProjectId);
+    const layout = useMemo(() => getDashboardLayout(), []);
 
     useEffect(() => {
         setIsHydrated(true);
     }, []);
 
-    // Initialize activeElement if not set, based on the current layout
+    // Initialize activeElement if missing or left over from the retired layout.
     useEffect(() => {
-        if (!activeElement) {
-            const defaultElement =
-                layout[layout.activeColumn as "col1" | "col2"].elements[0]!
-                    .title;
+        const activeColumn = layout[layout.activeColumn as "col1" | "col2"];
+        const defaultElement = activeColumn.elements[0]!.title;
+        if (!activeColumn.elements.some(({ title }) => title === activeElement)) {
             setStoreActiveElement(defaultElement);
         }
     }, [activeElement, layout, setStoreActiveElement]);
-
-    const handleLayoutVersionChange = (newLayoutVersion: number) => {
-        setStoreLayoutVersion(newLayoutVersion);
-
-        const activeLayout =
-            newLayoutVersion === 1
-                ? getLayout1(activeProjectId)
-                : getLayout2(activeProjectId);
-        const activeColumn =
-            activeLayout[activeLayout.activeColumn as "col1" | "col2"];
-
-        if (
-            activeColumn.elements.some(({ title }) => title === activeElement)
-        ) {
-            return;
-        }
-
-        handleActiveElementChange(activeColumn.elements[0]!.title);
-    };
 
     const handleActiveElementChange = (newActiveElement: ActiveLayout) => {
         setStoreActiveElement(newActiveElement);
@@ -152,30 +97,6 @@ export default function Component() {
                                 </Button>
                             ))}
                         </div>
-                        <div className="flex gap-2">
-                            <Button
-                                variant={
-                                    layoutVersion === 1
-                                        ? "default"
-                                        : "secondary"
-                                }
-                                size="sm"
-                                onClick={() => handleLayoutVersionChange(1)}
-                            >
-                                <List className="h-4 w-4" />
-                            </Button>
-                            <Button
-                                variant={
-                                    layoutVersion === 2
-                                        ? "default"
-                                        : "secondary"
-                                }
-                                size="sm"
-                                onClick={() => handleLayoutVersionChange(2)}
-                            >
-                                <LayoutGrid className="h-4 w-4" />
-                            </Button>
-                        </div>
                     </div>
                 </div>
                 <div className={`${layout.col1.style} flex min-h-0 min-w-0 flex-col`}>
@@ -184,7 +105,7 @@ export default function Component() {
                         <ProjectTabs
                             activeProjectId={activeProjectId}
                             onProjectChange={setStoreActiveProjectId}
-                            layoutVersion={layoutVersion}
+                            layoutVersion={2}
                             activeTab={activeElement as any}
                         />
                     </div>

@@ -35,6 +35,9 @@ type THabitTableProps = {
     habitTracker: any[];
     setIsCreateDialogOpen: (open: boolean) => void;
     onOpenHabit: (habit: any, mode: "view" | "edit") => void;
+    weekOffsets?: number[];
+    showCurrentWeekShortcut?: boolean;
+    weekHeadingStyle?: "relative" | "calendar";
 };
 
 export const HabitTable: React.FC<THabitTableProps> = ({
@@ -48,6 +51,9 @@ export const HabitTable: React.FC<THabitTableProps> = ({
     habitTracker,
     setIsCreateDialogOpen,
     onOpenHabit,
+    weekOffsets,
+    showCurrentWeekShortcut = true,
+    weekHeadingStyle = "relative",
 }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const currentWeekRef = useRef<HTMLElement>(null);
@@ -59,7 +65,7 @@ export const HabitTable: React.FC<THabitTableProps> = ({
 
     const completedSet = useMemo(() => getCompletedSet(habitTracker), [habitTracker]);
     const weeksToRender = useMemo(() => {
-        return [-4, -3, -2, -1, 0, 1].map((offset) => {
+        return (weekOffsets ?? [-4, -3, -2, -1, 0, 1]).map((offset) => {
             const dates = getWeekDates(today, offset);
             return {
                 id: formatDateKey(dates[0]!),
@@ -68,10 +74,14 @@ export const HabitTable: React.FC<THabitTableProps> = ({
                 isCurrentWeek: offset === 0,
             };
         });
-    }, [today]);
+    }, [today, weekOffsets]);
 
     const handleScroll = useCallback(() => {
-        if (!containerRef.current || !currentWeekRef.current) return;
+        if (!containerRef.current || !currentWeekRef.current || !showCurrentWeekShortcut) {
+            setShowScrollButton(false);
+            setScrollDirection(null);
+            return;
+        }
 
         const containerRect = containerRef.current.getBoundingClientRect();
         const currentWeekRect = currentWeekRef.current.getBoundingClientRect();
@@ -79,10 +89,14 @@ export const HabitTable: React.FC<THabitTableProps> = ({
 
         setShowScrollButton(Math.abs(topDelta) > 8);
         setScrollDirection(topDelta < 0 ? "up" : "down");
-    }, []);
+    }, [showCurrentWeekShortcut]);
 
     const scrollToCurrentWeek = useCallback((behavior: ScrollBehavior = "smooth") => {
-        if (!containerRef.current || !currentWeekRef.current) return;
+        if (!containerRef.current || !currentWeekRef.current || !showCurrentWeekShortcut) {
+            setShowScrollButton(false);
+            setScrollDirection(null);
+            return;
+        }
 
         const containerRect = containerRef.current.getBoundingClientRect();
         const currentWeekRect = currentWeekRef.current.getBoundingClientRect();
@@ -95,9 +109,15 @@ export const HabitTable: React.FC<THabitTableProps> = ({
         } else {
             requestAnimationFrame(handleScroll);
         }
-    }, [handleScroll]);
+    }, [handleScroll, showCurrentWeekShortcut]);
 
     useEffect(() => {
+        if (!showCurrentWeekShortcut) {
+            setShowScrollButton(false);
+            setScrollDirection(null);
+            return;
+        }
+
         scrollToCurrentWeek("auto");
 
         const container = containerRef.current;
@@ -105,7 +125,7 @@ export const HabitTable: React.FC<THabitTableProps> = ({
         return () => {
             container?.removeEventListener("scroll", handleScroll);
         };
-    }, [handleScroll, scrollToCurrentWeek]);
+    }, [handleScroll, scrollToCurrentWeek, showCurrentWeekShortcut]);
 
     return (
         <div className="relative flex h-full min-h-0 flex-col">
@@ -139,6 +159,7 @@ export const HabitTable: React.FC<THabitTableProps> = ({
                 {weeksToRender.map((week) => {
                     const visibleHabits = habits.filter((habit) => isHabitVisibleByDate(habit, week.dates[6]!));
                     if (visibleHabits.length === 0 && !week.isCurrentWeek) return null;
+                    const weekLabel = getWeekLabel(week.dates);
 
                     return (
                         <section
@@ -152,9 +173,9 @@ export const HabitTable: React.FC<THabitTableProps> = ({
                             <div className="mb-3 flex items-end justify-between gap-3">
                                 <div>
                                     <h2 className="font-mono text-[11px] uppercase tracking-[0.12em] text-foreground">
-                                        {week.isCurrentWeek ? "This Week" : week.offset > 0 ? "Next Week" : `${Math.abs(week.offset)} Week${Math.abs(week.offset) === 1 ? "" : "s"} Ago`}
+                                        {getWeekHeading(week, weekHeadingStyle)}
                                     </h2>
-                                    <div className="mt-1 text-sm text-muted-foreground">{getWeekLabel(week.dates)}</div>
+                                    <div className="mt-1 text-sm text-muted-foreground">{weekLabel}</div>
                                 </div>
                                 {week.isCurrentWeek && (
                                     <span className="rounded-[var(--r-2)] border border-border bg-background px-2 py-1 font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
@@ -223,7 +244,7 @@ export const HabitTable: React.FC<THabitTableProps> = ({
                 })}
             </div>
 
-            {showScrollButton && (
+            {showCurrentWeekShortcut && showScrollButton && (
                 <TooltipProvider>
                     <Tooltip delayDuration={0}>
                         <TooltipTrigger asChild>
@@ -248,3 +269,24 @@ export const HabitTable: React.FC<THabitTableProps> = ({
         </div>
     );
 };
+
+function getWeekHeading(
+    week: { dates: Date[]; offset: number; isCurrentWeek: boolean },
+    style: "relative" | "calendar"
+) {
+    if (style === "calendar") {
+        const start = week.dates[0];
+        if (!start) return "Week";
+
+        return `Week of ${start.toLocaleDateString(undefined, {
+            month: "short",
+            day: "numeric",
+        })}`;
+    }
+
+    if (week.isCurrentWeek) return "This Week";
+    if (week.offset > 0) return "Next Week";
+
+    const weeksAgo = Math.abs(week.offset);
+    return `${weeksAgo} Week${weeksAgo === 1 ? "" : "s"} Ago`;
+}
