@@ -1,26 +1,19 @@
 import { type CheckedState } from "@radix-ui/react-checkbox";
 import {
-    CheckCircle2,
-    Clock,
+    CalendarDays,
     Edit3,
     Flag,
-    FolderOpen,
     GripVertical,
-    Save,
+    Link2Off,
     Trash2,
-    X,
     Zap,
 } from "lucide-react";
 import React from "react";
-import { useQuery } from "@tanstack/react-query";
-import { projectsQueryOptions } from "~/api/hooks";
 import { Button } from "~/components/ui/button";
 import { Checkbox } from "~/components/ui/checkbox";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "~/components/ui/dialog";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger } from "~/components/ui/select";
-import { RichTextEditor } from "~/components/text-editor";
-import { cn, getTimeAgo } from "~/lib/utils";
-import { isRichTextEmpty, sanitizeRichText } from "~/lib/rich-text";
+import { cn } from "~/lib/utils";
+import { useCalendarSchedules } from "~/lib/calendar-schedules";
+import { TaskDialog } from "./task-dialog";
 
 type TTask = {
     id: string;
@@ -54,20 +47,6 @@ const impactMeta = {
     high: { label: "High", dots: 3, tone: "var(--amber)" },
 } as const;
 
-const statusMeta = {
-    pending: { label: "To Do", shortcut: "T", hint: "Define the next move", tone: "var(--text-3)" },
-    in_progress: { label: "In Progress", shortcut: "I", hint: "Currently in motion", tone: "var(--cyan)" },
-    completed: { label: "Done", shortcut: "D", hint: "Ready to archive", tone: "var(--amber)" },
-    archived: { label: "Archive", shortcut: "A", hint: "Stored out of view", tone: "var(--text-4)" },
-} as const;
-
-const priorityOptions = ["priority_1", "priority_2", "priority_3", "priority_4"] as const;
-const impactOptions = ["high", "medium", "low"] as const;
-
-const pickerTriggerClassName = "h-8 gap-2 rounded-[var(--r-2)] border-input bg-background px-2 text-xs focus:ring-2 focus:ring-ring/30 focus:ring-offset-0 [&>svg]:h-3.5 [&>svg]:w-3.5";
-const pickerContentClassName = "border-border bg-[var(--bg-elev)] shadow-[0_18px_44px_-34px_rgba(0,0,0,0.95)]";
-const pickerItemClassName = "h-8 rounded-[var(--r-2)] py-1.5 pl-8 pr-2 text-xs text-foreground focus:bg-[var(--bg-soft)] focus:text-foreground data-[state=checked]:bg-[var(--bg-soft)]";
-
 type PriorityMeta = (typeof priorityMeta)[keyof typeof priorityMeta];
 type ImpactMeta = (typeof impactMeta)[keyof typeof impactMeta];
 
@@ -84,6 +63,9 @@ interface TaskProps {
     isOverlay?: boolean;
     dragHandleRef?: React.Ref<HTMLButtonElement>;
     dragHandleProps?: React.ButtonHTMLAttributes<HTMLButtonElement>;
+    hideDragHandle?: boolean;
+    showCalendarActions?: boolean;
+    nativeDragTaskId?: string;
 }
 
 export const Task: React.FC<TaskProps> = ({
@@ -99,6 +81,9 @@ export const Task: React.FC<TaskProps> = ({
     isOverlay = false,
     dragHandleRef,
     dragHandleProps,
+    hideDragHandle = false,
+    showCalendarActions = false,
+    nativeDragTaskId,
 }) => {
     return (
         <TaskCard
@@ -114,11 +99,14 @@ export const Task: React.FC<TaskProps> = ({
             isOverlay={isOverlay}
             dragHandleRef={dragHandleRef}
             dragHandleProps={dragHandleProps}
+            hideDragHandle={hideDragHandle}
+            showCalendarActions={showCalendarActions}
+            nativeDragTaskId={nativeDragTaskId}
         />
     );
 };
 
-const TaskCard: React.FC<Required<Pick<TaskProps, "task" | "onEdit" | "onDelete" | "onToggleStatus" | "isDeleting" | "surface">> & Pick<TaskProps, "onUpdate" | "deleteVariables" | "isDragging" | "isOverlay" | "dragHandleRef" | "dragHandleProps">> = ({
+const TaskCard: React.FC<Required<Pick<TaskProps, "task" | "onEdit" | "onDelete" | "onToggleStatus" | "isDeleting" | "surface" | "hideDragHandle" | "showCalendarActions">> & Pick<TaskProps, "onUpdate" | "deleteVariables" | "isDragging" | "isOverlay" | "dragHandleRef" | "dragHandleProps" | "nativeDragTaskId">> = ({
     task,
     onEdit,
     onDelete,
@@ -131,64 +119,38 @@ const TaskCard: React.FC<Required<Pick<TaskProps, "task" | "onEdit" | "onDelete"
     isOverlay,
     dragHandleRef,
     dragHandleProps,
+    hideDragHandle,
+    showCalendarActions,
+    nativeDragTaskId,
 }) => {
-    const { data: projects } = useQuery(projectsQueryOptions());
+    const { schedules, unscheduleTask } = useCalendarSchedules();
+    const cardRef = React.useRef<HTMLElement>(null);
+    const schedule = schedules[task.id];
     const [dialogOpen, setDialogOpen] = React.useState(false);
     const [mode, setMode] = React.useState<"view" | "edit">("view");
-    const [formData, setFormData] = React.useState({
-        title: task.title || "",
-        description: task.description || "",
-        priority: task.priority || "priority_4",
-        impact: task.impact || "low",
-        status: task.status || "pending",
-        projectId: task.projectId ?? task.project?.id ?? null,
-    });
-
-    React.useEffect(() => {
-        setFormData({
-            title: task.title || "",
-            description: task.description || "",
-            priority: task.priority || "priority_4",
-            impact: task.impact || "low",
-            status: task.status || "pending",
-            projectId: task.projectId ?? task.project?.id ?? null,
-        });
-        setMode("view");
-    }, [task.id, task.title, task.description, task.priority, task.impact, task.status, task.projectId, task.project?.id]);
 
     const completed = ["completed", "archived"].includes(task.status);
     const priority = priorityMeta[task.priority as keyof typeof priorityMeta] ?? priorityMeta.priority_4;
     const impact = impactMeta[task.impact as keyof typeof impactMeta] ?? impactMeta.low;
-    const status = statusMeta[task.status as keyof typeof statusMeta] ?? statusMeta.pending;
     const projectName = task.project?.name || task.projectName;
     const taskCode = task.key || task.code || `TASK-${String(task.id).slice(0, 4).toUpperCase()}`;
-    const descriptionHtml = React.useMemo(() => sanitizeRichText(task.description), [task.description]);
-    const hasDescription = !isRichTextEmpty(task.description);
 
-    const saveInlineEdit = (event: React.FormEvent) => {
-        event.preventDefault();
-        if (!formData.title.trim()) return;
+    const handleNativeDragStart = (event: React.DragEvent<HTMLButtonElement>) => {
+        if (!nativeDragTaskId) return;
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/plain", nativeDragTaskId);
 
-        if (onUpdate) {
-            onUpdate(task.id, {
-                title: formData.title.trim(),
-                description: isRichTextEmpty(formData.description) ? "" : sanitizeRichText(formData.description),
-                priority: formData.priority,
-                impact: formData.impact,
-                status: formData.status,
-                projectId: formData.projectId,
-            });
-            setMode("view");
-            setDialogOpen(true);
-            return;
+        const card = cardRef.current;
+        if (card) {
+            const rect = card.getBoundingClientRect();
+            event.dataTransfer.setDragImage(card, event.clientX - rect.left, event.clientY - rect.top);
         }
-
-        onEdit(task.id);
     };
 
     return (
         <>
         <article
+            ref={cardRef}
             className={cn(
                 "group/card relative overflow-hidden rounded-[var(--r-3)] border border-border bg-card text-card-foreground transition-all duration-150 [transition-timing-function:var(--ease-out)]",
                 "before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-white/[0.04]",
@@ -200,18 +162,29 @@ const TaskCard: React.FC<Required<Pick<TaskProps, "task" | "onEdit" | "onDelete"
                 isOverlay && "rotate-[0.35deg] shadow-[0_18px_44px_-34px_rgba(0,0,0,0.9)]"
             )}
         >
-            <div className={cn("grid grid-cols-[28px_1fr_auto] gap-2 p-3", surface === "list" && "gap-3 px-3.5 py-3")}>
+            <div className={cn("grid grid-cols-[28px_minmax(0,1fr)] gap-2 p-3", surface === "list" && "gap-3 px-3.5 py-3")}>
                 <div className="flex flex-col items-center gap-2 pt-0.5">
-                    <button
-                        ref={dragHandleRef}
-                        type="button"
-                        aria-label={`Drag ${task.title}`}
-                        {...dragHandleProps}
-                        className="flex size-6 cursor-grab items-center justify-center rounded-[var(--r-2)] text-muted-foreground opacity-45 transition-all hover:bg-secondary hover:text-foreground group-hover/card:opacity-100 active:cursor-grabbing"
-                        onClick={(event) => event.stopPropagation()}
-                    >
-                        <GripVertical className="h-3.5 w-3.5" />
-                    </button>
+                    {hideDragHandle ? (
+                        <span className="flex size-6 items-center justify-center rounded-[var(--r-2)] text-muted-foreground/60">
+                            <CalendarDays className="h-3.5 w-3.5" />
+                        </span>
+                    ) : (
+                        <button
+                            ref={dragHandleRef}
+                            type="button"
+                            aria-label={`Drag ${task.title}`}
+                            {...dragHandleProps}
+                            draggable={!!nativeDragTaskId}
+                            onDragStart={handleNativeDragStart}
+                            className={cn(
+                                "flex size-6 cursor-grab items-center justify-center rounded-[var(--r-2)] text-muted-foreground opacity-45 transition-all hover:bg-secondary hover:text-foreground group-hover/card:opacity-100 active:cursor-grabbing",
+                                nativeDragTaskId && "opacity-70 hover:bg-primary/10 hover:text-primary"
+                            )}
+                            onClick={(event) => event.stopPropagation()}
+                        >
+                            <GripVertical className="h-3.5 w-3.5" />
+                        </button>
+                    )}
                     <Checkbox
                         id={task.id}
                         className="size-4 rounded-[var(--r-1)] border-[var(--border-2)] data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground [&_svg]:size-3"
@@ -235,35 +208,35 @@ const TaskCard: React.FC<Required<Pick<TaskProps, "task" | "onEdit" | "onDelete"
                     aria-haspopup="dialog"
                 >
                     <div className="flex min-w-0 items-start justify-between gap-3">
-                        <div className="min-w-0">
+                        <div className="min-w-0 flex-1">
                             <div className={cn("truncate text-[13.5px] font-medium leading-5 tracking-normal text-foreground", completed && "text-muted-foreground line-through decoration-muted-foreground/70")}>
                                 {task.title}
                             </div>
-                            <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[10.5px] uppercase tracking-[0.04em] text-muted-foreground">
-                                <span>{taskCode}</span>
-                                {projectName && (
-                                    <>
-                                        <span className="text-[var(--text-4)]">·</span>
-                                        <span className="max-w-[120px] truncate lowercase">{projectName}</span>
-                                    </>
-                                )}
-                                <span className="text-[var(--text-4)]">·</span>
-                                <PriorityMark priority={priority} />
-                                <span className="text-[var(--text-4)]">·</span>
-                                <ImpactMark impact={impact} />
-                            </div>
-                            {surface === "list" && hasDescription && (
-                                <div
-                                    className={cn("task-description-preview mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground", completed && "line-through decoration-muted-foreground/60")}
-                                    dangerouslySetInnerHTML={{ __html: descriptionHtml }}
-                                />
-                            )}
+                            <TaskMetadata
+                                taskCode={taskCode}
+                                projectName={projectName}
+                                priority={priority}
+                                impact={impact}
+                                surface={surface}
+                                actionSpace={showCalendarActions && schedule ? "wide" : "normal"}
+                            />
                         </div>
-                        <span className="mt-1 size-1.5 shrink-0 rounded-full" style={{ background: priority.tone }} />
                     </div>
                 </button>
 
-                <div className="flex items-start gap-1 opacity-0 transition-opacity group-hover/card:opacity-100">
+                <div className="absolute bottom-1.5 right-2.5 z-10 flex items-center gap-1 opacity-0 transition-opacity group-hover/card:opacity-100">
+                    {showCalendarActions && schedule && (
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="size-7 rounded-[var(--r-2)] text-muted-foreground hover:text-foreground"
+                            onClick={() => unscheduleTask(task.id)}
+                            aria-label={`Unlink ${task.title} from calendar`}
+                        >
+                            <Link2Off className="h-3.5 w-3.5" />
+                        </Button>
+                    )}
                     <Button
                         type="button"
                         variant="ghost"
@@ -293,175 +266,60 @@ const TaskCard: React.FC<Required<Pick<TaskProps, "task" | "onEdit" | "onDelete"
 
         </article>
         {!isOverlay && (
-            <Dialog
+            <TaskDialog
                 open={dialogOpen}
                 onOpenChange={(open) => {
                     setDialogOpen(open);
                     if (!open) setMode("view");
                 }}
-            >
-                <DialogContent className="max-w-2xl overflow-hidden border border-border bg-[var(--bg-elev)] p-0 shadow-[0_20px_64px_-48px_rgba(0,0,0,0.95)]">
-                    <DialogHeader className="border-b border-border px-5 py-4 text-left">
-                        <DialogTitle className="pr-8 text-lg font-semibold leading-6 tracking-normal text-foreground">
-                            {task.title}
-                        </DialogTitle>
-                        <DialogDescription className="flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[10.5px] uppercase tracking-[0.06em] text-muted-foreground">
-                            <span>{taskCode}</span>
-                            {projectName && (
-                                <>
-                                    <span className="text-[var(--text-4)]">·</span>
-                                    <span className="lowercase">{projectName}</span>
-                                </>
-                            )}
-                            <span className="text-[var(--text-4)]">·</span>
-                            <span>{status.label}</span>
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="bg-[var(--bg)]/45 px-5 pb-5 pt-4">
-                    <div className="mb-3 flex items-center justify-between gap-2">
-                        <div className="inline-flex rounded-[var(--r-2)] border border-border bg-[var(--bg-soft)] p-0.5">
-                            {(["view", "edit"] as const).map((item) => (
-                                <button
-                                    key={item}
-                                    type="button"
-                                    onClick={() => setMode(item)}
-                                    className={cn(
-                                        "h-6 rounded-[calc(var(--r-2)-1px)] px-2 font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground transition-colors",
-                                        mode === item && "bg-primary text-primary-foreground"
-                                    )}
-                                >
-                                    {item}
-                                </button>
-                            ))}
-                        </div>
-                        <div className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
-                            <CheckCircle2 className="h-3 w-3" />
-                            <span>{status.label}</span>
-                        </div>
-                    </div>
-
-                    {mode === "view" ? (
-                        <div className="space-y-3">
-                            {hasDescription ? (
-                                <article
-                                    className="task-description-prose text-sm leading-5 text-muted-foreground"
-                                    dangerouslySetInnerHTML={{ __html: descriptionHtml }}
-                                />
-                            ) : (
-                                <p className="text-sm leading-5 text-muted-foreground">
-                                    No description yet. Open edit mode to add a sharper next action.
-                                </p>
-                            )}
-                            <div className="grid grid-cols-2 gap-2">
-                                <KanbanDetail label="Priority" value={priority.label}>
-                                    <PriorityMark priority={priority} />
-                                </KanbanDetail>
-                                <KanbanDetail label="Impact" value={impact.label}>
-                                    <ImpactMark impact={impact} />
-                                </KanbanDetail>
-                                <KanbanDetail label="Project" value={projectName || "None"} icon={<FolderOpen className="h-3 w-3" />} />
-                                <KanbanDetail label="Created" value={task.createdAt ? getTimeAgo(new Date(task.createdAt)) : "Unknown"} icon={<Clock className="h-3 w-3" />} />
-                            </div>
-                            <div className="rounded-[var(--r-2)] border border-border bg-[var(--bg-soft)] px-3 py-2">
-                                <div className="flex items-center justify-between gap-3">
-                                    <div>
-                                        <div className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">{status.hint}</div>
-                                        <div className="mt-0.5 text-xs text-foreground">Click the checkbox to advance this task.</div>
-                                    </div>
-                                    <span className="flex size-6 items-center justify-center rounded-[var(--r-2)] border border-border bg-background font-mono text-[10px] text-muted-foreground">
-                                        {status.shortcut}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                    ) : (
-                        <form className="space-y-3" onSubmit={saveInlineEdit}>
-                            <input
-                                value={formData.title}
-                                onChange={(event) => setFormData((prev) => ({ ...prev, title: event.target.value }))}
-                                className="h-9 w-full rounded-[var(--r-2)] border border-input bg-background px-3 text-sm font-medium text-foreground outline-none transition-colors focus:border-[var(--ink-line)] focus:ring-2 focus:ring-ring/30"
-                                placeholder="Task title"
-                                autoFocus
-                            />
-                            <RichTextEditor
-                                content={formData.description}
-                                onContentChange={(description) => setFormData((prev) => ({ ...prev, description }))}
-                                placeholder="What does done look like?"
-                                className="task-description-editor overflow-hidden rounded-[var(--r-2)] border border-input bg-background transition-[border-color,box-shadow] duration-150 focus-within:border-[var(--ink-line)] focus-within:ring-2 focus-within:ring-ring/30"
-                            />
-                            <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
-                                <PriorityPicker
-                                    value={formData.priority}
-                                    onChange={(value) => setFormData((prev) => ({ ...prev, priority: value }))}
-                                />
-                                <ImpactPicker
-                                    value={formData.impact}
-                                    onChange={(value) => setFormData((prev) => ({ ...prev, impact: value }))}
-                                />
-                                <KanbanSelect
-                                    kind="status"
-                                    label="Status"
-                                    value={formData.status}
-                                    onChange={(value) => setFormData((prev) => ({ ...prev, status: value }))}
-                                    options={[
-                                        ["pending", "To Do"],
-                                        ["in_progress", "In Progress"],
-                                        ["completed", "Done"],
-                                        ["archived", "Archive"],
-                                    ]}
-                                />
-                                <KanbanSelect
-                                    kind="project"
-                                    label="Project"
-                                    value={formData.projectId || "none"}
-                                    onChange={(value) => setFormData((prev) => ({ ...prev, projectId: value === "none" ? null : value }))}
-                                    options={[
-                                        ["none", "No Project"],
-                                        ...((projects as any[]) ?? []).map((project: any) => [project.id, project.name || "Unnamed Project"] as [string, string]),
-                                    ]}
-                                />
-                            </div>
-                            <div className="flex justify-end gap-2">
-                                <Button type="button" variant="ghost" size="sm" className="h-8" onClick={() => setMode("view")}>
-                                    <X className="mr-1.5 h-3.5 w-3.5" />
-                                    Cancel
-                                </Button>
-                                <Button type="submit" size="sm" className="h-8" disabled={!formData.title.trim()}>
-                                    <Save className="mr-1.5 h-3.5 w-3.5" />
-                                    Save
-                                </Button>
-                            </div>
-                        </form>
-                    )}
-                    </div>
-                </DialogContent>
-            </Dialog>
+                mode={mode}
+                task={task}
+                onUpdate={(taskId, values) => {
+                    if (onUpdate) onUpdate(taskId, values);
+                    else onEdit(taskId);
+                }}
+                onDelete={onDelete}
+                onToggleStatus={onToggleStatus}
+                isDeleting={isDeleting}
+                deleteVariables={deleteVariables}
+            />
         )}
         </>
     );
 };
 
-function KanbanDetail({
-    label,
-    value,
-    tone,
-    icon,
-    children,
+function TaskMetadata({
+    taskCode,
+    projectName,
+    priority,
+    impact,
+    surface,
+    actionSpace,
 }: {
-    label: string;
-    value: string;
-    tone?: string;
-    icon?: React.ReactNode;
-    children?: React.ReactNode;
+    taskCode: string;
+    projectName?: string | null;
+    priority: PriorityMeta;
+    impact: ImpactMeta;
+    surface: NonNullable<TaskProps["surface"]>;
+    actionSpace: "normal" | "wide";
 }) {
+    const actionSpaceClassName = actionSpace === "wide" ? "pr-24" : "pr-16";
+
     return (
-        <div className="rounded-[var(--r-2)] border border-border bg-[var(--bg-soft)] px-2.5 py-2">
-            <div className="font-mono text-[9px] uppercase tracking-[0.08em] text-muted-foreground">{label}</div>
-            <div className="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-foreground">
-                {icon}
-                {children || (
-                    <span className="truncate" style={tone ? { color: tone } : undefined}>{value}</span>
+        <div className={cn("grid min-w-0 gap-1 font-mono text-[10.5px] uppercase tracking-[0.04em] text-muted-foreground", surface === "list" ? "mt-1" : "mt-0.5")}>
+            <div className="flex min-w-0 items-center gap-2">
+                <span className="shrink-0">{taskCode}</span>
+                {projectName && (
+                    <>
+                        <span className="shrink-0 text-[var(--text-4)]">·</span>
+                        <span className="min-w-0 truncate lowercase">{projectName}</span>
+                    </>
                 )}
+            </div>
+            <div className={cn("flex min-w-0 items-center gap-2", actionSpaceClassName)}>
+                <PriorityMark priority={priority} />
+                <span className="shrink-0 text-[var(--text-4)]">·</span>
+                <ImpactMark impact={impact} />
             </div>
         </div>
     );
@@ -485,154 +343,6 @@ function ImpactMark({ impact }: { impact: ImpactMeta }) {
                 ))}
             </span>
             <span className="truncate">{impact.label}</span>
-        </span>
-    );
-}
-
-function PriorityPicker({
-    value,
-    onChange,
-}: {
-    value: string;
-    onChange: (value: string) => void;
-}) {
-    const selectedPriority = priorityMeta[value as keyof typeof priorityMeta] ?? priorityMeta.priority_4;
-
-    return (
-        <div className="space-y-1">
-            <span className="font-mono text-[9px] uppercase tracking-[0.08em] text-muted-foreground">Priority</span>
-            <Select value={value} onValueChange={onChange}>
-                <SelectTrigger className={pickerTriggerClassName}>
-                    <div className="flex min-w-0 flex-1 items-center overflow-hidden">
-                        <PriorityMark priority={selectedPriority} />
-                    </div>
-                </SelectTrigger>
-                <SelectContent className={pickerContentClassName}>
-                    <SelectGroup>
-                        {priorityOptions.map((option) => (
-                            <SelectItem
-                                key={option}
-                                value={option}
-                                className={pickerItemClassName}
-                            >
-                                <PriorityMark priority={priorityMeta[option]} />
-                            </SelectItem>
-                        ))}
-                    </SelectGroup>
-                </SelectContent>
-            </Select>
-        </div>
-    );
-}
-
-function ImpactPicker({
-    value,
-    onChange,
-}: {
-    value: string;
-    onChange: (value: string) => void;
-}) {
-    const selectedImpact = impactMeta[value as keyof typeof impactMeta] ?? impactMeta.low;
-
-    return (
-        <div className="space-y-1">
-            <span className="font-mono text-[9px] uppercase tracking-[0.08em] text-muted-foreground">Impact</span>
-            <Select value={value} onValueChange={onChange}>
-                <SelectTrigger className={pickerTriggerClassName}>
-                    <div className="flex min-w-0 flex-1 items-center overflow-hidden">
-                        <ImpactMark impact={selectedImpact} />
-                    </div>
-                </SelectTrigger>
-                <SelectContent className={pickerContentClassName}>
-                    <SelectGroup>
-                        {impactOptions.map((option) => (
-                            <SelectItem
-                                key={option}
-                                value={option}
-                                className={pickerItemClassName}
-                            >
-                                <ImpactMark impact={impactMeta[option]} />
-                            </SelectItem>
-                        ))}
-                    </SelectGroup>
-                </SelectContent>
-            </Select>
-        </div>
-    );
-}
-
-type KanbanSelectKind = "plain" | "status" | "project";
-
-function KanbanSelect({
-    kind = "plain",
-    label,
-    value,
-    onChange,
-    options,
-}: {
-    kind?: KanbanSelectKind;
-    label: string;
-    value: string;
-    onChange: (value: string) => void;
-    options: Array<[string, string]>;
-}) {
-    const selectedLabel = options.find(([optionValue]) => optionValue === value)?.[1] ?? options[0]?.[1] ?? "Select";
-
-    return (
-        <div className="space-y-1">
-            <span className="font-mono text-[9px] uppercase tracking-[0.08em] text-muted-foreground">{label}</span>
-            <Select value={value} onValueChange={onChange}>
-                <SelectTrigger aria-label={label} className={pickerTriggerClassName}>
-                    <div className="flex min-w-0 flex-1 items-center overflow-hidden">
-                        <KanbanOptionMark kind={kind} value={value} label={selectedLabel} />
-                    </div>
-                </SelectTrigger>
-                <SelectContent className={pickerContentClassName}>
-                    <SelectGroup>
-                        {options.map(([optionValue, optionLabel]) => (
-                            <SelectItem key={optionValue} value={optionValue} className={pickerItemClassName}>
-                                <KanbanOptionMark kind={kind} value={optionValue} label={optionLabel} />
-                            </SelectItem>
-                        ))}
-                    </SelectGroup>
-                </SelectContent>
-            </Select>
-        </div>
-    );
-}
-
-function KanbanOptionMark({
-    kind,
-    value,
-    label,
-}: {
-    kind: KanbanSelectKind;
-    value: string;
-    label: string;
-}) {
-    if (kind === "status") {
-        const status = statusMeta[value as keyof typeof statusMeta] ?? statusMeta.pending;
-
-        return (
-            <span className="inline-flex min-w-0 items-center gap-1.5 text-xs font-medium leading-none text-foreground">
-                <span className="size-1.5 shrink-0 rounded-full" style={{ background: status.tone }} />
-                <span className="truncate">{label}</span>
-            </span>
-        );
-    }
-
-    if (kind === "project") {
-        return (
-            <span className="inline-flex min-w-0 items-center gap-1.5 text-xs font-medium leading-none text-foreground">
-                <FolderOpen className="h-3 w-3 shrink-0 text-muted-foreground" />
-                <span className="truncate">{label}</span>
-            </span>
-        );
-    }
-
-    return (
-        <span className="inline-flex min-w-0 items-center text-xs font-medium leading-none text-foreground">
-            <span className="truncate">{label}</span>
         </span>
     );
 }

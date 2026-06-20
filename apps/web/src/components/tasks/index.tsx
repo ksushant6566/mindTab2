@@ -4,11 +4,12 @@ import React, { useMemo, useState } from "react";
 import { Button } from "~/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { tasksQueryOptions, useCreateTask, useUpdateTask, useDeleteTask, useArchiveCompletedTasks } from "~/api/hooks";
-import { CreateTaskDialog } from "./create-task-dialog";
-import { EditTaskDialog } from "./edit-task-dialog";
 import { TaskSkeleton } from "./task-skeleton";
 import { KanbanTasks } from "./kanban-tasks";
 import { ListTasks } from "./list-tasks";
+import { TaskDialog, type TaskDialogInput } from "./task-dialog";
+import { getScheduleDraftPayload } from "./task-schedule-fields";
+import { useCalendarSchedules } from "~/lib/calendar-schedules";
 import { useAppStore } from "@mindtab/core";
 
 export type ViewMode = "list" | "kanban";
@@ -30,14 +31,21 @@ export const Tasks: React.FC<TasksProps> = ({ viewMode }) => {
     const { mutate: updateTask } = useUpdateTask();
     const { mutate: deleteTask, isPending: isDeletingTask, variables: deleteTaskVariables } = useDeleteTask();
     const { mutate: archiveCompletedTasks } = useArchiveCompletedTasks();
+    const { scheduleTask } = useCalendarSchedules();
 
-    const onCreateTask = (task: { title: string; description?: string; status?: string; priority?: string; impact?: string; position?: number; projectId?: string | null; completedAt?: string }) => {
-        const taskData = activeProjectId ? { ...task, projectId: activeProjectId } : task;
-        createTask(taskData);
+    const onCreateTask = (task: TaskDialogInput & { status?: string; position?: number; projectId?: string | null; completedAt?: string }) => {
+        const { schedule, ...taskFields } = task;
+        const taskData = activeProjectId ? { ...taskFields, projectId: activeProjectId } : taskFields;
+        const schedulePayload = getScheduleDraftPayload(schedule);
+        createTask(taskData, {
+            onSuccess: (createdTask: any) => {
+                if (createdTask?.id && schedulePayload) {
+                    scheduleTask(createdTask.id, schedulePayload.startAt, schedulePayload.durationMinutes);
+                }
+            },
+        });
         setIsCreateTaskOpen(false);
     };
-
-    const onCancelCreateTask = () => setIsCreateTaskOpen(false);
 
     const toggleTaskStatus = (taskId: string, checked: CheckedState) => {
         const task = (tasks as any[])?.find((g: any) => g.id === taskId);
@@ -68,18 +76,6 @@ export const Tasks: React.FC<TasksProps> = ({ viewMode }) => {
         updateTask({ ...sanitizedTask, id: taskId } as { id: string; title?: string; description?: string; status?: string; priority?: string; impact?: string; position?: number; projectId?: string | null; completedAt?: string | null });
     };
 
-    const onSaveEditTask = (task: Record<string, unknown>) => {
-        if (!editTaskId) return;
-        const existingTask = (tasks as any[])?.find((g: any) => g.id === editTaskId);
-        const sanitizedTask = Object.fromEntries(Object.entries(task).filter(([_, v]) => v !== undefined));
-        if (existingTask && !("projectId" in sanitizedTask)) {
-            sanitizedTask.projectId = getTaskProjectId(existingTask);
-        }
-        updateTask({ ...sanitizedTask, id: editTaskId } as { id: string; title?: string; description?: string; status?: string; priority?: string; impact?: string; position?: number; projectId?: string | null; completedAt?: string | null });
-        setEditTaskId(null);
-    };
-
-    const onCancelEditTask = () => setEditTaskId(null);
     const handleArchiveCompleted = () => { archiveCompletedTasks(); };
     const handleShowArchived = () => { setShowArchived(!showArchived); };
 
@@ -102,9 +98,29 @@ export const Tasks: React.FC<TasksProps> = ({ viewMode }) => {
                                 </Button>
                             </div>
                         )}
-                        <CreateTaskDialog open={isCreateTaskOpen} onOpenChange={setIsCreateTaskOpen} onSave={onCreateTask} onCancel={onCancelCreateTask} defaultValues={{ projectId: activeProjectId }} loading={isCreatingTask} />
+                        <TaskDialog
+                            mode="create"
+                            open={isCreateTaskOpen}
+                            onOpenChange={setIsCreateTaskOpen}
+                            defaultValues={{ status: "pending", projectId: activeProjectId }}
+                            onCreate={(task) => onCreateTask({ ...task, status: "pending" })}
+                            isSaving={isCreatingTask}
+                        />
                         {editTaskId && (tasks as any[])?.find((g: any) => g.id === editTaskId) && (
-                            <EditTaskDialog open={!!editTaskId} onOpenChange={(open: boolean) => { if (!open) setEditTaskId(null); }} task={(tasks as any[]).find((g: any) => g.id === editTaskId)!} onSave={onSaveEditTask} onCancel={onCancelEditTask} />
+                            <TaskDialog
+                                mode="edit"
+                                open={!!editTaskId}
+                                onOpenChange={(open: boolean) => { if (!open) setEditTaskId(null); }}
+                                task={(tasks as any[]).find((g: any) => g.id === editTaskId)!}
+                                onUpdate={(taskId, values) => {
+                                    handleUpdateTask(taskId, values);
+                                    setEditTaskId(null);
+                                }}
+                                onDelete={handleDeleteTask}
+                                onToggleStatus={toggleTaskStatus}
+                                isDeleting={isDeletingTask}
+                                deleteVariables={deleteTaskVariables}
+                            />
                         )}
                         {viewMode === "list" ? (
                             <ListTasks pendingTasks={sortedPendingTasks} inProgressTasks={sortedInProgressTasks} completedTasks={sortedCompletedTasks} onEdit={setEditTaskId} onDelete={handleDeleteTask} onToggleStatus={toggleTaskStatus} onUpdate={handleUpdateTask} onArchiveCompleted={handleArchiveCompleted} isDeleting={isDeletingTask} deleteVariables={deleteTaskVariables} />

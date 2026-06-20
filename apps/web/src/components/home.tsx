@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Tasks } from "./tasks/index";
 import { Habits } from "./habits";
 import { Notes } from "./notes/notes";
+import { Calendar } from "./calendar/calendar";
 import { Button } from "~/components/ui/button";
 import { Clock } from "./clock";
 import { ProjectTabs } from "./projects";
@@ -18,6 +19,10 @@ const getDashboardLayout = () => ({
             {
                 element: <Tasks viewMode={"kanban"} />,
                 title: EActiveLayout.Tasks as ActiveLayout,
+            },
+            {
+                element: <Calendar />,
+                title: EActiveLayout.Calendar as ActiveLayout,
             },
             {
                 element: <Notes />,
@@ -49,6 +54,7 @@ export default function Component() {
     } = useAppStore();
 
     const layout = useMemo(() => getDashboardLayout(), []);
+    const isCalendarActive = activeElement === EActiveLayout.Calendar;
 
     useEffect(() => {
         setIsHydrated(true);
@@ -99,7 +105,7 @@ export default function Component() {
                         </div>
                     </div>
                 </div>
-                <div className={`${layout.col1.style} flex min-h-0 min-w-0 flex-col`}>
+                <div className={`${isCalendarActive ? "col-span-10" : layout.col1.style} flex min-h-0 min-w-0 flex-col`}>
                     {/* Project Tabs */}
                     <div className="-ml-0.5 shrink-0">
                         <ProjectTabs
@@ -123,7 +129,7 @@ export default function Component() {
                         </div>
                     ))}
                 </div>
-                <div className={`${layout.col2.style} flex min-h-0 min-w-0 flex-col`}>
+                <div className={`${layout.col2.style} ${isCalendarActive ? "hidden" : "flex"} min-h-0 min-w-0 flex-col`}>
                     {layout.col2.elements.map((element, index) => (
                         <div
                             className={cn(

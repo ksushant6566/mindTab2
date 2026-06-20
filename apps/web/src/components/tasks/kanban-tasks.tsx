@@ -10,12 +10,11 @@ import { useUpdateTaskPositions } from "~/api/hooks";
 import { DroppableColumn } from "./droppable-column";
 import { Task } from "./task";
 import { SortableTask } from "./sortable-task";
+import { TaskDialog, type TaskDialogInput } from "./task-dialog";
 import { Button } from "~/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "~/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "~/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "~/components/ui/tooltip";
-import { ArchiveIcon, ChevronDownIcon, CornerDownLeftIcon, EyeOffIcon, PlusIcon, SlidersHorizontalIcon } from "lucide-react";
-import { cn } from "~/lib/utils";
+import { ArchiveIcon, ChevronDownIcon, EyeOffIcon, PlusIcon } from "lucide-react";
 
 type TTask = any;
 type TaskStatus = "pending" | "in_progress" | "completed" | "archived";
@@ -24,7 +23,7 @@ interface KanbanTasksProps {
     pendingTasks?: TTask[]; inProgressTasks?: TTask[]; completedTasks?: TTask[]; archivedTasks?: TTask[];
     onEdit: (id: string) => void; onDelete: (id: string) => void; onToggleStatus: (id: string, checked: CheckedState) => void;
     onUpdate?: (id: string, task: Record<string, unknown>) => void;
-    onCreate?: (task: { title: string; description?: string; status?: string; priority?: string; impact?: string; position?: number; projectId?: string | null; completedAt?: string }) => void;
+    onCreate?: (task: TaskDialogInput & { status?: string; position?: number; projectId?: string | null; completedAt?: string }) => void;
     onArchiveCompleted?: () => void; onShowArchived?: () => void; showArchived?: boolean;
     isCreating?: boolean;
     isDeleting: boolean; deleteVariables?: string;
@@ -166,7 +165,7 @@ export const KanbanTasks: React.FC<KanbanTasksProps> = ({
         return localArchivedTasks;
     };
 
-    const handleCreateTask = (status: TaskStatus, task: { title: string; description?: string; priority: string; impact: string }) => {
+    const handleCreateTask = (status: TaskStatus, task: TaskDialogInput) => {
         onCreate?.({
             ...task,
             status,
@@ -258,250 +257,19 @@ export const KanbanTasks: React.FC<KanbanTasksProps> = ({
                     </div>
                 ) : null}
             </DragOverlay>
-            <QuickTaskDialog
-                status={creatingStatus}
+            <TaskDialog
+                mode="create"
                 open={creatingStatus !== null}
-                isCreating={isCreating}
                 onOpenChange={(open) => {
                     if (!open) setCreatingStatus(null);
                 }}
-                onSave={(task) => {
+                defaultValues={{ status: creatingStatus ?? "pending" }}
+                onCreate={(task) => {
                     if (!creatingStatus) return;
                     handleCreateTask(creatingStatus, task);
                 }}
+                isSaving={isCreating}
             />
         </DndContext>
     );
 };
-
-function QuickTaskDialog({
-    status,
-    open,
-    isCreating,
-    onOpenChange,
-    onSave,
-}: {
-    status: TaskStatus | null;
-    open: boolean;
-    isCreating: boolean;
-    onOpenChange: (open: boolean) => void;
-    onSave: (task: { title: string; description?: string; priority: string; impact: string }) => void;
-}) {
-    const [title, setTitle] = React.useState("");
-    const [description, setDescription] = React.useState("");
-    const [priority, setPriority] = React.useState("priority_4");
-    const [impact, setImpact] = React.useState("medium");
-    const [detailsOpen, setDetailsOpen] = React.useState(false);
-    const inputRef = React.useRef<HTMLInputElement>(null);
-
-    const statusCopy: Record<TaskStatus, { title: string; eyebrow: string; placeholder: string; helper: string }> = {
-        pending: {
-            title: "Add to To Do",
-            eyebrow: "Queued, clarified, ready to pull",
-            placeholder: "What needs a next move?",
-            helper: "Enter adds. Shift+Enter opens details.",
-        },
-        in_progress: {
-            title: "Add to In Progress",
-            eyebrow: "Active commitments, limited by focus",
-            placeholder: "What are you committing to now?",
-            helper: "Created directly in In Progress.",
-        },
-        completed: {
-            title: "Add to Done",
-            eyebrow: "Finished work waiting to be cleared",
-            placeholder: "What did you just finish?",
-            helper: "Useful for logging completed work.",
-        },
-        archived: {
-            title: "Add to Archive",
-            eyebrow: "Quiet storage for closed loops",
-            placeholder: "What should be stored?",
-            helper: "Archive creation is intentionally rare.",
-        },
-    };
-
-    const activeStatus = status ?? "pending";
-    const copy = statusCopy[activeStatus];
-
-    const reset = React.useCallback(() => {
-        setTitle("");
-        setDescription("");
-        setPriority("priority_4");
-        setImpact("medium");
-        setDetailsOpen(false);
-    }, []);
-
-    const close = () => {
-        reset();
-        onOpenChange(false);
-    };
-
-    const submit = () => {
-        const cleanTitle = title.trim();
-        if (!cleanTitle || isCreating) return;
-
-        onSave({
-            title: cleanTitle,
-            description: description.trim() || undefined,
-            priority,
-            impact,
-        });
-        reset();
-    };
-
-    const handleTitleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-        if (event.key === "Escape") {
-            event.preventDefault();
-            close();
-            return;
-        }
-
-        if (event.key === "Enter" && event.shiftKey) {
-            event.preventDefault();
-            setDetailsOpen(true);
-            return;
-        }
-
-        if (event.key === "Enter") {
-            event.preventDefault();
-            submit();
-        }
-    };
-
-    const handleTextareaKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
-        if (event.key === "Escape") {
-            event.preventDefault();
-            close();
-            return;
-        }
-
-        if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
-            event.preventDefault();
-            submit();
-        }
-    };
-
-    return (
-        <Dialog
-            open={open}
-            onOpenChange={(nextOpen) => {
-                if (!nextOpen) reset();
-                onOpenChange(nextOpen);
-            }}
-        >
-            <DialogContent
-                className="max-w-lg overflow-hidden border border-border bg-[var(--bg-elev)] p-0 shadow-[0_20px_64px_-48px_rgba(0,0,0,0.95)]"
-                onOpenAutoFocus={(event) => {
-                    event.preventDefault();
-                    inputRef.current?.focus();
-                }}
-            >
-                <DialogHeader className="border-b border-border px-5 py-4 text-left">
-                    <DialogTitle className="pr-8 text-lg font-semibold leading-6 tracking-normal text-foreground">
-                        {copy.title}
-                    </DialogTitle>
-                    <DialogDescription className="font-mono text-[10.5px] uppercase tracking-[0.06em] text-muted-foreground">
-                        {copy.eyebrow}
-                    </DialogDescription>
-                </DialogHeader>
-
-                <div className="space-y-3 bg-[var(--bg)]/45 px-5 pb-5 pt-4">
-                    <input
-                        ref={inputRef}
-                        value={title}
-                        onChange={(event) => setTitle(event.target.value)}
-                        onKeyDown={handleTitleKeyDown}
-                        placeholder={copy.placeholder}
-                        className="h-9 w-full rounded-[var(--r-2)] border border-input bg-background px-3 text-sm font-medium text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-[var(--ink-line)] focus:ring-2 focus:ring-ring/30"
-                    />
-
-                    {detailsOpen && (
-                        <div className="space-y-2">
-                            <textarea
-                                value={description}
-                                onChange={(event) => setDescription(event.target.value)}
-                                onKeyDown={handleTextareaKeyDown}
-                                placeholder="What does a good outcome look like?"
-                                className="min-h-20 w-full resize-none rounded-[var(--r-2)] border border-input bg-background px-3 py-2 text-sm leading-5 text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-[var(--ink-line)] focus:ring-2 focus:ring-ring/30"
-                            />
-                            <div className="grid grid-cols-2 gap-2">
-                                <ComposerSelect
-                                    label="Priority"
-                                    value={priority}
-                                    onChange={setPriority}
-                                    options={[
-                                        ["priority_1", "P1"],
-                                        ["priority_2", "P2"],
-                                        ["priority_3", "P3"],
-                                        ["priority_4", "P4"],
-                                    ]}
-                                />
-                                <ComposerSelect
-                                    label="Impact"
-                                    value={impact}
-                                    onChange={setImpact}
-                                    options={[
-                                        ["low", "Low"],
-                                        ["medium", "Medium"],
-                                        ["high", "High"],
-                                    ]}
-                                />
-                            </div>
-                        </div>
-                    )}
-
-                    <div className="flex items-center justify-between gap-2">
-                        <button
-                            type="button"
-                            onClick={() => setDetailsOpen((value) => !value)}
-                            className={cn(
-                                "inline-flex h-7 items-center gap-1.5 rounded-[var(--r-2)] px-2 font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground",
-                                detailsOpen && "bg-secondary text-foreground"
-                            )}
-                        >
-                            <SlidersHorizontalIcon className="h-3.5 w-3.5" />
-                            Details
-                        </button>
-                        <div className="flex items-center gap-2">
-                            <span className="hidden font-mono text-[10px] text-muted-foreground lg:inline">{copy.helper}</span>
-                            <Button type="button" size="sm" className="h-8" onClick={submit} disabled={!title.trim() || isCreating} loading={isCreating} hideContentWhenLoading>
-                                <CornerDownLeftIcon className="mr-1.5 h-3.5 w-3.5" />
-                                Add
-                            </Button>
-                        </div>
-                    </div>
-                </div>
-            </DialogContent>
-        </Dialog>
-    );
-}
-
-function ComposerSelect({
-    label,
-    value,
-    onChange,
-    options,
-}: {
-    label: string;
-    value: string;
-    onChange: (value: string) => void;
-    options: Array<[string, string]>;
-}) {
-    return (
-        <label className="space-y-1">
-            <span className="font-mono text-[9px] uppercase tracking-[0.08em] text-muted-foreground">{label}</span>
-            <select
-                value={value}
-                onChange={(event) => onChange(event.target.value)}
-                className="h-8 w-full rounded-[var(--r-2)] border border-input bg-background px-2 text-xs text-foreground outline-none focus:border-[var(--ink-line)] focus:ring-2 focus:ring-ring/30"
-            >
-                {options.map(([optionValue, optionLabel]) => (
-                    <option key={optionValue} value={optionValue}>
-                        {optionLabel}
-                    </option>
-                ))}
-            </select>
-        </label>
-    );
-}

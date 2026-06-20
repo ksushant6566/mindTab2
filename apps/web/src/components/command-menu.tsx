@@ -40,8 +40,8 @@ import {
 import { useAuth } from "~/api/hooks/use-auth";
 import { CreateNoteDialog } from "./notes/create-note-dialog";
 import { NoteDialog } from "./notes/note-dialog";
-import { CreateTaskDialog } from "./tasks/create-task-dialog";
-import { EditTaskDialog } from "./tasks/edit-task-dialog";
+import { TaskDialog, type TaskDialogInput } from "./tasks/task-dialog";
+import { getScheduleDraftPayload } from "./tasks/task-schedule-fields";
 import { EditHabitDialog } from "./habits/edit-habit-dialog";
 import {
     useAppStore,
@@ -51,6 +51,7 @@ import {
 import { toast } from "sonner";
 import { CreateHabitDialog } from "./habits/create-habit-dialog";
 import { cn } from "~/lib/utils";
+import { useCalendarSchedules } from "~/lib/calendar-schedules";
 
 const COMMAND_PROMPT_INTERVAL_MS = 3000;
 
@@ -106,10 +107,10 @@ export const CommandMenu = () => {
         }
     };
 
-    const [isCreateTaskDialogOpen, setIsCreateTaskDialogOpen] = useState(false);
+    const [isTaskCreateOpen, setIsTaskCreateOpen] = useState(false);
 
-    const onCreateTaskDialogOpenChange = (open: boolean) => {
-        setIsCreateTaskDialogOpen(open);
+    const onTaskCreateOpenChange = (open: boolean) => {
+        setIsTaskCreateOpen(open);
     };
 
     const [isEditTaskDialogOpen, setIsEditTaskDialogOpen] = useState(false);
@@ -143,9 +144,17 @@ export const CommandMenu = () => {
 
     const createTaskMutation = useCreateTask();
     const isCreatingTask = createTaskMutation.isPending;
-    const createTask = (values: any) => {
-        createTaskMutation.mutate(values, {
-            onSettled: () => setIsCreateTaskDialogOpen(false),
+    const { scheduleTask } = useCalendarSchedules();
+    const createTask = (values: TaskDialogInput & { status?: string; projectId?: string | null }) => {
+        const { schedule, ...taskFields } = values;
+        const schedulePayload = getScheduleDraftPayload(schedule);
+        createTaskMutation.mutate(taskFields, {
+            onSuccess: (createdTask: any) => {
+                if (createdTask?.id && schedulePayload) {
+                    scheduleTask(createdTask.id, schedulePayload.startAt, schedulePayload.durationMinutes);
+                }
+            },
+            onSettled: () => setIsTaskCreateOpen(false),
         });
     };
 
@@ -284,7 +293,7 @@ export const CommandMenu = () => {
                         label: "Create Task",
                         icon: PlusIcon,
                         onClick: () => {
-                            setIsCreateTaskDialogOpen(true);
+                            setIsTaskCreateOpen(true);
                             setOpen(false);
                         },
                     },
@@ -497,31 +506,27 @@ export const CommandMenu = () => {
                 defaultMode={"view"}
                 note={currentNote}
             />
-            <CreateTaskDialog
-                open={isCreateTaskDialogOpen}
-                onOpenChange={onCreateTaskDialogOpenChange}
-                onSave={createTask as any}
-                onCancel={() => setIsCreateTaskDialogOpen(false)}
-                loading={isCreatingTask}
-                defaultValues={{
-                    projectId: activeProjectId,
-                }}
+            <TaskDialog
+                mode="create"
+                open={isTaskCreateOpen}
+                onOpenChange={onTaskCreateOpenChange}
+                defaultValues={{ status: "pending", projectId: activeProjectId }}
+                onCreate={(task) => createTask({ ...task, status: "pending", projectId: activeProjectId })}
+                isSaving={isCreatingTask}
             />
             {currentTask && (
-                <EditTaskDialog
+                <TaskDialog
+                    mode="edit"
                     open={isEditTaskDialogOpen}
                     onOpenChange={onEditTaskDialogOpenChange}
                     task={currentTask}
-                    onSave={(values: any) =>
-                        (updateTask as any)({
+                    onUpdate={(_taskId, values) =>
+                        updateTask({
                             ...values,
-                            id: values.id!,
-                            title: values.title ?? undefined,
-                            description: values.description ?? undefined,
+                            id: currentTask.id,
                         })
                     }
-                    onCancel={() => setIsEditTaskDialogOpen(false)}
-                    loading={isUpdatingTask}
+                    isSaving={isUpdatingTask}
                 />
             )}
             {currentHabit && (

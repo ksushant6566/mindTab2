@@ -3,6 +3,7 @@ import { persist } from "zustand/middleware";
 
 export const EActiveLayout = {
   Tasks: "Tasks",
+  Calendar: "Calendar",
   Habits: "Habits",
   Notes: "Notes",
 } as const;

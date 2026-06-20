@@ -31,7 +31,7 @@ type ProjectTabsProps = {
     activeProjectId: string | null;
     onProjectChange: (projectId: string | null) => void;
     layoutVersion: number;
-    activeTab?: "Tasks" | "Notes" | "Habits";
+    activeTab?: "Tasks" | "Calendar" | "Notes" | "Habits";
 };
 
 export const ProjectTabs: React.FC<ProjectTabsProps> = ({
@@ -59,6 +59,7 @@ export const ProjectTabs: React.FC<ProjectTabsProps> = ({
 
     const { data: tasksCount } = useQuery(tasksCountQueryOptions());
     const { data: notesCount } = useQuery(notesCountQueryOptions());
+    const allLabel = activeTab === "Calendar" ? "All Tasks" : `All ${activeTab}`;
 
     const handleCreateProject = async (project: any) => {
         await createProject(project);
@@ -121,11 +122,11 @@ export const ProjectTabs: React.FC<ProjectTabsProps> = ({
                         onClick={() => handleProjectSelect(null)}
                         className="whitespace-nowrap flex items-center gap-2"
                     >
-                        All {activeTab}
+                        {allLabel}
                         {projects && (
                             <span className="text-xs opacity-70">
                                 (
-                                {activeTab === "Tasks"
+                                {activeTab === "Tasks" || activeTab === "Calendar"
                                     ? ((tasksCount as any) ?? 0)
                                     : activeTab === "Notes"
                                       ? ((notesCount as any) ?? 0)
@@ -153,7 +154,7 @@ export const ProjectTabs: React.FC<ProjectTabsProps> = ({
                                 <span>{project.name || "Unnamed Project"}</span>
                                 <span className="text-xs opacity-70">
                                     (
-                                    {activeTab === "Tasks"
+                                    {activeTab === "Tasks" || activeTab === "Calendar"
                                         ? project.taskStats?.total ?? 0
                                         : activeTab === "Notes"
                                           ? project.noteCount ?? 0
