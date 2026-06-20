@@ -92,11 +92,8 @@ const VIEW_LABELS: Array<{ value: CalendarView; label: string }> = [
     { value: "month", label: "Month" },
 ];
 
-function getTaskTone(task?: TaskRecord) {
-    if (task?.priority === "priority_1") return "border-[var(--rose)]/55 bg-[var(--rose)]/12 text-foreground";
-    if (task?.priority === "priority_2") return "border-[var(--amber)]/55 bg-[var(--amber)]/12 text-foreground";
-    if (task?.priority === "priority_3") return "border-[var(--cyan)]/55 bg-[var(--cyan)]/12 text-foreground";
-    return "border-[var(--border-2)] bg-[var(--bg-elev)] text-foreground";
+function getTaskTone() {
+    return "border-[var(--border-2)] bg-[var(--bg-soft)] text-foreground";
 }
 
 function getTaskProjectId(task: TaskRecord) {
@@ -483,9 +480,9 @@ export function Calendar() {
                 }}
                 onDragStart={(event) => event.dataTransfer.setData("text/plain", schedule.taskId)}
                 className={cn(
-                    "group/event flex h-[18px] w-full cursor-grab items-center rounded-[var(--r-2)] border px-1.5 text-left shadow-[0_8px_18px_-16px_rgba(0,0,0,0.9)]",
-                    "overflow-hidden transition-colors active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30",
-                    getTaskTone(task)
+                    "group/event flex h-[18px] w-full cursor-grab items-center rounded-[var(--r-2)] border px-1.5 text-left",
+                    "overflow-hidden transition-colors hover:bg-[var(--bg-elev)] active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30",
+                    getTaskTone()
                 )}
             >
                 <span className="truncate text-[10px] font-semibold leading-3.5">{task?.title || "Untitled task"}</span>
@@ -522,9 +519,9 @@ export function Calendar() {
                 }}
                 onDragStart={(event) => event.dataTransfer.setData("text/plain", schedule.taskId)}
                 className={cn(
-                    "group/event pointer-events-auto absolute z-10 cursor-grab overflow-hidden rounded-[var(--r-2)] border px-2 py-1 text-left shadow-[0_10px_22px_-18px_rgba(0,0,0,0.95)]",
-                    "transition-colors active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
-                    getTaskTone(task)
+                    "group/event pointer-events-auto absolute z-10 cursor-grab overflow-hidden rounded-[var(--r-2)] border px-2 py-1 text-left",
+                    "transition-colors hover:bg-[var(--bg-elev)] active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
+                    getTaskTone()
                 )}
                 style={{
                     top,
