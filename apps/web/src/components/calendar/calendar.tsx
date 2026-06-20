@@ -85,6 +85,9 @@ const HOURS = Array.from({ length: 24 }, (_, index) => index);
 const MINUTES_PER_DAY = 24 * 60;
 const SNAP_MINUTES = 15;
 const MIN_TIMED_EVENT_HEIGHT = 28;
+const MIN_TIMED_EVENT_RENDER_HEIGHT = 24;
+const TIMED_EVENT_INSET_X = 6;
+const TIMED_EVENT_INSET_Y = 5;
 const TIME_ROW_HEIGHT = 74;
 const VIEW_LABELS: Array<{ value: CalendarView; label: string }> = [
     { value: "day", label: "Today" },
@@ -497,6 +500,7 @@ export function Calendar() {
         const laneGap = 4;
         const width = `calc((100% - ${(laneCount - 1) * laneGap}px) / ${laneCount})`;
         const left = `calc(${lane} * ((100% - ${(laneCount - 1) * laneGap}px) / ${laneCount} + ${laneGap}px))`;
+        const renderedHeight = Math.max(MIN_TIMED_EVENT_RENDER_HEIGHT, height - TIMED_EVENT_INSET_Y * 2);
         const roomy = height >= 46;
 
         return (
@@ -524,10 +528,10 @@ export function Calendar() {
                     getTaskTone()
                 )}
                 style={{
-                    top,
-                    height,
-                    left,
-                    width,
+                    top: top + TIMED_EVENT_INSET_Y,
+                    height: renderedHeight,
+                    left: `calc(${left} + ${TIMED_EVENT_INSET_X}px)`,
+                    width: `calc(${width} - ${TIMED_EVENT_INSET_X * 2}px)`,
                 }}
             >
                 <div className="flex min-w-0 items-start justify-between gap-1.5">
