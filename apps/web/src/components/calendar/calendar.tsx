@@ -21,7 +21,7 @@ import {
     Link2Off,
     Plus,
 } from "lucide-react";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAppStore } from "@mindtab/core";
 import { type CheckedState } from "@radix-ui/react-checkbox";
@@ -86,7 +86,6 @@ const MINUTES_PER_DAY = 24 * 60;
 const SNAP_MINUTES = 15;
 const MIN_TIMED_EVENT_HEIGHT = 28;
 const TIME_ROW_HEIGHT = 74;
-const TIME_GRID_SCROLLBAR_GUTTER = 10;
 const VIEW_LABELS: Array<{ value: CalendarView; label: string }> = [
     { value: "day", label: "Today" },
     { value: "week", label: "Week" },
@@ -232,6 +231,7 @@ export function Calendar() {
     const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
     const [dragTarget, setDragTarget] = useState<string | null>(null);
     const [currentTime, setCurrentTime] = useState(() => new Date());
+    const [timeGridGutter, setTimeGridGutter] = useState(0);
     const timeGridScrollRef = useRef<HTMLDivElement | null>(null);
     const { schedules, setSchedule, scheduleTask, unscheduleTask } = useCalendarSchedules();
     const { activeProjectId } = useAppStore();
@@ -296,6 +296,27 @@ export function Calendar() {
         const interval = window.setInterval(() => setCurrentTime(new Date()), 30_000);
         return () => window.clearInterval(interval);
     }, []);
+
+    useLayoutEffect(() => {
+        if (view === "month") return;
+        const container = timeGridScrollRef.current;
+        if (!container) return;
+
+        const measureGutter = () => {
+            setTimeGridGutter(Math.max(0, container.offsetWidth - container.clientWidth));
+        };
+
+        measureGutter();
+
+        const resizeObserver = new ResizeObserver(measureGutter);
+        resizeObserver.observe(container);
+        window.addEventListener("resize", measureGutter);
+
+        return () => {
+            resizeObserver.disconnect();
+            window.removeEventListener("resize", measureGutter);
+        };
+    }, [view]);
 
     useEffect(() => {
         if (view === "month" || todayIndex < 0) return;
@@ -549,7 +570,7 @@ export function Calendar() {
                 className="grid border-b border-border bg-[var(--bg-elev)]/55"
                 style={{
                     gridTemplateColumns: `56px repeat(${visibleDays.length}, minmax(0, 1fr))`,
-                    paddingRight: TIME_GRID_SCROLLBAR_GUTTER,
+                    paddingRight: timeGridGutter,
                 }}
             >
                 <div className="border-r border-border" />
