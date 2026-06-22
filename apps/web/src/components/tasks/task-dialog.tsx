@@ -8,6 +8,7 @@ import {
     Link2Off,
     Plus,
     Save,
+    Trash2,
     X,
     Zap,
 } from "lucide-react";
@@ -28,6 +29,7 @@ import {
     TaskScheduleFields,
     type TaskScheduleDraft,
 } from "./task-schedule-fields";
+import { DeleteTaskConfirmDialog } from "./delete-task-confirm-dialog";
 
 export type TaskDialogMode = "create" | "view" | "edit";
 
@@ -77,6 +79,8 @@ type TaskDialogProps = {
     deleteVariables?: string;
 };
 
+const EMPTY_TASK_DEFAULT_VALUES: Partial<TaskDialogInput> = {};
+
 const priorityMeta = {
     priority_1: { label: "P1", tone: "var(--rose)" },
     priority_2: { label: "P2", tone: "var(--amber)" },
@@ -91,14 +95,20 @@ const impactMeta = {
 } as const;
 
 const statusMeta = {
-    pending: { label: "To Do", shortcut: "T", hint: "Define the next move", tone: "var(--text-3)" },
-    in_progress: { label: "In Progress", shortcut: "I", hint: "Currently in motion", tone: "var(--cyan)" },
-    completed: { label: "Done", shortcut: "D", hint: "Ready to archive", tone: "var(--amber)" },
-    archived: { label: "Archive", shortcut: "A", hint: "Stored out of view", tone: "var(--text-4)" },
+    pending: { label: "To Do", tone: "var(--amber)", background: "color-mix(in srgb, var(--amber) 13%, var(--bg-elev))" },
+    in_progress: { label: "In Progress", tone: "var(--cyan)", background: "color-mix(in srgb, var(--cyan) 14%, var(--bg-elev))" },
+    completed: { label: "Done", tone: "var(--green)", background: "color-mix(in srgb, var(--green) 14%, var(--bg-elev))" },
+    archived: { label: "Archive", tone: "var(--text-4)", background: "var(--bg-soft)" },
 } as const;
 
 const priorityOptions = ["priority_1", "priority_2", "priority_3", "priority_4"] as const;
 const impactOptions = ["high", "medium", "low"] as const;
+const statusOptions = [
+    ["pending", "To Do"],
+    ["in_progress", "In Progress"],
+    ["completed", "Done"],
+    ["archived", "Archive"],
+] as const;
 
 const pickerTriggerClassName = "h-8 gap-2 rounded-[var(--r-2)] border-input bg-background px-2 text-xs focus:ring-2 focus:ring-ring/30 focus:ring-offset-0 [&>svg]:h-3.5 [&>svg]:w-3.5";
 const pickerContentClassName = "border-border bg-[var(--bg-elev)] shadow-[0_18px_44px_-34px_rgba(0,0,0,0.95)]";
@@ -106,6 +116,14 @@ const pickerItemClassName = "h-8 rounded-[var(--r-2)] py-1.5 pl-8 pr-2 text-xs t
 
 type PriorityMeta = (typeof priorityMeta)[keyof typeof priorityMeta];
 type ImpactMeta = (typeof impactMeta)[keyof typeof impactMeta];
+type StatusMeta = (typeof statusMeta)[keyof typeof statusMeta];
+
+function getStatusStyle(status: StatusMeta): React.CSSProperties {
+    return {
+        "--task-dialog-status-color": status.tone,
+        "--task-dialog-status-bg": status.background,
+    } as React.CSSProperties;
+}
 
 function getTaskProjectId(task?: TaskDialogTask | null) {
     return task?.projectId ?? task?.project?.id ?? null;
@@ -133,11 +151,10 @@ export function TaskDialog({
     onOpenChange,
     mode: initialMode,
     task,
-    defaultValues = {},
+    defaultValues = EMPTY_TASK_DEFAULT_VALUES,
     onCreate,
     onUpdate,
     onDelete,
-    onToggleStatus,
     isSaving = false,
     isDeleting = false,
     deleteVariables,
@@ -148,32 +165,35 @@ export function TaskDialog({
     const defaultSchedule = defaultValues.schedule ?? createScheduleDraft(schedule);
     const [mode, setMode] = React.useState<TaskDialogMode>(initialMode);
     const [formData, setFormData] = React.useState(() => buildFormData(task, defaultValues, defaultSchedule));
+    const [editorResetKey, setEditorResetKey] = React.useState(0);
+    const [deleteConfirmOpen, setDeleteConfirmOpen] = React.useState(false);
 
-    React.useEffect(() => {
-        if (!open) return;
+    const resetForm = React.useCallback((nextMode: TaskDialogMode = initialMode) => {
         const nextSchedule = defaultValues.schedule ?? createScheduleDraft(schedule);
-        setMode(initialMode);
+        setMode(nextMode);
         setFormData(buildFormData(task, defaultValues, nextSchedule));
+        setEditorResetKey((key) => key + 1);
     }, [
         defaultValues.description,
         defaultValues.impact,
         defaultValues.priority,
         defaultValues.projectId,
-        defaultValues.schedule?.enabled,
-        defaultValues.schedule?.endAt,
-        defaultValues.schedule?.startAt,
+        defaultValues.schedule,
         defaultValues.status,
         defaultValues.title,
         initialMode,
-        open,
-        schedule?.endAt,
-        schedule?.startAt,
+        schedule,
         task,
     ]);
 
+    React.useEffect(() => {
+        resetForm(open ? initialMode : initialMode !== "create" ? "view" : initialMode);
+    }, [initialMode, open, resetForm]);
+
     const isCreate = mode === "create";
     const isFormMode = mode === "create" || mode === "edit";
-    const currentStatus = statusMeta[(isFormMode ? formData.status : task?.status) as keyof typeof statusMeta] ?? statusMeta.pending;
+    const statusValue = (isFormMode ? formData.status : task?.status) ?? "pending";
+    const currentStatus = statusMeta[statusValue as keyof typeof statusMeta] ?? statusMeta.pending;
     const priority = priorityMeta[(task?.priority ?? formData.priority) as keyof typeof priorityMeta] ?? priorityMeta.priority_4;
     const impact = impactMeta[(task?.impact ?? formData.impact) as keyof typeof impactMeta] ?? impactMeta.medium;
     const projectName = task?.project?.name || task?.projectName;
@@ -183,6 +203,15 @@ export function TaskDialog({
     const hasDescription = !isRichTextEmpty(task?.description);
 
     const close = () => onOpenChange(false);
+
+    const handleStatusChange = (status: string) => {
+        if (isFormMode || !task) {
+            setFormData((prev) => ({ ...prev, status }));
+            return;
+        }
+
+        onUpdate?.(task.id, { status });
+    };
 
     const handleSubmit = (event: React.FormEvent) => {
         event.preventDefault();
@@ -225,11 +254,16 @@ export function TaskDialog({
     const dialogTitle = isCreate ? "New Task" : task?.title || "Task";
 
     return (
+        <>
         <Dialog
             open={open}
             onOpenChange={(nextOpen) => {
+                if (nextOpen) {
+                    resetForm(initialMode);
+                } else {
+                    resetForm(initialMode !== "create" ? "view" : initialMode);
+                }
                 onOpenChange(nextOpen);
-                if (!nextOpen && initialMode !== "create") setMode("view");
             }}
         >
             <DialogContent className="max-w-2xl overflow-hidden border border-border bg-[var(--bg-elev)] p-0 shadow-[0_20px_64px_-48px_rgba(0,0,0,0.95)]">
@@ -237,17 +271,38 @@ export function TaskDialog({
                     <DialogTitle className="pr-8 text-lg font-semibold leading-6 tracking-normal text-foreground">
                         {dialogTitle}
                     </DialogTitle>
-                    <DialogDescription className="flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[10.5px] uppercase tracking-[0.06em] text-muted-foreground">
-                        <span>{taskCode}</span>
-                        {(projectName || isCreate) && (
-                            <>
-                                <span className="text-[var(--text-4)]">·</span>
-                                <span className="lowercase">{projectName || "new task"}</span>
-                            </>
+                    <div className="flex items-center justify-between gap-3 pr-8">
+                        <DialogDescription className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[10.5px] uppercase tracking-[0.06em] text-muted-foreground">
+                            <span>{taskCode}</span>
+                            {(projectName || isCreate) && (
+                                <>
+                                    <span className="text-[var(--text-4)]">·</span>
+                                    <span className="lowercase">{projectName || "new task"}</span>
+                                </>
+                            )}
+                            <span className="text-[var(--text-4)]">·</span>
+                            <span
+                                className="inline-flex items-center gap-1 text-[var(--task-dialog-status-color)]"
+                                style={getStatusStyle(currentStatus)}
+                            >
+                                <span className="size-1.5 rounded-full bg-[var(--task-dialog-status-color)]" />
+                                {currentStatus.label}
+                            </span>
+                        </DialogDescription>
+                        {!isCreate && task && onDelete && (
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="size-7 shrink-0 rounded-[var(--r-2)] text-muted-foreground hover:text-[var(--rose)]"
+                                onClick={() => setDeleteConfirmOpen(true)}
+                                disabled={isDeleting && deleteVariables === task.id}
+                                aria-label={`Delete ${task.title}`}
+                            >
+                                <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
                         )}
-                        <span className="text-[var(--text-4)]">·</span>
-                        <span>{currentStatus.label}</span>
-                    </DialogDescription>
+                    </div>
                 </DialogHeader>
 
                 <div className="bg-[var(--bg)]/45 px-5 pb-5 pt-4">
@@ -273,10 +328,7 @@ export function TaskDialog({
                                 Create
                             </div>
                         )}
-                        <div className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
-                            <CheckCircle2 className="h-3 w-3" />
-                            <span>{currentStatus.label}</span>
-                        </div>
+                        <StatusIndicatorSelect value={statusValue} onChange={handleStatusChange} />
                     </div>
 
                     {mode === "view" && task ? (
@@ -324,36 +376,6 @@ export function TaskDialog({
                                     )}
                                 </div>
                             </div>
-                            <div className="rounded-[var(--r-2)] border border-border bg-[var(--bg-soft)] px-3 py-2">
-                                <div className="flex items-center justify-between gap-3">
-                                    <div>
-                                        <div className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">{currentStatus.hint}</div>
-                                        <div className="mt-0.5 text-xs text-foreground">Click the checkbox to advance this task.</div>
-                                    </div>
-                                    <span className="flex size-6 items-center justify-center rounded-[var(--r-2)] border border-border bg-background font-mono text-[10px] text-muted-foreground">
-                                        {currentStatus.shortcut}
-                                    </span>
-                                </div>
-                            </div>
-                            <div className="flex justify-end gap-2">
-                                {onDelete && (
-                                    <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-8 text-muted-foreground hover:text-[var(--rose)]"
-                                        onClick={() => task && onDelete(task.id)}
-                                        disabled={isDeleting && deleteVariables === task.id}
-                                    >
-                                        Delete
-                                    </Button>
-                                )}
-                                {onToggleStatus && (
-                                    <Button type="button" variant="outline" size="sm" className="h-8" onClick={() => onToggleStatus(task.id, false)}>
-                                        Advance
-                                    </Button>
-                                )}
-                            </div>
                         </div>
                     ) : null}
 
@@ -367,12 +389,13 @@ export function TaskDialog({
                                 autoFocus
                             />
                             <RichTextEditor
+                                key={`${task?.id ?? "new"}-${mode}-${editorResetKey}`}
                                 content={formData.description}
                                 onContentChange={(description) => setFormData((prev) => ({ ...prev, description }))}
                                 placeholder="What does done look like?"
                                 className="task-description-editor overflow-hidden rounded-[var(--r-2)] border border-input bg-background transition-[border-color,box-shadow] duration-150 focus-within:border-[var(--ink-line)] focus-within:ring-2 focus-within:ring-ring/30"
                             />
-                            <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+                            <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
                                 <PriorityPicker
                                     value={formData.priority}
                                     onChange={(value) => setFormData((prev) => ({ ...prev, priority: value }))}
@@ -380,18 +403,6 @@ export function TaskDialog({
                                 <ImpactPicker
                                     value={formData.impact}
                                     onChange={(value) => setFormData((prev) => ({ ...prev, impact: value }))}
-                                />
-                                <TaskSelect
-                                    kind="status"
-                                    label="Status"
-                                    value={formData.status}
-                                    onChange={(value) => setFormData((prev) => ({ ...prev, status: value }))}
-                                    options={[
-                                        ["pending", "To Do"],
-                                        ["in_progress", "In Progress"],
-                                        ["completed", "Done"],
-                                        ["archived", "Archive"],
-                                    ]}
                                 />
                                 <TaskSelect
                                     kind="project"
@@ -423,6 +434,57 @@ export function TaskDialog({
                 </div>
             </DialogContent>
         </Dialog>
+        {task && onDelete && (
+            <DeleteTaskConfirmDialog
+                open={deleteConfirmOpen}
+                onOpenChange={setDeleteConfirmOpen}
+                taskTitle={task.title}
+                isDeleting={isDeleting && deleteVariables === task.id}
+                onConfirm={() => {
+                    onDelete(task.id);
+                    setDeleteConfirmOpen(false);
+                    onOpenChange(false);
+                }}
+            />
+        )}
+        </>
+    );
+}
+
+function StatusIndicatorSelect({
+    value,
+    onChange,
+}: {
+    value: string;
+    onChange: (value: string) => void;
+}) {
+    const status = statusMeta[value as keyof typeof statusMeta] ?? statusMeta.pending;
+
+    return (
+        <Select value={value} onValueChange={onChange}>
+            <SelectTrigger
+                aria-label="Status"
+                className={cn(
+                    "h-7 w-auto min-w-[96px] gap-1.5 rounded-[var(--r-2)] border-[var(--task-dialog-status-color)] bg-[var(--task-dialog-status-bg)] py-0 pl-2.5 pr-2",
+                    "items-center font-mono text-[10px] uppercase leading-none tracking-[0.08em] text-[var(--task-dialog-status-color)] shadow-[inset_3px_0_0_var(--task-dialog-status-color)]",
+                    "focus:ring-2 focus:ring-ring/30 focus:ring-offset-0 [&>svg]:h-3 [&>svg]:w-3 [&>svg]:text-[var(--task-dialog-status-color)] [&>svg]:opacity-100"
+                )}
+                style={getStatusStyle(status)}
+            >
+                <div className="flex min-w-0 flex-1 items-center justify-center whitespace-nowrap pl-1 leading-none">
+                    <span className="truncate leading-none">{status.label}</span>
+                </div>
+            </SelectTrigger>
+            <SelectContent className={pickerContentClassName}>
+                <SelectGroup>
+                    {statusOptions.map(([optionValue, optionLabel]) => (
+                        <SelectItem key={optionValue} value={optionValue} className={pickerItemClassName}>
+                            <TaskOptionMark kind="status" value={optionValue} label={optionLabel} />
+                        </SelectItem>
+                    ))}
+                </SelectGroup>
+            </SelectContent>
+        </Select>
     );
 }
 
@@ -591,10 +653,13 @@ function TaskOptionMark({
         const status = statusMeta[value as keyof typeof statusMeta] ?? statusMeta.pending;
 
         return (
-            <span className="inline-flex min-w-0 items-center gap-1.5 text-xs font-medium leading-none text-foreground">
-                <span className="size-1.5 shrink-0 rounded-full" style={{ background: status.tone }} />
+            <div
+                className="flex min-w-0 items-center gap-1.5 font-mono text-[10px] font-medium uppercase leading-none tracking-[0.08em] text-[var(--task-dialog-status-color)]"
+                style={getStatusStyle(status)}
+            >
+                <span className="size-1.5 shrink-0 rounded-full bg-[var(--task-dialog-status-color)]" />
                 <span className="truncate">{label}</span>
-            </span>
+            </div>
         );
     }
 

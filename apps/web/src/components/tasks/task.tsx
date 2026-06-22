@@ -14,6 +14,7 @@ import { Checkbox } from "~/components/ui/checkbox";
 import { cn } from "~/lib/utils";
 import { useCalendarSchedules } from "~/lib/calendar-schedules";
 import { TaskDialog } from "./task-dialog";
+import { DeleteTaskConfirmDialog } from "./delete-task-confirm-dialog";
 
 type TTask = {
     id: string;
@@ -127,6 +128,7 @@ const TaskCard: React.FC<Required<Pick<TaskProps, "task" | "onEdit" | "onDelete"
     const cardRef = React.useRef<HTMLElement>(null);
     const schedule = schedules[task.id];
     const [dialogOpen, setDialogOpen] = React.useState(false);
+    const [deleteConfirmOpen, setDeleteConfirmOpen] = React.useState(false);
     const [mode, setMode] = React.useState<"view" | "edit">("view");
 
     const completed = ["completed", "archived"].includes(task.status);
@@ -255,7 +257,7 @@ const TaskCard: React.FC<Required<Pick<TaskProps, "task" | "onEdit" | "onDelete"
                         variant="ghost"
                         size="icon"
                         className="size-7 rounded-[var(--r-2)] text-muted-foreground hover:text-[var(--rose)]"
-                        onClick={() => onDelete(task.id)}
+                        onClick={() => setDeleteConfirmOpen(true)}
                         disabled={isDeleting && deleteVariables === task.id}
                         aria-label={`Delete ${task.title}`}
                     >
@@ -284,6 +286,16 @@ const TaskCard: React.FC<Required<Pick<TaskProps, "task" | "onEdit" | "onDelete"
                 deleteVariables={deleteVariables}
             />
         )}
+        <DeleteTaskConfirmDialog
+            open={deleteConfirmOpen}
+            onOpenChange={setDeleteConfirmOpen}
+            taskTitle={task.title}
+            isDeleting={isDeleting && deleteVariables === task.id}
+            onConfirm={() => {
+                onDelete(task.id);
+                setDeleteConfirmOpen(false);
+            }}
+        />
         </>
     );
 };
