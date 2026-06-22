@@ -31,7 +31,7 @@ import {
     useDeleteTask,
     useUpdateTask,
 } from "~/api/hooks";
-import { TaskDialog, type TaskDialogInput } from "~/components/tasks/task-dialog";
+import { TaskDialog, type TaskDialogInput, type TaskDialogMode } from "~/components/tasks/task-dialog";
 import { createEnabledScheduleDraft, getScheduleDraftPayload } from "~/components/tasks/task-schedule-fields";
 import { Task } from "~/components/tasks/task";
 import { Button } from "~/components/ui/button";
@@ -78,6 +78,12 @@ type DetailDialogState =
     | { kind: "slot"; dateIso: string; hour: number }
     | null;
 type CreateSlotState = { startAt: string; endAt: string } | null;
+type TaskStatusTone = {
+    label: string;
+    color: string;
+    background: string;
+    foreground: string;
+};
 
 const CALENDAR_VIEW_STORAGE_KEY = "mindtab-calendar-view";
 const DEFAULT_EVENT_DURATION_MINUTES = 60;
@@ -95,12 +101,67 @@ const VIEW_LABELS: Array<{ value: CalendarView; label: string }> = [
     { value: "month", label: "Month" },
 ];
 
-function getTaskTone() {
-    return "border-[var(--border-2)] bg-[var(--bg-soft)] text-foreground";
+function getTaskStatusTone(status?: string | null): TaskStatusTone {
+    if (status === "in_progress") {
+        return {
+            label: "In progress",
+            color: "var(--cyan)",
+            background: "color-mix(in srgb, var(--cyan) 14%, var(--bg-elev))",
+            foreground: "var(--cyan)",
+        };
+    }
+
+    if (status === "completed") {
+        return {
+            label: "Done",
+            color: "var(--green)",
+            background: "color-mix(in srgb, var(--green) 14%, var(--bg-elev))",
+            foreground: "var(--green)",
+        };
+    }
+
+    if (status === "archived") {
+        return {
+            label: "Archived",
+            color: "var(--text-4)",
+            background: "var(--bg-soft)",
+            foreground: "var(--text-3)",
+        };
+    }
+
+    return {
+        label: "To do",
+        color: "var(--amber)",
+        background: "color-mix(in srgb, var(--amber) 13%, var(--bg-elev))",
+        foreground: "var(--amber)",
+    };
+}
+
+function getTaskStatusStyle(task?: TaskRecord): React.CSSProperties {
+    const tone = getTaskStatusTone(task?.status);
+    return {
+        "--task-status-color": tone.color,
+        "--task-status-bg": tone.background,
+        "--task-status-fg": tone.foreground,
+    } as React.CSSProperties;
+}
+
+function getTaskTone(task?: TaskRecord) {
+    return cn(
+        "border-[var(--task-status-color)] bg-[var(--task-status-bg)] text-foreground shadow-[inset_3px_0_0_var(--task-status-color)]",
+        task?.status === "completed" && "text-muted-foreground"
+    );
 }
 
 function getTaskProjectId(task: TaskRecord) {
     return task.projectId ?? task.project?.id ?? null;
+}
+
+function isStatusOnlyUpdate(values: Record<string, unknown>) {
+    const keys = Object.entries(values)
+        .filter(([, value]) => value !== undefined)
+        .map(([key]) => key);
+    return keys.length === 1 && keys[0] === "status";
 }
 
 function normalizeSlot(date: Date, hour: number, minute = 0) {
@@ -223,12 +284,18 @@ function layoutTimedItems(items: ScheduledItem[]): TimedLayoutItem[] {
     return laidOut;
 }
 
-export function Calendar() {
+type CalendarProps = {
+    isActive?: boolean;
+};
+
+export function Calendar({ isActive = true }: CalendarProps) {
     const [view, setView] = useState<CalendarView>(() => getStoredCalendarView());
     const [anchorDate, setAnchorDate] = useState(() => new Date());
     const [detailDialog, setDetailDialog] = useState<DetailDialogState>(null);
     const [createSlot, setCreateSlot] = useState<CreateSlotState>(null);
     const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+    const [selectedTaskMode, setSelectedTaskMode] = useState<TaskDialogMode>("view");
+    const [selectedTaskSnapshot, setSelectedTaskSnapshot] = useState<TaskRecord | null>(null);
     const [dragTarget, setDragTarget] = useState<string | null>(null);
     const [currentTime, setCurrentTime] = useState(() => new Date());
     const [timeGridGutter, setTimeGridGutter] = useState(0);
@@ -260,7 +327,7 @@ export function Calendar() {
     );
 
     const unscheduledTasks = useMemo(
-        () => tasks.filter((task) => !schedules[task.id] && task.status !== "completed"),
+        () => tasks.filter((task) => !schedules[task.id]),
         [schedules, tasks]
     );
     const monthRows = Math.ceil(visibleDays.length / 7);
@@ -282,7 +349,12 @@ export function Calendar() {
     const todayIndex = visibleDays.findIndex((day) => isToday(day));
     const currentMinute = currentTime.getHours() * 60 + currentTime.getMinutes();
     const currentTimeTop = (currentMinute / 60) * TIME_ROW_HEIGHT;
-    const selectedTask = selectedTaskId ? taskById.get(selectedTaskId) : null;
+    const selectedTaskFromQuery = selectedTaskId ? taskById.get(selectedTaskId) : null;
+    const selectedTask = selectedTaskId
+        ? selectedTaskSnapshot?.id === selectedTaskId
+            ? { ...(selectedTaskFromQuery ?? {}), ...selectedTaskSnapshot }
+            : selectedTaskFromQuery
+        : null;
     const createSlotScheduleDraft = useMemo(
         () => createSlot ? createEnabledScheduleDraft(parseISO(createSlot.startAt), parseISO(createSlot.endAt)) : undefined,
         [createSlot]
@@ -298,6 +370,7 @@ export function Calendar() {
     }, []);
 
     useLayoutEffect(() => {
+        if (!isActive) return;
         if (view === "month") return;
         const container = timeGridScrollRef.current;
         if (!container) return;
@@ -316,9 +389,10 @@ export function Calendar() {
             resizeObserver.disconnect();
             window.removeEventListener("resize", measureGutter);
         };
-    }, [view]);
+    }, [isActive, view]);
 
     useEffect(() => {
+        if (!isActive) return;
         if (view === "month" || todayIndex < 0) return;
 
         const frame = window.requestAnimationFrame(() => {
@@ -330,7 +404,7 @@ export function Calendar() {
         });
 
         return () => window.cancelAnimationFrame(frame);
-    }, [anchorDate, todayIndex, view]);
+    }, [anchorDate, isActive, todayIndex, view]);
 
     const handleDrop = (event: React.DragEvent<HTMLElement>, date: Date, hour?: number) => {
         event.preventDefault();
@@ -397,8 +471,8 @@ export function Calendar() {
         deleteTask(taskId);
     };
 
-    const handleEditTask = (_taskId: string) => {
-        // The shared Task component owns its click/edit dialog when onUpdate is provided.
+    const handleEditTask = (taskId: string, mode: "view" | "edit" = "view") => {
+        openTaskDialog(taskId, mode);
     };
 
     const handleToggleTaskStatus = (taskId: string, _checked: CheckedState) => {
@@ -462,7 +536,9 @@ export function Calendar() {
         setCreateSlot(null);
     };
 
-    const openTaskDialog = (taskId: string) => {
+    const openTaskDialog = (taskId: string, mode: "view" | "edit" = "view") => {
+        setSelectedTaskSnapshot(taskById.get(taskId) ?? null);
+        setSelectedTaskMode(mode);
         setSelectedTaskId(taskId);
         setDetailDialog(null);
     };
@@ -470,25 +546,28 @@ export function Calendar() {
     const renderMonthEvent = (schedule: CalendarSchedule, task?: TaskRecord) => {
         const start = parseISO(schedule.startAt);
         const end = parseISO(schedule.endAt);
+        const statusTone = getTaskStatusTone(task?.status);
         return (
             <button
                 key={schedule.taskId}
                 type="button"
                 draggable
-                title={`${task?.title || "Untitled task"} · ${formatTimeRange(start, end)}`}
-                aria-label={`${task?.title || "Untitled task"}, ${formatTimeRange(start, end)}`}
+                title={`${task?.title || "Untitled task"} · ${statusTone.label} · ${formatTimeRange(start, end)}`}
+                aria-label={`${task?.title || "Untitled task"}, ${statusTone.label}, ${formatTimeRange(start, end)}`}
                 onClick={(event) => {
                     event.stopPropagation();
                     openTaskDialog(schedule.taskId);
                 }}
                 onDragStart={(event) => event.dataTransfer.setData("text/plain", schedule.taskId)}
                 className={cn(
-                    "group/event flex h-[18px] w-full cursor-grab items-center rounded-[var(--r-2)] border px-1.5 text-left",
+                    "group/event flex h-[18px] w-full cursor-grab items-center gap-1 rounded-[var(--r-2)] border px-1.5 text-left",
                     "overflow-hidden transition-colors hover:bg-[var(--bg-elev)] active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30",
-                    getTaskTone()
+                    getTaskTone(task)
                 )}
+                style={getTaskStatusStyle(task)}
             >
-                <span className="truncate text-[10px] font-semibold leading-3.5">{task?.title || "Untitled task"}</span>
+                <span className="size-1.5 shrink-0 rounded-full bg-[var(--task-status-color)]" />
+                <span className={cn("truncate text-[10px] font-semibold leading-3.5", task?.status === "completed" && "line-through decoration-[var(--task-status-color)]/70")}>{task?.title || "Untitled task"}</span>
             </button>
         );
     };
@@ -497,6 +576,7 @@ export function Calendar() {
         const { schedule, task, lane, laneCount, top, height } = item;
         const start = parseISO(schedule.startAt);
         const end = parseISO(schedule.endAt);
+        const statusTone = getTaskStatusTone(task?.status);
         const laneGap = 4;
         const width = `calc((100% - ${(laneCount - 1) * laneGap}px) / ${laneCount})`;
         const left = `calc(${lane} * ((100% - ${(laneCount - 1) * laneGap}px) / ${laneCount} + ${laneGap}px))`;
@@ -509,8 +589,8 @@ export function Calendar() {
                 role="button"
                 tabIndex={0}
                 draggable
-                title={`${task?.title || "Untitled task"} · ${formatTimeRange(start, end)}`}
-                aria-label={`${task?.title || "Untitled task"}, ${formatTimeRange(start, end)}`}
+                title={`${task?.title || "Untitled task"} · ${statusTone.label} · ${formatTimeRange(start, end)}`}
+                aria-label={`${task?.title || "Untitled task"}, ${statusTone.label}, ${formatTimeRange(start, end)}`}
                 onClick={(event) => {
                     event.stopPropagation();
                     openTaskDialog(schedule.taskId);
@@ -525,9 +605,10 @@ export function Calendar() {
                 className={cn(
                     "group/event pointer-events-auto absolute z-10 cursor-grab overflow-hidden rounded-[var(--r-2)] border px-2 py-1 text-left",
                     "transition-colors hover:bg-[var(--bg-elev)] active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
-                    getTaskTone()
+                    getTaskTone(task)
                 )}
                 style={{
+                    ...getTaskStatusStyle(task),
                     top: top + TIMED_EVENT_INSET_Y,
                     height: renderedHeight,
                     left: `calc(${left} + ${TIMED_EVENT_INSET_X}px)`,
@@ -536,9 +617,13 @@ export function Calendar() {
             >
                 <div className="flex min-w-0 items-start justify-between gap-1.5">
                     <div className="min-w-0">
-                        <div className={cn("truncate font-semibold", roomy ? "text-[11px] leading-4" : "text-[10px] leading-3")}>{task?.title || "Untitled task"}</div>
+                        <div className={cn("truncate font-semibold", roomy ? "text-[11px] leading-4" : "text-[10px] leading-3", task?.status === "completed" && "line-through decoration-[var(--task-status-color)]/70")}>{task?.title || "Untitled task"}</div>
                         {roomy && (
-                            <div className="mt-0.5 flex min-w-0 items-center gap-1 text-[9.5px] leading-3 text-muted-foreground">
+                            <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[9.5px] leading-3 text-muted-foreground">
+                                <span className="inline-flex shrink-0 items-center gap-1 font-mono uppercase tracking-[0.04em]" style={{ color: "var(--task-status-fg)" }}>
+                                    <span className="size-1.5 rounded-full bg-[var(--task-status-color)]" />
+                                    {statusTone.label}
+                                </span>
                                 <Clock3 className="h-3 w-3 shrink-0" />
                                 <span className="truncate">{formatTimeRange(start, end)}</span>
                             </div>
@@ -849,7 +934,7 @@ export function Calendar() {
                     <div className="custom-scrollbar max-h-[62vh] space-y-2 overflow-auto pr-1">
                         {unscheduledTasks.length === 0 ? (
                             <div className="rounded-[var(--r-2)] border border-dashed border-border px-3 py-4 text-center text-xs text-muted-foreground">
-                                <div>All open tasks are scheduled.</div>
+                                <div>All tasks are scheduled.</div>
                                 <Button
                                     type="button"
                                     variant="outline"
@@ -960,13 +1045,22 @@ export function Calendar() {
         />
         {selectedTask && (
             <TaskDialog
-                mode="view"
+                mode={selectedTaskMode}
                 open={!!selectedTaskId}
                 onOpenChange={(open) => {
-                    if (!open) setSelectedTaskId(null);
+                    if (!open) {
+                        setSelectedTaskId(null);
+                        setSelectedTaskMode("view");
+                        setSelectedTaskSnapshot(null);
+                    }
                 }}
                 task={selectedTask as any}
-                onUpdate={handleUpdateTask}
+                onUpdate={(taskId, values) => {
+                    handleUpdateTask(taskId, values);
+                    if (isStatusOnlyUpdate(values)) {
+                        setSelectedTaskSnapshot((current) => current?.id === taskId ? { ...current, ...values } as TaskRecord : current);
+                    }
+                }}
                 onDelete={handleDeleteTask}
                 onToggleStatus={handleToggleTaskStatus}
                 isDeleting={isDeletingTask}

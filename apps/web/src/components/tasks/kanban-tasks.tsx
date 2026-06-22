@@ -21,7 +21,7 @@ type TaskStatus = "pending" | "in_progress" | "completed" | "archived";
 
 interface KanbanTasksProps {
     pendingTasks?: TTask[]; inProgressTasks?: TTask[]; completedTasks?: TTask[]; archivedTasks?: TTask[];
-    onEdit: (id: string) => void; onDelete: (id: string) => void; onToggleStatus: (id: string, checked: CheckedState) => void;
+    onEdit: (id: string, mode?: "view" | "edit") => void; onDelete: (id: string) => void; onToggleStatus: (id: string, checked: CheckedState) => void;
     onUpdate?: (id: string, task: Record<string, unknown>) => void;
     onCreate?: (task: TaskDialogInput & { status?: string; position?: number; projectId?: string | null; completedAt?: string }) => void;
     onArchiveCompleted?: () => void; onShowArchived?: () => void; showArchived?: boolean;

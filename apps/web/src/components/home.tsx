@@ -125,7 +125,9 @@ export default function Component() {
                             )}
                             key={index}
                         >
-                            {element.element}
+                            {element.title === EActiveLayout.Calendar
+                                ? React.cloneElement(element.element, { isActive: isCalendarActive })
+                                : element.element}
                         </div>
                     ))}
                 </div>
