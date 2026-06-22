@@ -7,7 +7,7 @@ import { tasksQueryOptions, useCreateTask, useUpdateTask, useDeleteTask, useArch
 import { TaskSkeleton } from "./task-skeleton";
 import { KanbanTasks } from "./kanban-tasks";
 import { ListTasks } from "./list-tasks";
-import { TaskDialog, type TaskDialogInput } from "./task-dialog";
+import { TaskDialog, type TaskDialogInput, type TaskDialogMode } from "./task-dialog";
 import { getScheduleDraftPayload } from "./task-schedule-fields";
 import { useCalendarSchedules } from "~/lib/calendar-schedules";
 import { useAppStore } from "@mindtab/core";
@@ -17,10 +17,19 @@ type TasksProps = { viewMode: ViewMode; };
 
 const getTaskProjectId = (task: any) => task?.projectId ?? task?.project?.id ?? null;
 
+const isStatusOnlyUpdate = (values: Record<string, unknown>) => {
+    const keys = Object.entries(values)
+        .filter(([, value]) => value !== undefined)
+        .map(([key]) => key);
+    return keys.length === 1 && keys[0] === "status";
+};
+
 export const Tasks: React.FC<TasksProps> = ({ viewMode }) => {
     const { activeProjectId } = useAppStore();
     const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
     const [editTaskId, setEditTaskId] = useState<string | null>(null);
+    const [editTaskMode, setEditTaskMode] = useState<TaskDialogMode>("view");
+    const [editTaskSnapshot, setEditTaskSnapshot] = useState<any | null>(null);
     const [showArchived, setShowArchived] = useState(false);
 
     const { data: tasks, isLoading } = useQuery({
@@ -78,11 +87,25 @@ export const Tasks: React.FC<TasksProps> = ({ viewMode }) => {
 
     const handleArchiveCompleted = () => { archiveCompletedTasks(); };
     const handleShowArchived = () => { setShowArchived(!showArchived); };
+    const openTaskDialog = (taskId: string, mode: "view" | "edit" = "view") => {
+        const existingTask = (tasks as any[])?.find((g: any) => g.id === taskId);
+        setEditTaskSnapshot(existingTask ?? null);
+        setEditTaskMode(mode);
+        setEditTaskId(taskId);
+    };
 
     const sortedPendingTasks = useMemo(() => (tasks as any[])?.filter((g: any) => g.status === "pending"), [tasks]);
     const sortedInProgressTasks = useMemo(() => (tasks as any[])?.filter((g: any) => g.status === "in_progress"), [tasks]);
     const sortedCompletedTasks = useMemo(() => (tasks as any[])?.filter((g: any) => g.status === "completed"), [tasks]);
     const sortedArchivedTasks = useMemo(() => (tasks as any[])?.filter((g: any) => g.status === "archived"), [tasks]);
+    const currentEditTask = useMemo(() => {
+        if (!editTaskId) return null;
+        const taskFromQuery = (tasks as any[])?.find((g: any) => g.id === editTaskId) ?? null;
+        if (editTaskSnapshot?.id === editTaskId) {
+            return { ...(taskFromQuery ?? {}), ...editTaskSnapshot };
+        }
+        return taskFromQuery;
+    }, [editTaskId, editTaskSnapshot, tasks]);
 
     return (
         <div className="flex h-full min-h-0 w-full min-w-0 flex-col">
@@ -106,15 +129,27 @@ export const Tasks: React.FC<TasksProps> = ({ viewMode }) => {
                             onCreate={(task) => onCreateTask({ ...task, status: "pending" })}
                             isSaving={isCreatingTask}
                         />
-                        {editTaskId && (tasks as any[])?.find((g: any) => g.id === editTaskId) && (
+                        {editTaskId && currentEditTask && (
                             <TaskDialog
-                                mode="edit"
+                                mode={editTaskMode}
                                 open={!!editTaskId}
-                                onOpenChange={(open: boolean) => { if (!open) setEditTaskId(null); }}
-                                task={(tasks as any[]).find((g: any) => g.id === editTaskId)!}
+                                onOpenChange={(open: boolean) => {
+                                    if (!open) {
+                                        setEditTaskId(null);
+                                        setEditTaskMode("view");
+                                        setEditTaskSnapshot(null);
+                                    }
+                                }}
+                                task={currentEditTask}
                                 onUpdate={(taskId, values) => {
                                     handleUpdateTask(taskId, values);
-                                    setEditTaskId(null);
+                                    if (isStatusOnlyUpdate(values)) {
+                                        setEditTaskSnapshot((current: any | null) => current?.id === taskId ? { ...current, ...values } : current);
+                                    } else {
+                                        setEditTaskId(null);
+                                        setEditTaskMode("view");
+                                        setEditTaskSnapshot(null);
+                                    }
                                 }}
                                 onDelete={handleDeleteTask}
                                 onToggleStatus={toggleTaskStatus}
@@ -123,9 +158,9 @@ export const Tasks: React.FC<TasksProps> = ({ viewMode }) => {
                             />
                         )}
                         {viewMode === "list" ? (
-                            <ListTasks pendingTasks={sortedPendingTasks} inProgressTasks={sortedInProgressTasks} completedTasks={sortedCompletedTasks} onEdit={setEditTaskId} onDelete={handleDeleteTask} onToggleStatus={toggleTaskStatus} onUpdate={handleUpdateTask} onArchiveCompleted={handleArchiveCompleted} isDeleting={isDeletingTask} deleteVariables={deleteTaskVariables} />
+                            <ListTasks pendingTasks={sortedPendingTasks} inProgressTasks={sortedInProgressTasks} completedTasks={sortedCompletedTasks} onEdit={openTaskDialog} onDelete={handleDeleteTask} onToggleStatus={toggleTaskStatus} onUpdate={handleUpdateTask} onArchiveCompleted={handleArchiveCompleted} isDeleting={isDeletingTask} deleteVariables={deleteTaskVariables} />
                         ) : (
-                            <KanbanTasks pendingTasks={sortedPendingTasks} inProgressTasks={sortedInProgressTasks} completedTasks={sortedCompletedTasks} archivedTasks={sortedArchivedTasks} onEdit={setEditTaskId} onDelete={handleDeleteTask} onToggleStatus={toggleTaskStatus} onUpdate={handleUpdateTask} onCreate={onCreateTask} onArchiveCompleted={handleArchiveCompleted} onShowArchived={handleShowArchived} showArchived={showArchived} isCreating={isCreatingTask} isDeleting={isDeletingTask} deleteVariables={deleteTaskVariables} />
+                            <KanbanTasks pendingTasks={sortedPendingTasks} inProgressTasks={sortedInProgressTasks} completedTasks={sortedCompletedTasks} archivedTasks={sortedArchivedTasks} onEdit={openTaskDialog} onDelete={handleDeleteTask} onToggleStatus={toggleTaskStatus} onUpdate={handleUpdateTask} onCreate={onCreateTask} onArchiveCompleted={handleArchiveCompleted} onShowArchived={handleShowArchived} showArchived={showArchived} isCreating={isCreatingTask} isDeleting={isDeletingTask} deleteVariables={deleteTaskVariables} />
                         )}
                     </div>
                 )}

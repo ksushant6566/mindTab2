@@ -6,7 +6,7 @@ import { Task } from './task'
 
 interface SortableTaskProps {
   task: any
-  onEdit: (id: string) => void
+  onEdit: (id: string, mode?: 'view' | 'edit') => void
   onDelete: (id: string) => void
   onToggleStatus: (id: string, checked: CheckedState) => void
   onUpdate?: (id: string, task: Record<string, unknown>) => void

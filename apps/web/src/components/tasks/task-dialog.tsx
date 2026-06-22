@@ -1,7 +1,6 @@
 import { type CheckedState } from "@radix-ui/react-checkbox";
 import {
     CalendarDays,
-    CheckCircle2,
     Clock,
     Flag,
     FolderOpen,
@@ -271,7 +270,7 @@ export function TaskDialog({
                     <DialogTitle className="pr-8 text-lg font-semibold leading-6 tracking-normal text-foreground">
                         {dialogTitle}
                     </DialogTitle>
-                    <div className="flex items-center justify-between gap-3 pr-8">
+                    <div className="flex items-center justify-between gap-3">
                         <DialogDescription className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[10.5px] uppercase tracking-[0.06em] text-muted-foreground">
                             <span>{taskCode}</span>
                             {(projectName || isCreate) && (
@@ -294,7 +293,7 @@ export function TaskDialog({
                                 type="button"
                                 variant="ghost"
                                 size="icon"
-                                className="size-7 shrink-0 rounded-[var(--r-2)] text-muted-foreground hover:text-[var(--rose)]"
+                                className="-mr-1 size-7 shrink-0 rounded-[var(--r-2)] text-muted-foreground hover:text-[var(--rose)]"
                                 onClick={() => setDeleteConfirmOpen(true)}
                                 disabled={isDeleting && deleteVariables === task.id}
                                 aria-label={`Delete ${task.title}`}
@@ -439,6 +438,7 @@ export function TaskDialog({
                 open={deleteConfirmOpen}
                 onOpenChange={setDeleteConfirmOpen}
                 taskTitle={task.title}
+                task={task}
                 isDeleting={isDeleting && deleteVariables === task.id}
                 onConfirm={() => {
                     onDelete(task.id);
@@ -465,13 +465,13 @@ function StatusIndicatorSelect({
             <SelectTrigger
                 aria-label="Status"
                 className={cn(
-                    "h-7 w-auto min-w-[96px] gap-1.5 rounded-[var(--r-2)] border-[var(--task-dialog-status-color)] bg-[var(--task-dialog-status-bg)] py-0 pl-2.5 pr-2",
-                    "items-center font-mono text-[10px] uppercase leading-none tracking-[0.08em] text-[var(--task-dialog-status-color)] shadow-[inset_3px_0_0_var(--task-dialog-status-color)]",
-                    "focus:ring-2 focus:ring-ring/30 focus:ring-offset-0 [&>svg]:h-3 [&>svg]:w-3 [&>svg]:text-[var(--task-dialog-status-color)] [&>svg]:opacity-100"
+                    "h-7 w-fit min-w-0 max-w-[10.5rem] gap-1.5 rounded-[var(--r-2)] border-[var(--task-dialog-status-color)] bg-[var(--task-dialog-status-bg)] py-0 pl-2.5 pr-1.5",
+                    "items-center justify-start font-mono text-[10px] uppercase leading-none tracking-[0.08em] text-[var(--task-dialog-status-color)] shadow-[inset_3px_0_0_var(--task-dialog-status-color)]",
+                    "focus:ring-2 focus:ring-ring/30 focus:ring-offset-0 [&>svg]:h-3 [&>svg]:w-3 [&>svg]:shrink-0 [&>svg]:text-[var(--task-dialog-status-color)] [&>svg]:opacity-100"
                 )}
                 style={getStatusStyle(status)}
             >
-                <div className="flex min-w-0 flex-1 items-center justify-center whitespace-nowrap pl-1 leading-none">
+                <div className="flex min-w-0 items-center whitespace-nowrap pl-1 leading-none">
                     <span className="truncate leading-none">{status.label}</span>
                 </div>
             </SelectTrigger>

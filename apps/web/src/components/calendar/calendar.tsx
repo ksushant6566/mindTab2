@@ -31,7 +31,7 @@ import {
     useDeleteTask,
     useUpdateTask,
 } from "~/api/hooks";
-import { TaskDialog, type TaskDialogInput } from "~/components/tasks/task-dialog";
+import { TaskDialog, type TaskDialogInput, type TaskDialogMode } from "~/components/tasks/task-dialog";
 import { createEnabledScheduleDraft, getScheduleDraftPayload } from "~/components/tasks/task-schedule-fields";
 import { Task } from "~/components/tasks/task";
 import { Button } from "~/components/ui/button";
@@ -155,6 +155,13 @@ function getTaskTone(task?: TaskRecord) {
 
 function getTaskProjectId(task: TaskRecord) {
     return task.projectId ?? task.project?.id ?? null;
+}
+
+function isStatusOnlyUpdate(values: Record<string, unknown>) {
+    const keys = Object.entries(values)
+        .filter(([, value]) => value !== undefined)
+        .map(([key]) => key);
+    return keys.length === 1 && keys[0] === "status";
 }
 
 function normalizeSlot(date: Date, hour: number, minute = 0) {
@@ -287,6 +294,8 @@ export function Calendar({ isActive = true }: CalendarProps) {
     const [detailDialog, setDetailDialog] = useState<DetailDialogState>(null);
     const [createSlot, setCreateSlot] = useState<CreateSlotState>(null);
     const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+    const [selectedTaskMode, setSelectedTaskMode] = useState<TaskDialogMode>("view");
+    const [selectedTaskSnapshot, setSelectedTaskSnapshot] = useState<TaskRecord | null>(null);
     const [dragTarget, setDragTarget] = useState<string | null>(null);
     const [currentTime, setCurrentTime] = useState(() => new Date());
     const [timeGridGutter, setTimeGridGutter] = useState(0);
@@ -340,7 +349,12 @@ export function Calendar({ isActive = true }: CalendarProps) {
     const todayIndex = visibleDays.findIndex((day) => isToday(day));
     const currentMinute = currentTime.getHours() * 60 + currentTime.getMinutes();
     const currentTimeTop = (currentMinute / 60) * TIME_ROW_HEIGHT;
-    const selectedTask = selectedTaskId ? taskById.get(selectedTaskId) : null;
+    const selectedTaskFromQuery = selectedTaskId ? taskById.get(selectedTaskId) : null;
+    const selectedTask = selectedTaskId
+        ? selectedTaskSnapshot?.id === selectedTaskId
+            ? { ...(selectedTaskFromQuery ?? {}), ...selectedTaskSnapshot }
+            : selectedTaskFromQuery
+        : null;
     const createSlotScheduleDraft = useMemo(
         () => createSlot ? createEnabledScheduleDraft(parseISO(createSlot.startAt), parseISO(createSlot.endAt)) : undefined,
         [createSlot]
@@ -457,8 +471,8 @@ export function Calendar({ isActive = true }: CalendarProps) {
         deleteTask(taskId);
     };
 
-    const handleEditTask = (_taskId: string) => {
-        // The shared Task component owns its click/edit dialog when onUpdate is provided.
+    const handleEditTask = (taskId: string, mode: "view" | "edit" = "view") => {
+        openTaskDialog(taskId, mode);
     };
 
     const handleToggleTaskStatus = (taskId: string, _checked: CheckedState) => {
@@ -522,7 +536,9 @@ export function Calendar({ isActive = true }: CalendarProps) {
         setCreateSlot(null);
     };
 
-    const openTaskDialog = (taskId: string) => {
+    const openTaskDialog = (taskId: string, mode: "view" | "edit" = "view") => {
+        setSelectedTaskSnapshot(taskById.get(taskId) ?? null);
+        setSelectedTaskMode(mode);
         setSelectedTaskId(taskId);
         setDetailDialog(null);
     };
@@ -1029,13 +1045,22 @@ export function Calendar({ isActive = true }: CalendarProps) {
         />
         {selectedTask && (
             <TaskDialog
-                mode="view"
+                mode={selectedTaskMode}
                 open={!!selectedTaskId}
                 onOpenChange={(open) => {
-                    if (!open) setSelectedTaskId(null);
+                    if (!open) {
+                        setSelectedTaskId(null);
+                        setSelectedTaskMode("view");
+                        setSelectedTaskSnapshot(null);
+                    }
                 }}
                 task={selectedTask as any}
-                onUpdate={handleUpdateTask}
+                onUpdate={(taskId, values) => {
+                    handleUpdateTask(taskId, values);
+                    if (isStatusOnlyUpdate(values)) {
+                        setSelectedTaskSnapshot((current) => current?.id === taskId ? { ...current, ...values } as TaskRecord : current);
+                    }
+                }}
                 onDelete={handleDeleteTask}
                 onToggleStatus={handleToggleTaskStatus}
                 isDeleting={isDeletingTask}

@@ -161,8 +161,14 @@ export const CommandMenu = () => {
     const updateTaskMutation = useUpdateTask();
     const isUpdatingTask = updateTaskMutation.isPending;
     const updateTask = (values: any) => {
+        const updateKeys = Object.entries(values)
+            .filter(([key, value]) => key !== "id" && value !== undefined)
+            .map(([key]) => key);
+        const isStatusOnlyUpdate = updateKeys.length === 1 && updateKeys[0] === "status";
         updateTaskMutation.mutate(values, {
-            onSettled: () => setIsEditTaskDialogOpen(false),
+            onSettled: () => {
+                if (!isStatusOnlyUpdate) setIsEditTaskDialogOpen(false);
+            },
         });
     };
 
