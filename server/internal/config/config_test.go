@@ -12,6 +12,7 @@ func setBaseRequiredEnv(t *testing.T) {
 	t.Setenv("JWT_SECRET", "secret")
 	t.Setenv("GOOGLE_CLIENT_ID", "google-client")
 	t.Setenv("GOOGLE_CLIENT_SECRET", "google-secret")
+	t.Setenv("API_PUBLIC_URL", "http://localhost:8080")
 	t.Setenv("RESEND_API_KEY", "resend")
 }
 
@@ -83,6 +84,20 @@ func TestLoad_RequiresGoogleClientSecret(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "GOOGLE_CLIENT_SECRET") {
 		t.Fatalf("Load() error = %q, want missing GOOGLE_CLIENT_SECRET", err.Error())
+	}
+}
+
+func TestLoad_RequiresAPIPublicURL(t *testing.T) {
+	setBaseRequiredEnv(t)
+	clearSavesEnv(t)
+	t.Setenv("API_PUBLIC_URL", "")
+
+	_, err := Load()
+	if err == nil {
+		t.Fatal("Load() error = nil, want missing API_PUBLIC_URL error")
+	}
+	if !strings.Contains(err.Error(), "API_PUBLIC_URL") {
+		t.Fatalf("Load() error = %q, want missing API_PUBLIC_URL", err.Error())
 	}
 }
 

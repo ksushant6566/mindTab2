@@ -270,15 +270,7 @@ func (h *EmailAuthHandler) Verify(w http.ResponseWriter, r *http.Request) {
 	isMobile := r.Header.Get("X-Platform") == "mobile"
 
 	if !isMobile {
-		http.SetCookie(w, &http.Cookie{
-			Name:     "mindtab_refresh",
-			Value:    rawRefresh,
-			Path:     "/",
-			MaxAge:   30 * 24 * 60 * 60,
-			HttpOnly: true,
-			Secure:   true,
-			SameSite: http.SameSiteLaxMode,
-		})
+		setRefreshCookie(w, r, rawRefresh, 30*24*60*60)
 		WriteJSON(w, http.StatusOK, authResponse{
 			AccessToken: accessToken,
 			User:        toUserJSON(user),
@@ -365,15 +357,7 @@ func (h *EmailAuthHandler) Signin(w http.ResponseWriter, r *http.Request) {
 	isMobile := r.Header.Get("X-Platform") == "mobile"
 
 	if !isMobile {
-		http.SetCookie(w, &http.Cookie{
-			Name:     "mindtab_refresh",
-			Value:    rawRefresh,
-			Path:     "/",
-			MaxAge:   30 * 24 * 60 * 60,
-			HttpOnly: true,
-			Secure:   true,
-			SameSite: http.SameSiteLaxMode,
-		})
+		setRefreshCookie(w, r, rawRefresh, 30*24*60*60)
 		WriteJSON(w, http.StatusOK, authResponse{
 			AccessToken: accessToken,
 			User:        toUserJSON(user),
