@@ -50,6 +50,7 @@ const (
 	googleOAuthReturnToCookie = "mindtab_oauth_return_to"
 	googleOAuthCallbackPath   = "/auth/google/callback"
 	googleOAuthWebReturnPath  = "/oauth/google/callback"
+	googleAPITimeout          = 10 * time.Second
 )
 
 type googleLoginRequest struct {
@@ -99,7 +100,10 @@ func toUserJSON(u store.User) userJSON {
 
 func (h *AuthHandler) issueGoogleSession(ctx context.Context, idToken string) (*issuedAuthSession, int, string, error) {
 	// Verify the Google ID token.
-	gUser, err := auth.VerifyGoogleIDToken(ctx, idToken, h.googleClientID)
+	verifyCtx, cancelVerify := context.WithTimeout(ctx, googleAPITimeout)
+	defer cancelVerify()
+
+	gUser, err := auth.VerifyGoogleIDToken(verifyCtx, idToken, h.googleClientID)
 	if err != nil {
 		return nil, http.StatusUnauthorized, "invalid Google ID token", fmt.Errorf("failed to verify Google ID token: %w", err)
 	}
@@ -250,7 +254,10 @@ func (h *AuthHandler) GoogleCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := h.googleOAuthConfig(r).Exchange(r.Context(), code)
+	exchangeCtx, cancelExchange := context.WithTimeout(r.Context(), googleAPITimeout)
+	defer cancelExchange()
+
+	token, err := h.googleOAuthConfig(r).Exchange(exchangeCtx, code)
 	if err != nil {
 		slog.Error("failed to exchange Google OAuth code", "error", err)
 		h.redirectToOAuthReturn(w, r, returnTo, "error", "code_exchange_failed")
