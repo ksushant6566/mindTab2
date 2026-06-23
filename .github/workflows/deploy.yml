@@ -121,6 +121,8 @@ jobs:
             REDIS_URL=${{ secrets.REDIS_URL }}
             JWT_SECRET=${{ secrets.JWT_SECRET }}
             GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
+            GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
+            API_PUBLIC_URL=https://api.mindtab.in
             RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}
             GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
             OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
@@ -141,6 +143,14 @@ jobs:
             YOUTUBE_FRAMES_PER_MIN_CAP=${{ vars.YOUTUBE_FRAMES_PER_MIN_CAP }}
             ENV
             chmod 600 "$APP_DIR/env/api.env"
+
+            required_env_keys="DATABASE_URL JWT_SECRET GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET API_PUBLIC_URL RESEND_API_KEY"
+            for key in $required_env_keys; do
+              if ! grep -Eq "^${key}=.+" "$APP_DIR/env/api.env"; then
+                echo "Missing required API env: $key" >&2
+                exit 1
+              fi
+            done
 
             write_http_nginx_config() {
               cat > "$APP_DIR/mindtab.nginx.conf" <<'NGINX'
