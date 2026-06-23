@@ -14,6 +14,11 @@ interface User {
   font: FontPreset;
 }
 
+interface AuthSession {
+  accessToken: string;
+  user: User;
+}
+
 interface AuthState {
   user: User | null;
   accessToken: string | null;
@@ -21,14 +26,17 @@ interface AuthState {
   isLoading: boolean;
   _hasChecked: boolean;
   _isChecking: boolean;
-  _refreshSession: () => Promise<void>;
-  login: (googleIdToken: string) => Promise<void>;
+  _refreshSession: () => Promise<AuthSession | null>;
+  setSession: (session: AuthSession) => void;
+  login: (googleIdToken: string) => Promise<AuthSession>;
   updateAppearance: (appearance: {
     theme?: AppearanceTheme;
     font?: FontPreset;
   }) => Promise<User>;
   logout: () => Promise<void>;
 }
+
+let refreshSessionPromise: Promise<AuthSession | null> | null = null;
 
 const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
@@ -39,10 +47,11 @@ const useAuthStore = create<AuthState>((set, get) => ({
   _isChecking: false,
 
   _refreshSession: async () => {
-    if (get()._isChecking) return;
+    if (refreshSessionPromise) return refreshSessionPromise;
+
     set({ _isChecking: true });
 
-    try {
+    refreshSessionPromise = (async () => {
       const { data, error } = await api.POST("/auth/refresh");
       if (data && !error) {
         setAccessToken(data.accessToken);
@@ -57,16 +66,48 @@ const useAuthStore = create<AuthState>((set, get) => ({
             _hasChecked: true,
             _isChecking: false,
           });
-          return;
+          return {
+            accessToken: data.accessToken,
+            user: userRes.data as User,
+          };
         }
       }
+      setAccessToken(null);
+      set({
+        user: null,
+        accessToken: null,
+        isAuthenticated: false,
+        isLoading: false,
+        _hasChecked: true,
+        _isChecking: false,
+      });
+      return null;
+    })();
+
+    try {
+      return await refreshSessionPromise;
     } catch {
-      // Refresh failed — user is not authenticated
+      setAccessToken(null);
+      set({
+        user: null,
+        accessToken: null,
+        isAuthenticated: false,
+        isLoading: false,
+        _hasChecked: true,
+        _isChecking: false,
+      });
+      return null;
+    } finally {
+      refreshSessionPromise = null;
     }
+  },
+
+  setSession: (session) => {
+    setAccessToken(session.accessToken);
     set({
-      user: null,
-      accessToken: null,
-      isAuthenticated: false,
+      user: session.user,
+      accessToken: session.accessToken,
+      isAuthenticated: true,
       isLoading: false,
       _hasChecked: true,
       _isChecking: false,
@@ -77,16 +118,16 @@ const useAuthStore = create<AuthState>((set, get) => ({
     const { data, error } = await api.POST("/auth/google", {
       body: { idToken: googleIdToken },
     });
-    if (data && !error) {
-      setAccessToken(data.accessToken);
-      set({
-        user: data.user as User,
-        accessToken: data.accessToken,
-        isAuthenticated: true,
-        isLoading: false,
-        _hasChecked: true,
-      });
+    if (error || !data) {
+      throw new Error("Google sign in failed");
     }
+
+    const session = {
+      accessToken: data.accessToken,
+      user: data.user as User,
+    };
+    get().setSession(session);
+    return session;
   },
 
   updateAppearance: async (appearance) => {
@@ -140,6 +181,7 @@ export function useAuth() {
     isAuthenticated: store.isAuthenticated,
     isLoading: store.isLoading,
     login: store.login,
+    setSession: store.setSession,
     updateAppearance: store.updateAppearance,
     logout: store.logout,
     refreshSession: store._refreshSession,

@@ -16,13 +16,14 @@ func init() {
 }
 
 type Config struct {
-	Port           string
-	DatabaseURL    string
-	JWTSecret      string
-	GoogleClientID string
-	AllowedOrigins []string
-	StaticDir      string
-	ResendAPIKey   string
+	Port               string
+	DatabaseURL        string
+	JWTSecret          string
+	GoogleClientID     string
+	GoogleClientSecret string
+	AllowedOrigins     []string
+	StaticDir          string
+	ResendAPIKey       string
 
 	// Saves feature
 	RedisURL                string
@@ -56,10 +57,11 @@ type Config struct {
 
 func Load() (*Config, error) {
 	cfg := &Config{
-		Port:           getEnv("PORT", "8080"),
-		DatabaseURL:    os.Getenv("DATABASE_URL"),
-		JWTSecret:      os.Getenv("JWT_SECRET"),
-		GoogleClientID: os.Getenv("GOOGLE_CLIENT_ID"),
+		Port:               getEnv("PORT", "8080"),
+		DatabaseURL:        os.Getenv("DATABASE_URL"),
+		JWTSecret:          os.Getenv("JWT_SECRET"),
+		GoogleClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
+		GoogleClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
 		AllowedOrigins: []string{
 			"https://app.mindtab.in",
 			"http://localhost:5173",

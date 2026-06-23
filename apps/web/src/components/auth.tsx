@@ -1,60 +1,75 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { Button } from "~/components/ui/button";
 import { ArrowRightIcon, ChevronRight } from "lucide-react";
 import { useAuth } from "~/api/hooks/use-auth";
 
-declare global {
-  interface Window {
-    google?: {
-      accounts: {
-        id: {
-          initialize: (config: {
-            client_id: string;
-            callback: (response: { credential: string }) => void;
-          }) => void;
-          prompt: () => void;
-        };
-      };
-    };
-  }
+const AUTH_CHANNEL_NAME = "mindtab-auth";
+const AUTH_COMPLETE_MESSAGE = "mindtab:auth-complete";
+
+type AuthCompleteMessage = {
+    type: typeof AUTH_COMPLETE_MESSAGE;
+    session: Parameters<ReturnType<typeof useAuth>["setSession"]>[0];
+};
+
+function buildGoogleAuthURL() {
+    const apiBaseURL = import.meta.env.VITE_API_URL || window.location.origin;
+    const authURL = new URL("/auth/google/start", apiBaseURL);
+    authURL.searchParams.set(
+        "return_to",
+        new URL("/oauth/google/callback", window.location.origin).toString(),
+    );
+    return authURL.toString();
 }
 
 export default function Auth() {
-    const { login } = useAuth();
+    const { setSession } = useAuth();
     const navigate = useNavigate();
     const [isSigningIn, setIsSigningIn] = useState(false);
 
-    const handleGoogleSignIn = useCallback(() => {
-        const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-        if (!clientId) {
-            console.error("VITE_GOOGLE_CLIENT_ID is not set");
-            return;
-        }
+    const completeSignIn = useCallback((message: AuthCompleteMessage) => {
+        setSession(message.session);
+        void navigate({ to: "/" });
+    }, [navigate, setSession]);
 
-        if (!window.google) {
-            console.error("Google Identity Services SDK not loaded");
-            return;
-        }
+    useEffect(() => {
+        const handleWindowMessage = (event: MessageEvent) => {
+            if (event.origin !== window.location.origin) return;
+            if (event.data?.type === AUTH_COMPLETE_MESSAGE) {
+                completeSignIn(event.data as AuthCompleteMessage);
+            }
+        };
 
-        setIsSigningIn(true);
+        const channel = "BroadcastChannel" in window
+            ? new BroadcastChannel(AUTH_CHANNEL_NAME)
+            : null;
 
-        window.google.accounts.id.initialize({
-            client_id: clientId,
-            callback: async (response) => {
-                try {
-                    await login(response.credential);
-                    void navigate({ to: "/" });
-                } catch (err) {
-                    console.error("Login failed:", err);
-                } finally {
-                    setIsSigningIn(false);
+        if (channel) {
+            channel.onmessage = (event) => {
+                if (event.data?.type === AUTH_COMPLETE_MESSAGE) {
+                    completeSignIn(event.data as AuthCompleteMessage);
                 }
-            },
-        });
+            };
+        }
 
-        window.google.accounts.id.prompt();
-    }, [login, navigate]);
+        window.addEventListener("message", handleWindowMessage);
+        return () => {
+            window.removeEventListener("message", handleWindowMessage);
+            channel?.close();
+        };
+    }, [completeSignIn]);
+
+    const handleGoogleSignIn = useCallback(() => {
+        setIsSigningIn(true);
+        const authWindow = window.open(buildGoogleAuthURL(), "_blank");
+
+        if (!authWindow) {
+            window.location.href = buildGoogleAuthURL();
+            return;
+        }
+
+        window.setTimeout(() => setIsSigningIn(false), 1500);
+    }, []);
 
     return (
         <div className="h-screen w-screen flex flex-col items-center justify-center space-y-8">
