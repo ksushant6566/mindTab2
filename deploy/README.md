@@ -33,6 +33,7 @@ Add these in GitHub: `Settings -> Secrets and variables -> Actions -> Secrets`.
 - `REDIS_URL`
 - `JWT_SECRET`
 - `GOOGLE_CLIENT_ID`
+- `GOOGLE_CLIENT_SECRET`
 - `RESEND_API_KEY`
 - `GEMINI_API_KEY`
 - `OPENAI_API_KEY`
