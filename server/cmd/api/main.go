@@ -211,7 +211,7 @@ func main() {
 
 	// Initialize handlers.
 	emailService := email.NewService(cfg.ResendAPIKey)
-	authHandler := handler.NewAuthHandler(queries, pool, cfg.JWTSecret, cfg.GoogleClientID)
+	authHandler := handler.NewAuthHandler(queries, pool, cfg.JWTSecret, cfg.GoogleClientID, cfg.GoogleClientSecret, cfg.APIPublicURL, cfg.AllowedOrigins)
 	emailAuthHandler := handler.NewEmailAuthHandler(queries, pool, cfg.JWTSecret, emailService)
 	usersHandler := handler.NewUsersHandler(queries)
 	tasksHandler := handler.NewTasksHandler(queries, pool)
@@ -258,6 +258,8 @@ func main() {
 
 	// Public routes (no rate limiting).
 	r.Post("/auth/google", authHandler.Google)
+	r.Get("/auth/google/start", authHandler.GoogleStart)
+	r.Get("/auth/google/callback", authHandler.GoogleCallback)
 	r.Post("/auth/refresh", authHandler.Refresh)
 	r.Post("/auth/logout", authHandler.Logout)
 	r.Get("/users/{id}", usersHandler.GetByID)

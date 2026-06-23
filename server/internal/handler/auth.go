@@ -1,12 +1,20 @@
 package handler
 
 import (
+	"context"
+	"crypto/rand"
+	"encoding/base64"
+	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
 
 	"github.com/ksushant6566/mindtab/server/internal/auth"
 	"github.com/ksushant6566/mindtab/server/internal/middleware"
@@ -15,21 +23,35 @@ import (
 
 // AuthHandler handles authentication endpoints.
 type AuthHandler struct {
-	queries        store.Querier
-	pool           *pgxpool.Pool
-	jwtSecret      string
-	googleClientID string
+	queries            store.Querier
+	pool               *pgxpool.Pool
+	jwtSecret          string
+	googleClientID     string
+	googleClientSecret string
+	apiPublicURL       string
+	allowedOrigins     []string
 }
 
 // NewAuthHandler creates a new AuthHandler.
-func NewAuthHandler(queries store.Querier, pool *pgxpool.Pool, jwtSecret, googleClientID string) *AuthHandler {
+func NewAuthHandler(queries store.Querier, pool *pgxpool.Pool, jwtSecret, googleClientID, googleClientSecret, apiPublicURL string, allowedOrigins []string) *AuthHandler {
 	return &AuthHandler{
-		queries:        queries,
-		pool:           pool,
-		jwtSecret:      jwtSecret,
-		googleClientID: googleClientID,
+		queries:            queries,
+		pool:               pool,
+		jwtSecret:          jwtSecret,
+		googleClientID:     googleClientID,
+		googleClientSecret: googleClientSecret,
+		apiPublicURL:       apiPublicURL,
+		allowedOrigins:     allowedOrigins,
 	}
 }
+
+const (
+	googleOAuthStateCookie    = "mindtab_oauth_state"
+	googleOAuthReturnToCookie = "mindtab_oauth_return_to"
+	googleOAuthCallbackPath   = "/auth/google/callback"
+	googleOAuthWebReturnPath  = "/oauth/google/callback"
+	googleAPITimeout          = 10 * time.Second
+)
 
 type googleLoginRequest struct {
 	IDToken string `json:"idToken"`
@@ -38,6 +60,12 @@ type googleLoginRequest struct {
 type authResponse struct {
 	AccessToken string   `json:"accessToken"`
 	User        userJSON `json:"user"`
+}
+
+type issuedAuthSession struct {
+	AccessToken  string
+	RefreshToken string
+	User         store.User
 }
 
 type mobileAuthResponse struct {
@@ -70,6 +98,65 @@ func toUserJSON(u store.User) userJSON {
 	}
 }
 
+func (h *AuthHandler) issueGoogleSession(ctx context.Context, idToken string) (*issuedAuthSession, int, string, error) {
+	// Verify the Google ID token.
+	verifyCtx, cancelVerify := context.WithTimeout(ctx, googleAPITimeout)
+	defer cancelVerify()
+
+	gUser, err := auth.VerifyGoogleIDToken(verifyCtx, idToken, h.googleClientID)
+	if err != nil {
+		return nil, http.StatusUnauthorized, "invalid Google ID token", fmt.Errorf("failed to verify Google ID token: %w", err)
+	}
+
+	// Check if a user with this email already exists (handles NextAuth -> Go migration
+	// where the old user ID differs from the Google sub ID).
+	userID := gUser.ID
+	existingUser, err := h.queries.GetUserByEmail(ctx, gUser.Email)
+	if err == nil {
+		userID = existingUser.ID
+	}
+
+	// Upsert user in DB using the resolved ID.
+	user, err := h.queries.UpsertUser(ctx, store.UpsertUserParams{
+		ID:    userID,
+		Name:  pgtype.Text{String: gUser.Name, Valid: gUser.Name != ""},
+		Email: gUser.Email,
+		Image: pgtype.Text{String: gUser.Picture, Valid: gUser.Picture != ""},
+	})
+	if err != nil {
+		return nil, http.StatusInternalServerError, "failed to create user", fmt.Errorf("failed to upsert user: %w", err)
+	}
+
+	// Generate access token.
+	accessToken, err := auth.GenerateAccessToken(h.jwtSecret, user.ID, user.Email)
+	if err != nil {
+		return nil, http.StatusInternalServerError, "failed to generate token", fmt.Errorf("failed to generate access token: %w", err)
+	}
+
+	// Generate refresh token.
+	rawRefresh, hashRefresh, err := auth.GenerateRefreshToken()
+	if err != nil {
+		return nil, http.StatusInternalServerError, "failed to generate token", fmt.Errorf("failed to generate refresh token: %w", err)
+	}
+
+	// Store refresh token hash in DB.
+	expiresAt := time.Now().Add(30 * 24 * time.Hour)
+	err = h.queries.CreateRefreshToken(ctx, store.CreateRefreshTokenParams{
+		UserID:    user.ID,
+		TokenHash: hashRefresh,
+		ExpiresAt: pgtype.Timestamptz{Time: expiresAt, Valid: true},
+	})
+	if err != nil {
+		return nil, http.StatusInternalServerError, "failed to store token", fmt.Errorf("failed to store refresh token: %w", err)
+	}
+
+	return &issuedAuthSession{
+		AccessToken:  accessToken,
+		RefreshToken: rawRefresh,
+		User:         user,
+	}, http.StatusOK, "", nil
+}
+
 // Google handles POST /auth/google.
 func (h *AuthHandler) Google(w http.ResponseWriter, r *http.Request) {
 	var req googleLoginRequest
@@ -83,61 +170,10 @@ func (h *AuthHandler) Google(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Verify the Google ID token.
-	gUser, err := auth.VerifyGoogleIDToken(r.Context(), req.IDToken, h.googleClientID)
+	session, status, publicMessage, err := h.issueGoogleSession(r.Context(), req.IDToken)
 	if err != nil {
-		slog.Error("failed to verify Google ID token", "error", err)
-		WriteError(w, http.StatusUnauthorized, "invalid Google ID token")
-		return
-	}
-
-	// Check if a user with this email already exists (handles NextAuth → Go migration
-	// where the old user ID differs from the Google sub ID).
-	userID := gUser.ID
-	existingUser, err := h.queries.GetUserByEmail(r.Context(), gUser.Email)
-	if err == nil {
-		userID = existingUser.ID
-	}
-
-	// Upsert user in DB using the resolved ID.
-	user, err := h.queries.UpsertUser(r.Context(), store.UpsertUserParams{
-		ID:    userID,
-		Name:  pgtype.Text{String: gUser.Name, Valid: gUser.Name != ""},
-		Email: gUser.Email,
-		Image: pgtype.Text{String: gUser.Picture, Valid: gUser.Picture != ""},
-	})
-	if err != nil {
-		slog.Error("failed to upsert user", "error", err)
-		WriteError(w, http.StatusInternalServerError, "failed to create user")
-		return
-	}
-
-	// Generate access token.
-	accessToken, err := auth.GenerateAccessToken(h.jwtSecret, user.ID, user.Email)
-	if err != nil {
-		slog.Error("failed to generate access token", "error", err)
-		WriteError(w, http.StatusInternalServerError, "failed to generate token")
-		return
-	}
-
-	// Generate refresh token.
-	rawRefresh, hashRefresh, err := auth.GenerateRefreshToken()
-	if err != nil {
-		slog.Error("failed to generate refresh token", "error", err)
-		WriteError(w, http.StatusInternalServerError, "failed to generate token")
-		return
-	}
-
-	// Store refresh token hash in DB.
-	expiresAt := time.Now().Add(30 * 24 * time.Hour)
-	err = h.queries.CreateRefreshToken(r.Context(), store.CreateRefreshTokenParams{
-		UserID:    user.ID,
-		TokenHash: hashRefresh,
-		ExpiresAt: pgtype.Timestamptz{Time: expiresAt, Valid: true},
-	})
-	if err != nil {
-		slog.Error("failed to store refresh token", "error", err)
-		WriteError(w, http.StatusInternalServerError, "failed to store token")
+		slog.Error("failed to issue Google auth session", "error", err)
+		WriteError(w, status, publicMessage)
 		return
 	}
 
@@ -146,31 +182,267 @@ func (h *AuthHandler) Google(w http.ResponseWriter, r *http.Request) {
 
 	if !isMobile {
 		// Set refresh token as httpOnly cookie (web only).
-		http.SetCookie(w, &http.Cookie{
-			Name:     "mindtab_refresh",
-			Value:    rawRefresh,
-			Path:     "/",
-			MaxAge:   30 * 24 * 60 * 60, // 30 days
-			HttpOnly: true,
-			Secure:   true,
-			SameSite: http.SameSiteLaxMode,
-		})
+		setRefreshCookie(w, session.RefreshToken, 30*24*60*60)
 	}
 
 	if isMobile {
 		// Mobile clients can't use httpOnly cookies, so include refresh token in body.
 		WriteJSON(w, http.StatusOK, mobileAuthResponse{
-			AccessToken:  accessToken,
-			RefreshToken: rawRefresh,
-			User:         toUserJSON(user),
+			AccessToken:  session.AccessToken,
+			RefreshToken: session.RefreshToken,
+			User:         toUserJSON(session.User),
 		})
 		return
 	}
 
 	WriteJSON(w, http.StatusOK, authResponse{
-		AccessToken: accessToken,
-		User:        toUserJSON(user),
+		AccessToken: session.AccessToken,
+		User:        toUserJSON(session.User),
 	})
+}
+
+// GoogleStart starts the browser-based Google OAuth flow in a top-level tab.
+func (h *AuthHandler) GoogleStart(w http.ResponseWriter, r *http.Request) {
+	if h.googleClientSecret == "" {
+		slog.Error("GOOGLE_CLIENT_SECRET is required for Google OAuth redirect flow")
+		WriteError(w, http.StatusInternalServerError, "Google OAuth is not configured")
+		return
+	}
+
+	returnTo, err := h.validateOAuthReturnTo(r.URL.Query().Get("return_to"))
+	if err != nil {
+		WriteError(w, http.StatusBadRequest, "invalid return_to URL")
+		return
+	}
+
+	state, err := randomURLToken(32)
+	if err != nil {
+		slog.Error("failed to generate OAuth state", "error", err)
+		WriteError(w, http.StatusInternalServerError, "failed to start Google sign in")
+		return
+	}
+
+	setOAuthCookie(w, r, googleOAuthStateCookie, state, 10*60)
+	setOAuthCookie(w, r, googleOAuthReturnToCookie, base64.RawURLEncoding.EncodeToString([]byte(returnTo)), 10*60)
+
+	authURL := h.googleOAuthConfig(r).AuthCodeURL(
+		state,
+		oauth2.SetAuthURLParam("prompt", "select_account"),
+	)
+	http.Redirect(w, r, authURL, http.StatusFound)
+}
+
+// GoogleCallback completes the browser-based Google OAuth flow.
+func (h *AuthHandler) GoogleCallback(w http.ResponseWriter, r *http.Request) {
+	returnTo := h.returnToFromCookie(r)
+
+	if errValue := r.URL.Query().Get("error"); errValue != "" {
+		h.redirectToOAuthReturn(w, r, returnTo, "error", errValue)
+		return
+	}
+
+	state := r.URL.Query().Get("state")
+	stateCookie, err := r.Cookie(googleOAuthStateCookie)
+	if err != nil || state == "" || stateCookie.Value != state {
+		h.redirectToOAuthReturn(w, r, returnTo, "error", "invalid_state")
+		return
+	}
+
+	code := r.URL.Query().Get("code")
+	if code == "" {
+		h.redirectToOAuthReturn(w, r, returnTo, "error", "missing_code")
+		return
+	}
+
+	exchangeCtx, cancelExchange := context.WithTimeout(r.Context(), googleAPITimeout)
+	defer cancelExchange()
+
+	token, err := h.googleOAuthConfig(r).Exchange(exchangeCtx, code)
+	if err != nil {
+		slog.Error("failed to exchange Google OAuth code", "error", err)
+		h.redirectToOAuthReturn(w, r, returnTo, "error", "code_exchange_failed")
+		return
+	}
+
+	idToken, ok := token.Extra("id_token").(string)
+	if !ok || idToken == "" {
+		slog.Error("Google OAuth response did not include an ID token")
+		h.redirectToOAuthReturn(w, r, returnTo, "error", "missing_id_token")
+		return
+	}
+
+	session, _, _, err := h.issueGoogleSession(r.Context(), idToken)
+	if err != nil {
+		slog.Error("failed to issue Google auth session from OAuth callback", "error", err)
+		h.redirectToOAuthReturn(w, r, returnTo, "error", "session_failed")
+		return
+	}
+
+	setRefreshCookie(w, session.RefreshToken, 30*24*60*60)
+	h.redirectToOAuthReturn(w, r, returnTo, "status", "success")
+}
+
+func (h *AuthHandler) googleOAuthConfig(r *http.Request) *oauth2.Config {
+	return &oauth2.Config{
+		ClientID:     h.googleClientID,
+		ClientSecret: h.googleClientSecret,
+		RedirectURL:  h.googleOAuthCallbackURL(r),
+		Scopes:       []string{"openid", "email", "profile"},
+		Endpoint:     google.Endpoint,
+	}
+}
+
+func (h *AuthHandler) googleOAuthCallbackURL(r *http.Request) string {
+	if h.apiPublicURL != "" {
+		u, err := url.Parse(h.apiPublicURL)
+		if err == nil && u.IsAbs() && u.Host != "" {
+			u.Path = googleOAuthCallbackPath
+			u.RawQuery = ""
+			u.Fragment = ""
+			return u.String()
+		}
+		slog.Warn("ignoring invalid API_PUBLIC_URL", "apiPublicURL", h.apiPublicURL)
+	}
+
+	return publicURLForRequest(r, googleOAuthCallbackPath)
+}
+
+func (h *AuthHandler) validateOAuthReturnTo(raw string) (string, error) {
+	if raw == "" {
+		return h.defaultOAuthReturnTo(), nil
+	}
+
+	u, err := url.Parse(raw)
+	if err != nil || !u.IsAbs() || u.Host == "" {
+		return "", fmt.Errorf("invalid return URL")
+	}
+	if u.Path != googleOAuthWebReturnPath {
+		return "", fmt.Errorf("return URL must use %s", googleOAuthWebReturnPath)
+	}
+
+	origin := u.Scheme + "://" + u.Host
+	for _, allowed := range h.allowedOrigins {
+		if strings.EqualFold(origin, strings.TrimRight(allowed, "/")) {
+			return u.String(), nil
+		}
+	}
+
+	return "", fmt.Errorf("return URL origin is not allowed")
+}
+
+func (h *AuthHandler) defaultOAuthReturnTo() string {
+	for _, origin := range h.allowedOrigins {
+		origin = strings.TrimRight(origin, "/")
+		if strings.Contains(origin, "app.mindtab.in") {
+			return origin + googleOAuthWebReturnPath
+		}
+	}
+	if len(h.allowedOrigins) > 0 {
+		return strings.TrimRight(h.allowedOrigins[0], "/") + googleOAuthWebReturnPath
+	}
+	return "https://app.mindtab.in" + googleOAuthWebReturnPath
+}
+
+func (h *AuthHandler) returnToFromCookie(r *http.Request) string {
+	cookie, err := r.Cookie(googleOAuthReturnToCookie)
+	if err != nil {
+		return h.defaultOAuthReturnTo()
+	}
+
+	decoded, err := base64.RawURLEncoding.DecodeString(cookie.Value)
+	if err != nil {
+		return h.defaultOAuthReturnTo()
+	}
+
+	returnTo, err := h.validateOAuthReturnTo(string(decoded))
+	if err != nil {
+		return h.defaultOAuthReturnTo()
+	}
+	return returnTo
+}
+
+func (h *AuthHandler) redirectToOAuthReturn(w http.ResponseWriter, r *http.Request, returnTo, key, value string) {
+	clearOAuthCookies(w, r)
+
+	u, err := url.Parse(returnTo)
+	if err != nil {
+		u, _ = url.Parse(h.defaultOAuthReturnTo())
+	}
+	q := u.Query()
+	q.Set(key, value)
+	u.RawQuery = q.Encode()
+	http.Redirect(w, r, u.String(), http.StatusFound)
+}
+
+func publicURLForRequest(r *http.Request, path string) string {
+	proto := r.Header.Get("X-Forwarded-Proto")
+	if proto == "" {
+		if r.TLS != nil {
+			proto = "https"
+		} else {
+			proto = "http"
+		}
+	}
+
+	host := r.Header.Get("X-Forwarded-Host")
+	if host == "" {
+		host = r.Host
+	}
+
+	u := url.URL{
+		Scheme: proto,
+		Host:   host,
+		Path:   path,
+	}
+	return u.String()
+}
+
+func randomURLToken(bytes int) (string, error) {
+	buf := make([]byte, bytes)
+	if _, err := rand.Read(buf); err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(buf), nil
+}
+
+func setOAuthCookie(w http.ResponseWriter, r *http.Request, name, value string, maxAge int) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     name,
+		Value:    value,
+		Path:     "/auth/google",
+		MaxAge:   maxAge,
+		HttpOnly: true,
+		Secure:   isSecureRequest(r),
+		SameSite: http.SameSiteLaxMode,
+	})
+}
+
+func clearOAuthCookies(w http.ResponseWriter, r *http.Request) {
+	setOAuthCookie(w, r, googleOAuthStateCookie, "", -1)
+	setOAuthCookie(w, r, googleOAuthReturnToCookie, "", -1)
+}
+
+func setRefreshCookie(w http.ResponseWriter, value string, maxAge int) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     "mindtab_refresh",
+		Value:    value,
+		Path:     "/",
+		MaxAge:   maxAge,
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteLaxMode,
+	})
+}
+
+func clearRefreshCookie(w http.ResponseWriter) {
+	setRefreshCookie(w, "", -1)
+}
+
+func isSecureRequest(r *http.Request) bool {
+	if strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https") {
+		return true
+	}
+	return r.TLS != nil
 }
 
 // Refresh handles POST /auth/refresh.
@@ -274,15 +546,7 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Set new cookie (web).
-	http.SetCookie(w, &http.Cookie{
-		Name:     "mindtab_refresh",
-		Value:    rawRefresh,
-		Path:     "/",
-		MaxAge:   30 * 24 * 60 * 60,
-		HttpOnly: true,
-		Secure:   true,
-		SameSite: http.SameSiteLaxMode,
-	})
+	setRefreshCookie(w, rawRefresh, 30*24*60*60)
 
 	WriteJSON(w, http.StatusOK, map[string]string{
 		"accessToken": accessToken,
@@ -322,15 +586,7 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 
 	// Clear cookie for web clients.
 	if !isMobile {
-		http.SetCookie(w, &http.Cookie{
-			Name:     "mindtab_refresh",
-			Value:    "",
-			Path:     "/",
-			MaxAge:   -1,
-			HttpOnly: true,
-			Secure:   true,
-			SameSite: http.SameSiteLaxMode,
-		})
+		clearRefreshCookie(w)
 	}
 
 	WriteJSON(w, http.StatusOK, map[string]string{"message": "logged out"})

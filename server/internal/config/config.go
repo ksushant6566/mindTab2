@@ -16,13 +16,15 @@ func init() {
 }
 
 type Config struct {
-	Port           string
-	DatabaseURL    string
-	JWTSecret      string
-	GoogleClientID string
-	AllowedOrigins []string
-	StaticDir      string
-	ResendAPIKey   string
+	Port               string
+	DatabaseURL        string
+	JWTSecret          string
+	GoogleClientID     string
+	GoogleClientSecret string
+	APIPublicURL       string
+	AllowedOrigins     []string
+	StaticDir          string
+	ResendAPIKey       string
 
 	// Saves feature
 	RedisURL                string
@@ -56,10 +58,12 @@ type Config struct {
 
 func Load() (*Config, error) {
 	cfg := &Config{
-		Port:           getEnv("PORT", "8080"),
-		DatabaseURL:    os.Getenv("DATABASE_URL"),
-		JWTSecret:      os.Getenv("JWT_SECRET"),
-		GoogleClientID: os.Getenv("GOOGLE_CLIENT_ID"),
+		Port:               getEnv("PORT", "8080"),
+		DatabaseURL:        os.Getenv("DATABASE_URL"),
+		JWTSecret:          os.Getenv("JWT_SECRET"),
+		GoogleClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
+		GoogleClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
+		APIPublicURL:       os.Getenv("API_PUBLIC_URL"),
 		AllowedOrigins: []string{
 			"https://app.mindtab.in",
 			"http://localhost:5173",
@@ -159,6 +163,9 @@ func Load() (*Config, error) {
 	}
 	if cfg.GoogleClientID == "" {
 		return nil, fmt.Errorf("GOOGLE_CLIENT_ID is required")
+	}
+	if cfg.GoogleClientSecret == "" {
+		return nil, fmt.Errorf("GOOGLE_CLIENT_SECRET is required")
 	}
 	if cfg.ResendAPIKey == "" {
 		return nil, fmt.Errorf("RESEND_API_KEY is required")

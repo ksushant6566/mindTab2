@@ -11,6 +11,7 @@ func setBaseRequiredEnv(t *testing.T) {
 	t.Setenv("DATABASE_URL", "postgres://example")
 	t.Setenv("JWT_SECRET", "secret")
 	t.Setenv("GOOGLE_CLIENT_ID", "google-client")
+	t.Setenv("GOOGLE_CLIENT_SECRET", "google-secret")
 	t.Setenv("RESEND_API_KEY", "resend")
 }
 
@@ -68,6 +69,20 @@ func TestLoad_RequiresSavesWorkerEnvWhenRedisEnabled(t *testing.T) {
 		if !strings.Contains(err.Error(), want) {
 			t.Fatalf("Load() error = %q, want missing %s", err.Error(), want)
 		}
+	}
+}
+
+func TestLoad_RequiresGoogleClientSecret(t *testing.T) {
+	setBaseRequiredEnv(t)
+	clearSavesEnv(t)
+	t.Setenv("GOOGLE_CLIENT_SECRET", "")
+
+	_, err := Load()
+	if err == nil {
+		t.Fatal("Load() error = nil, want missing GOOGLE_CLIENT_SECRET error")
+	}
+	if !strings.Contains(err.Error(), "GOOGLE_CLIENT_SECRET") {
+		t.Fatalf("Load() error = %q, want missing GOOGLE_CLIENT_SECRET", err.Error())
 	}
 }
 

@@ -50,6 +50,8 @@ services:
       dockerfile: Dockerfile.dev
     env_file:
       - ./server/.env
+    environment:
+      API_PUBLIC_URL: http://localhost:8080
     ports:
       - "8080:8080"
     volumes:
@@ -64,6 +66,7 @@ services:
       - api
     environment:
       API_URL: http://api:8080
+      VITE_API_URL: http://localhost:8080
       VITE_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
     ports:
       - "5173:5173"

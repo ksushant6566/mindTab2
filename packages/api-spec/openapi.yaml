@@ -79,6 +79,72 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /auth/google/start:
+    get:
+      operationId: authGoogleStart
+      tags: [Auth]
+      summary: Start Google OAuth in a top-level browser tab
+      security: []
+      parameters:
+        - name: return_to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uri
+          description: Web callback URL to return to after the API completes Google OAuth.
+      responses:
+        "302":
+          description: Redirects to Google OAuth
+          headers:
+            Location:
+              schema:
+                type: string
+            Set-Cookie:
+              description: Temporary OAuth state cookies
+              schema:
+                type: string
+        "400":
+          description: Invalid return URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /auth/google/callback:
+    get:
+      operationId: authGoogleCallback
+      tags: [Auth]
+      summary: Complete Google OAuth and set the web refresh cookie
+      security: []
+      parameters:
+        - name: code
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: error
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "302":
+          description: Redirects to the web callback route with status or error
+          headers:
+            Location:
+              schema:
+                type: string
+            Set-Cookie:
+              description: Sets the httpOnly refresh token cookie on success and clears temporary OAuth cookies
+              schema:
+                type: string
+
   /auth/refresh:
     post:
       operationId: authRefresh
