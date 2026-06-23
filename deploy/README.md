@@ -46,6 +46,26 @@ If GHCR packages are private, also add:
 
 - `GHCR_PAT` with `read:packages`
 
+## Google OAuth Setup
+
+The web app uses the API server as the OAuth callback handler. In Google Cloud Console,
+open the OAuth 2.0 client configured by `GOOGLE_CLIENT_ID` and add this exact
+Authorized redirect URI:
+
+```text
+https://api.mindtab.in/auth/google/callback
+```
+
+For local browser sign-in, also add:
+
+```text
+http://localhost:8080/auth/google/callback
+```
+
+Production deploys set `API_PUBLIC_URL=https://api.mindtab.in`, so Google must
+allow the API callback URL, not the web return URL
+`https://app.mindtab.in/oauth/google/callback`.
+
 ## Optional GitHub Variables
 
 Add these in GitHub: `Settings -> Secrets and variables -> Actions -> Variables`.

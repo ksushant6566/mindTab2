@@ -167,6 +167,9 @@ func Load() (*Config, error) {
 	if cfg.GoogleClientSecret == "" {
 		return nil, fmt.Errorf("GOOGLE_CLIENT_SECRET is required")
 	}
+	if cfg.APIPublicURL == "" {
+		return nil, fmt.Errorf("API_PUBLIC_URL is required")
+	}
 	if cfg.ResendAPIKey == "" {
 		return nil, fmt.Errorf("RESEND_API_KEY is required")
 	}

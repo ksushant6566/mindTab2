@@ -68,3 +68,38 @@ func TestGoogleOAuthCallbackURLPrefersPublicAPIURL(t *testing.T) {
 		t.Fatalf("googleOAuthCallbackURL() = %q, want %q", got, want)
 	}
 }
+
+func TestGoogleStartRedirectsWrongHostToCanonicalAPIHost(t *testing.T) {
+	h := &AuthHandler{
+		googleClientSecret: "google-secret",
+		apiPublicURL:       "https://api.mindtab.in",
+	}
+	req := httptest.NewRequest(
+		http.MethodGet,
+		"https://app.mindtab.in/auth/google/start?return_to=https%3A%2F%2Fapp.mindtab.in%2Foauth%2Fgoogle%2Fcallback",
+		nil,
+	)
+	rr := httptest.NewRecorder()
+
+	h.GoogleStart(rr, req)
+
+	if rr.Code != http.StatusFound {
+		t.Fatalf("GoogleStart status = %d, want %d", rr.Code, http.StatusFound)
+	}
+	wantLocation := "https://api.mindtab.in/auth/google/start?return_to=https%3A%2F%2Fapp.mindtab.in%2Foauth%2Fgoogle%2Fcallback"
+	if got := rr.Header().Get("Location"); got != wantLocation {
+		t.Fatalf("Location = %q, want %q", got, wantLocation)
+	}
+	if got := rr.Header().Values("Set-Cookie"); len(got) != 0 {
+		t.Fatalf("Set-Cookie headers = %v, want none before canonical redirect", got)
+	}
+}
+
+func TestCanonicalGoogleOAuthStartURLNoRedirectOnAPIHost(t *testing.T) {
+	h := &AuthHandler{apiPublicURL: "https://api.mindtab.in"}
+	req := httptest.NewRequest(http.MethodGet, "https://api.mindtab.in/auth/google/start", nil)
+
+	if got := h.canonicalGoogleOAuthStartURL(req); got != "" {
+		t.Fatalf("canonicalGoogleOAuthStartURL() = %q, want empty", got)
+	}
+}

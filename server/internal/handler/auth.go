@@ -48,6 +48,7 @@ func NewAuthHandler(queries store.Querier, pool *pgxpool.Pool, jwtSecret, google
 const (
 	googleOAuthStateCookie    = "mindtab_oauth_state"
 	googleOAuthReturnToCookie = "mindtab_oauth_return_to"
+	googleOAuthStartPath      = "/auth/google/start"
 	googleOAuthCallbackPath   = "/auth/google/callback"
 	googleOAuthWebReturnPath  = "/oauth/google/callback"
 	googleAPITimeout          = 10 * time.Second
@@ -182,7 +183,7 @@ func (h *AuthHandler) Google(w http.ResponseWriter, r *http.Request) {
 
 	if !isMobile {
 		// Set refresh token as httpOnly cookie (web only).
-		setRefreshCookie(w, session.RefreshToken, 30*24*60*60)
+		setRefreshCookie(w, r, session.RefreshToken, 30*24*60*60)
 	}
 
 	if isMobile {
@@ -206,6 +207,11 @@ func (h *AuthHandler) GoogleStart(w http.ResponseWriter, r *http.Request) {
 	if h.googleClientSecret == "" {
 		slog.Error("GOOGLE_CLIENT_SECRET is required for Google OAuth redirect flow")
 		WriteError(w, http.StatusInternalServerError, "Google OAuth is not configured")
+		return
+	}
+
+	if canonicalURL := h.canonicalGoogleOAuthStartURL(r); canonicalURL != "" {
+		http.Redirect(w, r, canonicalURL, http.StatusFound)
 		return
 	}
 
@@ -278,8 +284,32 @@ func (h *AuthHandler) GoogleCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	setRefreshCookie(w, session.RefreshToken, 30*24*60*60)
+	setRefreshCookie(w, r, session.RefreshToken, 30*24*60*60)
 	h.redirectToOAuthReturn(w, r, returnTo, "status", "success")
+}
+
+func (h *AuthHandler) canonicalGoogleOAuthStartURL(r *http.Request) string {
+	if h.apiPublicURL == "" {
+		return ""
+	}
+
+	apiURL, err := url.Parse(h.apiPublicURL)
+	if err != nil || !apiURL.IsAbs() || apiURL.Host == "" {
+		return ""
+	}
+
+	requestURL, err := url.Parse(publicURLForRequest(r, googleOAuthStartPath))
+	if err != nil || requestURL.Host == "" {
+		return ""
+	}
+	if strings.EqualFold(requestURL.Scheme, apiURL.Scheme) && strings.EqualFold(requestURL.Host, apiURL.Host) {
+		return ""
+	}
+
+	apiURL.Path = googleOAuthStartPath
+	apiURL.RawQuery = r.URL.RawQuery
+	apiURL.Fragment = ""
+	return apiURL.String()
 }
 
 func (h *AuthHandler) googleOAuthConfig(r *http.Request) *oauth2.Config {
@@ -422,7 +452,7 @@ func clearOAuthCookies(w http.ResponseWriter, r *http.Request) {
 	setOAuthCookie(w, r, googleOAuthReturnToCookie, "", -1)
 }
 
-func setRefreshCookie(w http.ResponseWriter, value string, maxAge int) {
+func setRefreshCookie(w http.ResponseWriter, _ *http.Request, value string, maxAge int) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     "mindtab_refresh",
 		Value:    value,
@@ -434,8 +464,8 @@ func setRefreshCookie(w http.ResponseWriter, value string, maxAge int) {
 	})
 }
 
-func clearRefreshCookie(w http.ResponseWriter) {
-	setRefreshCookie(w, "", -1)
+func clearRefreshCookie(w http.ResponseWriter, r *http.Request) {
+	setRefreshCookie(w, r, "", -1)
 }
 
 func isSecureRequest(r *http.Request) bool {
@@ -546,7 +576,7 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Set new cookie (web).
-	setRefreshCookie(w, rawRefresh, 30*24*60*60)
+	setRefreshCookie(w, r, rawRefresh, 30*24*60*60)
 
 	WriteJSON(w, http.StatusOK, map[string]string{
 		"accessToken": accessToken,
@@ -586,7 +616,7 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 
 	// Clear cookie for web clients.
 	if !isMobile {
-		clearRefreshCookie(w)
+		clearRefreshCookie(w, r)
 	}
 
 	WriteJSON(w, http.StatusOK, map[string]string{"message": "logged out"})
