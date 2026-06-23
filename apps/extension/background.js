@@ -1,6 +1,6 @@
 // Constants
 const API_CONFIG = {
-    BASE_URL: "http://localhost:8080",
+    BASE_URL: "https://api.mindtab.in",
     ENDPOINTS: {
         readingListSync: "/sync/reading-lists",
         bookmarksSync: "/sync/bookmarks",
@@ -17,7 +17,7 @@ chrome.alarms.onAlarm.addListener(handleAlarms);
 
 // Installation Handler
 async function handleInstall() {
-    chrome.tabs.create({ url: "http://localhost:5173/" });
+    chrome.tabs.create({ url: "https://app.mindtab.in/" });
     setupSyncAlarm();
 }
 
@@ -152,7 +152,7 @@ function collectAllBookmarks(nodes) {
 
 async function getSessionToken() {
     const cookies = await chrome.cookies.getAll({
-        url: "http://localhost:5173/",
+        domain: "app.mindtab.in",
     });
     return cookies.find(
         (cookie) => cookie.name === "mindtab_refresh"

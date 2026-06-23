@@ -4,8 +4,8 @@
 	"version": "1.3",
 	"description": "Manage tasks, track progress, note down ideas, and stay focused with MindTab.",
 	"host_permissions": [
-		"http://localhost:5173/*",
-		"http://localhost:8080/*"
+		"https://app.mindtab.in/*",
+		"https://api.mindtab.in/*"
 	],
 	"permissions": [
 		"storage",
