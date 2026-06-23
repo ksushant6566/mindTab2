@@ -28,17 +28,19 @@ type AuthHandler struct {
 	jwtSecret          string
 	googleClientID     string
 	googleClientSecret string
+	apiPublicURL       string
 	allowedOrigins     []string
 }
 
 // NewAuthHandler creates a new AuthHandler.
-func NewAuthHandler(queries store.Querier, pool *pgxpool.Pool, jwtSecret, googleClientID, googleClientSecret string, allowedOrigins []string) *AuthHandler {
+func NewAuthHandler(queries store.Querier, pool *pgxpool.Pool, jwtSecret, googleClientID, googleClientSecret, apiPublicURL string, allowedOrigins []string) *AuthHandler {
 	return &AuthHandler{
 		queries:            queries,
 		pool:               pool,
 		jwtSecret:          jwtSecret,
 		googleClientID:     googleClientID,
 		googleClientSecret: googleClientSecret,
+		apiPublicURL:       apiPublicURL,
 		allowedOrigins:     allowedOrigins,
 	}
 }
@@ -277,10 +279,25 @@ func (h *AuthHandler) googleOAuthConfig(r *http.Request) *oauth2.Config {
 	return &oauth2.Config{
 		ClientID:     h.googleClientID,
 		ClientSecret: h.googleClientSecret,
-		RedirectURL:  publicURLForRequest(r, googleOAuthCallbackPath),
+		RedirectURL:  h.googleOAuthCallbackURL(r),
 		Scopes:       []string{"openid", "email", "profile"},
 		Endpoint:     google.Endpoint,
 	}
+}
+
+func (h *AuthHandler) googleOAuthCallbackURL(r *http.Request) string {
+	if h.apiPublicURL != "" {
+		u, err := url.Parse(h.apiPublicURL)
+		if err == nil && u.IsAbs() && u.Host != "" {
+			u.Path = googleOAuthCallbackPath
+			u.RawQuery = ""
+			u.Fragment = ""
+			return u.String()
+		}
+		slog.Warn("ignoring invalid API_PUBLIC_URL", "apiPublicURL", h.apiPublicURL)
+	}
+
+	return publicURLForRequest(r, googleOAuthCallbackPath)
 }
 
 func (h *AuthHandler) validateOAuthReturnTo(raw string) (string, error) {

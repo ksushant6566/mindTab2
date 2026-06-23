@@ -21,6 +21,7 @@ type Config struct {
 	JWTSecret          string
 	GoogleClientID     string
 	GoogleClientSecret string
+	APIPublicURL       string
 	AllowedOrigins     []string
 	StaticDir          string
 	ResendAPIKey       string
@@ -62,6 +63,7 @@ func Load() (*Config, error) {
 		JWTSecret:          os.Getenv("JWT_SECRET"),
 		GoogleClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
 		GoogleClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
+		APIPublicURL:       os.Getenv("API_PUBLIC_URL"),
 		AllowedOrigins: []string{
 			"https://app.mindtab.in",
 			"http://localhost:5173",

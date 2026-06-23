@@ -57,3 +57,14 @@ func TestPublicURLForRequestUsesForwardedHeaders(t *testing.T) {
 		t.Fatalf("publicURLForRequest() = %q, want %q", got, want)
 	}
 }
+
+func TestGoogleOAuthCallbackURLPrefersPublicAPIURL(t *testing.T) {
+	h := &AuthHandler{apiPublicURL: "http://localhost:8080"}
+	req := httptest.NewRequest(http.MethodGet, "http://api:8080/auth/google/start", nil)
+
+	got := h.googleOAuthCallbackURL(req)
+	want := "http://localhost:8080/auth/google/callback"
+	if got != want {
+		t.Fatalf("googleOAuthCallbackURL() = %q, want %q", got, want)
+	}
+}

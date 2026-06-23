@@ -211,7 +211,7 @@ func main() {
 
 	// Initialize handlers.
 	emailService := email.NewService(cfg.ResendAPIKey)
-	authHandler := handler.NewAuthHandler(queries, pool, cfg.JWTSecret, cfg.GoogleClientID, cfg.GoogleClientSecret, cfg.AllowedOrigins)
+	authHandler := handler.NewAuthHandler(queries, pool, cfg.JWTSecret, cfg.GoogleClientID, cfg.GoogleClientSecret, cfg.APIPublicURL, cfg.AllowedOrigins)
 	emailAuthHandler := handler.NewEmailAuthHandler(queries, pool, cfg.JWTSecret, emailService)
 	usersHandler := handler.NewUsersHandler(queries)
 	tasksHandler := handler.NewTasksHandler(queries, pool)
