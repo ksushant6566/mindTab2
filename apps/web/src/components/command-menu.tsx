@@ -37,8 +37,9 @@ import { TaskDialog, type TaskDialogInput } from "./tasks/task-dialog";
 import { getScheduleDraftPayload } from "./tasks/task-schedule-fields";
 import {
     useAppStore,
+    type AppearanceSettings,
     type AppearanceTheme,
-    type FontPreset,
+    type UIFontPreset,
 } from "@mindtab/core";
 import { toast } from "sonner";
 import { cn } from "~/lib/utils";
@@ -50,29 +51,32 @@ const themeOptions: {
     value: AppearanceTheme;
     label: string;
     icon: LucideIcon;
+    colors: Pick<AppearanceSettings, "backgroundColor" | "foregroundColor" | "accentColor" | "contrast">;
 }[] = [
-    { value: "midnight", label: "Theme: Midnight", icon: Moon },
-    { value: "graphite", label: "Theme: Graphite", icon: Laptop },
-    { value: "paper", label: "Theme: Paper", icon: Sun },
+    { value: "system", label: "Theme: System", icon: Laptop, colors: { backgroundColor: "#111111", foregroundColor: "#FCFCFC", accentColor: "#0169CC", contrast: 60 } },
+    { value: "dark", label: "Theme: Dark", icon: Moon, colors: { backgroundColor: "#111111", foregroundColor: "#FCFCFC", accentColor: "#0169CC", contrast: 60 } },
+    { value: "light", label: "Theme: Light", icon: Sun, colors: { backgroundColor: "#FFFFFF", foregroundColor: "#0D0D0D", accentColor: "#0169CC", contrast: 45 } },
 ];
 
 const fontOptions: {
-    value: FontPreset;
+    value: UIFontPreset;
     label: string;
     icon: LucideIcon;
 }[] = [
-    { value: "codex", label: "Font: Codex", icon: Type },
-    { value: "linear", label: "Font: Linear", icon: Type },
-    { value: "github", label: "Font: GitHub", icon: Type },
-    { value: "notion", label: "Font: Notion", icon: Type },
-    { value: "raycast", label: "Font: Raycast", icon: Type },
-    { value: "system", label: "Font: System", icon: Type },
+    { value: "inter", label: "UI Font: Inter", icon: Type },
+    { value: "geist", label: "UI Font: Geist", icon: Type },
+    { value: "system", label: "UI Font: System", icon: Type },
+    { value: "satoshi", label: "UI Font: Satoshi", icon: Type },
 ];
 
 export const CommandMenu = () => {
     const { logout, updateAppearance } = useAuth();
     const appearanceTheme = useAppStore((state) => state.appearanceTheme);
-    const fontPreset = useAppStore((state) => state.fontPreset);
+    const uiFontPreset = useAppStore((state) => state.uiFontPreset);
+    const accentColor = useAppStore((state) => state.accentColor);
+    const backgroundColor = useAppStore((state) => state.backgroundColor);
+    const foregroundColor = useAppStore((state) => state.foregroundColor);
+    const contrast = useAppStore((state) => state.contrast);
     const setAppearance = useAppStore((state) => state.setAppearance);
 
     const [searchQuery, setSearchQuery] = useState<string | null>(null);
@@ -184,11 +188,11 @@ export const CommandMenu = () => {
     const handleAppearanceChange = useCallback(
         async (appearance: {
             theme?: AppearanceTheme;
-            font?: FontPreset;
-        }) => {
+            uiFont?: UIFontPreset;
+        } & Partial<AppearanceSettings>) => {
             if (
                 appearance.theme === appearanceTheme ||
-                appearance.font === fontPreset
+                appearance.uiFont === uiFontPreset
             ) {
                 setOpen(false);
                 return;
@@ -196,7 +200,11 @@ export const CommandMenu = () => {
 
             const previousAppearance = {
                 theme: appearanceTheme,
-                font: fontPreset,
+                uiFont: uiFontPreset,
+                accentColor,
+                backgroundColor,
+                foregroundColor,
+                contrast,
             };
 
             setAppearance(appearance);
@@ -211,7 +219,7 @@ export const CommandMenu = () => {
                 });
             }
         },
-        [appearanceTheme, fontPreset, setAppearance, updateAppearance]
+        [accentColor, appearanceTheme, backgroundColor, contrast, uiFontPreset, foregroundColor, setAppearance, updateAppearance]
     );
 
     const commandMenuGroups = useMemo(
@@ -262,14 +270,14 @@ export const CommandMenu = () => {
                         icon: option.icon,
                         active: option.value === appearanceTheme,
                         onClick: () =>
-                            handleAppearanceChange({ theme: option.value }),
+                            handleAppearanceChange({ theme: option.value, ...option.colors }),
                     })),
                     ...fontOptions.map((option) => ({
                         label: option.label,
                         icon: option.icon,
-                        active: option.value === fontPreset,
+                        active: option.value === uiFontPreset,
                         onClick: () =>
-                            handleAppearanceChange({ font: option.value }),
+                            handleAppearanceChange({ uiFont: option.value }),
                     })),
                 ],
             },
@@ -287,7 +295,7 @@ export const CommandMenu = () => {
                 ],
             },
         ],
-        [appearanceTheme, fontPreset, handleAppearanceChange, logout]
+        [appearanceTheme, uiFontPreset, handleAppearanceChange, logout]
     );
 
     const searchResults = useMemo(() => {

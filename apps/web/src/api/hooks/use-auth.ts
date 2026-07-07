@@ -1,16 +1,19 @@
 import { useEffect } from "react";
 import { create } from "zustand";
-import { normalizeFontPreset, type AppearanceTheme, type FontPreset } from "@mindtab/core";
+import {
+  normalizeAppearanceSettings,
+  normalizeGeneralSettings,
+  type AppearanceSettings,
+  type GeneralSettings,
+} from "@mindtab/core";
 import { api, setAccessToken } from "../client";
 
-interface User {
+export interface User extends AppearanceSettings, GeneralSettings {
   id: string;
   name: string | null;
   email: string;
   image: string | null;
   onboardingCompleted: boolean;
-  theme: AppearanceTheme;
-  font: FontPreset;
 }
 
 interface AuthSession {
@@ -28,10 +31,7 @@ interface AuthState {
   _refreshSession: () => Promise<AuthSession | null>;
   setSession: (session: AuthSession) => void;
   login: (googleIdToken: string) => Promise<AuthSession>;
-  updateAppearance: (appearance: {
-    theme?: AppearanceTheme;
-    font?: FontPreset;
-  }) => Promise<User>;
+  updateAppearance: (appearance: Partial<AppearanceSettings & GeneralSettings>) => Promise<User>;
   logout: () => Promise<void>;
 }
 
@@ -190,8 +190,11 @@ export function useAuth() {
 }
 
 function normalizeUser(user: User): User {
+  const appearance = normalizeAppearanceSettings(user);
+  const general = normalizeGeneralSettings(user);
   return {
     ...user,
-    font: normalizeFontPreset(user.font),
+    ...appearance,
+    ...general,
   };
 }

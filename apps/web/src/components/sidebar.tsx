@@ -412,8 +412,11 @@ export function AppSidebar() {
                                 </button>
                                 <button
                                     type="button"
-                                    disabled
-                                    className="flex h-9 w-full items-center gap-2 rounded-[var(--r-2)] px-2 text-sm text-muted-foreground opacity-60"
+                                    onClick={() => {
+                                        setAccountMenuOpen(false);
+                                        void navigate({ to: "/settings" });
+                                    }}
+                                    className="flex h-9 w-full items-center gap-2 rounded-[var(--r-2)] px-2 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground"
                                 >
                                     <Settings className="h-4 w-4" />
                                     Settings

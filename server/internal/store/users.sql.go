@@ -23,7 +23,7 @@ func (q *Queries) CompleteOnboarding(ctx context.Context, id string) error {
 const createEmailUser = `-- name: CreateEmailUser :one
 INSERT INTO users (id, name, email, email_verified)
 VALUES ($1, $2, $3, NULL)
-RETURNING id, name, email, email_verified, image, onboarding_completed, created_at, updated_at, password_hash, theme, font
+RETURNING id, name, email, email_verified, image, onboarding_completed, created_at, updated_at, password_hash, theme, font, appearance_template, accent_color, background_color, foreground_color, contrast, font_size, week_start_day, time_format, time_zone, code_font
 `
 
 type CreateEmailUserParams struct {
@@ -47,12 +47,22 @@ func (q *Queries) CreateEmailUser(ctx context.Context, arg CreateEmailUserParams
 		&i.PasswordHash,
 		&i.Theme,
 		&i.Font,
+		&i.AppearanceTemplate,
+		&i.AccentColor,
+		&i.BackgroundColor,
+		&i.ForegroundColor,
+		&i.Contrast,
+		&i.FontSize,
+		&i.WeekStartDay,
+		&i.TimeFormat,
+		&i.TimeZone,
+		&i.CodeFont,
 	)
 	return i, err
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, name, email, email_verified, image, onboarding_completed, created_at, updated_at, password_hash, theme, font FROM users WHERE email = $1
+SELECT id, name, email, email_verified, image, onboarding_completed, created_at, updated_at, password_hash, theme, font, appearance_template, accent_color, background_color, foreground_color, contrast, font_size, week_start_day, time_format, time_zone, code_font FROM users WHERE email = $1
 `
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
@@ -70,12 +80,22 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.PasswordHash,
 		&i.Theme,
 		&i.Font,
+		&i.AppearanceTemplate,
+		&i.AccentColor,
+		&i.BackgroundColor,
+		&i.ForegroundColor,
+		&i.Contrast,
+		&i.FontSize,
+		&i.WeekStartDay,
+		&i.TimeFormat,
+		&i.TimeZone,
+		&i.CodeFont,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, name, email, email_verified, image, onboarding_completed, created_at, updated_at, password_hash, theme, font FROM users WHERE id = $1
+SELECT id, name, email, email_verified, image, onboarding_completed, created_at, updated_at, password_hash, theme, font, appearance_template, accent_color, background_color, foreground_color, contrast, font_size, week_start_day, time_format, time_zone, code_font FROM users WHERE id = $1
 `
 
 func (q *Queries) GetUserByID(ctx context.Context, id string) (User, error) {
@@ -93,6 +113,16 @@ func (q *Queries) GetUserByID(ctx context.Context, id string) (User, error) {
 		&i.PasswordHash,
 		&i.Theme,
 		&i.Font,
+		&i.AppearanceTemplate,
+		&i.AccentColor,
+		&i.BackgroundColor,
+		&i.ForegroundColor,
+		&i.Contrast,
+		&i.FontSize,
+		&i.WeekStartDay,
+		&i.TimeFormat,
+		&i.TimeZone,
+		&i.CodeFont,
 	)
 	return i, err
 }
@@ -125,19 +155,53 @@ UPDATE users
 SET
     theme = COALESCE($1, theme),
     font = COALESCE($2, font),
+    appearance_template = COALESCE($3, appearance_template),
+    accent_color = COALESCE($4, accent_color),
+    background_color = COALESCE($5, background_color),
+    foreground_color = COALESCE($6, foreground_color),
+    contrast = COALESCE($7, contrast),
+    font_size = COALESCE($8, font_size),
+    code_font = COALESCE($9, code_font),
+    week_start_day = COALESCE($10, week_start_day),
+    time_format = COALESCE($11, time_format),
+    time_zone = COALESCE($12, time_zone),
     updated_at = CURRENT_TIMESTAMP
-WHERE id = $3
-RETURNING id, name, email, email_verified, image, onboarding_completed, created_at, updated_at, password_hash, theme, font
+WHERE id = $13
+RETURNING id, name, email, email_verified, image, onboarding_completed, created_at, updated_at, password_hash, theme, font, appearance_template, accent_color, background_color, foreground_color, contrast, font_size, week_start_day, time_format, time_zone, code_font
 `
 
 type UpdateUserAppearanceParams struct {
-	Theme pgtype.Text `json:"theme"`
-	Font  pgtype.Text `json:"font"`
-	ID    string      `json:"id"`
+	Theme              pgtype.Text `json:"theme"`
+	Font               pgtype.Text `json:"font"`
+	AppearanceTemplate pgtype.Text `json:"appearance_template"`
+	AccentColor        pgtype.Text `json:"accent_color"`
+	BackgroundColor    pgtype.Text `json:"background_color"`
+	ForegroundColor    pgtype.Text `json:"foreground_color"`
+	Contrast           pgtype.Int4 `json:"contrast"`
+	FontSize           pgtype.Int4 `json:"font_size"`
+	CodeFont           pgtype.Text `json:"code_font"`
+	WeekStartDay       pgtype.Text `json:"week_start_day"`
+	TimeFormat         pgtype.Text `json:"time_format"`
+	TimeZone           pgtype.Text `json:"time_zone"`
+	ID                 string      `json:"id"`
 }
 
 func (q *Queries) UpdateUserAppearance(ctx context.Context, arg UpdateUserAppearanceParams) (User, error) {
-	row := q.db.QueryRow(ctx, updateUserAppearance, arg.Theme, arg.Font, arg.ID)
+	row := q.db.QueryRow(ctx, updateUserAppearance,
+		arg.Theme,
+		arg.Font,
+		arg.AppearanceTemplate,
+		arg.AccentColor,
+		arg.BackgroundColor,
+		arg.ForegroundColor,
+		arg.Contrast,
+		arg.FontSize,
+		arg.CodeFont,
+		arg.WeekStartDay,
+		arg.TimeFormat,
+		arg.TimeZone,
+		arg.ID,
+	)
 	var i User
 	err := row.Scan(
 		&i.ID,
@@ -151,6 +215,16 @@ func (q *Queries) UpdateUserAppearance(ctx context.Context, arg UpdateUserAppear
 		&i.PasswordHash,
 		&i.Theme,
 		&i.Font,
+		&i.AppearanceTemplate,
+		&i.AccentColor,
+		&i.BackgroundColor,
+		&i.ForegroundColor,
+		&i.Contrast,
+		&i.FontSize,
+		&i.WeekStartDay,
+		&i.TimeFormat,
+		&i.TimeZone,
+		&i.CodeFont,
 	)
 	return i, err
 }
@@ -162,7 +236,7 @@ ON CONFLICT (id) DO UPDATE SET
     name = COALESCE(EXCLUDED.name, users.name),
     image = COALESCE(EXCLUDED.image, users.image),
     updated_at = CURRENT_TIMESTAMP
-RETURNING id, name, email, email_verified, image, onboarding_completed, created_at, updated_at, password_hash, theme, font
+RETURNING id, name, email, email_verified, image, onboarding_completed, created_at, updated_at, password_hash, theme, font, appearance_template, accent_color, background_color, foreground_color, contrast, font_size, week_start_day, time_format, time_zone, code_font
 `
 
 type UpsertUserParams struct {
@@ -192,6 +266,16 @@ func (q *Queries) UpsertUser(ctx context.Context, arg UpsertUserParams) (User, e
 		&i.PasswordHash,
 		&i.Theme,
 		&i.Font,
+		&i.AppearanceTemplate,
+		&i.AccentColor,
+		&i.BackgroundColor,
+		&i.ForegroundColor,
+		&i.Contrast,
+		&i.FontSize,
+		&i.WeekStartDay,
+		&i.TimeFormat,
+		&i.TimeZone,
+		&i.CodeFont,
 	)
 	return i, err
 }

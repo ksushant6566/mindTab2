@@ -21,6 +21,16 @@ UPDATE users
 SET
     theme = COALESCE(sqlc.narg('theme'), theme),
     font = COALESCE(sqlc.narg('font'), font),
+    appearance_template = COALESCE(sqlc.narg('appearance_template'), appearance_template),
+    accent_color = COALESCE(sqlc.narg('accent_color'), accent_color),
+    background_color = COALESCE(sqlc.narg('background_color'), background_color),
+    foreground_color = COALESCE(sqlc.narg('foreground_color'), foreground_color),
+    contrast = COALESCE(sqlc.narg('contrast'), contrast),
+    font_size = COALESCE(sqlc.narg('font_size'), font_size),
+    code_font = COALESCE(sqlc.narg('code_font'), code_font),
+    week_start_day = COALESCE(sqlc.narg('week_start_day'), week_start_day),
+    time_format = COALESCE(sqlc.narg('time_format'), time_format),
+    time_zone = COALESCE(sqlc.narg('time_zone'), time_zone),
     updated_at = CURRENT_TIMESTAMP
 WHERE id = sqlc.arg('id')
 RETURNING *;
