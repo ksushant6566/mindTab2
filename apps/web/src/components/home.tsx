@@ -1,14 +1,22 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { Tasks } from "./tasks/index";
-import { Habits } from "./habits";
-import { Notes } from "./notes/notes";
-import { Calendar } from "./calendar/calendar";
+import React, { Suspense, useEffect, useMemo, useState } from "react";
 import { Button } from "~/components/ui/button";
 import { Clock } from "./clock";
 import { ProjectTabs } from "./projects";
 import { useAppStore, EActiveLayout } from "@mindtab/core";
 import type { ActiveLayout } from "@mindtab/core";
-import { cn } from "~/lib/utils";
+
+const Tasks = React.lazy(() =>
+    import("./tasks/index").then((module) => ({ default: module.Tasks }))
+);
+const Habits = React.lazy(() =>
+    import("./habits").then((module) => ({ default: module.Habits }))
+);
+const Notes = React.lazy(() =>
+    import("./notes/notes").then((module) => ({ default: module.Notes }))
+);
+const Calendar = React.lazy(() =>
+    import("./calendar/calendar").then((module) => ({ default: module.Calendar }))
+);
 
 const getDashboardLayout = () => ({
     container: {
@@ -43,8 +51,17 @@ const getDashboardLayout = () => ({
     activeColumn: "col1",
 });
 
+const DashboardPanelFallback = () => (
+    <div className="flex min-h-0 flex-1 items-center justify-center">
+        <div className="h-7 w-7 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
+    </div>
+);
+
 export default function Component() {
     const [isHydrated, setIsHydrated] = useState(false);
+    const [visitedCol1Elements, setVisitedCol1Elements] = useState<Set<ActiveLayout>>(
+        () => new Set([EActiveLayout.Tasks as ActiveLayout])
+    );
 
     const {
         activeElement,
@@ -55,10 +72,20 @@ export default function Component() {
 
     const layout = useMemo(() => getDashboardLayout(), []);
     const isCalendarActive = activeElement === EActiveLayout.Calendar;
+    const activeCol1Element =
+        layout.col1.elements.find((element) => element.title === activeElement) ??
+        layout.col1.elements[0]!;
 
     useEffect(() => {
         setIsHydrated(true);
     }, []);
+
+    useEffect(() => {
+        setVisitedCol1Elements((visited) => {
+            if (visited.has(activeCol1Element.title)) return visited;
+            return new Set(visited).add(activeCol1Element.title);
+        });
+    }, [activeCol1Element.title]);
 
     // Initialize activeElement if missing or left over from the retired layout.
     useEffect(() => {
@@ -106,7 +133,6 @@ export default function Component() {
                     </div>
                 </div>
                 <div className={`${isCalendarActive ? "col-span-10" : layout.col1.style} flex min-h-0 min-w-0 flex-col`}>
-                    {/* Project Tabs */}
                     <div className="-ml-0.5 shrink-0">
                         <ProjectTabs
                             activeProjectId={activeProjectId}
@@ -115,36 +141,28 @@ export default function Component() {
                             activeTab={activeElement as any}
                         />
                     </div>
-                    {layout.col1.elements.map((element, index) => (
-                        <div
-                            className={cn(
-                                "w-full",
-                                layout.activeColumn === "col1" && activeElement !== element.title
-                                    ? "hidden"
-                                    : "flex min-h-0 flex-1 flex-col"
-                            )}
-                            key={index}
-                        >
-                            {element.title === EActiveLayout.Calendar
-                                ? React.cloneElement(element.element, { isActive: isCalendarActive })
-                                : element.element}
-                        </div>
-                    ))}
+                    {layout.col1.elements.map((element) => {
+                        if (!visitedCol1Elements.has(element.title)) return null;
+
+                        const isActive = activeCol1Element.title === element.title;
+                        return (
+                            <div
+                                className={isActive ? "flex min-h-0 flex-1 flex-col" : "hidden"}
+                                key={element.title}
+                            >
+                                <Suspense fallback={<DashboardPanelFallback />}>
+                                    {element.title === EActiveLayout.Calendar
+                                        ? React.cloneElement(element.element, { isActive: isCalendarActive })
+                                        : element.element}
+                                </Suspense>
+                            </div>
+                        );
+                    })}
                 </div>
                 <div className={`${layout.col2.style} ${isCalendarActive ? "hidden" : "flex"} min-h-0 min-w-0 flex-col`}>
-                    {layout.col2.elements.map((element, index) => (
-                        <div
-                            className={cn(
-                                "w-full",
-                                layout.activeColumn === "col2" && activeElement !== element.title
-                                    ? "hidden"
-                                    : "flex min-h-0 flex-1 flex-col"
-                            )}
-                            key={index}
-                        >
-                            {element.element}
-                        </div>
-                    ))}
+                    <Suspense fallback={<DashboardPanelFallback />}>
+                        {layout.col2.elements[0]?.element}
+                    </Suspense>
                 </div>
             </div>
         </div>
