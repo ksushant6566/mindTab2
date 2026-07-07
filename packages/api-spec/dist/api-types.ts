@@ -188,7 +188,7 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /** Update current user preferences, XP, or onboarding */
+        /** Update current user preferences or onboarding */
         patch: operations["updateCurrentUser"];
         trace?: never;
     };
@@ -308,78 +308,6 @@ export interface paths {
         put?: never;
         /** Archive all completed tasks */
         post: operations["archiveCompletedTasks"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/habits": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List all active habits */
-        get: operations["listHabits"];
-        put?: never;
-        /** Create a habit */
-        post: operations["createHabit"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/habits/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get a single habit */
-        get: operations["getHabit"];
-        put?: never;
-        post?: never;
-        /** Hard-delete a habit */
-        delete: operations["deleteHabit"];
-        options?: never;
-        head?: never;
-        /** Update a habit */
-        patch: operations["updateHabit"];
-        trace?: never;
-    };
-    "/habits/{id}/track": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Mark habit as completed for a date (+10 XP) */
-        post: operations["trackHabit"];
-        /** Unmark habit for a date (-10 XP) */
-        delete: operations["untrackHabit"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/habit-tracker": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get all habit tracking records */
-        get: operations["listHabitTrackerRecords"];
-        put?: never;
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -537,23 +465,6 @@ export interface paths {
         };
         /** Search tasks by title (max 5 results) */
         get: operations["searchTasks"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/search/habits": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Search habits by title (max 5 results) */
-        get: operations["searchHabits"];
         put?: never;
         post?: never;
         delete?: never;
@@ -779,10 +690,6 @@ export interface components {
         /** @enum {string} */
         TaskImpact: "low" | "medium" | "high";
         /** @enum {string} */
-        HabitFrequency: "daily" | "weekly";
-        /** @enum {string} */
-        HabitTrackerStatus: "pending" | "completed";
-        /** @enum {string} */
         NoteType: "article" | "book" | "video" | "podcast" | "website";
         /** @enum {string} */
         ProjectStatus: "active" | "paused" | "completed" | "archived";
@@ -810,8 +717,6 @@ export interface components {
             /** Format: email */
             email: string;
             image?: string | null;
-            /** @default 0 */
-            xp: number;
             /** @default false */
             onboardingCompleted: boolean;
             /**
@@ -820,10 +725,10 @@ export interface components {
              */
             theme: "midnight" | "graphite" | "paper";
             /**
-             * @default inter
+             * @default codex
              * @enum {string}
              */
-            font: "inter" | "geist" | "system";
+            font: "codex" | "linear" | "github" | "notion" | "raycast" | "system";
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -871,43 +776,6 @@ export interface components {
             projectId?: string | null;
             /** Format: date-time */
             completedAt?: string | null;
-        };
-        Habit: {
-            /** Format: uuid */
-            id: string;
-            title?: string | null;
-            description?: string | null;
-            frequency: components["schemas"]["HabitFrequency"];
-            /** Format: date-time */
-            createdAt: string;
-            /** Format: date-time */
-            updatedAt?: string | null;
-            /** Format: date-time */
-            deletedAt?: string | null;
-        };
-        HabitCreate: {
-            title: string;
-            description?: string;
-            frequency?: components["schemas"]["HabitFrequency"];
-        };
-        HabitUpdate: {
-            title?: string;
-            description?: string | null;
-            frequency?: components["schemas"]["HabitFrequency"];
-        };
-        HabitTrackerRecord: {
-            /** Format: uuid */
-            id: string;
-            /** Format: uuid */
-            habitId: string;
-            userId: string;
-            status: components["schemas"]["HabitTrackerStatus"];
-            /** Format: date */
-            date: string;
-            /** Format: date-time */
-            createdAt: string;
-            /** Format: date-time */
-            updatedAt?: string | null;
         };
         Note: {
             /** Format: uuid */
@@ -1002,8 +870,6 @@ export interface components {
             details: {
                 tasksCreated: number;
                 tasksCompleted: number;
-                habitsCreated: number;
-                habitsMarked: number;
                 notesCreated: number;
                 notesUpdated: number;
             };
@@ -1635,12 +1501,11 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
-                    xpToAdd?: number;
                     onboardingCompleted?: boolean;
                     /** @enum {string} */
                     theme?: "midnight" | "graphite" | "paper";
                     /** @enum {string} */
-                    font?: "inter" | "geist" | "system";
+                    font?: "codex" | "linear" | "github" | "notion" | "raycast" | "system";
                 };
             };
         };
@@ -1906,234 +1771,6 @@ export interface operations {
                         success: boolean;
                         count: number;
                     };
-                };
-            };
-            401: components["responses"]["Unauthorized"];
-        };
-    };
-    listHabits: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description List of habits */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Habit"][];
-                };
-            };
-            401: components["responses"]["Unauthorized"];
-        };
-    };
-    createHabit: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["HabitCreate"];
-            };
-        };
-        responses: {
-            /** @description Habit created */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Habit"];
-                };
-            };
-            401: components["responses"]["Unauthorized"];
-            /** @description Duplicate habit title */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    getHabit: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: components["parameters"]["UuidId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Habit details */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Habit"];
-                };
-            };
-            401: components["responses"]["Unauthorized"];
-            404: components["responses"]["NotFound"];
-        };
-    };
-    deleteHabit: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: components["parameters"]["UuidId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Habit deleted */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            401: components["responses"]["Unauthorized"];
-            404: components["responses"]["NotFound"];
-        };
-    };
-    updateHabit: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: components["parameters"]["UuidId"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["HabitUpdate"];
-            };
-        };
-        responses: {
-            /** @description Updated habit */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Habit"];
-                };
-            };
-            401: components["responses"]["Unauthorized"];
-            404: components["responses"]["NotFound"];
-            /** @description Duplicate habit title */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    trackHabit: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: components["parameters"]["UuidId"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /**
-                     * Format: date
-                     * @description Date in YYYY-MM-DD format
-                     */
-                    date: string;
-                };
-            };
-        };
-        responses: {
-            /** @description Habit tracked */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        id: string;
-                    };
-                };
-            };
-            401: components["responses"]["Unauthorized"];
-            404: components["responses"]["NotFound"];
-        };
-    };
-    untrackHabit: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: components["parameters"]["UuidId"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /**
-                     * Format: date
-                     * @description Date in YYYY-MM-DD format
-                     */
-                    date: string;
-                };
-            };
-        };
-        responses: {
-            /** @description Habit tracking removed */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            401: components["responses"]["Unauthorized"];
-            404: components["responses"]["NotFound"];
-        };
-    };
-    listHabitTrackerRecords: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description All tracking records */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HabitTrackerRecord"][];
                 };
             };
             401: components["responses"]["Unauthorized"];
@@ -2524,29 +2161,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Task"][];
-                };
-            };
-            401: components["responses"]["Unauthorized"];
-        };
-    };
-    searchHabits: {
-        parameters: {
-            query: {
-                q: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Matching habits */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Habit"][];
                 };
             };
             401: components["responses"]["Unauthorized"];

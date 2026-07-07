@@ -288,16 +288,6 @@ export default function CreateNoteModal() {
           >
             Create Note
           </Button>
-          <Text
-            style={{
-              fontSize: 12,
-              color: colors.xp.gold,
-              textAlign: "center",
-              marginTop: 8,
-            }}
-          >
-            +5 XP
-          </Text>
         </BottomSheetScrollView>
       </AppBottomSheet>
     </View>

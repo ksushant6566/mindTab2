@@ -56,11 +56,6 @@ export const colors = {
     medium: "#fbbf24",
     high: "#f59e0b",
   },
-  // Gamification
-  xp: {
-    gold: "#facc15",
-    goldGlow: "rgba(250,204,21,0.3)",
-  },
   streak: {
     orange: "#f97316",
     gold: "#eab308",

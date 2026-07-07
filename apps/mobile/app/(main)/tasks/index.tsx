@@ -23,12 +23,10 @@ import { SwipeableRow } from "~/components/ui/swipeable-row";
 import { PressableCard } from "~/components/ui/pressable-card";
 import { EmptyState } from "~/components/ui/empty-state";
 import { ConfettiBurst } from "~/components/ui/confetti-burst";
-import { XPFloat } from "~/components/ui/xp-float";
 import { UndoToast } from "~/components/ui/undo-toast";
 import { ListHeader } from "~/components/list-header";
 import { FAB } from "~/components/dashboard/fab";
 import { api } from "~/lib/api-client";
-import { XP_VALUES } from "~/lib/xp";
 import { colors } from "~/styles/colors";
 
 // ---------- Constants ----------
@@ -110,16 +108,12 @@ const TaskRow = React.memo(function TaskRow({
   onStatusChange,
   onArchive,
   isCelebrating,
-  xpDelta,
-  onXpComplete,
 }: {
   task: any;
   onPress: (id: string) => void;
   onStatusChange: (task: any, newStatus: string) => void;
   onArchive: (task: any) => void;
   isCelebrating: boolean;
-  xpDelta: number;
-  onXpComplete: () => void;
 }) {
   const priorityKey = task.priority as string | undefined;
   const impactKey = task.impact as string | undefined;
@@ -208,9 +202,6 @@ const TaskRow = React.memo(function TaskRow({
           )}
         </View>
         {isCelebrating && <ConfettiBurst particleCount={20} />}
-        {isCelebrating && xpDelta > 0 && (
-          <XPFloat amount={xpDelta} onComplete={onXpComplete} />
-        )}
       </PressableCard>
     </SwipeableRow>
   );
@@ -225,7 +216,6 @@ export default function TasksScreen() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
   const [celebrationTaskId, setCelebrationTaskId] = useState<string | null>(null);
-  const [xpDelta, setXpDelta] = useState(0);
   const [undoState, setUndoState] = useState<{
     visible: boolean;
     taskId?: string;
@@ -255,7 +245,6 @@ export default function TasksScreen() {
     if (!celebrationTaskId) return;
     const timer = setTimeout(() => {
       setCelebrationTaskId(null);
-      setXpDelta(0);
     }, 1200);
     return () => clearTimeout(timer);
   }, [celebrationTaskId]);
@@ -307,13 +296,6 @@ export default function TasksScreen() {
           : {}),
       });
       if (isComplete) {
-        const awardedXP =
-          task.priority === "priority_1"
-            ? XP_VALUES.TASK_P1_COMPLETE
-            : task.impact === "high"
-              ? XP_VALUES.TASK_HIGH_IMPACT_COMPLETE
-              : XP_VALUES.TASK_COMPLETE;
-        setXpDelta(awardedXP);
         setCelebrationTaskId(task.id);
       }
     },
@@ -349,8 +331,6 @@ export default function TasksScreen() {
   const handleTaskPress = useCallback((id: string) => {
     router.push(`/(main)/tasks/${id}`);
   }, [router]);
-
-  const handleXpComplete = useCallback(() => setXpDelta(0), []);
 
   // ---------- Renderers ----------
 
@@ -404,11 +384,9 @@ export default function TasksScreen() {
         onStatusChange={handleStatusChange}
         onArchive={handleArchive}
         isCelebrating={task.id === celebrationTaskId}
-        xpDelta={task.id === celebrationTaskId ? xpDelta : 0}
-        onXpComplete={handleXpComplete}
       />
     ),
-    [handleTaskPress, handleStatusChange, handleArchive, celebrationTaskId, xpDelta, handleXpComplete],
+    [handleTaskPress, handleStatusChange, handleArchive, celebrationTaskId],
   );
 
   const renderEmpty = useCallback(() => {
@@ -560,8 +538,8 @@ const styles = StyleSheet.create({
     color: colors.text.primary,
   },
   taskCelebrationCard: {
-    borderColor: colors.xp.gold,
-    shadowColor: colors.xp.gold,
+    borderColor: colors.status.completed,
+    shadowColor: colors.status.completed,
     shadowOpacity: 0.35,
     shadowRadius: 10,
     elevation: 4,

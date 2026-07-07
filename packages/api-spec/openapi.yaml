@@ -21,10 +21,6 @@ tags:
     description: User profile management
   - name: Tasks
     description: Task CRUD and batch operations
-  - name: Habits
-    description: Habit CRUD and tracking
-  - name: HabitTracker
-    description: Habit tracking records
   - name: Notes
     description: Note CRUD
   - name: Projects
@@ -379,7 +375,7 @@ paths:
     patch:
       operationId: updateCurrentUser
       tags: [Users]
-      summary: Update current user preferences, XP, or onboarding
+      summary: Update current user preferences or onboarding
       requestBody:
         required: true
         content:
@@ -387,8 +383,6 @@ paths:
             schema:
               type: object
               properties:
-                xpToAdd:
-                  type: integer
                 onboardingCompleted:
                   type: boolean
                 theme:
@@ -396,7 +390,7 @@ paths:
                   enum: [midnight, graphite, paper]
                 font:
                   type: string
-                  enum: [inter, geist, system]
+                  enum: [codex, linear, github, notion, raycast, system]
       responses:
         "200":
           description: Updated user
@@ -644,189 +638,6 @@ paths:
                     type: boolean
                   count:
                     type: integer
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-
-  # ─── Habits ─────────────────────────────────────────────────────────────
-  /habits:
-    get:
-      operationId: listHabits
-      tags: [Habits]
-      summary: List all active habits
-      responses:
-        "200":
-          description: List of habits
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Habit"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-    post:
-      operationId: createHabit
-      tags: [Habits]
-      summary: Create a habit
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/HabitCreate"
-      responses:
-        "201":
-          description: Habit created
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Habit"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "409":
-          description: Duplicate habit title
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-
-  /habits/{id}:
-    get:
-      operationId: getHabit
-      tags: [Habits]
-      summary: Get a single habit
-      parameters:
-        - $ref: "#/components/parameters/UuidId"
-      responses:
-        "200":
-          description: Habit details
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Habit"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "404":
-          $ref: "#/components/responses/NotFound"
-    patch:
-      operationId: updateHabit
-      tags: [Habits]
-      summary: Update a habit
-      parameters:
-        - $ref: "#/components/parameters/UuidId"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/HabitUpdate"
-      responses:
-        "200":
-          description: Updated habit
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Habit"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "404":
-          $ref: "#/components/responses/NotFound"
-        "409":
-          description: Duplicate habit title
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-    delete:
-      operationId: deleteHabit
-      tags: [Habits]
-      summary: Hard-delete a habit
-      parameters:
-        - $ref: "#/components/parameters/UuidId"
-      responses:
-        "204":
-          description: Habit deleted
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "404":
-          $ref: "#/components/responses/NotFound"
-
-  /habits/{id}/track:
-    post:
-      operationId: trackHabit
-      tags: [Habits]
-      summary: Mark habit as completed for a date (+10 XP)
-      parameters:
-        - $ref: "#/components/parameters/UuidId"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [date]
-              properties:
-                date:
-                  type: string
-                  format: date
-                  description: Date in YYYY-MM-DD format
-      responses:
-        "201":
-          description: Habit tracked
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [id]
-                properties:
-                  id:
-                    type: string
-                    format: uuid
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "404":
-          $ref: "#/components/responses/NotFound"
-    delete:
-      operationId: untrackHabit
-      tags: [Habits]
-      summary: Unmark habit for a date (-10 XP)
-      parameters:
-        - $ref: "#/components/parameters/UuidId"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [date]
-              properties:
-                date:
-                  type: string
-                  format: date
-                  description: Date in YYYY-MM-DD format
-      responses:
-        "204":
-          description: Habit tracking removed
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "404":
-          $ref: "#/components/responses/NotFound"
-
-  # ─── Habit Tracker ──────────────────────────────────────────────────────
-  /habit-tracker:
-    get:
-      operationId: listHabitTrackerRecords
-      tags: [HabitTracker]
-      summary: Get all habit tracking records
-      responses:
-        "200":
-          description: All tracking records
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/HabitTrackerRecord"
         "401":
           $ref: "#/components/responses/Unauthorized"
 
@@ -1160,31 +971,6 @@ paths:
                 maxItems: 5
                 items:
                   $ref: "#/components/schemas/Task"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-
-  /search/habits:
-    get:
-      operationId: searchHabits
-      tags: [Search]
-      summary: Search habits by title (max 5 results)
-      parameters:
-        - name: q
-          in: query
-          required: true
-          schema:
-            type: string
-            minLength: 1
-      responses:
-        "200":
-          description: Matching habits
-          content:
-            application/json:
-              schema:
-                type: array
-                maxItems: 5
-                items:
-                  $ref: "#/components/schemas/Habit"
         "401":
           $ref: "#/components/responses/Unauthorized"
 
@@ -1631,14 +1417,6 @@ components:
       type: string
       enum: [low, medium, high]
 
-    HabitFrequency:
-      type: string
-      enum: [daily, weekly]
-
-    HabitTrackerStatus:
-      type: string
-      enum: [pending, completed]
-
     NoteType:
       type: string
       enum: [article, book, video, podcast, website]
@@ -1689,7 +1467,7 @@ components:
     # ── User ───────────────────────────────────────────────────────────
     User:
       type: object
-      required: [id, email, xp, onboardingCompleted, theme, font, createdAt]
+      required: [id, email, onboardingCompleted, theme, font, createdAt]
       properties:
         id:
           type: string
@@ -1704,9 +1482,6 @@ components:
         image:
           type: string
           nullable: true
-        xp:
-          type: integer
-          default: 0
         onboardingCompleted:
           type: boolean
           default: false
@@ -1716,8 +1491,8 @@ components:
           default: midnight
         font:
           type: string
-          enum: [inter, geist, system]
-          default: inter
+          enum: [codex, linear, github, notion, raycast, system]
+          default: codex
         createdAt:
           type: string
           format: date-time
@@ -1813,85 +1588,6 @@ components:
           format: uuid
           nullable: true
         completedAt:
-          type: string
-          format: date-time
-          nullable: true
-
-    # ── Habit ──────────────────────────────────────────────────────────
-    Habit:
-      type: object
-      required: [id, frequency, createdAt]
-      properties:
-        id:
-          type: string
-          format: uuid
-        title:
-          type: string
-          nullable: true
-        description:
-          type: string
-          nullable: true
-        frequency:
-          $ref: "#/components/schemas/HabitFrequency"
-        createdAt:
-          type: string
-          format: date-time
-        updatedAt:
-          type: string
-          format: date-time
-          nullable: true
-        deletedAt:
-          type: string
-          format: date-time
-          nullable: true
-
-    HabitCreate:
-      type: object
-      required: [title]
-      properties:
-        title:
-          type: string
-          maxLength: 256
-        description:
-          type: string
-        frequency:
-          $ref: "#/components/schemas/HabitFrequency"
-
-    HabitUpdate:
-      type: object
-      properties:
-        title:
-          type: string
-          maxLength: 256
-        description:
-          type: string
-          nullable: true
-        frequency:
-          $ref: "#/components/schemas/HabitFrequency"
-
-    # ── Habit Tracker Record ───────────────────────────────────────────
-    HabitTrackerRecord:
-      type: object
-      required: [id, habitId, userId, status, date, createdAt]
-      properties:
-        id:
-          type: string
-          format: uuid
-        habitId:
-          type: string
-          format: uuid
-        userId:
-          type: string
-          maxLength: 255
-        status:
-          $ref: "#/components/schemas/HabitTrackerStatus"
-        date:
-          type: string
-          format: date
-        createdAt:
-          type: string
-          format: date-time
-        updatedAt:
           type: string
           format: date-time
           nullable: true
@@ -2101,18 +1797,12 @@ components:
           required:
             - tasksCreated
             - tasksCompleted
-            - habitsCreated
-            - habitsMarked
             - notesCreated
             - notesUpdated
           properties:
             tasksCreated:
               type: integer
             tasksCompleted:
-              type: integer
-            habitsCreated:
-              type: integer
-            habitsMarked:
               type: integer
             notesCreated:
               type: integer

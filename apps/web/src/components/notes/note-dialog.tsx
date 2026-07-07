@@ -3,7 +3,6 @@ import {
     Clock3,
     FileText,
     FolderOpen,
-    Repeat2,
     Save,
     Target,
     X,
@@ -53,11 +52,6 @@ const mentionMeta: Record<
         icon: Target,
         className: "text-[var(--green)]",
     },
-    habit: {
-        label: "Habit",
-        icon: Repeat2,
-        className: "text-[var(--cyan)]",
-    },
     note: {
         label: "Note",
         icon: FileText,
@@ -96,7 +90,7 @@ export const NoteDialog = ({
 
     const mentionedItems = useMemo(() => {
         const mentions = getMentionedItems(info.content);
-        return [...mentions.task, ...mentions.habit, ...mentions.note];
+        return [...mentions.task, ...mentions.note];
     }, [info.content]);
 
     const wordCount = useMemo(() => countWords(info.content), [info.content]);

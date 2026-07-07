@@ -15,7 +15,6 @@ type Querier interface {
 	ArchiveNotesByProject(ctx context.Context, arg ArchiveNotesByProjectParams) error
 	ArchiveProject(ctx context.Context, arg ArchiveProjectParams) (Project, error)
 	ArchiveTasksByProject(ctx context.Context, arg ArchiveTasksByProjectParams) error
-	CheckHabitTitleExists(ctx context.Context, arg CheckHabitTitleExistsParams) (bool, error)
 	CheckNoteTitleExists(ctx context.Context, arg CheckNoteTitleExistsParams) (bool, error)
 	CompleteJob(ctx context.Context, id pgtype.UUID) error
 	CompleteOnboarding(ctx context.Context, id string) error
@@ -30,7 +29,6 @@ type Querier interface {
 	CreateContentWithExtracted(ctx context.Context, arg CreateContentWithExtractedParams) (CreateContentWithExtractedRow, error)
 	CreateConversation(ctx context.Context, userID string) (CreateConversationRow, error)
 	CreateEmailUser(ctx context.Context, arg CreateEmailUserParams) (User, error)
-	CreateHabit(ctx context.Context, arg CreateHabitParams) error
 	CreateJob(ctx context.Context, arg CreateJobParams) (pgtype.UUID, error)
 	CreateMessage(ctx context.Context, arg CreateMessageParams) (Message, error)
 	CreateNote(ctx context.Context, arg CreateNoteParams) error
@@ -45,28 +43,17 @@ type Querier interface {
 	DeleteExpiredDraftsReturningKeys(ctx context.Context, updatedAt pgtype.Timestamptz) ([]DeleteExpiredDraftsReturningKeysRow, error)
 	DeleteExpiredRefreshTokens(ctx context.Context) error
 	DeleteExpiredVerificationTokens(ctx context.Context) error
-	DeleteHabit(ctx context.Context, arg DeleteHabitParams) error
 	DeleteNote(ctx context.Context, arg DeleteNoteParams) error
 	DeleteRefreshToken(ctx context.Context, tokenHash string) error
 	DeleteUserRefreshTokens(ctx context.Context, userID string) error
 	DeleteVerificationToken(ctx context.Context, id pgtype.UUID) error
 	DeleteVerificationTokensByUserAndType(ctx context.Context, arg DeleteVerificationTokensByUserAndTypeParams) error
 	FailJob(ctx context.Context, arg FailJobParams) error
-	// Find habit UUIDs mentioned in notes that also mention a given task.
-	// task_pattern should be like '%data-id="task:UUID"%'.
-	// Returns distinct habit IDs extracted via regex from note content.
-	GetConnectedHabitIDs(ctx context.Context, arg GetConnectedHabitIDsParams) ([]pgtype.UUID, error)
-	// Find notes/notes whose content contains a mention of the given entity.
-	// mention_pattern should be like '%data-id="task:UUID"%' or '%data-id="habit:UUID"%'.
+	// Find notes whose content contains a mention of the given entity.
+	// mention_pattern should be like '%data-id="task:UUID"%' or '%data-id="note:UUID"%'.
 	GetConnectedNotes(ctx context.Context, arg GetConnectedNotesParams) ([]GetConnectedNotesRow, error)
 	GetContentByID(ctx context.Context, arg GetContentByIDParams) (GetContentByIDRow, error)
 	GetConversation(ctx context.Context, arg GetConversationParams) (GetConversationRow, error)
-	GetHabitActivity(ctx context.Context, arg GetHabitActivityParams) ([]pgtype.Timestamptz, error)
-	GetHabitByID(ctx context.Context, arg GetHabitByIDParams) (Habit, error)
-	GetHabitCompletionStats(ctx context.Context, arg GetHabitCompletionStatsParams) ([]GetHabitCompletionStatsRow, error)
-	GetHabitTrackerActivity(ctx context.Context, arg GetHabitTrackerActivityParams) ([]pgtype.Date, error)
-	// Fetch habits by a list of IDs for a given user.
-	GetHabitsByIDs(ctx context.Context, arg GetHabitsByIDsParams) ([]Habit, error)
 	GetJobByContentID(ctx context.Context, contentID pgtype.UUID) (Job, error)
 	GetMessage(ctx context.Context, id pgtype.UUID) (Message, error)
 	GetNoteActivity(ctx context.Context, arg GetNoteActivityParams) ([]GetNoteActivityRow, error)
@@ -81,11 +68,8 @@ type Querier interface {
 	GetVerificationTokenByUserAndType(ctx context.Context, arg GetVerificationTokenByUserAndTypeParams) (VerificationToken, error)
 	IncrementVerificationAttempts(ctx context.Context, id pgtype.UUID) error
 	IsContentDeleted(ctx context.Context, id pgtype.UUID) (bool, error)
-	IsHabitTrackedOnDate(ctx context.Context, arg IsHabitTrackedOnDateParams) (bool, error)
 	ListContent(ctx context.Context, arg ListContentParams) ([]ListContentRow, error)
 	ListConversations(ctx context.Context, arg ListConversationsParams) ([]ListConversationsRow, error)
-	ListHabitTrackerRecords(ctx context.Context, userID string) ([]HabitRecord, error)
-	ListHabits(ctx context.Context, userID string) ([]Habit, error)
 	ListMessages(ctx context.Context, arg ListMessagesParams) ([]Message, error)
 	ListNotes(ctx context.Context, arg ListNotesParams) ([]ListNotesRow, error)
 	ListProjects(ctx context.Context, arg ListProjectsParams) ([]Project, error)
@@ -93,7 +77,6 @@ type Querier interface {
 	ListTasks(ctx context.Context, arg ListTasksParams) ([]ListTasksRow, error)
 	ListTasksByProject(ctx context.Context, arg ListTasksByProjectParams) ([]Task, error)
 	ListUnassignedTasks(ctx context.Context, userID string) ([]Task, error)
-	SearchHabits(ctx context.Context, arg SearchHabitsParams) ([]Habit, error)
 	SearchNotes(ctx context.Context, arg SearchNotesParams) ([]Note, error)
 	SearchTasks(ctx context.Context, arg SearchTasksParams) ([]Task, error)
 	SetEmailVerified(ctx context.Context, id string) error
@@ -106,8 +89,6 @@ type Querier interface {
 	SoftDeleteTasksByProject(ctx context.Context, arg SoftDeleteTasksByProjectParams) error
 	StartJob(ctx context.Context, id pgtype.UUID) error
 	TouchConversation(ctx context.Context, id pgtype.UUID) error
-	TrackHabit(ctx context.Context, arg TrackHabitParams) (pgtype.UUID, error)
-	UntrackHabit(ctx context.Context, arg UntrackHabitParams) error
 	UpdateContentCommitStatus(ctx context.Context, arg UpdateContentCommitStatusParams) error
 	UpdateContentEmbedding(ctx context.Context, arg UpdateContentEmbeddingParams) error
 	UpdateContentProcessingStatusToPending(ctx context.Context, id pgtype.UUID) error
@@ -117,7 +98,6 @@ type Querier interface {
 	UpdateContentTranscriptSource(ctx context.Context, arg UpdateContentTranscriptSourceParams) error
 	UpdateContentVideoFields(ctx context.Context, arg UpdateContentVideoFieldsParams) error
 	UpdateConversationTitle(ctx context.Context, arg UpdateConversationTitleParams) error
-	UpdateHabit(ctx context.Context, arg UpdateHabitParams) error
 	UpdateJobStatus(ctx context.Context, arg UpdateJobStatusParams) error
 	UpdateJobStepResults(ctx context.Context, arg UpdateJobStepResultsParams) error
 	UpdateNote(ctx context.Context, arg UpdateNoteParams) error
@@ -125,7 +105,6 @@ type Querier interface {
 	UpdateTask(ctx context.Context, arg UpdateTaskParams) error
 	UpdateTaskPosition(ctx context.Context, arg UpdateTaskPositionParams) error
 	UpdateUserAppearance(ctx context.Context, arg UpdateUserAppearanceParams) (User, error)
-	UpdateUserXP(ctx context.Context, arg UpdateUserXPParams) (User, error)
 	UpsertNoteFromSync(ctx context.Context, arg UpsertNoteFromSyncParams) error
 	UpsertUser(ctx context.Context, arg UpsertUserParams) (User, error)
 }

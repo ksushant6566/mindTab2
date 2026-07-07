@@ -18,7 +18,6 @@ import { Loading } from "~/components/ui/loading";
 import { Chip } from "~/components/ui/chip";
 import { Card } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
-import { XPFloat } from "~/components/ui/xp-float";
 import { ChevronLeft, Trash2, Edit3, Folder, Calendar } from "lucide-react-native";
 import { colors } from "~/styles/colors";
 import { toast } from "sonner-native";
@@ -83,9 +82,6 @@ export default function TaskDetailScreen() {
   // Delete confirmation inline
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  // XP hint on completion
-  const [xpHint, setXpHint] = useState<number | null>(null);
-
   if (isLoading || !task) return <Loading />;
 
   const g = task as any;
@@ -139,16 +135,11 @@ export default function TaskDetailScreen() {
         ? Haptics.ImpactFeedbackStyle.Heavy
         : Haptics.ImpactFeedbackStyle.Medium,
     );
-    const wasCompleted = g.status === "completed";
     updateTask.mutate({
       id,
       status,
       completedAt: status === "completed" ? new Date().toISOString() : null,
     });
-    // Show XP hint when completing
-    if (status === "completed" && !wasCompleted) {
-      setXpHint(25);
-    }
   };
 
   // ── Delete ──
@@ -250,12 +241,6 @@ export default function TaskDetailScreen() {
               </Pressable>
             );
           })}
-          {/* XP hint */}
-          {xpHint !== null && (
-            <View style={styles.xpHintContainer}>
-              <XPFloat amount={xpHint} onComplete={() => setXpHint(null)} />
-            </View>
-          )}
         </View>
 
         {/* ── Description ── */}
@@ -450,12 +435,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
   },
-  xpHintContainer: {
-    position: "absolute",
-    right: 0,
-    top: -10,
-  },
-
   // Description
   description: {
     fontSize: 16,

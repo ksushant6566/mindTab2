@@ -1,15 +1,12 @@
 import React, { Suspense, useEffect, useMemo, useState } from "react";
 import { Button } from "~/components/ui/button";
 import { Clock } from "./clock";
-import { ProjectTabs } from "./projects";
 import { useAppStore, EActiveLayout } from "@mindtab/core";
 import type { ActiveLayout } from "@mindtab/core";
+import { TodayEventsPanel } from "./calendar/today-events-panel";
 
 const Tasks = React.lazy(() =>
     import("./tasks/index").then((module) => ({ default: module.Tasks }))
-);
-const Habits = React.lazy(() =>
-    import("./habits").then((module) => ({ default: module.Habits }))
 );
 const Notes = React.lazy(() =>
     import("./notes/notes").then((module) => ({ default: module.Notes }))
@@ -42,8 +39,8 @@ const getDashboardLayout = () => ({
     col2: {
         elements: [
             {
-                element: <Habits viewMode={"cards"} />,
-                title: EActiveLayout.Habits as ActiveLayout,
+                element: <TodayEventsPanel />,
+                title: EActiveLayout.Calendar as ActiveLayout,
             },
         ],
         style: "col-span-2",
@@ -65,9 +62,7 @@ export default function Component() {
 
     const {
         activeElement,
-        activeProjectId,
         setActiveElement: setStoreActiveElement,
-        setActiveProjectId: setStoreActiveProjectId,
     } = useAppStore();
 
     const layout = useMemo(() => getDashboardLayout(), []);
@@ -87,7 +82,7 @@ export default function Component() {
         });
     }, [activeCol1Element.title]);
 
-    // Initialize activeElement if missing or left over from the retired layout.
+    // Initialize activeElement if missing or left over from retired layouts.
     useEffect(() => {
         const activeColumn = layout[layout.activeColumn as "col1" | "col2"];
         const defaultElement = activeColumn.elements[0]!.title;
@@ -111,9 +106,9 @@ export default function Component() {
                     <Clock />
                     <div className="flex flex-row gap-8">
                         <div className="flex gap-2">
-                            {layout[
-                                layout.activeColumn as "col1" | "col2"
-                            ].elements.map((element) => (
+                            {layout[layout.activeColumn as "col1" | "col2"].elements
+                                .filter((element) => element.title !== EActiveLayout.Calendar)
+                                .map((element) => (
                                 <Button
                                     key={element.title}
                                     size={"sm"}
@@ -133,14 +128,6 @@ export default function Component() {
                     </div>
                 </div>
                 <div className={`${isCalendarActive ? "col-span-10" : layout.col1.style} flex min-h-0 min-w-0 flex-col`}>
-                    <div className="-ml-0.5 shrink-0">
-                        <ProjectTabs
-                            activeProjectId={activeProjectId}
-                            onProjectChange={setStoreActiveProjectId}
-                            layoutVersion={2}
-                            activeTab={activeElement as any}
-                        />
-                    </div>
                     {layout.col1.elements.map((element) => {
                         if (!visitedCol1Elements.has(element.title)) return null;
 

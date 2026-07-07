@@ -31,7 +31,7 @@ type ProjectTabsProps = {
     activeProjectId: string | null;
     onProjectChange: (projectId: string | null) => void;
     layoutVersion: number;
-    activeTab?: "Tasks" | "Calendar" | "Notes" | "Habits";
+    activeTab?: "Tasks" | "Calendar" | "Notes";
 };
 
 export const ProjectTabs: React.FC<ProjectTabsProps> = ({

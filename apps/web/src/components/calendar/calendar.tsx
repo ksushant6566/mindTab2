@@ -35,6 +35,7 @@ import { TaskDialog, type TaskDialogInput, type TaskDialogMode } from "~/compone
 import { createEnabledScheduleDraft, getScheduleDraftPayload } from "~/components/tasks/task-schedule-fields";
 import { Task } from "~/components/tasks/task";
 import { Button } from "~/components/ui/button";
+import { Heading, MetaText, Text } from "~/components/ui/typography";
 import {
     Dialog,
     DialogContent,
@@ -44,6 +45,7 @@ import {
 } from "~/components/ui/dialog";
 import { type CalendarSchedule, useCalendarSchedules } from "~/lib/calendar-schedules";
 import { cn } from "~/lib/utils";
+import { getStatusTone } from "~/lib/tones";
 
 type CalendarView = "day" | "week" | "month";
 
@@ -78,13 +80,6 @@ type DetailDialogState =
     | { kind: "slot"; dateIso: string; hour: number }
     | null;
 type CreateSlotState = { startAt: string; endAt: string } | null;
-type TaskStatusTone = {
-    label: string;
-    color: string;
-    background: string;
-    foreground: string;
-};
-
 const CALENDAR_VIEW_STORAGE_KEY = "mindtab-calendar-view";
 const DEFAULT_EVENT_DURATION_MINUTES = 60;
 const HOURS = Array.from({ length: 24 }, (_, index) => index);
@@ -101,48 +96,12 @@ const VIEW_LABELS: Array<{ value: CalendarView; label: string }> = [
     { value: "month", label: "Month" },
 ];
 
-function getTaskStatusTone(status?: string | null): TaskStatusTone {
-    if (status === "in_progress") {
-        return {
-            label: "In progress",
-            color: "var(--cyan)",
-            background: "color-mix(in srgb, var(--cyan) 14%, var(--bg-elev))",
-            foreground: "var(--cyan)",
-        };
-    }
-
-    if (status === "completed") {
-        return {
-            label: "Done",
-            color: "var(--green)",
-            background: "color-mix(in srgb, var(--green) 14%, var(--bg-elev))",
-            foreground: "var(--green)",
-        };
-    }
-
-    if (status === "archived") {
-        return {
-            label: "Archived",
-            color: "var(--text-4)",
-            background: "var(--bg-soft)",
-            foreground: "var(--text-3)",
-        };
-    }
-
-    return {
-        label: "To do",
-        color: "var(--amber)",
-        background: "color-mix(in srgb, var(--amber) 13%, var(--bg-elev))",
-        foreground: "var(--amber)",
-    };
-}
-
 function getTaskStatusStyle(task?: TaskRecord): React.CSSProperties {
-    const tone = getTaskStatusTone(task?.status);
+    const tone = getStatusTone(task?.status);
     return {
-        "--task-status-color": tone.color,
+        "--task-status-color": tone.tone,
         "--task-status-bg": tone.background,
-        "--task-status-fg": tone.foreground,
+        "--task-status-fg": tone.tone,
     } as React.CSSProperties;
 }
 
@@ -546,7 +505,7 @@ export function Calendar({ isActive = true }: CalendarProps) {
     const renderMonthEvent = (schedule: CalendarSchedule, task?: TaskRecord) => {
         const start = parseISO(schedule.startAt);
         const end = parseISO(schedule.endAt);
-        const statusTone = getTaskStatusTone(task?.status);
+        const statusTone = getStatusTone(task?.status);
         return (
             <button
                 key={schedule.taskId}
@@ -567,7 +526,7 @@ export function Calendar({ isActive = true }: CalendarProps) {
                 style={getTaskStatusStyle(task)}
             >
                 <span className="size-1.5 shrink-0 rounded-full bg-[var(--task-status-color)]" />
-                <span className={cn("truncate text-[10px] font-semibold leading-3.5", task?.status === "completed" && "line-through decoration-[var(--task-status-color)]/70")}>{task?.title || "Untitled task"}</span>
+                <span className={cn("truncate text-[length:var(--type-meta-size)] leading-3.5", task?.status === "completed" && "line-through decoration-[var(--task-status-color)]/70")}>{task?.title || "Untitled task"}</span>
             </button>
         );
     };
@@ -576,7 +535,7 @@ export function Calendar({ isActive = true }: CalendarProps) {
         const { schedule, task, lane, laneCount, top, height } = item;
         const start = parseISO(schedule.startAt);
         const end = parseISO(schedule.endAt);
-        const statusTone = getTaskStatusTone(task?.status);
+        const statusTone = getStatusTone(task?.status);
         const laneGap = 4;
         const width = `calc((100% - ${(laneCount - 1) * laneGap}px) / ${laneCount})`;
         const left = `calc(${lane} * ((100% - ${(laneCount - 1) * laneGap}px) / ${laneCount} + ${laneGap}px))`;
@@ -617,10 +576,10 @@ export function Calendar({ isActive = true }: CalendarProps) {
             >
                 <div className="flex min-w-0 items-start justify-between gap-1.5">
                     <div className="min-w-0">
-                        <div className={cn("truncate font-semibold", roomy ? "text-[11px] leading-4" : "text-[10px] leading-3", task?.status === "completed" && "line-through decoration-[var(--task-status-color)]/70")}>{task?.title || "Untitled task"}</div>
+                        <div className={cn("truncate", roomy ? "text-[length:var(--type-meta-size)] leading-4" : "text-[length:var(--type-meta-size)] leading-3", task?.status === "completed" && "line-through decoration-[var(--task-status-color)]/70")}>{task?.title || "Untitled task"}</div>
                         {roomy && (
-                            <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[9.5px] leading-3 text-muted-foreground">
-                                <span className="inline-flex shrink-0 items-center gap-1 font-mono uppercase tracking-[0.04em]" style={{ color: "var(--task-status-fg)" }}>
+                            <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[length:var(--type-meta-size)] leading-3 text-muted-foreground">
+                                <span className="inline-flex shrink-0 items-center gap-1" style={{ color: "var(--task-status-fg)" }}>
                                     <span className="size-1.5 rounded-full bg-[var(--task-status-color)]" />
                                     {statusTone.label}
                                 </span>
@@ -630,7 +589,7 @@ export function Calendar({ isActive = true }: CalendarProps) {
                         )}
                     </div>
                     {laneCount > 1 && (
-                        <span className="mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full border border-border bg-background/70 text-[9px] font-semibold text-muted-foreground">
+                        <span className="mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full border border-border bg-background/70 text-[length:var(--type-meta-size)] text-muted-foreground">
                             {laneCount}
                         </span>
                     )}
@@ -668,12 +627,12 @@ export function Calendar({ isActive = true }: CalendarProps) {
                             isToday(day) && "bg-primary/[0.06]"
                         )}
                     >
-                        <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                        <MetaText as="div" className="uppercase">
                             {format(day, "EEE")}
-                        </div>
-                        <div className={cn("mt-0.5 text-lg font-semibold", isToday(day) && "text-primary")}>
+                        </MetaText>
+                        <Heading as="div" variant="panel" className={cn("mt-0.5 text-[length:var(--type-title-size)]", isToday(day) && "text-primary")}>
                             {format(day, "d")}
-                        </div>
+                        </Heading>
                     </div>
                 ))}
             </div>
@@ -704,9 +663,9 @@ export function Calendar({ isActive = true }: CalendarProps) {
                         className="grid min-h-0 overflow-hidden border-b border-border/75 last:border-b-0"
                         style={{ height: TIME_ROW_HEIGHT, gridTemplateColumns: `56px repeat(${visibleDays.length}, minmax(0, 1fr))` }}
                     >
-                        <div className="border-r border-border px-2 py-2 text-right text-[10px] text-muted-foreground">
+                        <MetaText as="div" className="border-r border-border px-2 py-2 text-right">
                             {format(normalizeSlot(new Date(), hour), "ha")}
-                        </div>
+                        </MetaText>
                         {visibleDays.map((day) => {
                             const items = scheduledItems.filter(({ schedule }) => {
                                 const start = parseISO(schedule.startAt);
@@ -746,15 +705,15 @@ export function Calendar({ isActive = true }: CalendarProps) {
                                 >
                                     {items.length === 0 ? (
                                         <div className="pointer-events-none flex h-full items-start justify-end opacity-0 transition-opacity group-hover/cell:opacity-100 group-focus/cell:opacity-100">
-                                            <span className="inline-flex items-center gap-1 rounded-[var(--r-2)] border border-border bg-background/80 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground shadow-sm">
+                                            <MetaText className="inline-flex items-center gap-1 rounded-[var(--r-2)] border border-border bg-background/80 px-1.5 py-0.5 shadow-sm">
                                                 <Plus className="h-3 w-3" />
                                                 Task
-                                            </span>
+                                            </MetaText>
                                         </div>
                                     ) : (
-                                        <div className="pointer-events-none absolute bottom-1 right-1 rounded-[var(--r-1)] bg-background/70 px-1 text-[9px] font-medium text-muted-foreground opacity-0 transition-opacity group-hover/cell:opacity-100">
+                                        <MetaText as="div" className="pointer-events-none absolute bottom-1 right-1 rounded-[var(--r-1)] bg-background/70 px-1 opacity-0 transition-opacity group-hover/cell:opacity-100">
                                             {items.length} item{items.length === 1 ? "" : "s"}
-                                        </div>
+                                        </MetaText>
                                     )}
                                 </div>
                             );
@@ -786,9 +745,9 @@ export function Calendar({ isActive = true }: CalendarProps) {
         <div className="grid h-full min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-[var(--r-3)] border border-border bg-card/55">
             <div className="grid grid-cols-7 border-b border-border bg-[var(--bg-elev)]/55">
                 {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => (
-                    <div key={day} className="border-r border-border px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground last:border-r-0">
+                    <MetaText as="div" key={day} className="border-r border-border px-3 py-2 uppercase last:border-r-0">
                         {day}
-                    </div>
+                    </MetaText>
                 ))}
             </div>
             <div
@@ -836,14 +795,14 @@ export function Calendar({ isActive = true }: CalendarProps) {
                             )}
                         >
                             <div className="mb-1 flex items-center justify-between gap-2">
-                                <div className={cn("flex size-5 items-center justify-center rounded-full text-xs font-semibold", isToday(day) && "bg-primary text-primary-foreground")}>
+                                <Heading as="div" variant="panel" className={cn("flex size-5 items-center justify-center rounded-full", isToday(day) && "bg-primary text-primary-foreground")}>
                                     {format(day, "d")}
-                                </div>
+                                </Heading>
                                 {items.length === 0 && (
-                                    <span className="pointer-events-none inline-flex items-center gap-1 rounded-[var(--r-2)] border border-border bg-background/80 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground opacity-0 shadow-sm transition-opacity group-hover/cell:opacity-100 group-focus/cell:opacity-100">
+                                    <MetaText className="pointer-events-none inline-flex items-center gap-1 rounded-[var(--r-2)] border border-border bg-background/80 px-1.5 py-0.5 opacity-0 shadow-sm transition-opacity group-hover/cell:opacity-100 group-focus/cell:opacity-100">
                                         <Plus className="h-3 w-3" />
                                         Task
-                                    </span>
+                                    </MetaText>
                                 )}
                             </div>
                             <div className="min-h-0 space-y-1 overflow-hidden">
@@ -855,7 +814,7 @@ export function Calendar({ isActive = true }: CalendarProps) {
                                             event.stopPropagation();
                                             openDayDetails(day);
                                         }}
-                                        className="block h-4 rounded-[var(--r-1)] px-1 text-left text-[10px] font-medium leading-4 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                                        className="block h-4 rounded-[var(--r-1)] px-1 text-left text-[length:var(--type-meta-size)] leading-4 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
                                     >
                                         +{items.length - visibleItems.length} more
                                     </button>
@@ -885,9 +844,9 @@ export function Calendar({ isActive = true }: CalendarProps) {
                                 <ChevronRight className="h-4 w-4" />
                             </Button>
                         </div>
-                        <h2 className="truncate text-base font-semibold tracking-normal text-foreground">
+                        <Heading as="h2" variant="section" className="truncate">
                             {getRangeLabel(view, anchorDate)}
-                        </h2>
+                        </Heading>
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
                         <div className="flex rounded-[var(--r-2)] border border-border bg-secondary p-0.5">
@@ -897,7 +856,7 @@ export function Calendar({ isActive = true }: CalendarProps) {
                                     type="button"
                                     onClick={() => setView(option.value)}
                                     className={cn(
-                                        "h-7 rounded-[var(--r-1)] px-3 text-xs font-medium text-muted-foreground transition-colors",
+                                        "h-7 rounded-[var(--r-1)] px-3 text-[length:var(--type-meta-size)] text-muted-foreground transition-colors",
                                         view === option.value && "bg-primary text-primary-foreground shadow-sm"
                                     )}
                                 >
@@ -923,18 +882,18 @@ export function Calendar({ isActive = true }: CalendarProps) {
                 <div className="min-w-0">
                     <div className="mb-3 flex items-center justify-between gap-2 px-1">
                         <div>
-                            <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                            <MetaText as="div" className="uppercase">
                                 Unscheduled
-                            </div>
-                            <div className="text-sm font-semibold text-foreground">{unscheduledTasks.length} tasks</div>
-                            <div className="mt-0.5 text-[11px] text-muted-foreground">Drag to calendar or click to edit.</div>
+                            </MetaText>
+                            <Heading as="div" variant="panel">{unscheduledTasks.length} tasks</Heading>
+                            <Text variant="subtle" className="mt-0.5">Drag to calendar or click to edit.</Text>
                         </div>
                         <CalendarDays className="h-4 w-4 text-muted-foreground" />
                     </div>
                     <div className="custom-scrollbar max-h-[62vh] space-y-2 overflow-auto pr-1">
                         {unscheduledTasks.length === 0 ? (
-                            <div className="rounded-[var(--r-2)] border border-dashed border-border px-3 py-4 text-center text-xs text-muted-foreground">
-                                <div>All tasks are scheduled.</div>
+                            <div className="rounded-[var(--r-2)] border border-dashed border-border px-3 py-4 text-center">
+                                <Text variant="muted">All tasks are scheduled.</Text>
                                 <Button
                                     type="button"
                                     variant="outline"
@@ -972,11 +931,11 @@ export function Calendar({ isActive = true }: CalendarProps) {
                 <DialogHeader className="border-b border-border px-5 py-4">
                     <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                            <DialogTitle className="truncate text-base">
-                                {detailTitle}
+                            <DialogTitle asChild>
+                                <Heading as="h2" variant="section" className="truncate">{detailTitle}</Heading>
                             </DialogTitle>
-                            <DialogDescription>
-                                {detailDescription}
+                            <DialogDescription asChild>
+                                <Text variant="muted">{detailDescription}</Text>
                             </DialogDescription>
                         </div>
                         {detailDialog && (
@@ -1008,8 +967,8 @@ export function Calendar({ isActive = true }: CalendarProps) {
                 </DialogHeader>
                 <div className="custom-scrollbar max-h-[52vh] space-y-2 overflow-auto px-5 py-4">
                     {!detailDialog || detailItems.length === 0 ? (
-                        <div className="rounded-[var(--r-2)] border border-dashed border-border px-3 py-6 text-center text-sm text-muted-foreground">
-                            No scheduled tasks for this day.
+                        <div className="rounded-[var(--r-2)] border border-dashed border-border px-3 py-6 text-center">
+                            <Text variant="muted">No scheduled tasks for this day.</Text>
                         </div>
                     ) : (
                         detailItems.map(({ task }) =>

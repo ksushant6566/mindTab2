@@ -1,33 +1,30 @@
 import { useState } from "react";
 import { View, Text, Pressable, ScrollView, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
-import { Target, CheckSquare, FileEdit, ChevronRight, ChevronDown } from "lucide-react-native";
+import { Target, FileEdit, ChevronRight, ChevronDown } from "lucide-react-native";
 import { colors } from "~/styles/colors";
 
-export type SearchFilter = "all" | "tasks" | "habits" | "notes";
+export type SearchFilter = "all" | "tasks" | "notes";
 
 type SearchResultsProps = {
   tasks: Array<{ id: string; title: string }>;
-  habits: Array<{ id: string; title: string }>;
   notes: Array<{ id: string; title: string }>;
   activeFilter: SearchFilter;
 };
 
 const categoryConfig = {
   tasks: { icon: Target, label: "Tasks", singular: "task", route: "/(main)/tasks/" },
-  habits: { icon: CheckSquare, label: "Habits", singular: "habit", route: "/(main)/habits/" },
   notes: { icon: FileEdit, label: "Notes", singular: "note", route: "/(main)/notes/" },
 } as const;
 
 type CategoryKey = keyof typeof categoryConfig;
 
-export function SearchResults({ tasks, habits, notes, activeFilter }: SearchResultsProps) {
+export function SearchResults({ tasks, notes, activeFilter }: SearchResultsProps) {
   const router = useRouter();
   const [expandedSections, setExpandedSections] = useState<Set<CategoryKey>>(new Set());
 
   const categories: Record<CategoryKey, Array<{ id: string; title: string }>> = {
     tasks,
-    habits,
     notes,
   };
 
@@ -101,7 +98,7 @@ export function SearchResults({ tasks, habits, notes, activeFilter }: SearchResu
     );
   };
 
-  const totalResults = tasks.length + habits.length + notes.length;
+  const totalResults = tasks.length + notes.length;
   if (totalResults === 0) {
     return (
       <View style={styles.emptyContainer}>
@@ -114,13 +111,12 @@ export function SearchResults({ tasks, habits, notes, activeFilter }: SearchResu
     return (
       <ScrollView keyboardShouldPersistTaps="handled">
         {renderSection("tasks")}
-        {renderSection("habits")}
         {renderSection("notes")}
       </ScrollView>
     );
   }
 
-  const otherKeys = (["tasks", "habits", "notes"] as const).filter((k) => k !== activeFilter);
+  const otherKeys = (["tasks", "notes"] as const).filter((k) => k !== activeFilter);
 
   const activeItems = categories[activeFilter];
 

@@ -10,48 +10,25 @@ import {
 import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import {
-  habitTrackerQueryOptions,
-  habitsQueryOptions,
   tasksQueryOptions,
   notesQueryOptions,
 } from "@mindtab/core";
 import { api } from "~/lib/api-client";
 import { useAuth } from "~/hooks/use-auth";
-import { calculateStreak } from "~/lib/streak";
-import { getXPProgress } from "~/lib/xp";
-import { ProgressBar } from "~/components/ui/progress-bar";
-import { StreakFlame } from "~/components/ui/streak-flame";
-import { StreakCalendar } from "~/components/profile/streak-calendar";
-import { ActivityHeatmap } from "~/components/profile/activity-heatmap";
-import { StatsCards } from "~/components/profile/stats-cards";
-import { X, LogOut, Zap } from "lucide-react-native";
+import { X, LogOut } from "lucide-react-native";
 import { colors } from "~/styles/colors";
 import Constants from "expo-constants";
 
 // -- Streak tier ring color --
-
-function getStreakRingColor(streak: number): string {
-  if (streak >= 100) return colors.streak.purple; // rainbow animated separately
-  if (streak >= 30) return colors.streak.purple;
-  if (streak >= 7) return colors.streak.gold;
-  if (streak >= 1) return colors.streak.orange;
-  return colors.border.default;
-}
 
 // -- Screen --
 
 export default function ProfileModal() {
   const router = useRouter();
   const { user, logout } = useAuth();
-  const { data: tracker = [] } = useQuery(habitTrackerQueryOptions(api));
-  const { data: habits = [] } = useQuery(habitsQueryOptions(api));
   const { data: tasks = [] } = useQuery(tasksQueryOptions(api));
   const { data: notes = [] } = useQuery(notesQueryOptions(api));
 
-  const streak = calculateStreak(tracker as any[]);
-  const xp = user?.xp ?? 0;
-  const { level, currentLevelXP, nextLevelXP, progress, xpToNext } =
-    getXPProgress(xp);
   const appVersion = Constants.expoConfig?.version ?? "1.0.0";
 
   const handleSignOut = () => {
@@ -96,7 +73,7 @@ export default function ProfileModal() {
           <View
             style={[
               styles.avatarRing,
-              { borderColor: getStreakRingColor(streak) },
+              { borderColor: colors.border.default },
             ]}
           >
             {user?.image ? (
@@ -111,60 +88,17 @@ export default function ProfileModal() {
           </View>
           <Text style={styles.userName}>{user?.name}</Text>
           <Text style={styles.userEmail}>{user?.email}</Text>
-
-          {/* Compact XP display */}
-          <View style={styles.xpCompact}>
-            <Text style={styles.xpCompactLevel}>Lv.{level}</Text>
-            <Text style={styles.xpCompactCount}>{xp} XP</Text>
-            <View style={styles.xpCompactBarContainer}>
-              <View
-                style={[styles.xpCompactBarFill, { width: `${Math.round(progress * 100)}%` }]}
-              />
-            </View>
-          </View>
         </View>
 
-        {/* XP Level card */}
         <View style={styles.card}>
-          <View style={styles.xpHeader}>
-            <Zap size={20} color={colors.xp.gold} />
-            <Text style={styles.xpLevelTitle}>Level {level}</Text>
-          </View>
-          <View style={styles.xpProgressRow}>
-            <ProgressBar
-              value={progress}
-              color={colors.xp.gold}
-              height={6}
-            />
-          </View>
-          <Text style={styles.xpLabel}>
-            {xp - currentLevelXP} / {nextLevelXP - currentLevelXP} XP
-          </Text>
-          <Text style={styles.xpSubtitle}>{xpToNext} XP to next level</Text>
+          <Text style={styles.statLabel}>Tasks</Text>
+          <Text style={styles.statValue}>{(tasks as any[]).length}</Text>
         </View>
 
-        {/* Streak stat card */}
         <View style={styles.card}>
-          <View style={styles.streakRow}>
-            <StreakFlame count={streak} size={28} showCount={false} />
-            <Text style={styles.streakCount}>{streak}</Text>
-            <Text style={styles.streakLabel}>Day Streak</Text>
-          </View>
+          <Text style={styles.statLabel}>Notes</Text>
+          <Text style={styles.statValue}>{(notes as any[]).length}</Text>
         </View>
-
-        {/* Streak calendar (item 1) */}
-        <StreakCalendar tracker={tracker as any[]} />
-
-        {/* Activity heatmap (item 2) */}
-        <ActivityHeatmap tracker={tracker as any[]} />
-
-        {/* Stats cards (item 3) */}
-        <StatsCards
-          tasks={tasks as any[]}
-          habits={habits as any[]}
-          tracker={tracker as any[]}
-          notesCount={(notes as any[]).length}
-        />
 
         {/* Sign out button */}
         <Pressable onPress={handleSignOut} style={styles.signOutRow}>
@@ -273,35 +207,6 @@ const styles = StyleSheet.create({
     color: colors.text.muted,
   },
 
-  // Compact XP display (below email in avatar section)
-  xpCompact: {
-    alignItems: "center",
-    marginTop: 12,
-    gap: 4,
-    width: "100%",
-    paddingHorizontal: 32,
-  },
-  xpCompactLevel: {
-    color: colors.white,
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  xpCompactCount: {
-    color: colors.text.secondary,
-    fontSize: 12,
-  },
-  xpCompactBarContainer: {
-    height: 4,
-    backgroundColor: colors.border.input,
-    borderRadius: 2,
-    width: "100%",
-  },
-  xpCompactBarFill: {
-    height: 4,
-    backgroundColor: colors.white,
-    borderRadius: 2,
-  },
-
   // Card
   card: {
     backgroundColor: colors.bg.elevated,
@@ -311,48 +216,16 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 14,
   },
-
-  // XP Level
-  xpHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 14,
-  },
-  xpLevelTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: colors.text.primary,
-  },
-  xpProgressRow: {
-    marginBottom: 10,
-  },
-  xpLabel: {
+  statLabel: {
     fontSize: 14,
     fontWeight: "600",
     color: colors.text.secondary,
-    marginBottom: 2,
+    marginBottom: 8,
   },
-  xpSubtitle: {
-    fontSize: 12,
-    color: colors.text.muted,
-  },
-
-  // Streak
-  streakRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  streakCount: {
+  statValue: {
     fontSize: 28,
     fontWeight: "800",
     color: colors.text.primary,
-  },
-  streakLabel: {
-    fontSize: 16,
-    fontWeight: "500",
-    color: colors.text.secondary,
   },
 
   // Sign out

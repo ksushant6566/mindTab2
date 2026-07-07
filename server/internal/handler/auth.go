@@ -80,7 +80,6 @@ type userJSON struct {
 	Name                string `json:"name"`
 	Email               string `json:"email"`
 	Image               string `json:"image"`
-	Xp                  int32  `json:"xp"`
 	OnboardingCompleted bool   `json:"onboardingCompleted"`
 	Theme               string `json:"theme"`
 	Font                string `json:"font"`
@@ -92,10 +91,22 @@ func toUserJSON(u store.User) userJSON {
 		Name:                u.Name.String,
 		Email:               u.Email,
 		Image:               u.Image.String,
-		Xp:                  u.Xp,
 		OnboardingCompleted: u.OnboardingCompleted,
 		Theme:               u.Theme,
-		Font:                u.Font,
+		Font:                normalizeUserFont(u.Font),
+	}
+}
+
+func normalizeUserFont(font string) string {
+	switch font {
+	case "", "inter":
+		return "codex"
+	case "geist":
+		return "raycast"
+	case "codex", "linear", "github", "notion", "raycast", "system":
+		return font
+	default:
+		return "codex"
 	}
 }
 

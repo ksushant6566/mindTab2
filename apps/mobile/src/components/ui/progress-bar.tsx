@@ -67,7 +67,7 @@ export function ProgressBar({
   }));
 
   const glowStyle = useAnimatedStyle(() => ({
-    shadowColor: colors.xp.gold,
+    shadowColor: colors.status.completed,
     shadowOpacity: glowPulse.value * 0.8,
     shadowRadius: 8,
     elevation: glowPulse.value > 0 ? 4 : 0,
@@ -78,7 +78,7 @@ export function ProgressBar({
       <Animated.View
         style={[
           styles.fill,
-          { height, backgroundColor: glowing ? colors.xp.gold : color, borderRadius: 999 },
+          { height, backgroundColor: glowing ? colors.status.completed : color, borderRadius: 999 },
           fillStyle,
         ]}
       />

@@ -24,7 +24,7 @@ export default function LoginScreen() {
     <View className="flex-1 items-center justify-center bg-background px-8">
       <Text className="text-4xl font-bold text-foreground mb-2">MindTab</Text>
       <Text className="text-muted-foreground text-center mb-12">
-        Track tasks, build habits, capture thoughts.
+        Track tasks, plan projects, capture thoughts.
       </Text>
 
       <Pressable

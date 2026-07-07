@@ -15,7 +15,7 @@
       linear-gradient(var(--page-grid-line) 1px, transparent 1px),
       linear-gradient(90deg, var(--page-grid-line) 1px, transparent 1px);
     background-size: 100% 100%, 32px 32px, 32px 32px;
-    font-family: var(--sans);
+    font-family: var(--font-ui);
     font-feature-settings: 'ss01','cv11','calt';
     height: 100%;
     overflow-y: auto;
@@ -169,7 +169,7 @@ html {
     background: var(--bg-soft);
     border-radius: var(--r-3);
     color: var(--text);
-    font-family: var(--mono);
+    font-family: var(--font-code);
     margin: 1.5rem 0;
     padding: 0.75rem 1rem;
 }
@@ -234,8 +234,7 @@ html {
   border-top-right-radius: inherit;
 }
 
-.task-description-editor .ProseMirror.tiptap,
-.habit-description-editor .ProseMirror.tiptap {
+.task-description-editor .ProseMirror.tiptap {
   min-height: 140px;
   max-height: min(34vh, 280px);
   overflow: auto;
@@ -247,29 +246,24 @@ html {
   line-height: 1.55;
 }
 
-.task-description-editor .ProseMirror.tiptap p,
-.habit-description-editor .ProseMirror.tiptap p {
+.task-description-editor .ProseMirror.tiptap p {
   margin: 0.4rem 0;
 }
 
 .task-description-editor .ProseMirror.tiptap ul,
-.task-description-editor .ProseMirror.tiptap ol,
-.habit-description-editor .ProseMirror.tiptap ul,
-.habit-description-editor .ProseMirror.tiptap ol {
+.task-description-editor .ProseMirror.tiptap ol {
   margin: 0.55rem 0;
   padding-left: 1.25rem;
 }
 
-.task-description-editor .ProseMirror.tiptap li p,
-.habit-description-editor .ProseMirror.tiptap li p {
+.task-description-editor .ProseMirror.tiptap li p {
   margin: 0.2rem 0;
 }
 
 .note-preview,
 .note-prose,
 .task-description-preview,
-.task-description-prose,
-.habit-description-prose {
+.task-description-prose {
   min-width: 0;
   max-width: 100%;
   color: var(--text-2);
@@ -292,24 +286,21 @@ html {
 .note-preview :first-child,
 .note-prose :first-child,
 .task-description-preview :first-child,
-.task-description-prose :first-child,
-.habit-description-prose :first-child {
+.task-description-prose :first-child {
   margin-top: 0;
 }
 
 .note-preview :last-child,
 .note-prose :last-child,
 .task-description-preview :last-child,
-.task-description-prose :last-child,
-.habit-description-prose :last-child {
+.task-description-prose :last-child {
   margin-bottom: 0;
 }
 
 .note-preview p,
 .note-prose p,
 .task-description-preview p,
-.task-description-prose p,
-.habit-description-prose p {
+.task-description-prose p {
   margin: 0.45rem 0;
 }
 
@@ -324,10 +315,7 @@ html {
 .task-description-preview h3,
 .task-description-prose h1,
 .task-description-prose h2,
-.task-description-prose h3,
-.habit-description-prose h1,
-.habit-description-prose h2,
-.habit-description-prose h3 {
+.task-description-prose h3 {
   color: var(--text);
   font-weight: 650;
   line-height: 1.2;
@@ -336,8 +324,7 @@ html {
 .note-preview h1,
 .note-prose h1,
 .task-description-preview h1,
-.task-description-prose h1,
-.habit-description-prose h1 {
+.task-description-prose h1 {
   font-size: 1.25rem;
   margin: 1rem 0 0.45rem;
 }
@@ -345,8 +332,7 @@ html {
 .note-preview h2,
 .note-prose h2,
 .task-description-preview h2,
-.task-description-prose h2,
-.habit-description-prose h2 {
+.task-description-prose h2 {
   font-size: 1.1rem;
   margin: 0.9rem 0 0.4rem;
 }
@@ -354,8 +340,7 @@ html {
 .note-preview h3,
 .note-prose h3,
 .task-description-preview h3,
-.task-description-prose h3,
-.habit-description-prose h3 {
+.task-description-prose h3 {
   font-size: 1rem;
   margin: 0.8rem 0 0.35rem;
 }
@@ -367,9 +352,7 @@ html {
 .task-description-preview ul,
 .task-description-preview ol,
 .task-description-prose ul,
-.task-description-prose ol,
-.habit-description-prose ul,
-.habit-description-prose ol {
+.task-description-prose ol {
   margin: 0.65rem 0;
   padding-left: 1.25rem;
 }
@@ -377,24 +360,21 @@ html {
 .note-preview ul,
 .note-prose ul,
 .task-description-preview ul,
-.task-description-prose ul,
-.habit-description-prose ul {
+.task-description-prose ul {
   list-style: disc;
 }
 
 .note-preview ol,
 .note-prose ol,
 .task-description-preview ol,
-.task-description-prose ol,
-.habit-description-prose ol {
+.task-description-prose ol {
   list-style: decimal;
 }
 
 .note-preview blockquote,
 .note-prose blockquote,
 .task-description-preview blockquote,
-.task-description-prose blockquote,
-.habit-description-prose blockquote {
+.task-description-prose blockquote {
   margin: 0.75rem 0;
   border-left: 2px solid var(--border-2);
   padding-left: 0.75rem;
@@ -404,8 +384,7 @@ html {
 .note-preview code,
 .note-prose code,
 .task-description-preview code,
-.task-description-prose code,
-.habit-description-prose code {
+.task-description-prose code {
   border-radius: var(--r-1);
   background: var(--bg-soft);
   color: var(--rose);
@@ -416,8 +395,7 @@ html {
 .note-preview pre,
 .note-prose pre,
 .task-description-preview pre,
-.task-description-prose pre,
-.habit-description-prose pre {
+.task-description-prose pre {
   max-width: 100%;
   margin: 0.85rem 0;
   overflow-x: auto;
@@ -433,8 +411,7 @@ html {
 .note-preview table,
 .note-prose table,
 .task-description-preview table,
-.task-description-prose table,
-.habit-description-prose table {
+.task-description-prose table {
   display: block;
   max-width: 100%;
   overflow-x: auto;
@@ -444,8 +421,7 @@ html {
 .note-preview a,
 .note-prose a,
 .task-description-preview a,
-.task-description-prose a,
-.habit-description-prose a {
+.task-description-prose a {
   color: var(--ink);
   text-decoration: underline;
   text-underline-offset: 3px;
@@ -454,8 +430,7 @@ html {
 .note-preview .mention,
 .note-prose .mention,
 .task-description-preview .mention,
-.task-description-prose .mention,
-.habit-description-prose .mention {
+.task-description-prose .mention {
   border-radius: var(--r-1);
   background: var(--ink-soft);
   color: var(--ink);

@@ -9,9 +9,7 @@ import { tasksQueryOptions, useUpdateTask } from "@mindtab/core";
 import { PressableCard } from "~/components/ui/pressable-card";
 import { SwipeableRow } from "~/components/ui/swipeable-row";
 import { ConfettiBurst } from "~/components/ui/confetti-burst";
-import { XPFloat } from "~/components/ui/xp-float";
 import { UndoToast } from "~/components/ui/undo-toast";
-import { XP_VALUES } from "~/lib/xp";
 import { colors } from "~/styles/colors";
 import { api } from "~/lib/api-client";
 
@@ -46,13 +44,6 @@ const impactColors: Record<string, string> = {
 };
 
 
-
-function getTaskXP(task: any) {
-  if (task.priority === "priority_1") return XP_VALUES.TASK_P1_COMPLETE;
-  if (task.impact === "high") return XP_VALUES.TASK_HIGH_IMPACT_COMPLETE;
-  return XP_VALUES.TASK_COMPLETE;
-}
-
 function getNextStatusAction(status: string): {
   label: string;
   color: string;
@@ -71,7 +62,6 @@ export function TasksSection({ projectId }: TasksSectionProps) {
   const router = useRouter();
   const updateTask = useUpdateTask(api);
   const [celebrationTaskId, setCelebrationTaskId] = useState<string | null>(null);
-  const [xpDelta, setXpDelta] = useState(0);
   const [undoState, setUndoState] = useState<{
     visible: boolean;
     taskId?: string;
@@ -94,7 +84,6 @@ export function TasksSection({ projectId }: TasksSectionProps) {
     if (!celebrationTaskId) return;
     const timer = setTimeout(() => {
       setCelebrationTaskId(null);
-      setXpDelta(0);
     }, 1200);
     return () => clearTimeout(timer);
   }, [celebrationTaskId]);
@@ -110,7 +99,6 @@ export function TasksSection({ projectId }: TasksSectionProps) {
       ...(newStatus === "completed" ? { completedAt: new Date().toISOString() } : {}),
     });
     if (isComplete) {
-      setXpDelta(getTaskXP(task));
       setCelebrationTaskId(task.id);
     }
   };
@@ -250,9 +238,6 @@ export function TasksSection({ projectId }: TasksSectionProps) {
                     />
                   </View>
                   {task.id === celebrationTaskId && <ConfettiBurst particleCount={20} />}
-                  {task.id === celebrationTaskId && xpDelta > 0 && (
-                    <XPFloat amount={xpDelta} onComplete={() => setXpDelta(0)} />
-                  )}
                 </PressableCard>
               </SwipeableRow>
             );
@@ -312,8 +297,8 @@ const styles = StyleSheet.create({
     color: colors.text.primary,
   },
   taskCardCelebration: {
-    borderColor: colors.xp.gold,
-    shadowColor: colors.xp.gold,
+    borderColor: colors.status.completed,
+    shadowColor: colors.status.completed,
     shadowOpacity: 0.35,
     shadowRadius: 10,
     elevation: 4,

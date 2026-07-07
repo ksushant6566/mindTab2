@@ -19,7 +19,6 @@ import { useRouter } from "expo-router";
 import {
   Plus,
   Target,
-  CheckSquare,
   FileText,
   FolderPlus,
 } from "lucide-react-native";
@@ -29,7 +28,7 @@ import { springs } from "~/lib/animations";
 
 type FABProps = {
   visible: boolean;
-  contextFilter?: "task" | "habit" | "note" | "project";
+  contextFilter?: "task" | "note" | "project";
 };
 
 const MENU_OPTIONS = [
@@ -40,14 +39,6 @@ const MENU_OPTIONS = [
     route: "/(modals)/create-task" as const,
     translateX: 0,
     translateY: -120,
-  },
-  {
-    key: "habit" as const,
-    label: "Habit",
-    Icon: CheckSquare,
-    route: "/(modals)/create-habit" as const,
-    translateX: -55,
-    translateY: -105,
   },
   {
     key: "note" as const,

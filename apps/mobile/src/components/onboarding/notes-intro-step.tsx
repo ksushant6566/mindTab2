@@ -10,7 +10,7 @@ type NotesIntroStepProps = {
 
 const features = [
   { icon: FileEdit, title: "Rich notes", desc: "Write and format your thoughts" },
-  { icon: AtSign, title: "@mentions", desc: "Link notes to tasks, habits, and more" },
+  { icon: AtSign, title: "@mentions", desc: "Link notes to tasks and notes" },
   { icon: Link, title: "Connected", desc: "Notes pair with everything in MindTab" },
 ];
 

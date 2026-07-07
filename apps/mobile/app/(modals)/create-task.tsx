@@ -263,16 +263,6 @@ export default function CreateTaskModal() {
           >
             Create Task
           </Button>
-          <Text
-            style={{
-              fontSize: 12,
-              color: colors.xp.gold,
-              textAlign: "center",
-              marginTop: 8,
-            }}
-          >
-            +25 XP
-          </Text>
         </BottomSheetScrollView>
       </AppBottomSheet>
     </View>

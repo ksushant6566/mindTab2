@@ -1,7 +1,6 @@
 import {
     Check,
     FileText,
-    Grid,
     Laptop,
     ListTodo,
     Loader,
@@ -28,28 +27,20 @@ import { useQuery } from "@tanstack/react-query";
 import {
     searchNotesQueryOptions,
     searchTasksQueryOptions,
-    searchHabitsQueryOptions,
-    habitTrackerQueryOptions,
     useCreateTask,
     useUpdateTask,
-    useUpdateHabit,
-    useCreateHabit,
-    useTrackHabit,
-    useUntrackHabit,
 } from "~/api/hooks";
 import { useAuth } from "~/api/hooks/use-auth";
 import { CreateNoteDialog } from "./notes/create-note-dialog";
 import { NoteDialog } from "./notes/note-dialog";
 import { TaskDialog, type TaskDialogInput } from "./tasks/task-dialog";
 import { getScheduleDraftPayload } from "./tasks/task-schedule-fields";
-import { EditHabitDialog } from "./habits/edit-habit-dialog";
 import {
     useAppStore,
     type AppearanceTheme,
     type FontPreset,
 } from "@mindtab/core";
 import { toast } from "sonner";
-import { CreateHabitDialog } from "./habits/create-habit-dialog";
 import { cn } from "~/lib/utils";
 import { useCalendarSchedules } from "~/lib/calendar-schedules";
 
@@ -70,8 +61,11 @@ const fontOptions: {
     label: string;
     icon: LucideIcon;
 }[] = [
-    { value: "inter", label: "Font: Inter", icon: Type },
-    { value: "geist", label: "Font: Geist", icon: Type },
+    { value: "codex", label: "Font: Codex", icon: Type },
+    { value: "linear", label: "Font: Linear", icon: Type },
+    { value: "github", label: "Font: GitHub", icon: Type },
+    { value: "notion", label: "Font: Notion", icon: Type },
+    { value: "raycast", label: "Font: Raycast", icon: Type },
     { value: "system", label: "Font: System", icon: Type },
 ];
 
@@ -124,24 +118,6 @@ export const CommandMenu = () => {
         }
     };
 
-    const [currentHabit, setCurrentHabit] = useState<any | null>(null);
-
-    const [isEditHabitDialogOpen, setIsEditHabitDialogOpen] = useState(false);
-
-    const onEditHabitDialogOpenChange = (open: boolean) => {
-        setIsEditHabitDialogOpen(open);
-        if (!open) {
-            setCurrentHabit(null);
-        }
-    };
-
-    const [isCreateHabitDialogOpen, setIsCreateHabitDialogOpen] =
-        useState(false);
-
-    const onCreateHabitDialogOpenChange = (open: boolean) => {
-        setIsCreateHabitDialogOpen(open);
-    };
-
     const createTaskMutation = useCreateTask();
     const isCreatingTask = createTaskMutation.isPending;
     const { scheduleTask } = useCalendarSchedules();
@@ -172,50 +148,6 @@ export const CommandMenu = () => {
         });
     };
 
-    const updateHabitMutation = useUpdateHabit();
-    const isUpdatingHabit = updateHabitMutation.isPending;
-    const updateHabit = (values: any) => {
-        updateHabitMutation.mutate(values, {
-            onSuccess: () => setIsEditHabitDialogOpen(false),
-            onError: (error: any) => {
-                toast.error(error.message || "Failed to update habit", {
-                    position: "top-right",
-                });
-            },
-        });
-    };
-
-    const createHabitMutation = useCreateHabit();
-    const isCreatingHabit = createHabitMutation.isPending;
-    const createHabit = (values: any) => {
-        createHabitMutation.mutate(values, {
-            onSuccess: () => setIsCreateHabitDialogOpen(false),
-            onError: (error: any) => {
-                toast.error(error.message || "Failed to create habit", {
-                    position: "top-right",
-                });
-            },
-        });
-    };
-
-    const { data: habitTracker } = useQuery({
-        ...habitTrackerQueryOptions(),
-        enabled: Boolean(currentHabit && isEditHabitDialogOpen),
-        refetchOnWindowFocus: false,
-        refetchOnMount: false,
-    });
-
-    const trackHabitMutation = useTrackHabit();
-    const untrackHabitMutation = useUntrackHabit();
-
-    const trackHabit = ({ habitId, date }: { habitId: string; date: string }) => {
-        trackHabitMutation.mutate({ id: habitId, date });
-    };
-
-    const untrackHabit = ({ habitId, date }: { habitId: string; date: string }) => {
-        untrackHabitMutation.mutate({ id: habitId, date });
-    };
-
     const { data: notesSearchResults, isFetching: isFetchingSearchResults } =
         useQuery({
             ...searchNotesQueryOptions(searchQuery ?? ""),
@@ -227,14 +159,6 @@ export const CommandMenu = () => {
     const { data: tasksSearchResults, isFetching: isFetchingTasks } =
         useQuery({
             ...searchTasksQueryOptions(searchQuery ?? ""),
-            enabled: open,
-            refetchOnWindowFocus: false,
-            refetchOnMount: false,
-        });
-
-    const { data: habitsSearchResults, isFetching: isFetchingHabits } =
-        useQuery({
-            ...searchHabitsQueryOptions(searchQuery ?? ""),
             enabled: open,
             refetchOnWindowFocus: false,
             refetchOnMount: false,
@@ -331,25 +255,6 @@ export const CommandMenu = () => {
                 ],
             },
             {
-                heading: "Habits",
-                items: [
-                    {
-                        label: "Create Habit",
-                        icon: PlusIcon,
-                        onClick: () => {
-                            setIsCreateHabitDialogOpen(true);
-                            setOpen(false);
-                        },
-                    },
-                    {
-                        label: "Search Habits",
-                        icon: Grid,
-                        shortcut: "Keep typing",
-                        onClick: () => {},
-                    },
-                ],
-            },
-            {
                 heading: "Appearance",
                 items: [
                     ...themeOptions.map((option) => ({
@@ -410,20 +315,8 @@ export const CommandMenu = () => {
                 },
             })) || [];
 
-        const habitResults =
-            (habitsSearchResults as any[])?.map((habit: any) => ({
-                label: habit.title!,
-                icon: Grid,
-                onClick: () => {
-                    setCurrentHabit(habit);
-                    setSearchQuery(null);
-                    setIsEditHabitDialogOpen(true);
-                    setOpen(false);
-                },
-            })) || [];
-
-        return [...noteResults, ...taskResults, ...habitResults];
-    }, [notesSearchResults, tasksSearchResults, habitsSearchResults]);
+        return [...noteResults, ...taskResults];
+    }, [notesSearchResults, tasksSearchResults]);
 
     const placeholders = [
         "Search for anything ...",
@@ -455,7 +348,7 @@ export const CommandMenu = () => {
             <Button
                 size={"sm"}
                 variant="outline"
-                className="command-trigger-shimmer flex h-9 w-56 items-center justify-between gap-2 rounded-md text-sm font-light text-muted-foreground transition-colors"
+                className="command-trigger-shimmer flex h-9 w-56 items-center justify-between gap-2 rounded-md text-[length:var(--type-body-size)] text-muted-foreground transition-colors"
                 style={{
                     backgroundImage:
                         "linear-gradient(110deg, var(--command-shimmer-from), 45%, var(--command-shimmer-to), 55%, var(--command-shimmer-from))",
@@ -468,15 +361,14 @@ export const CommandMenu = () => {
             </Button>
             <CommandDialog open={open} onOpenChange={toggleOpen}>
                 <CommandInput
-                    placeholder="Search notes, tasks, habits, commands..."
+                    placeholder="Search notes, tasks, commands..."
                     value={searchQuery ?? ""}
                     onValueChange={setSearchQuery}
                 />
                 <CommandList>
                     <CommandEmpty>
                         {isFetchingSearchResults ||
-                        isFetchingTasks ||
-                        isFetchingHabits ? (
+                        isFetchingTasks ? (
                             <div className="flex items-center justify-center">
                                 <span className="animate-spin">
                                     <Loader className="h-5 w-5" />
@@ -535,34 +427,6 @@ export const CommandMenu = () => {
                     isSaving={isUpdatingTask}
                 />
             )}
-            {currentHabit && (
-                <EditHabitDialog
-                    isOpen={isEditHabitDialogOpen}
-                    onOpenChange={onEditHabitDialogOpenChange}
-                    habit={currentHabit}
-                    onSave={(values: any) =>
-                        (updateHabit as any)({
-                            ...values,
-                            id: values.id!,
-                            title: values.title ?? undefined,
-                            description: values.description ?? undefined,
-                        })
-                    }
-                    onCancel={() => setIsEditHabitDialogOpen(false)}
-                    loading={isUpdatingHabit}
-                    defaultMode="view"
-                    habitTracker={(habitTracker as any[]) ?? []}
-                    trackHabit={trackHabit}
-                    untrackHabit={untrackHabit}
-                />
-            )}
-            <CreateHabitDialog
-                isOpen={isCreateHabitDialogOpen}
-                onOpenChange={onCreateHabitDialogOpenChange}
-                onSave={createHabit as any}
-                onCancel={() => setIsCreateHabitDialogOpen(false)}
-                loading={isCreatingHabit}
-            />
         </div>
     );
 };
@@ -599,16 +463,16 @@ const CommandMenuGroup = ({ heading, items }: TCommandMenuGroupProps) => {
                     >
                         {item.icon && <item.icon className="!h-3.5 !w-3.5" />}
                     </span>
-                    <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium text-muted-foreground transition-colors group-data-[selected=true]:text-foreground">
+                    <span className="min-w-0 flex-1 truncate text-[length:var(--type-body-size)] text-muted-foreground transition-colors group-data-[selected=true]:text-foreground">
                         {item.label}
                     </span>
                     {item.active ? (
-                        <CommandShortcut className="inline-flex items-center gap-1 border-0 bg-transparent px-0 py-0 text-[9.5px] text-[var(--text-3)]">
+                        <CommandShortcut className="inline-flex items-center gap-1 border-0 bg-transparent px-0 py-0 font-mono text-[length:var(--type-code-size)] text-[var(--text-3)]">
                             <Check className="h-3 w-3" />
                             Active
                         </CommandShortcut>
                     ) : "shortcut" in item && (
-                        <CommandShortcut className="border-0 bg-transparent px-0 py-0 text-[9.5px] text-[var(--text-3)]">
+                        <CommandShortcut className="border-0 bg-transparent px-0 py-0 font-mono text-[length:var(--type-code-size)] text-[var(--text-3)]">
                             {item.shortcut}
                         </CommandShortcut>
                     )}
@@ -621,7 +485,6 @@ const CommandMenuGroup = ({ heading, items }: TCommandMenuGroupProps) => {
 function getCommandGroupTone(heading: string) {
     if (heading === "Tasks" || heading === "Search Results") return "text-[var(--green)]";
     if (heading === "Notes") return "text-[var(--amber)]";
-    if (heading === "Habits") return "text-[var(--cyan)]";
     if (heading === "Appearance") return "text-[var(--violet)]";
     if (heading === "Settings") return "text-[var(--rose)]";
     return "text-muted-foreground";

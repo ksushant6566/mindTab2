@@ -6,7 +6,7 @@ import React, {
     useRef,
     ForwardRefRenderFunction,
 } from 'react'
-import { FileText, Repeat2, Target } from 'lucide-react'
+import { FileText, Target } from 'lucide-react'
 import { cn } from '~/lib/utils'
 
 interface MentionListProps {
@@ -136,12 +136,10 @@ export default forwardRef(MentionList)
 
 function MentionIcon({ type }: { type: string }) {
     if (type === 'task') return <Target className="h-3 w-3" />
-    if (type === 'habit') return <Repeat2 className="h-3 w-3" />
     return <FileText className="h-3 w-3" />
 }
 
 function getResourceClassName(type: string) {
     if (type === 'task') return 'text-[var(--green)]'
-    if (type === 'habit') return 'text-[var(--cyan)]'
     return 'text-[var(--amber)]'
 }

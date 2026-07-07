@@ -4,7 +4,6 @@ import { persist } from "zustand/middleware";
 export const EActiveLayout = {
   Tasks: "Tasks",
   Calendar: "Calendar",
-  Habits: "Habits",
   Notes: "Notes",
 } as const;
 
@@ -13,8 +12,17 @@ export type ActiveLayout = (typeof EActiveLayout)[keyof typeof EActiveLayout];
 export const appearanceThemes = ["midnight", "graphite", "paper"] as const;
 export type AppearanceTheme = (typeof appearanceThemes)[number];
 
-export const fontPresets = ["inter", "geist", "system"] as const;
+export const fontPresets = ["codex", "linear", "github", "notion", "raycast", "system"] as const;
 export type FontPreset = (typeof fontPresets)[number];
+export type LegacyFontPreset = "inter" | "geist";
+export type StoredFontPreset = FontPreset | LegacyFontPreset;
+
+export function normalizeFontPreset(font: string | null | undefined): FontPreset {
+  if (font === "inter" || font === "codex" || !font) return "codex";
+  if (font === "geist") return "raycast";
+  if ((fontPresets as readonly string[]).includes(font)) return font as FontPreset;
+  return "codex";
+}
 
 interface AppState {
   layoutVersion: number;
@@ -40,7 +48,7 @@ export const useAppStore = create<AppState>()(
       activeElement: EActiveLayout.Tasks,
       activeProjectId: null,
       appearanceTheme: "midnight",
-      fontPreset: "inter",
+      fontPreset: "codex",
       setLayoutVersion: (version) => set({ layoutVersion: version }),
       setActiveElement: (element) => set({ activeElement: element }),
       setActiveProjectId: (projectId) => set({ activeProjectId: projectId }),
@@ -49,11 +57,19 @@ export const useAppStore = create<AppState>()(
       setAppearance: ({ theme, font }) =>
         set((state) => ({
           appearanceTheme: theme ?? state.appearanceTheme,
-          fontPreset: font ?? state.fontPreset,
+          fontPreset: font ? normalizeFontPreset(font) : state.fontPreset,
         })),
     }),
     {
       name: "mindtab-app-storage",
+      merge: (persistedState, currentState) => {
+        const persisted = persistedState as Partial<AppState> | undefined;
+        return {
+          ...currentState,
+          ...persisted,
+          fontPreset: normalizeFontPreset(persisted?.fontPreset),
+        };
+      },
       partialize: (state) => ({
         layoutVersion: state.layoutVersion,
         activeElement: state.activeElement,

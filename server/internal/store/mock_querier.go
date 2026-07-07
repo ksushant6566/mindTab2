@@ -31,9 +31,6 @@ var _ Querier = &QuerierMock{}
 //			ArchiveTasksByProjectFunc: func(ctx context.Context, arg ArchiveTasksByProjectParams) error {
 //				panic("mock out the ArchiveTasksByProject method")
 //			},
-//			CheckHabitTitleExistsFunc: func(ctx context.Context, arg CheckHabitTitleExistsParams) (bool, error) {
-//				panic("mock out the CheckHabitTitleExists method")
-//			},
 //			CheckNoteTitleExistsFunc: func(ctx context.Context, arg CheckNoteTitleExistsParams) (bool, error) {
 //				panic("mock out the CheckNoteTitleExists method")
 //			},
@@ -76,9 +73,6 @@ var _ Querier = &QuerierMock{}
 //			CreateEmailUserFunc: func(ctx context.Context, arg CreateEmailUserParams) (User, error) {
 //				panic("mock out the CreateEmailUser method")
 //			},
-//			CreateHabitFunc: func(ctx context.Context, arg CreateHabitParams) error {
-//				panic("mock out the CreateHabit method")
-//			},
 //			CreateJobFunc: func(ctx context.Context, arg CreateJobParams) (pgtype.UUID, error) {
 //				panic("mock out the CreateJob method")
 //			},
@@ -109,9 +103,6 @@ var _ Querier = &QuerierMock{}
 //			DeleteExpiredVerificationTokensFunc: func(ctx context.Context) error {
 //				panic("mock out the DeleteExpiredVerificationTokens method")
 //			},
-//			DeleteHabitFunc: func(ctx context.Context, arg DeleteHabitParams) error {
-//				panic("mock out the DeleteHabit method")
-//			},
 //			DeleteNoteFunc: func(ctx context.Context, arg DeleteNoteParams) error {
 //				panic("mock out the DeleteNote method")
 //			},
@@ -130,9 +121,6 @@ var _ Querier = &QuerierMock{}
 //			FailJobFunc: func(ctx context.Context, arg FailJobParams) error {
 //				panic("mock out the FailJob method")
 //			},
-//			GetConnectedHabitIDsFunc: func(ctx context.Context, arg GetConnectedHabitIDsParams) ([]pgtype.UUID, error) {
-//				panic("mock out the GetConnectedHabitIDs method")
-//			},
 //			GetConnectedNotesFunc: func(ctx context.Context, arg GetConnectedNotesParams) ([]GetConnectedNotesRow, error) {
 //				panic("mock out the GetConnectedNotes method")
 //			},
@@ -141,21 +129,6 @@ var _ Querier = &QuerierMock{}
 //			},
 //			GetConversationFunc: func(ctx context.Context, arg GetConversationParams) (GetConversationRow, error) {
 //				panic("mock out the GetConversation method")
-//			},
-//			GetHabitActivityFunc: func(ctx context.Context, arg GetHabitActivityParams) ([]pgtype.Timestamptz, error) {
-//				panic("mock out the GetHabitActivity method")
-//			},
-//			GetHabitByIDFunc: func(ctx context.Context, arg GetHabitByIDParams) (Habit, error) {
-//				panic("mock out the GetHabitByID method")
-//			},
-//			GetHabitCompletionStatsFunc: func(ctx context.Context, arg GetHabitCompletionStatsParams) ([]GetHabitCompletionStatsRow, error) {
-//				panic("mock out the GetHabitCompletionStats method")
-//			},
-//			GetHabitTrackerActivityFunc: func(ctx context.Context, arg GetHabitTrackerActivityParams) ([]pgtype.Date, error) {
-//				panic("mock out the GetHabitTrackerActivity method")
-//			},
-//			GetHabitsByIDsFunc: func(ctx context.Context, arg GetHabitsByIDsParams) ([]Habit, error) {
-//				panic("mock out the GetHabitsByIDs method")
 //			},
 //			GetJobByContentIDFunc: func(ctx context.Context, contentID pgtype.UUID) (Job, error) {
 //				panic("mock out the GetJobByContentID method")
@@ -199,20 +172,11 @@ var _ Querier = &QuerierMock{}
 //			IsContentDeletedFunc: func(ctx context.Context, id pgtype.UUID) (bool, error) {
 //				panic("mock out the IsContentDeleted method")
 //			},
-//			IsHabitTrackedOnDateFunc: func(ctx context.Context, arg IsHabitTrackedOnDateParams) (bool, error) {
-//				panic("mock out the IsHabitTrackedOnDate method")
-//			},
 //			ListContentFunc: func(ctx context.Context, arg ListContentParams) ([]ListContentRow, error) {
 //				panic("mock out the ListContent method")
 //			},
 //			ListConversationsFunc: func(ctx context.Context, arg ListConversationsParams) ([]ListConversationsRow, error) {
 //				panic("mock out the ListConversations method")
-//			},
-//			ListHabitTrackerRecordsFunc: func(ctx context.Context, userID string) ([]HabitRecord, error) {
-//				panic("mock out the ListHabitTrackerRecords method")
-//			},
-//			ListHabitsFunc: func(ctx context.Context, userID string) ([]Habit, error) {
-//				panic("mock out the ListHabits method")
 //			},
 //			ListMessagesFunc: func(ctx context.Context, arg ListMessagesParams) ([]Message, error) {
 //				panic("mock out the ListMessages method")
@@ -234,9 +198,6 @@ var _ Querier = &QuerierMock{}
 //			},
 //			ListUnassignedTasksFunc: func(ctx context.Context, userID string) ([]Task, error) {
 //				panic("mock out the ListUnassignedTasks method")
-//			},
-//			SearchHabitsFunc: func(ctx context.Context, arg SearchHabitsParams) ([]Habit, error) {
-//				panic("mock out the SearchHabits method")
 //			},
 //			SearchNotesFunc: func(ctx context.Context, arg SearchNotesParams) ([]Note, error) {
 //				panic("mock out the SearchNotes method")
@@ -274,12 +235,6 @@ var _ Querier = &QuerierMock{}
 //			TouchConversationFunc: func(ctx context.Context, id pgtype.UUID) error {
 //				panic("mock out the TouchConversation method")
 //			},
-//			TrackHabitFunc: func(ctx context.Context, arg TrackHabitParams) (pgtype.UUID, error) {
-//				panic("mock out the TrackHabit method")
-//			},
-//			UntrackHabitFunc: func(ctx context.Context, arg UntrackHabitParams) error {
-//				panic("mock out the UntrackHabit method")
-//			},
 //			UpdateContentCommitStatusFunc: func(ctx context.Context, arg UpdateContentCommitStatusParams) error {
 //				panic("mock out the UpdateContentCommitStatus method")
 //			},
@@ -307,9 +262,6 @@ var _ Querier = &QuerierMock{}
 //			UpdateConversationTitleFunc: func(ctx context.Context, arg UpdateConversationTitleParams) error {
 //				panic("mock out the UpdateConversationTitle method")
 //			},
-//			UpdateHabitFunc: func(ctx context.Context, arg UpdateHabitParams) error {
-//				panic("mock out the UpdateHabit method")
-//			},
 //			UpdateJobStatusFunc: func(ctx context.Context, arg UpdateJobStatusParams) error {
 //				panic("mock out the UpdateJobStatus method")
 //			},
@@ -330,9 +282,6 @@ var _ Querier = &QuerierMock{}
 //			},
 //			UpdateUserAppearanceFunc: func(ctx context.Context, arg UpdateUserAppearanceParams) (User, error) {
 //				panic("mock out the UpdateUserAppearance method")
-//			},
-//			UpdateUserXPFunc: func(ctx context.Context, arg UpdateUserXPParams) (User, error) {
-//				panic("mock out the UpdateUserXP method")
 //			},
 //			UpsertNoteFromSyncFunc: func(ctx context.Context, arg UpsertNoteFromSyncParams) error {
 //				panic("mock out the UpsertNoteFromSync method")
@@ -358,9 +307,6 @@ type QuerierMock struct {
 
 	// ArchiveTasksByProjectFunc mocks the ArchiveTasksByProject method.
 	ArchiveTasksByProjectFunc func(ctx context.Context, arg ArchiveTasksByProjectParams) error
-
-	// CheckHabitTitleExistsFunc mocks the CheckHabitTitleExists method.
-	CheckHabitTitleExistsFunc func(ctx context.Context, arg CheckHabitTitleExistsParams) (bool, error)
 
 	// CheckNoteTitleExistsFunc mocks the CheckNoteTitleExists method.
 	CheckNoteTitleExistsFunc func(ctx context.Context, arg CheckNoteTitleExistsParams) (bool, error)
@@ -404,9 +350,6 @@ type QuerierMock struct {
 	// CreateEmailUserFunc mocks the CreateEmailUser method.
 	CreateEmailUserFunc func(ctx context.Context, arg CreateEmailUserParams) (User, error)
 
-	// CreateHabitFunc mocks the CreateHabit method.
-	CreateHabitFunc func(ctx context.Context, arg CreateHabitParams) error
-
 	// CreateJobFunc mocks the CreateJob method.
 	CreateJobFunc func(ctx context.Context, arg CreateJobParams) (pgtype.UUID, error)
 
@@ -437,9 +380,6 @@ type QuerierMock struct {
 	// DeleteExpiredVerificationTokensFunc mocks the DeleteExpiredVerificationTokens method.
 	DeleteExpiredVerificationTokensFunc func(ctx context.Context) error
 
-	// DeleteHabitFunc mocks the DeleteHabit method.
-	DeleteHabitFunc func(ctx context.Context, arg DeleteHabitParams) error
-
 	// DeleteNoteFunc mocks the DeleteNote method.
 	DeleteNoteFunc func(ctx context.Context, arg DeleteNoteParams) error
 
@@ -458,9 +398,6 @@ type QuerierMock struct {
 	// FailJobFunc mocks the FailJob method.
 	FailJobFunc func(ctx context.Context, arg FailJobParams) error
 
-	// GetConnectedHabitIDsFunc mocks the GetConnectedHabitIDs method.
-	GetConnectedHabitIDsFunc func(ctx context.Context, arg GetConnectedHabitIDsParams) ([]pgtype.UUID, error)
-
 	// GetConnectedNotesFunc mocks the GetConnectedNotes method.
 	GetConnectedNotesFunc func(ctx context.Context, arg GetConnectedNotesParams) ([]GetConnectedNotesRow, error)
 
@@ -469,21 +406,6 @@ type QuerierMock struct {
 
 	// GetConversationFunc mocks the GetConversation method.
 	GetConversationFunc func(ctx context.Context, arg GetConversationParams) (GetConversationRow, error)
-
-	// GetHabitActivityFunc mocks the GetHabitActivity method.
-	GetHabitActivityFunc func(ctx context.Context, arg GetHabitActivityParams) ([]pgtype.Timestamptz, error)
-
-	// GetHabitByIDFunc mocks the GetHabitByID method.
-	GetHabitByIDFunc func(ctx context.Context, arg GetHabitByIDParams) (Habit, error)
-
-	// GetHabitCompletionStatsFunc mocks the GetHabitCompletionStats method.
-	GetHabitCompletionStatsFunc func(ctx context.Context, arg GetHabitCompletionStatsParams) ([]GetHabitCompletionStatsRow, error)
-
-	// GetHabitTrackerActivityFunc mocks the GetHabitTrackerActivity method.
-	GetHabitTrackerActivityFunc func(ctx context.Context, arg GetHabitTrackerActivityParams) ([]pgtype.Date, error)
-
-	// GetHabitsByIDsFunc mocks the GetHabitsByIDs method.
-	GetHabitsByIDsFunc func(ctx context.Context, arg GetHabitsByIDsParams) ([]Habit, error)
 
 	// GetJobByContentIDFunc mocks the GetJobByContentID method.
 	GetJobByContentIDFunc func(ctx context.Context, contentID pgtype.UUID) (Job, error)
@@ -527,20 +449,11 @@ type QuerierMock struct {
 	// IsContentDeletedFunc mocks the IsContentDeleted method.
 	IsContentDeletedFunc func(ctx context.Context, id pgtype.UUID) (bool, error)
 
-	// IsHabitTrackedOnDateFunc mocks the IsHabitTrackedOnDate method.
-	IsHabitTrackedOnDateFunc func(ctx context.Context, arg IsHabitTrackedOnDateParams) (bool, error)
-
 	// ListContentFunc mocks the ListContent method.
 	ListContentFunc func(ctx context.Context, arg ListContentParams) ([]ListContentRow, error)
 
 	// ListConversationsFunc mocks the ListConversations method.
 	ListConversationsFunc func(ctx context.Context, arg ListConversationsParams) ([]ListConversationsRow, error)
-
-	// ListHabitTrackerRecordsFunc mocks the ListHabitTrackerRecords method.
-	ListHabitTrackerRecordsFunc func(ctx context.Context, userID string) ([]HabitRecord, error)
-
-	// ListHabitsFunc mocks the ListHabits method.
-	ListHabitsFunc func(ctx context.Context, userID string) ([]Habit, error)
 
 	// ListMessagesFunc mocks the ListMessages method.
 	ListMessagesFunc func(ctx context.Context, arg ListMessagesParams) ([]Message, error)
@@ -562,9 +475,6 @@ type QuerierMock struct {
 
 	// ListUnassignedTasksFunc mocks the ListUnassignedTasks method.
 	ListUnassignedTasksFunc func(ctx context.Context, userID string) ([]Task, error)
-
-	// SearchHabitsFunc mocks the SearchHabits method.
-	SearchHabitsFunc func(ctx context.Context, arg SearchHabitsParams) ([]Habit, error)
 
 	// SearchNotesFunc mocks the SearchNotes method.
 	SearchNotesFunc func(ctx context.Context, arg SearchNotesParams) ([]Note, error)
@@ -602,12 +512,6 @@ type QuerierMock struct {
 	// TouchConversationFunc mocks the TouchConversation method.
 	TouchConversationFunc func(ctx context.Context, id pgtype.UUID) error
 
-	// TrackHabitFunc mocks the TrackHabit method.
-	TrackHabitFunc func(ctx context.Context, arg TrackHabitParams) (pgtype.UUID, error)
-
-	// UntrackHabitFunc mocks the UntrackHabit method.
-	UntrackHabitFunc func(ctx context.Context, arg UntrackHabitParams) error
-
 	// UpdateContentCommitStatusFunc mocks the UpdateContentCommitStatus method.
 	UpdateContentCommitStatusFunc func(ctx context.Context, arg UpdateContentCommitStatusParams) error
 
@@ -635,9 +539,6 @@ type QuerierMock struct {
 	// UpdateConversationTitleFunc mocks the UpdateConversationTitle method.
 	UpdateConversationTitleFunc func(ctx context.Context, arg UpdateConversationTitleParams) error
 
-	// UpdateHabitFunc mocks the UpdateHabit method.
-	UpdateHabitFunc func(ctx context.Context, arg UpdateHabitParams) error
-
 	// UpdateJobStatusFunc mocks the UpdateJobStatus method.
 	UpdateJobStatusFunc func(ctx context.Context, arg UpdateJobStatusParams) error
 
@@ -658,9 +559,6 @@ type QuerierMock struct {
 
 	// UpdateUserAppearanceFunc mocks the UpdateUserAppearance method.
 	UpdateUserAppearanceFunc func(ctx context.Context, arg UpdateUserAppearanceParams) (User, error)
-
-	// UpdateUserXPFunc mocks the UpdateUserXP method.
-	UpdateUserXPFunc func(ctx context.Context, arg UpdateUserXPParams) (User, error)
 
 	// UpsertNoteFromSyncFunc mocks the UpsertNoteFromSync method.
 	UpsertNoteFromSyncFunc func(ctx context.Context, arg UpsertNoteFromSyncParams) error
@@ -697,13 +595,6 @@ type QuerierMock struct {
 			Ctx context.Context
 			// Arg is the arg argument value.
 			Arg ArchiveTasksByProjectParams
-		}
-		// CheckHabitTitleExists holds details about calls to the CheckHabitTitleExists method.
-		CheckHabitTitleExists []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// Arg is the arg argument value.
-			Arg CheckHabitTitleExistsParams
 		}
 		// CheckNoteTitleExists holds details about calls to the CheckNoteTitleExists method.
 		CheckNoteTitleExists []struct {
@@ -803,13 +694,6 @@ type QuerierMock struct {
 			// Arg is the arg argument value.
 			Arg CreateEmailUserParams
 		}
-		// CreateHabit holds details about calls to the CreateHabit method.
-		CreateHabit []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// Arg is the arg argument value.
-			Arg CreateHabitParams
-		}
 		// CreateJob holds details about calls to the CreateJob method.
 		CreateJob []struct {
 			// Ctx is the ctx argument value.
@@ -876,13 +760,6 @@ type QuerierMock struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
 		}
-		// DeleteHabit holds details about calls to the DeleteHabit method.
-		DeleteHabit []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// Arg is the arg argument value.
-			Arg DeleteHabitParams
-		}
 		// DeleteNote holds details about calls to the DeleteNote method.
 		DeleteNote []struct {
 			// Ctx is the ctx argument value.
@@ -925,13 +802,6 @@ type QuerierMock struct {
 			// Arg is the arg argument value.
 			Arg FailJobParams
 		}
-		// GetConnectedHabitIDs holds details about calls to the GetConnectedHabitIDs method.
-		GetConnectedHabitIDs []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// Arg is the arg argument value.
-			Arg GetConnectedHabitIDsParams
-		}
 		// GetConnectedNotes holds details about calls to the GetConnectedNotes method.
 		GetConnectedNotes []struct {
 			// Ctx is the ctx argument value.
@@ -952,41 +822,6 @@ type QuerierMock struct {
 			Ctx context.Context
 			// Arg is the arg argument value.
 			Arg GetConversationParams
-		}
-		// GetHabitActivity holds details about calls to the GetHabitActivity method.
-		GetHabitActivity []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// Arg is the arg argument value.
-			Arg GetHabitActivityParams
-		}
-		// GetHabitByID holds details about calls to the GetHabitByID method.
-		GetHabitByID []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// Arg is the arg argument value.
-			Arg GetHabitByIDParams
-		}
-		// GetHabitCompletionStats holds details about calls to the GetHabitCompletionStats method.
-		GetHabitCompletionStats []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// Arg is the arg argument value.
-			Arg GetHabitCompletionStatsParams
-		}
-		// GetHabitTrackerActivity holds details about calls to the GetHabitTrackerActivity method.
-		GetHabitTrackerActivity []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// Arg is the arg argument value.
-			Arg GetHabitTrackerActivityParams
-		}
-		// GetHabitsByIDs holds details about calls to the GetHabitsByIDs method.
-		GetHabitsByIDs []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// Arg is the arg argument value.
-			Arg GetHabitsByIDsParams
 		}
 		// GetJobByContentID holds details about calls to the GetJobByContentID method.
 		GetJobByContentID []struct {
@@ -1086,13 +921,6 @@ type QuerierMock struct {
 			// ID is the id argument value.
 			ID pgtype.UUID
 		}
-		// IsHabitTrackedOnDate holds details about calls to the IsHabitTrackedOnDate method.
-		IsHabitTrackedOnDate []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// Arg is the arg argument value.
-			Arg IsHabitTrackedOnDateParams
-		}
 		// ListContent holds details about calls to the ListContent method.
 		ListContent []struct {
 			// Ctx is the ctx argument value.
@@ -1106,20 +934,6 @@ type QuerierMock struct {
 			Ctx context.Context
 			// Arg is the arg argument value.
 			Arg ListConversationsParams
-		}
-		// ListHabitTrackerRecords holds details about calls to the ListHabitTrackerRecords method.
-		ListHabitTrackerRecords []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// UserID is the userID argument value.
-			UserID string
-		}
-		// ListHabits holds details about calls to the ListHabits method.
-		ListHabits []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// UserID is the userID argument value.
-			UserID string
 		}
 		// ListMessages holds details about calls to the ListMessages method.
 		ListMessages []struct {
@@ -1169,13 +983,6 @@ type QuerierMock struct {
 			Ctx context.Context
 			// UserID is the userID argument value.
 			UserID string
-		}
-		// SearchHabits holds details about calls to the SearchHabits method.
-		SearchHabits []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// Arg is the arg argument value.
-			Arg SearchHabitsParams
 		}
 		// SearchNotes holds details about calls to the SearchNotes method.
 		SearchNotes []struct {
@@ -1261,20 +1068,6 @@ type QuerierMock struct {
 			// ID is the id argument value.
 			ID pgtype.UUID
 		}
-		// TrackHabit holds details about calls to the TrackHabit method.
-		TrackHabit []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// Arg is the arg argument value.
-			Arg TrackHabitParams
-		}
-		// UntrackHabit holds details about calls to the UntrackHabit method.
-		UntrackHabit []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// Arg is the arg argument value.
-			Arg UntrackHabitParams
-		}
 		// UpdateContentCommitStatus holds details about calls to the UpdateContentCommitStatus method.
 		UpdateContentCommitStatus []struct {
 			// Ctx is the ctx argument value.
@@ -1338,13 +1131,6 @@ type QuerierMock struct {
 			// Arg is the arg argument value.
 			Arg UpdateConversationTitleParams
 		}
-		// UpdateHabit holds details about calls to the UpdateHabit method.
-		UpdateHabit []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// Arg is the arg argument value.
-			Arg UpdateHabitParams
-		}
 		// UpdateJobStatus holds details about calls to the UpdateJobStatus method.
 		UpdateJobStatus []struct {
 			// Ctx is the ctx argument value.
@@ -1394,13 +1180,6 @@ type QuerierMock struct {
 			// Arg is the arg argument value.
 			Arg UpdateUserAppearanceParams
 		}
-		// UpdateUserXP holds details about calls to the UpdateUserXP method.
-		UpdateUserXP []struct {
-			// Ctx is the ctx argument value.
-			Ctx context.Context
-			// Arg is the arg argument value.
-			Arg UpdateUserXPParams
-		}
 		// UpsertNoteFromSync holds details about calls to the UpsertNoteFromSync method.
 		UpsertNoteFromSync []struct {
 			// Ctx is the ctx argument value.
@@ -1420,7 +1199,6 @@ type QuerierMock struct {
 	lockArchiveNotesByProject                  sync.RWMutex
 	lockArchiveProject                         sync.RWMutex
 	lockArchiveTasksByProject                  sync.RWMutex
-	lockCheckHabitTitleExists                  sync.RWMutex
 	lockCheckNoteTitleExists                   sync.RWMutex
 	lockCompleteJob                            sync.RWMutex
 	lockCompleteOnboarding                     sync.RWMutex
@@ -1435,7 +1213,6 @@ type QuerierMock struct {
 	lockCreateContentWithExtracted             sync.RWMutex
 	lockCreateConversation                     sync.RWMutex
 	lockCreateEmailUser                        sync.RWMutex
-	lockCreateHabit                            sync.RWMutex
 	lockCreateJob                              sync.RWMutex
 	lockCreateMessage                          sync.RWMutex
 	lockCreateNote                             sync.RWMutex
@@ -1446,22 +1223,15 @@ type QuerierMock struct {
 	lockDeleteExpiredDraftsReturningKeys       sync.RWMutex
 	lockDeleteExpiredRefreshTokens             sync.RWMutex
 	lockDeleteExpiredVerificationTokens        sync.RWMutex
-	lockDeleteHabit                            sync.RWMutex
 	lockDeleteNote                             sync.RWMutex
 	lockDeleteRefreshToken                     sync.RWMutex
 	lockDeleteUserRefreshTokens                sync.RWMutex
 	lockDeleteVerificationToken                sync.RWMutex
 	lockDeleteVerificationTokensByUserAndType  sync.RWMutex
 	lockFailJob                                sync.RWMutex
-	lockGetConnectedHabitIDs                   sync.RWMutex
 	lockGetConnectedNotes                      sync.RWMutex
 	lockGetContentByID                         sync.RWMutex
 	lockGetConversation                        sync.RWMutex
-	lockGetHabitActivity                       sync.RWMutex
-	lockGetHabitByID                           sync.RWMutex
-	lockGetHabitCompletionStats                sync.RWMutex
-	lockGetHabitTrackerActivity                sync.RWMutex
-	lockGetHabitsByIDs                         sync.RWMutex
 	lockGetJobByContentID                      sync.RWMutex
 	lockGetMessage                             sync.RWMutex
 	lockGetNoteActivity                        sync.RWMutex
@@ -1476,11 +1246,8 @@ type QuerierMock struct {
 	lockGetVerificationTokenByUserAndType      sync.RWMutex
 	lockIncrementVerificationAttempts          sync.RWMutex
 	lockIsContentDeleted                       sync.RWMutex
-	lockIsHabitTrackedOnDate                   sync.RWMutex
 	lockListContent                            sync.RWMutex
 	lockListConversations                      sync.RWMutex
-	lockListHabitTrackerRecords                sync.RWMutex
-	lockListHabits                             sync.RWMutex
 	lockListMessages                           sync.RWMutex
 	lockListNotes                              sync.RWMutex
 	lockListProjects                           sync.RWMutex
@@ -1488,7 +1255,6 @@ type QuerierMock struct {
 	lockListTasks                              sync.RWMutex
 	lockListTasksByProject                     sync.RWMutex
 	lockListUnassignedTasks                    sync.RWMutex
-	lockSearchHabits                           sync.RWMutex
 	lockSearchNotes                            sync.RWMutex
 	lockSearchTasks                            sync.RWMutex
 	lockSetEmailVerified                       sync.RWMutex
@@ -1501,8 +1267,6 @@ type QuerierMock struct {
 	lockSoftDeleteTasksByProject               sync.RWMutex
 	lockStartJob                               sync.RWMutex
 	lockTouchConversation                      sync.RWMutex
-	lockTrackHabit                             sync.RWMutex
-	lockUntrackHabit                           sync.RWMutex
 	lockUpdateContentCommitStatus              sync.RWMutex
 	lockUpdateContentEmbedding                 sync.RWMutex
 	lockUpdateContentProcessingStatusToPending sync.RWMutex
@@ -1512,7 +1276,6 @@ type QuerierMock struct {
 	lockUpdateContentTranscriptSource          sync.RWMutex
 	lockUpdateContentVideoFields               sync.RWMutex
 	lockUpdateConversationTitle                sync.RWMutex
-	lockUpdateHabit                            sync.RWMutex
 	lockUpdateJobStatus                        sync.RWMutex
 	lockUpdateJobStepResults                   sync.RWMutex
 	lockUpdateNote                             sync.RWMutex
@@ -1520,7 +1283,6 @@ type QuerierMock struct {
 	lockUpdateTask                             sync.RWMutex
 	lockUpdateTaskPosition                     sync.RWMutex
 	lockUpdateUserAppearance                   sync.RWMutex
-	lockUpdateUserXP                           sync.RWMutex
 	lockUpsertNoteFromSync                     sync.RWMutex
 	lockUpsertUser                             sync.RWMutex
 }
@@ -1666,42 +1428,6 @@ func (mock *QuerierMock) ArchiveTasksByProjectCalls() []struct {
 	mock.lockArchiveTasksByProject.RLock()
 	calls = mock.calls.ArchiveTasksByProject
 	mock.lockArchiveTasksByProject.RUnlock()
-	return calls
-}
-
-// CheckHabitTitleExists calls CheckHabitTitleExistsFunc.
-func (mock *QuerierMock) CheckHabitTitleExists(ctx context.Context, arg CheckHabitTitleExistsParams) (bool, error) {
-	if mock.CheckHabitTitleExistsFunc == nil {
-		panic("QuerierMock.CheckHabitTitleExistsFunc: method is nil but Querier.CheckHabitTitleExists was just called")
-	}
-	callInfo := struct {
-		Ctx context.Context
-		Arg CheckHabitTitleExistsParams
-	}{
-		Ctx: ctx,
-		Arg: arg,
-	}
-	mock.lockCheckHabitTitleExists.Lock()
-	mock.calls.CheckHabitTitleExists = append(mock.calls.CheckHabitTitleExists, callInfo)
-	mock.lockCheckHabitTitleExists.Unlock()
-	return mock.CheckHabitTitleExistsFunc(ctx, arg)
-}
-
-// CheckHabitTitleExistsCalls gets all the calls that were made to CheckHabitTitleExists.
-// Check the length with:
-//
-//	len(mockedQuerier.CheckHabitTitleExistsCalls())
-func (mock *QuerierMock) CheckHabitTitleExistsCalls() []struct {
-	Ctx context.Context
-	Arg CheckHabitTitleExistsParams
-} {
-	var calls []struct {
-		Ctx context.Context
-		Arg CheckHabitTitleExistsParams
-	}
-	mock.lockCheckHabitTitleExists.RLock()
-	calls = mock.calls.CheckHabitTitleExists
-	mock.lockCheckHabitTitleExists.RUnlock()
 	return calls
 }
 
@@ -2209,42 +1935,6 @@ func (mock *QuerierMock) CreateEmailUserCalls() []struct {
 	return calls
 }
 
-// CreateHabit calls CreateHabitFunc.
-func (mock *QuerierMock) CreateHabit(ctx context.Context, arg CreateHabitParams) error {
-	if mock.CreateHabitFunc == nil {
-		panic("QuerierMock.CreateHabitFunc: method is nil but Querier.CreateHabit was just called")
-	}
-	callInfo := struct {
-		Ctx context.Context
-		Arg CreateHabitParams
-	}{
-		Ctx: ctx,
-		Arg: arg,
-	}
-	mock.lockCreateHabit.Lock()
-	mock.calls.CreateHabit = append(mock.calls.CreateHabit, callInfo)
-	mock.lockCreateHabit.Unlock()
-	return mock.CreateHabitFunc(ctx, arg)
-}
-
-// CreateHabitCalls gets all the calls that were made to CreateHabit.
-// Check the length with:
-//
-//	len(mockedQuerier.CreateHabitCalls())
-func (mock *QuerierMock) CreateHabitCalls() []struct {
-	Ctx context.Context
-	Arg CreateHabitParams
-} {
-	var calls []struct {
-		Ctx context.Context
-		Arg CreateHabitParams
-	}
-	mock.lockCreateHabit.RLock()
-	calls = mock.calls.CreateHabit
-	mock.lockCreateHabit.RUnlock()
-	return calls
-}
-
 // CreateJob calls CreateJobFunc.
 func (mock *QuerierMock) CreateJob(ctx context.Context, arg CreateJobParams) (pgtype.UUID, error) {
 	if mock.CreateJobFunc == nil {
@@ -2597,42 +2287,6 @@ func (mock *QuerierMock) DeleteExpiredVerificationTokensCalls() []struct {
 	return calls
 }
 
-// DeleteHabit calls DeleteHabitFunc.
-func (mock *QuerierMock) DeleteHabit(ctx context.Context, arg DeleteHabitParams) error {
-	if mock.DeleteHabitFunc == nil {
-		panic("QuerierMock.DeleteHabitFunc: method is nil but Querier.DeleteHabit was just called")
-	}
-	callInfo := struct {
-		Ctx context.Context
-		Arg DeleteHabitParams
-	}{
-		Ctx: ctx,
-		Arg: arg,
-	}
-	mock.lockDeleteHabit.Lock()
-	mock.calls.DeleteHabit = append(mock.calls.DeleteHabit, callInfo)
-	mock.lockDeleteHabit.Unlock()
-	return mock.DeleteHabitFunc(ctx, arg)
-}
-
-// DeleteHabitCalls gets all the calls that were made to DeleteHabit.
-// Check the length with:
-//
-//	len(mockedQuerier.DeleteHabitCalls())
-func (mock *QuerierMock) DeleteHabitCalls() []struct {
-	Ctx context.Context
-	Arg DeleteHabitParams
-} {
-	var calls []struct {
-		Ctx context.Context
-		Arg DeleteHabitParams
-	}
-	mock.lockDeleteHabit.RLock()
-	calls = mock.calls.DeleteHabit
-	mock.lockDeleteHabit.RUnlock()
-	return calls
-}
-
 // DeleteNote calls DeleteNoteFunc.
 func (mock *QuerierMock) DeleteNote(ctx context.Context, arg DeleteNoteParams) error {
 	if mock.DeleteNoteFunc == nil {
@@ -2849,42 +2503,6 @@ func (mock *QuerierMock) FailJobCalls() []struct {
 	return calls
 }
 
-// GetConnectedHabitIDs calls GetConnectedHabitIDsFunc.
-func (mock *QuerierMock) GetConnectedHabitIDs(ctx context.Context, arg GetConnectedHabitIDsParams) ([]pgtype.UUID, error) {
-	if mock.GetConnectedHabitIDsFunc == nil {
-		panic("QuerierMock.GetConnectedHabitIDsFunc: method is nil but Querier.GetConnectedHabitIDs was just called")
-	}
-	callInfo := struct {
-		Ctx context.Context
-		Arg GetConnectedHabitIDsParams
-	}{
-		Ctx: ctx,
-		Arg: arg,
-	}
-	mock.lockGetConnectedHabitIDs.Lock()
-	mock.calls.GetConnectedHabitIDs = append(mock.calls.GetConnectedHabitIDs, callInfo)
-	mock.lockGetConnectedHabitIDs.Unlock()
-	return mock.GetConnectedHabitIDsFunc(ctx, arg)
-}
-
-// GetConnectedHabitIDsCalls gets all the calls that were made to GetConnectedHabitIDs.
-// Check the length with:
-//
-//	len(mockedQuerier.GetConnectedHabitIDsCalls())
-func (mock *QuerierMock) GetConnectedHabitIDsCalls() []struct {
-	Ctx context.Context
-	Arg GetConnectedHabitIDsParams
-} {
-	var calls []struct {
-		Ctx context.Context
-		Arg GetConnectedHabitIDsParams
-	}
-	mock.lockGetConnectedHabitIDs.RLock()
-	calls = mock.calls.GetConnectedHabitIDs
-	mock.lockGetConnectedHabitIDs.RUnlock()
-	return calls
-}
-
 // GetConnectedNotes calls GetConnectedNotesFunc.
 func (mock *QuerierMock) GetConnectedNotes(ctx context.Context, arg GetConnectedNotesParams) ([]GetConnectedNotesRow, error) {
 	if mock.GetConnectedNotesFunc == nil {
@@ -2990,186 +2608,6 @@ func (mock *QuerierMock) GetConversationCalls() []struct {
 	mock.lockGetConversation.RLock()
 	calls = mock.calls.GetConversation
 	mock.lockGetConversation.RUnlock()
-	return calls
-}
-
-// GetHabitActivity calls GetHabitActivityFunc.
-func (mock *QuerierMock) GetHabitActivity(ctx context.Context, arg GetHabitActivityParams) ([]pgtype.Timestamptz, error) {
-	if mock.GetHabitActivityFunc == nil {
-		panic("QuerierMock.GetHabitActivityFunc: method is nil but Querier.GetHabitActivity was just called")
-	}
-	callInfo := struct {
-		Ctx context.Context
-		Arg GetHabitActivityParams
-	}{
-		Ctx: ctx,
-		Arg: arg,
-	}
-	mock.lockGetHabitActivity.Lock()
-	mock.calls.GetHabitActivity = append(mock.calls.GetHabitActivity, callInfo)
-	mock.lockGetHabitActivity.Unlock()
-	return mock.GetHabitActivityFunc(ctx, arg)
-}
-
-// GetHabitActivityCalls gets all the calls that were made to GetHabitActivity.
-// Check the length with:
-//
-//	len(mockedQuerier.GetHabitActivityCalls())
-func (mock *QuerierMock) GetHabitActivityCalls() []struct {
-	Ctx context.Context
-	Arg GetHabitActivityParams
-} {
-	var calls []struct {
-		Ctx context.Context
-		Arg GetHabitActivityParams
-	}
-	mock.lockGetHabitActivity.RLock()
-	calls = mock.calls.GetHabitActivity
-	mock.lockGetHabitActivity.RUnlock()
-	return calls
-}
-
-// GetHabitByID calls GetHabitByIDFunc.
-func (mock *QuerierMock) GetHabitByID(ctx context.Context, arg GetHabitByIDParams) (Habit, error) {
-	if mock.GetHabitByIDFunc == nil {
-		panic("QuerierMock.GetHabitByIDFunc: method is nil but Querier.GetHabitByID was just called")
-	}
-	callInfo := struct {
-		Ctx context.Context
-		Arg GetHabitByIDParams
-	}{
-		Ctx: ctx,
-		Arg: arg,
-	}
-	mock.lockGetHabitByID.Lock()
-	mock.calls.GetHabitByID = append(mock.calls.GetHabitByID, callInfo)
-	mock.lockGetHabitByID.Unlock()
-	return mock.GetHabitByIDFunc(ctx, arg)
-}
-
-// GetHabitByIDCalls gets all the calls that were made to GetHabitByID.
-// Check the length with:
-//
-//	len(mockedQuerier.GetHabitByIDCalls())
-func (mock *QuerierMock) GetHabitByIDCalls() []struct {
-	Ctx context.Context
-	Arg GetHabitByIDParams
-} {
-	var calls []struct {
-		Ctx context.Context
-		Arg GetHabitByIDParams
-	}
-	mock.lockGetHabitByID.RLock()
-	calls = mock.calls.GetHabitByID
-	mock.lockGetHabitByID.RUnlock()
-	return calls
-}
-
-// GetHabitCompletionStats calls GetHabitCompletionStatsFunc.
-func (mock *QuerierMock) GetHabitCompletionStats(ctx context.Context, arg GetHabitCompletionStatsParams) ([]GetHabitCompletionStatsRow, error) {
-	if mock.GetHabitCompletionStatsFunc == nil {
-		panic("QuerierMock.GetHabitCompletionStatsFunc: method is nil but Querier.GetHabitCompletionStats was just called")
-	}
-	callInfo := struct {
-		Ctx context.Context
-		Arg GetHabitCompletionStatsParams
-	}{
-		Ctx: ctx,
-		Arg: arg,
-	}
-	mock.lockGetHabitCompletionStats.Lock()
-	mock.calls.GetHabitCompletionStats = append(mock.calls.GetHabitCompletionStats, callInfo)
-	mock.lockGetHabitCompletionStats.Unlock()
-	return mock.GetHabitCompletionStatsFunc(ctx, arg)
-}
-
-// GetHabitCompletionStatsCalls gets all the calls that were made to GetHabitCompletionStats.
-// Check the length with:
-//
-//	len(mockedQuerier.GetHabitCompletionStatsCalls())
-func (mock *QuerierMock) GetHabitCompletionStatsCalls() []struct {
-	Ctx context.Context
-	Arg GetHabitCompletionStatsParams
-} {
-	var calls []struct {
-		Ctx context.Context
-		Arg GetHabitCompletionStatsParams
-	}
-	mock.lockGetHabitCompletionStats.RLock()
-	calls = mock.calls.GetHabitCompletionStats
-	mock.lockGetHabitCompletionStats.RUnlock()
-	return calls
-}
-
-// GetHabitTrackerActivity calls GetHabitTrackerActivityFunc.
-func (mock *QuerierMock) GetHabitTrackerActivity(ctx context.Context, arg GetHabitTrackerActivityParams) ([]pgtype.Date, error) {
-	if mock.GetHabitTrackerActivityFunc == nil {
-		panic("QuerierMock.GetHabitTrackerActivityFunc: method is nil but Querier.GetHabitTrackerActivity was just called")
-	}
-	callInfo := struct {
-		Ctx context.Context
-		Arg GetHabitTrackerActivityParams
-	}{
-		Ctx: ctx,
-		Arg: arg,
-	}
-	mock.lockGetHabitTrackerActivity.Lock()
-	mock.calls.GetHabitTrackerActivity = append(mock.calls.GetHabitTrackerActivity, callInfo)
-	mock.lockGetHabitTrackerActivity.Unlock()
-	return mock.GetHabitTrackerActivityFunc(ctx, arg)
-}
-
-// GetHabitTrackerActivityCalls gets all the calls that were made to GetHabitTrackerActivity.
-// Check the length with:
-//
-//	len(mockedQuerier.GetHabitTrackerActivityCalls())
-func (mock *QuerierMock) GetHabitTrackerActivityCalls() []struct {
-	Ctx context.Context
-	Arg GetHabitTrackerActivityParams
-} {
-	var calls []struct {
-		Ctx context.Context
-		Arg GetHabitTrackerActivityParams
-	}
-	mock.lockGetHabitTrackerActivity.RLock()
-	calls = mock.calls.GetHabitTrackerActivity
-	mock.lockGetHabitTrackerActivity.RUnlock()
-	return calls
-}
-
-// GetHabitsByIDs calls GetHabitsByIDsFunc.
-func (mock *QuerierMock) GetHabitsByIDs(ctx context.Context, arg GetHabitsByIDsParams) ([]Habit, error) {
-	if mock.GetHabitsByIDsFunc == nil {
-		panic("QuerierMock.GetHabitsByIDsFunc: method is nil but Querier.GetHabitsByIDs was just called")
-	}
-	callInfo := struct {
-		Ctx context.Context
-		Arg GetHabitsByIDsParams
-	}{
-		Ctx: ctx,
-		Arg: arg,
-	}
-	mock.lockGetHabitsByIDs.Lock()
-	mock.calls.GetHabitsByIDs = append(mock.calls.GetHabitsByIDs, callInfo)
-	mock.lockGetHabitsByIDs.Unlock()
-	return mock.GetHabitsByIDsFunc(ctx, arg)
-}
-
-// GetHabitsByIDsCalls gets all the calls that were made to GetHabitsByIDs.
-// Check the length with:
-//
-//	len(mockedQuerier.GetHabitsByIDsCalls())
-func (mock *QuerierMock) GetHabitsByIDsCalls() []struct {
-	Ctx context.Context
-	Arg GetHabitsByIDsParams
-} {
-	var calls []struct {
-		Ctx context.Context
-		Arg GetHabitsByIDsParams
-	}
-	mock.lockGetHabitsByIDs.RLock()
-	calls = mock.calls.GetHabitsByIDs
-	mock.lockGetHabitsByIDs.RUnlock()
 	return calls
 }
 
@@ -3677,42 +3115,6 @@ func (mock *QuerierMock) IsContentDeletedCalls() []struct {
 	return calls
 }
 
-// IsHabitTrackedOnDate calls IsHabitTrackedOnDateFunc.
-func (mock *QuerierMock) IsHabitTrackedOnDate(ctx context.Context, arg IsHabitTrackedOnDateParams) (bool, error) {
-	if mock.IsHabitTrackedOnDateFunc == nil {
-		panic("QuerierMock.IsHabitTrackedOnDateFunc: method is nil but Querier.IsHabitTrackedOnDate was just called")
-	}
-	callInfo := struct {
-		Ctx context.Context
-		Arg IsHabitTrackedOnDateParams
-	}{
-		Ctx: ctx,
-		Arg: arg,
-	}
-	mock.lockIsHabitTrackedOnDate.Lock()
-	mock.calls.IsHabitTrackedOnDate = append(mock.calls.IsHabitTrackedOnDate, callInfo)
-	mock.lockIsHabitTrackedOnDate.Unlock()
-	return mock.IsHabitTrackedOnDateFunc(ctx, arg)
-}
-
-// IsHabitTrackedOnDateCalls gets all the calls that were made to IsHabitTrackedOnDate.
-// Check the length with:
-//
-//	len(mockedQuerier.IsHabitTrackedOnDateCalls())
-func (mock *QuerierMock) IsHabitTrackedOnDateCalls() []struct {
-	Ctx context.Context
-	Arg IsHabitTrackedOnDateParams
-} {
-	var calls []struct {
-		Ctx context.Context
-		Arg IsHabitTrackedOnDateParams
-	}
-	mock.lockIsHabitTrackedOnDate.RLock()
-	calls = mock.calls.IsHabitTrackedOnDate
-	mock.lockIsHabitTrackedOnDate.RUnlock()
-	return calls
-}
-
 // ListContent calls ListContentFunc.
 func (mock *QuerierMock) ListContent(ctx context.Context, arg ListContentParams) ([]ListContentRow, error) {
 	if mock.ListContentFunc == nil {
@@ -3782,78 +3184,6 @@ func (mock *QuerierMock) ListConversationsCalls() []struct {
 	mock.lockListConversations.RLock()
 	calls = mock.calls.ListConversations
 	mock.lockListConversations.RUnlock()
-	return calls
-}
-
-// ListHabitTrackerRecords calls ListHabitTrackerRecordsFunc.
-func (mock *QuerierMock) ListHabitTrackerRecords(ctx context.Context, userID string) ([]HabitRecord, error) {
-	if mock.ListHabitTrackerRecordsFunc == nil {
-		panic("QuerierMock.ListHabitTrackerRecordsFunc: method is nil but Querier.ListHabitTrackerRecords was just called")
-	}
-	callInfo := struct {
-		Ctx    context.Context
-		UserID string
-	}{
-		Ctx:    ctx,
-		UserID: userID,
-	}
-	mock.lockListHabitTrackerRecords.Lock()
-	mock.calls.ListHabitTrackerRecords = append(mock.calls.ListHabitTrackerRecords, callInfo)
-	mock.lockListHabitTrackerRecords.Unlock()
-	return mock.ListHabitTrackerRecordsFunc(ctx, userID)
-}
-
-// ListHabitTrackerRecordsCalls gets all the calls that were made to ListHabitTrackerRecords.
-// Check the length with:
-//
-//	len(mockedQuerier.ListHabitTrackerRecordsCalls())
-func (mock *QuerierMock) ListHabitTrackerRecordsCalls() []struct {
-	Ctx    context.Context
-	UserID string
-} {
-	var calls []struct {
-		Ctx    context.Context
-		UserID string
-	}
-	mock.lockListHabitTrackerRecords.RLock()
-	calls = mock.calls.ListHabitTrackerRecords
-	mock.lockListHabitTrackerRecords.RUnlock()
-	return calls
-}
-
-// ListHabits calls ListHabitsFunc.
-func (mock *QuerierMock) ListHabits(ctx context.Context, userID string) ([]Habit, error) {
-	if mock.ListHabitsFunc == nil {
-		panic("QuerierMock.ListHabitsFunc: method is nil but Querier.ListHabits was just called")
-	}
-	callInfo := struct {
-		Ctx    context.Context
-		UserID string
-	}{
-		Ctx:    ctx,
-		UserID: userID,
-	}
-	mock.lockListHabits.Lock()
-	mock.calls.ListHabits = append(mock.calls.ListHabits, callInfo)
-	mock.lockListHabits.Unlock()
-	return mock.ListHabitsFunc(ctx, userID)
-}
-
-// ListHabitsCalls gets all the calls that were made to ListHabits.
-// Check the length with:
-//
-//	len(mockedQuerier.ListHabitsCalls())
-func (mock *QuerierMock) ListHabitsCalls() []struct {
-	Ctx    context.Context
-	UserID string
-} {
-	var calls []struct {
-		Ctx    context.Context
-		UserID string
-	}
-	mock.lockListHabits.RLock()
-	calls = mock.calls.ListHabits
-	mock.lockListHabits.RUnlock()
 	return calls
 }
 
@@ -4106,42 +3436,6 @@ func (mock *QuerierMock) ListUnassignedTasksCalls() []struct {
 	mock.lockListUnassignedTasks.RLock()
 	calls = mock.calls.ListUnassignedTasks
 	mock.lockListUnassignedTasks.RUnlock()
-	return calls
-}
-
-// SearchHabits calls SearchHabitsFunc.
-func (mock *QuerierMock) SearchHabits(ctx context.Context, arg SearchHabitsParams) ([]Habit, error) {
-	if mock.SearchHabitsFunc == nil {
-		panic("QuerierMock.SearchHabitsFunc: method is nil but Querier.SearchHabits was just called")
-	}
-	callInfo := struct {
-		Ctx context.Context
-		Arg SearchHabitsParams
-	}{
-		Ctx: ctx,
-		Arg: arg,
-	}
-	mock.lockSearchHabits.Lock()
-	mock.calls.SearchHabits = append(mock.calls.SearchHabits, callInfo)
-	mock.lockSearchHabits.Unlock()
-	return mock.SearchHabitsFunc(ctx, arg)
-}
-
-// SearchHabitsCalls gets all the calls that were made to SearchHabits.
-// Check the length with:
-//
-//	len(mockedQuerier.SearchHabitsCalls())
-func (mock *QuerierMock) SearchHabitsCalls() []struct {
-	Ctx context.Context
-	Arg SearchHabitsParams
-} {
-	var calls []struct {
-		Ctx context.Context
-		Arg SearchHabitsParams
-	}
-	mock.lockSearchHabits.RLock()
-	calls = mock.calls.SearchHabits
-	mock.lockSearchHabits.RUnlock()
 	return calls
 }
 
@@ -4577,78 +3871,6 @@ func (mock *QuerierMock) TouchConversationCalls() []struct {
 	return calls
 }
 
-// TrackHabit calls TrackHabitFunc.
-func (mock *QuerierMock) TrackHabit(ctx context.Context, arg TrackHabitParams) (pgtype.UUID, error) {
-	if mock.TrackHabitFunc == nil {
-		panic("QuerierMock.TrackHabitFunc: method is nil but Querier.TrackHabit was just called")
-	}
-	callInfo := struct {
-		Ctx context.Context
-		Arg TrackHabitParams
-	}{
-		Ctx: ctx,
-		Arg: arg,
-	}
-	mock.lockTrackHabit.Lock()
-	mock.calls.TrackHabit = append(mock.calls.TrackHabit, callInfo)
-	mock.lockTrackHabit.Unlock()
-	return mock.TrackHabitFunc(ctx, arg)
-}
-
-// TrackHabitCalls gets all the calls that were made to TrackHabit.
-// Check the length with:
-//
-//	len(mockedQuerier.TrackHabitCalls())
-func (mock *QuerierMock) TrackHabitCalls() []struct {
-	Ctx context.Context
-	Arg TrackHabitParams
-} {
-	var calls []struct {
-		Ctx context.Context
-		Arg TrackHabitParams
-	}
-	mock.lockTrackHabit.RLock()
-	calls = mock.calls.TrackHabit
-	mock.lockTrackHabit.RUnlock()
-	return calls
-}
-
-// UntrackHabit calls UntrackHabitFunc.
-func (mock *QuerierMock) UntrackHabit(ctx context.Context, arg UntrackHabitParams) error {
-	if mock.UntrackHabitFunc == nil {
-		panic("QuerierMock.UntrackHabitFunc: method is nil but Querier.UntrackHabit was just called")
-	}
-	callInfo := struct {
-		Ctx context.Context
-		Arg UntrackHabitParams
-	}{
-		Ctx: ctx,
-		Arg: arg,
-	}
-	mock.lockUntrackHabit.Lock()
-	mock.calls.UntrackHabit = append(mock.calls.UntrackHabit, callInfo)
-	mock.lockUntrackHabit.Unlock()
-	return mock.UntrackHabitFunc(ctx, arg)
-}
-
-// UntrackHabitCalls gets all the calls that were made to UntrackHabit.
-// Check the length with:
-//
-//	len(mockedQuerier.UntrackHabitCalls())
-func (mock *QuerierMock) UntrackHabitCalls() []struct {
-	Ctx context.Context
-	Arg UntrackHabitParams
-} {
-	var calls []struct {
-		Ctx context.Context
-		Arg UntrackHabitParams
-	}
-	mock.lockUntrackHabit.RLock()
-	calls = mock.calls.UntrackHabit
-	mock.lockUntrackHabit.RUnlock()
-	return calls
-}
-
 // UpdateContentCommitStatus calls UpdateContentCommitStatusFunc.
 func (mock *QuerierMock) UpdateContentCommitStatus(ctx context.Context, arg UpdateContentCommitStatusParams) error {
 	if mock.UpdateContentCommitStatusFunc == nil {
@@ -4973,42 +4195,6 @@ func (mock *QuerierMock) UpdateConversationTitleCalls() []struct {
 	return calls
 }
 
-// UpdateHabit calls UpdateHabitFunc.
-func (mock *QuerierMock) UpdateHabit(ctx context.Context, arg UpdateHabitParams) error {
-	if mock.UpdateHabitFunc == nil {
-		panic("QuerierMock.UpdateHabitFunc: method is nil but Querier.UpdateHabit was just called")
-	}
-	callInfo := struct {
-		Ctx context.Context
-		Arg UpdateHabitParams
-	}{
-		Ctx: ctx,
-		Arg: arg,
-	}
-	mock.lockUpdateHabit.Lock()
-	mock.calls.UpdateHabit = append(mock.calls.UpdateHabit, callInfo)
-	mock.lockUpdateHabit.Unlock()
-	return mock.UpdateHabitFunc(ctx, arg)
-}
-
-// UpdateHabitCalls gets all the calls that were made to UpdateHabit.
-// Check the length with:
-//
-//	len(mockedQuerier.UpdateHabitCalls())
-func (mock *QuerierMock) UpdateHabitCalls() []struct {
-	Ctx context.Context
-	Arg UpdateHabitParams
-} {
-	var calls []struct {
-		Ctx context.Context
-		Arg UpdateHabitParams
-	}
-	mock.lockUpdateHabit.RLock()
-	calls = mock.calls.UpdateHabit
-	mock.lockUpdateHabit.RUnlock()
-	return calls
-}
-
 // UpdateJobStatus calls UpdateJobStatusFunc.
 func (mock *QuerierMock) UpdateJobStatus(ctx context.Context, arg UpdateJobStatusParams) error {
 	if mock.UpdateJobStatusFunc == nil {
@@ -5258,42 +4444,6 @@ func (mock *QuerierMock) UpdateUserAppearanceCalls() []struct {
 	mock.lockUpdateUserAppearance.RLock()
 	calls = mock.calls.UpdateUserAppearance
 	mock.lockUpdateUserAppearance.RUnlock()
-	return calls
-}
-
-// UpdateUserXP calls UpdateUserXPFunc.
-func (mock *QuerierMock) UpdateUserXP(ctx context.Context, arg UpdateUserXPParams) (User, error) {
-	if mock.UpdateUserXPFunc == nil {
-		panic("QuerierMock.UpdateUserXPFunc: method is nil but Querier.UpdateUserXP was just called")
-	}
-	callInfo := struct {
-		Ctx context.Context
-		Arg UpdateUserXPParams
-	}{
-		Ctx: ctx,
-		Arg: arg,
-	}
-	mock.lockUpdateUserXP.Lock()
-	mock.calls.UpdateUserXP = append(mock.calls.UpdateUserXP, callInfo)
-	mock.lockUpdateUserXP.Unlock()
-	return mock.UpdateUserXPFunc(ctx, arg)
-}
-
-// UpdateUserXPCalls gets all the calls that were made to UpdateUserXP.
-// Check the length with:
-//
-//	len(mockedQuerier.UpdateUserXPCalls())
-func (mock *QuerierMock) UpdateUserXPCalls() []struct {
-	Ctx context.Context
-	Arg UpdateUserXPParams
-} {
-	var calls []struct {
-		Ctx context.Context
-		Arg UpdateUserXPParams
-	}
-	mock.lockUpdateUserXP.RLock()
-	calls = mock.calls.UpdateUserXP
-	mock.lockUpdateUserXP.RUnlock()
 	return calls
 }
 

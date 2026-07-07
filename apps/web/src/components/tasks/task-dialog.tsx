@@ -2,14 +2,12 @@ import { type CheckedState } from "@radix-ui/react-checkbox";
 import {
     CalendarDays,
     Clock,
-    Flag,
     FolderOpen,
     Link2Off,
     Plus,
     Save,
     Trash2,
     X,
-    Zap,
 } from "lucide-react";
 import React from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -17,10 +15,13 @@ import { projectsQueryOptions } from "~/api/hooks";
 import { Button } from "~/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "~/components/ui/dialog";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger } from "~/components/ui/select";
+import { CodeText, Heading, MetaText, Text } from "~/components/ui/typography";
+import { ImpactBadge, PriorityBadge, StatusBadge } from "~/components/ui/tone-badge";
 import { RichTextEditor } from "~/components/text-editor";
 import { cn, getTimeAgo } from "~/lib/utils";
 import { isRichTextEmpty, sanitizeRichText } from "~/lib/rich-text";
 import { formatScheduleRange, useCalendarSchedules } from "~/lib/calendar-schedules";
+import { getImpactTone, getPriorityTone, getStatusTone } from "~/lib/tones";
 import {
     createScheduleDraft,
     getScheduleDraftPayload,
@@ -80,26 +81,6 @@ type TaskDialogProps = {
 
 const EMPTY_TASK_DEFAULT_VALUES: Partial<TaskDialogInput> = {};
 
-const priorityMeta = {
-    priority_1: { label: "P1", tone: "var(--rose)" },
-    priority_2: { label: "P2", tone: "var(--amber)" },
-    priority_3: { label: "P3", tone: "var(--cyan)" },
-    priority_4: { label: "P4", tone: "var(--text-3)" },
-} as const;
-
-const impactMeta = {
-    low: { label: "Low", dots: 1, tone: "var(--text-3)" },
-    medium: { label: "Medium", dots: 2, tone: "var(--cyan)" },
-    high: { label: "High", dots: 3, tone: "var(--amber)" },
-} as const;
-
-const statusMeta = {
-    pending: { label: "To Do", tone: "var(--amber)", background: "color-mix(in srgb, var(--amber) 13%, var(--bg-elev))" },
-    in_progress: { label: "In Progress", tone: "var(--cyan)", background: "color-mix(in srgb, var(--cyan) 14%, var(--bg-elev))" },
-    completed: { label: "Done", tone: "var(--green)", background: "color-mix(in srgb, var(--green) 14%, var(--bg-elev))" },
-    archived: { label: "Archive", tone: "var(--text-4)", background: "var(--bg-soft)" },
-} as const;
-
 const priorityOptions = ["priority_1", "priority_2", "priority_3", "priority_4"] as const;
 const impactOptions = ["high", "medium", "low"] as const;
 const statusOptions = [
@@ -109,15 +90,11 @@ const statusOptions = [
     ["archived", "Archive"],
 ] as const;
 
-const pickerTriggerClassName = "h-8 gap-2 rounded-[var(--r-2)] border-input bg-background px-2 text-xs focus:ring-2 focus:ring-ring/30 focus:ring-offset-0 [&>svg]:h-3.5 [&>svg]:w-3.5";
+const pickerTriggerClassName = "h-8 gap-2 rounded-[var(--r-2)] border-input bg-background px-2 text-[length:var(--type-meta-size)] focus:ring-2 focus:ring-ring/30 focus:ring-offset-0 [&>svg]:h-3.5 [&>svg]:w-3.5";
 const pickerContentClassName = "border-border bg-[var(--bg-elev)] shadow-[0_18px_44px_-34px_rgba(0,0,0,0.95)]";
-const pickerItemClassName = "h-8 rounded-[var(--r-2)] py-1.5 pl-8 pr-2 text-xs text-foreground focus:bg-[var(--bg-soft)] focus:text-foreground data-[state=checked]:bg-[var(--bg-soft)]";
+const pickerItemClassName = "h-8 rounded-[var(--r-2)] py-1.5 pl-8 pr-2 text-[length:var(--type-meta-size)] text-foreground focus:bg-[var(--bg-soft)] focus:text-foreground data-[state=checked]:bg-[var(--bg-soft)]";
 
-type PriorityMeta = (typeof priorityMeta)[keyof typeof priorityMeta];
-type ImpactMeta = (typeof impactMeta)[keyof typeof impactMeta];
-type StatusMeta = (typeof statusMeta)[keyof typeof statusMeta];
-
-function getStatusStyle(status: StatusMeta): React.CSSProperties {
+function getStatusStyle(status: ReturnType<typeof getStatusTone>): React.CSSProperties {
     return {
         "--task-dialog-status-color": status.tone,
         "--task-dialog-status-bg": status.background,
@@ -192,9 +169,9 @@ export function TaskDialog({
     const isCreate = mode === "create";
     const isFormMode = mode === "create" || mode === "edit";
     const statusValue = (isFormMode ? formData.status : task?.status) ?? "pending";
-    const currentStatus = statusMeta[statusValue as keyof typeof statusMeta] ?? statusMeta.pending;
-    const priority = priorityMeta[(task?.priority ?? formData.priority) as keyof typeof priorityMeta] ?? priorityMeta.priority_4;
-    const impact = impactMeta[(task?.impact ?? formData.impact) as keyof typeof impactMeta] ?? impactMeta.medium;
+    const currentStatus = getStatusTone(statusValue);
+    const priority = getPriorityTone(task?.priority ?? formData.priority);
+    const impact = getImpactTone(task?.impact ?? formData.impact);
     const projectName = task?.project?.name || task?.projectName;
     const taskCode = getTaskCode(task);
     const scheduleLabel = schedule ? formatScheduleRange(schedule) : "Not scheduled";
@@ -267,26 +244,22 @@ export function TaskDialog({
         >
             <DialogContent className="max-w-2xl overflow-hidden border border-border bg-[var(--bg-elev)] p-0 shadow-[0_20px_64px_-48px_rgba(0,0,0,0.95)]">
                 <DialogHeader className="border-b border-border px-5 py-4 text-left">
-                    <DialogTitle className="pr-8 text-lg font-semibold leading-6 tracking-normal text-foreground">
+                    <DialogTitle asChild>
+                      <Heading as="h2" variant="page" className="pr-8">
                         {dialogTitle}
+                      </Heading>
                     </DialogTitle>
                     <div className="flex items-center justify-between gap-3">
-                        <DialogDescription className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[10.5px] uppercase tracking-[0.06em] text-muted-foreground">
-                            <span>{taskCode}</span>
+                        <DialogDescription className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-muted-foreground">
+                            <CodeText className="uppercase tracking-[0.06em]">{taskCode}</CodeText>
                             {(projectName || isCreate) && (
                                 <>
                                     <span className="text-[var(--text-4)]">·</span>
-                                    <span className="lowercase">{projectName || "new task"}</span>
+                                    <MetaText className="lowercase">{projectName || "new task"}</MetaText>
                                 </>
                             )}
                             <span className="text-[var(--text-4)]">·</span>
-                            <span
-                                className="inline-flex items-center gap-1 text-[var(--task-dialog-status-color)]"
-                                style={getStatusStyle(currentStatus)}
-                            >
-                                <span className="size-1.5 rounded-full bg-[var(--task-dialog-status-color)]" />
-                                {currentStatus.label}
-                            </span>
+                            <StatusBadge status={statusValue} />
                         </DialogDescription>
                         {!isCreate && task && onDelete && (
                             <Button
@@ -314,7 +287,7 @@ export function TaskDialog({
                                         type="button"
                                         onClick={() => setMode(item)}
                                         className={cn(
-                                            "h-6 rounded-[calc(var(--r-2)-1px)] px-2 font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground transition-colors",
+                                            "h-6 rounded-[calc(var(--r-2)-1px)] px-2 text-[length:var(--type-meta-size)] text-muted-foreground transition-colors",
                                             mode === item && "bg-primary text-primary-foreground"
                                         )}
                                     >
@@ -323,7 +296,7 @@ export function TaskDialog({
                                 ))}
                             </div>
                         ) : (
-                            <div className="inline-flex h-7 items-center rounded-[var(--r-2)] border border-border bg-[var(--bg-soft)] px-2 font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
+                            <div className="inline-flex h-7 items-center rounded-[var(--r-2)] border border-border bg-[var(--bg-soft)] px-2 text-[length:var(--type-meta-size)] text-muted-foreground">
                                 Create
                             </div>
                         )}
@@ -334,20 +307,20 @@ export function TaskDialog({
                         <div className="space-y-3">
                             {hasDescription ? (
                                 <article
-                                    className="task-description-prose text-sm leading-5 text-muted-foreground"
+                                    className="task-description-prose text-[length:var(--type-body-size)] leading-[var(--type-body-line)] text-muted-foreground"
                                     dangerouslySetInnerHTML={{ __html: descriptionHtml }}
                                 />
                             ) : (
-                                <p className="text-sm leading-5 text-muted-foreground">
+                                <Text variant="muted">
                                     No description yet. Open edit mode to add a sharper next action.
-                                </p>
+                                </Text>
                             )}
                             <div className="grid grid-cols-2 gap-2">
                                 <TaskDetail label="Priority" value={priority.label}>
-                                    <PriorityMark priority={priority} />
+                                    <PriorityBadge priority={task?.priority ?? formData.priority} />
                                 </TaskDetail>
                                 <TaskDetail label="Impact" value={impact.label}>
-                                    <ImpactMark impact={impact} />
+                                    <ImpactBadge impact={task?.impact ?? formData.impact} />
                                 </TaskDetail>
                                 <TaskDetail label="Project" value={projectName || "None"} icon={<FolderOpen className="h-3 w-3" />} />
                                 <TaskDetail label="Created" value={task.createdAt ? getTimeAgo(new Date(task.createdAt)) : "Unknown"} icon={<Clock className="h-3 w-3" />} />
@@ -355,18 +328,18 @@ export function TaskDialog({
                             <div className="rounded-[var(--r-2)] border border-border bg-[var(--bg-soft)] px-3 py-2">
                                 <div className="flex items-center justify-between gap-3">
                                     <div className="min-w-0">
-                                        <div className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
+                                        <MetaText className="flex items-center gap-1.5 text-muted-foreground">
                                             <CalendarDays className="h-3 w-3" />
                                             <span>Calendar</span>
-                                        </div>
-                                        <div className="mt-1 truncate text-xs text-foreground">{scheduleLabel}</div>
+                                        </MetaText>
+                                        <MetaText as="div" className="mt-1 truncate text-foreground">{scheduleLabel}</MetaText>
                                     </div>
                                     {schedule && (
                                         <Button
                                             type="button"
                                             variant="ghost"
                                             size="sm"
-                                            className="h-7 shrink-0 px-2 text-xs"
+                                            className="h-7 shrink-0 px-2 text-[length:var(--type-meta-size)]"
                                             onClick={() => unscheduleTask(task.id)}
                                         >
                                             <Link2Off className="mr-1.5 h-3.5 w-3.5" />
@@ -383,7 +356,7 @@ export function TaskDialog({
                             <input
                                 value={formData.title}
                                 onChange={(event) => setFormData((prev) => ({ ...prev, title: event.target.value }))}
-                                className="h-9 w-full rounded-[var(--r-2)] border border-input bg-background px-3 text-sm font-medium text-foreground outline-none transition-colors focus:border-[var(--ink-line)] focus:ring-2 focus:ring-ring/30"
+                                className="h-9 w-full rounded-[var(--r-2)] border border-input bg-background px-3 text-[length:var(--type-body-size)] text-foreground outline-none transition-colors focus:border-[var(--ink-line)] focus:ring-2 focus:ring-ring/30"
                                 placeholder="Task title"
                                 autoFocus
                             />
@@ -458,7 +431,7 @@ function StatusIndicatorSelect({
     value: string;
     onChange: (value: string) => void;
 }) {
-    const status = statusMeta[value as keyof typeof statusMeta] ?? statusMeta.pending;
+    const status = getStatusTone(value);
 
     return (
         <Select value={value} onValueChange={onChange}>
@@ -466,7 +439,7 @@ function StatusIndicatorSelect({
                 aria-label="Status"
                 className={cn(
                     "h-7 w-fit min-w-0 max-w-[10.5rem] gap-1.5 rounded-[var(--r-2)] border-[var(--task-dialog-status-color)] bg-[var(--task-dialog-status-bg)] py-0 pl-2.5 pr-1.5",
-                    "items-center justify-start font-mono text-[10px] uppercase leading-none tracking-[0.08em] text-[var(--task-dialog-status-color)] shadow-[inset_3px_0_0_var(--task-dialog-status-color)]",
+                    "items-center justify-start text-[length:var(--type-meta-size)] leading-none text-[var(--task-dialog-status-color)] shadow-[inset_3px_0_0_var(--task-dialog-status-color)]",
                     "focus:ring-2 focus:ring-ring/30 focus:ring-offset-0 [&>svg]:h-3 [&>svg]:w-3 [&>svg]:shrink-0 [&>svg]:text-[var(--task-dialog-status-color)] [&>svg]:opacity-100"
                 )}
                 style={getStatusStyle(status)}
@@ -503,36 +476,14 @@ function TaskDetail({
 }) {
     return (
         <div className="rounded-[var(--r-2)] border border-border bg-[var(--bg-soft)] px-2.5 py-2">
-            <div className="font-mono text-[9px] uppercase tracking-[0.08em] text-muted-foreground">{label}</div>
-            <div className="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-foreground">
+            <MetaText className="text-muted-foreground/70">{label}</MetaText>
+            <div className="mt-1 flex min-w-0 items-center gap-1.5 text-[length:var(--type-label-size)] text-foreground">
                 {icon}
                 {children || (
                     <span className="truncate" style={tone ? { color: tone } : undefined}>{value}</span>
                 )}
             </div>
         </div>
-    );
-}
-
-function PriorityMark({ priority }: { priority: PriorityMeta }) {
-    return (
-        <span className="inline-flex min-w-0 items-center gap-1 whitespace-nowrap font-mono text-[10.5px] font-medium uppercase leading-none tracking-[0.04em]" style={{ color: priority.tone }}>
-            <Flag className="h-3 w-3 shrink-0" fill="currentColor" />
-            <span className="truncate">{priority.label}</span>
-        </span>
-    );
-}
-
-function ImpactMark({ impact }: { impact: ImpactMeta }) {
-    return (
-        <span className="inline-flex min-w-0 items-center gap-1 whitespace-nowrap font-mono text-[10.5px] font-medium uppercase leading-none tracking-[0.04em]" style={{ color: impact.tone }}>
-            <span className="inline-flex shrink-0 items-center gap-0.5">
-                {Array.from({ length: impact.dots }).map((_, index) => (
-                    <Zap key={index} className="h-3 w-3" fill="currentColor" />
-                ))}
-            </span>
-            <span className="truncate">{impact.label}</span>
-        </span>
     );
 }
 
@@ -543,22 +494,20 @@ function PriorityPicker({
     value: string;
     onChange: (value: string) => void;
 }) {
-    const selectedPriority = priorityMeta[value as keyof typeof priorityMeta] ?? priorityMeta.priority_4;
-
     return (
         <div className="space-y-1">
-            <span className="font-mono text-[9px] uppercase tracking-[0.08em] text-muted-foreground">Priority</span>
+            <MetaText className="text-muted-foreground/70">Priority</MetaText>
             <Select value={value} onValueChange={onChange}>
                 <SelectTrigger className={pickerTriggerClassName}>
                     <div className="flex min-w-0 flex-1 items-center overflow-hidden">
-                        <PriorityMark priority={selectedPriority} />
+                        <PriorityBadge priority={value} />
                     </div>
                 </SelectTrigger>
                 <SelectContent className={pickerContentClassName}>
                     <SelectGroup>
                         {priorityOptions.map((option) => (
                             <SelectItem key={option} value={option} className={pickerItemClassName}>
-                                <PriorityMark priority={priorityMeta[option]} />
+                                <PriorityBadge priority={option} />
                             </SelectItem>
                         ))}
                     </SelectGroup>
@@ -575,22 +524,20 @@ function ImpactPicker({
     value: string;
     onChange: (value: string) => void;
 }) {
-    const selectedImpact = impactMeta[value as keyof typeof impactMeta] ?? impactMeta.medium;
-
     return (
         <div className="space-y-1">
-            <span className="font-mono text-[9px] uppercase tracking-[0.08em] text-muted-foreground">Impact</span>
+            <MetaText className="text-muted-foreground/70">Impact</MetaText>
             <Select value={value} onValueChange={onChange}>
                 <SelectTrigger className={pickerTriggerClassName}>
                     <div className="flex min-w-0 flex-1 items-center overflow-hidden">
-                        <ImpactMark impact={selectedImpact} />
+                        <ImpactBadge impact={value} />
                     </div>
                 </SelectTrigger>
                 <SelectContent className={pickerContentClassName}>
                     <SelectGroup>
                         {impactOptions.map((option) => (
                             <SelectItem key={option} value={option} className={pickerItemClassName}>
-                                <ImpactMark impact={impactMeta[option]} />
+                                <ImpactBadge impact={option} />
                             </SelectItem>
                         ))}
                     </SelectGroup>
@@ -619,7 +566,7 @@ function TaskSelect({
 
     return (
         <div className="space-y-1">
-            <span className="font-mono text-[9px] uppercase tracking-[0.08em] text-muted-foreground">{label}</span>
+            <MetaText className="text-muted-foreground/70">{label}</MetaText>
             <Select value={value} onValueChange={onChange}>
                 <SelectTrigger aria-label={label} className={pickerTriggerClassName}>
                     <div className="flex min-w-0 flex-1 items-center overflow-hidden">
@@ -650,11 +597,11 @@ function TaskOptionMark({
     label: string;
 }) {
     if (kind === "status") {
-        const status = statusMeta[value as keyof typeof statusMeta] ?? statusMeta.pending;
+        const status = getStatusTone(value);
 
         return (
             <div
-                className="flex min-w-0 items-center gap-1.5 font-mono text-[10px] font-medium uppercase leading-none tracking-[0.08em] text-[var(--task-dialog-status-color)]"
+                className="flex min-w-0 items-center gap-1.5 text-[length:var(--type-meta-size)] leading-none text-[var(--task-dialog-status-color)]"
                 style={getStatusStyle(status)}
             >
                 <span className="size-1.5 shrink-0 rounded-full bg-[var(--task-dialog-status-color)]" />
@@ -665,7 +612,7 @@ function TaskOptionMark({
 
     if (kind === "project") {
         return (
-            <span className="inline-flex min-w-0 items-center gap-1.5 text-xs font-medium leading-none text-foreground">
+            <span className="inline-flex min-w-0 items-center gap-1.5 text-[length:var(--type-label-size)] leading-none text-foreground">
                 <FolderOpen className="h-3 w-3 shrink-0 text-muted-foreground" />
                 <span className="truncate">{label}</span>
             </span>
@@ -673,7 +620,7 @@ function TaskOptionMark({
     }
 
     return (
-        <span className="inline-flex min-w-0 items-center text-xs font-medium leading-none text-foreground">
+        <span className="inline-flex min-w-0 items-center text-[length:var(--type-label-size)] leading-none text-foreground">
             <span className="truncate">{label}</span>
         </span>
     );

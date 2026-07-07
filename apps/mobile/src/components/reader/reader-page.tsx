@@ -10,7 +10,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   noteQueryOptions,
   taskQueryOptions,
-  habitQueryOptions,
 } from "@mindtab/core";
 import { WebView } from "react-native-webview";
 import type { WebViewMessageEvent } from "react-native-webview";
@@ -143,7 +142,7 @@ function buildReaderHtml(content: string): string {
         if (el.querySelector('.mention-icon')) return;
         var rawId = el.getAttribute('data-id') || '';
         var type = rawId.split(':')[0];
-        var icon = type === 'task' ? '🎯' : type === 'habit' ? '🔄' : type === 'note' ? '📝' : '';
+        var icon = type === 'task' ? '🎯' : type === 'note' ? '📝' : '';
         var labelText = el.textContent;
         el.textContent = '';
         var topRow = document.createElement('span');
@@ -301,16 +300,6 @@ export function ReaderPage({
                   status: task.status,
                   priority: task.priority,
                   projectName: task.project?.name,
-                };
-              }
-            } else if (type === "habit") {
-              const habit = (await queryClient.fetchQuery(
-                habitQueryOptions(api, entityId),
-              )) as any;
-              if (habit) {
-                result[rawId] = {
-                  streak: habit.currentStreak ?? habit.streak ?? 0,
-                  frequency: habit.frequency,
                 };
               }
             } else if (type === "note") {

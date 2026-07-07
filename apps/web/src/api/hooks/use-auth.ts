@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { create } from "zustand";
-import type { AppearanceTheme, FontPreset } from "@mindtab/core";
+import { normalizeFontPreset, type AppearanceTheme, type FontPreset } from "@mindtab/core";
 import { api, setAccessToken } from "../client";
 
 interface User {
@@ -8,7 +8,6 @@ interface User {
   name: string | null;
   email: string;
   image: string | null;
-  xp: number;
   onboardingCompleted: boolean;
   theme: AppearanceTheme;
   font: FontPreset;
@@ -58,8 +57,9 @@ const useAuthStore = create<AuthState>((set, get) => ({
         // Fetch user info
         const userRes = await api.GET("/users/me");
         if (userRes.data) {
+          const user = normalizeUser(userRes.data as User);
           set({
-            user: userRes.data as User,
+            user,
             accessToken: data.accessToken,
             isAuthenticated: true,
             isLoading: false,
@@ -68,7 +68,7 @@ const useAuthStore = create<AuthState>((set, get) => ({
           });
           return {
             accessToken: data.accessToken,
-            user: userRes.data as User,
+            user,
           };
         }
       }
@@ -103,9 +103,10 @@ const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   setSession: (session) => {
+    const user = normalizeUser(session.user);
     setAccessToken(session.accessToken);
     set({
-      user: session.user,
+      user,
       accessToken: session.accessToken,
       isAuthenticated: true,
       isLoading: false,
@@ -124,7 +125,7 @@ const useAuthStore = create<AuthState>((set, get) => ({
 
     const session = {
       accessToken: data.accessToken,
-      user: data.user as User,
+      user: normalizeUser(data.user as User),
     };
     get().setSession(session);
     return session;
@@ -139,7 +140,7 @@ const useAuthStore = create<AuthState>((set, get) => ({
       throw new Error("Failed to update appearance");
     }
 
-    const user = data as User;
+    const user = normalizeUser(data as User);
     set({ user });
     return user;
   },
@@ -185,5 +186,12 @@ export function useAuth() {
     updateAppearance: store.updateAppearance,
     logout: store.logout,
     refreshSession: store._refreshSession,
+  };
+}
+
+function normalizeUser(user: User): User {
+  return {
+    ...user,
+    font: normalizeFontPreset(user.font),
   };
 }

@@ -1,6 +1,6 @@
 import { richTextToPlainText } from "~/lib/rich-text";
 
-export type MentionType = "note" | "task" | "habit";
+export type MentionType = "note" | "task";
 
 export type MentionedItem = {
     id: string;
@@ -57,7 +57,6 @@ export function getMentionedItems(content?: string | null) {
     const mentionedItems: Record<MentionType, MentionedItem[]> = {
         note: [],
         task: [],
-        habit: [],
     };
 
     if (!content || typeof DOMParser === "undefined") return mentionedItems;
@@ -76,7 +75,7 @@ export function getMentionedItems(content?: string | null) {
         if (
             id &&
             label &&
-            ["note", "task", "habit"].includes(mentionType) &&
+            ["note", "task"].includes(mentionType) &&
             !mentionedIdsSet.has(dedupeKey)
         ) {
             mentionedItems[mentionType].push({

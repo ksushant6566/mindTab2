@@ -8,7 +8,7 @@ type EmptyStateProps = {
 const SUGGESTIONS = [
   "What are my active tasks?",
   "Summarize my saved articles",
-  "Create a new habit",
+  "Create a new task",
   "How was my week?",
 ];
 

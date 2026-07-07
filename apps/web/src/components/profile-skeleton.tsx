@@ -56,7 +56,7 @@ export const ProfileSkeleton = () => {
 
                     <Card>
                         <CardHeader>
-                            <CardTitle>Top Habit</CardTitle>
+                            <CardTitle>Recent Activity</CardTitle>
                         </CardHeader>
                         <CardContent>
                             <Skeleton className="h-6 w-32" />

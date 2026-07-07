@@ -36,7 +36,6 @@ func (h *UsersHandler) GetMe(w http.ResponseWriter, r *http.Request) {
 
 // updateMeRequest is the request body for PATCH /users/me.
 type updateMeRequest struct {
-	XPToAdd             *int32  `json:"xpToAdd,omitempty"`
 	OnboardingCompleted *bool   `json:"onboardingCompleted,omitempty"`
 	Theme               *string `json:"theme,omitempty"`
 	Font                *string `json:"font,omitempty"`
@@ -49,9 +48,14 @@ var validUserThemes = map[string]bool{
 }
 
 var validUserFonts = map[string]bool{
-	"inter":  true,
-	"geist":  true,
-	"system": true,
+	"codex":   true,
+	"linear":  true,
+	"github":  true,
+	"notion":  true,
+	"raycast": true,
+	"system":  true,
+	"inter":   true,
+	"geist":   true,
 }
 
 // UpdateMe handles PATCH /users/me.
@@ -62,18 +66,6 @@ func (h *UsersHandler) UpdateMe(w http.ResponseWriter, r *http.Request) {
 	if err := ReadJSON(r, &req); err != nil {
 		WriteError(w, http.StatusBadRequest, "invalid request body")
 		return
-	}
-
-	if req.XPToAdd != nil {
-		_, err := h.queries.UpdateUserXP(r.Context(), store.UpdateUserXPParams{
-			ID: userID,
-			Xp: *req.XPToAdd,
-		})
-		if err != nil {
-			slog.Error("failed to update user XP", "error", err)
-			WriteError(w, http.StatusInternalServerError, "failed to update XP")
-			return
-		}
 	}
 
 	if req.OnboardingCompleted != nil && *req.OnboardingCompleted {
@@ -102,7 +94,7 @@ func (h *UsersHandler) UpdateMe(w http.ResponseWriter, r *http.Request) {
 				WriteError(w, http.StatusBadRequest, "invalid font")
 				return
 			}
-			params.Font = pgtype.Text{String: *req.Font, Valid: true}
+			params.Font = pgtype.Text{String: normalizeUserFont(*req.Font), Valid: true}
 		}
 
 		if _, err := h.queries.UpdateUserAppearance(r.Context(), params); err != nil {

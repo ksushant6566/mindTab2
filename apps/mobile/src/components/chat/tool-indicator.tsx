@@ -13,11 +13,6 @@ const TOOL_NAMES: Record<string, string> = {
   create_task: "Creating task",
   update_task: "Updating task",
   delete_task: "Deleting task",
-  list_habits: "Checking your habits",
-  get_habit: "Reading habit details",
-  create_habit: "Creating habit",
-  update_habit: "Updating habit",
-  delete_habit: "Deleting habit",
   list_notes: "Checking your notes",
   get_note: "Reading note",
   create_note: "Creating note",
@@ -30,7 +25,6 @@ const TOOL_NAMES: Record<string, string> = {
   get_project: "Reading project",
   create_project: "Creating project",
   update_project: "Updating project",
-  toggle_habit: "Updating habit",
   get_user_profile: "Checking your profile",
 };
 

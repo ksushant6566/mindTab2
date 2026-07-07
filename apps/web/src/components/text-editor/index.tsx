@@ -18,7 +18,7 @@ import {
 import { type KeyboardEvent, useEffect, useId, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import tippy from "tippy.js";
-import { tasksQueryOptions, habitsQueryOptions, notesQueryOptions } from "~/api/hooks";
+import { tasksQueryOptions, notesQueryOptions } from "~/api/hooks";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Separator } from "~/components/ui/separator";
@@ -62,7 +62,6 @@ export const RichTextEditor = ({
 }: RichTextEditorProps) => {
   const editorRef = useRef<HTMLDivElement>(null);
   const { data: tasks } = useQuery({ ...tasksQueryOptions(), enabled: withMentions });
-  const { data: habits } = useQuery({ ...habitsQueryOptions(), enabled: withMentions });
   const { data: notes } = useQuery({ ...notesQueryOptions(), enabled: withMentions });
 
   const editor = useEditor({
@@ -84,13 +83,12 @@ export const RichTextEditor = ({
               suggestion: {
                 items: ({ query }: { query: string }) => {
                   const taskItems = (tasks as any[])?.map((task: any) => ({ ...task, resourceType: "task" })) || [];
-                  const habitItems = (habits as any[])?.map((habit: any) => ({ ...habit, resourceType: "habit" })) || [];
                   const noteItems = (notes as any[])?.map((note: any) => ({ ...note, resourceType: "note" })) || [];
-                  const initialItems = [...taskItems.slice(0, 2), ...noteItems.slice(0, 2), ...habitItems.slice(0, 2)];
+                  const initialItems = [...taskItems.slice(0, 3), ...noteItems.slice(0, 3)];
 
                   if (!query) return initialItems;
 
-                  return [...taskItems, ...habitItems, ...noteItems]
+                  return [...taskItems, ...noteItems]
                     .filter((item) => item.title?.toLowerCase().includes(query.toLowerCase()))
                     .slice(0, 10);
                 },

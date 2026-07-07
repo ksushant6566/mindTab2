@@ -7,23 +7,21 @@ import { api } from "~/api/client";
 import { WelcomeStep } from "./welcome-step";
 import { CreateProjectStep } from "./create-project-step";
 import { CreateTaskStep, type CreatedTaskData } from "./create-task-step";
-import { CreateHabitStep, type CreatedHabitData } from "./create-habit-step";
 import { NotesIntroStep } from "./notes-intro-step";
 import { ChromeExtensionStep } from "./chrome-extension-step";
 
-const TOTAL_STEPS = 6;
+const TOTAL_STEPS = 5;
 
 const STEP_LABELS = [
     "Welcome",
     "Project",
     "Task",
-    "Habit",
     "Notes",
     "Extension",
 ] as const;
 
 // Steps that use wider container
-const WIDE_STEPS = new Set([1, 5, 6]);
+const WIDE_STEPS = new Set([1, 4, 5]);
 
 type OnboardingProps = {
     userName: string;
@@ -58,7 +56,6 @@ export function Onboarding({ userName, onComplete }: OnboardingProps) {
     const [createdProjectId, setCreatedProjectId] = useState<string | null>(null);
     const [createdProjectName, setCreatedProjectName] = useState<string | null>(null);
     const [createdTaskData, setCreatedTaskData] = useState<CreatedTaskData | null>(null);
-    const [createdHabitData, setCreatedHabitData] = useState<CreatedHabitData | null>(null);
 
     const handleNext = () => {
         setDirection(1);
@@ -79,10 +76,6 @@ export function Onboarding({ userName, onComplete }: OnboardingProps) {
     const handleTaskCreated = (data: CreatedTaskData) => {
         setCreatedTaskData(data);
         handleNext();
-    };
-
-    const handleHabitCreated = (data: CreatedHabitData) => {
-        setCreatedHabitData(data);
     };
 
     const handleOnboardingComplete = async () => {
@@ -266,15 +259,6 @@ export function Onboarding({ userName, onComplete }: OnboardingProps) {
                         )}
 
                         {currentStep === 4 && (
-                            <CreateHabitStep
-                                onHabitCreated={handleHabitCreated}
-                                onNext={handleNext}
-                                onBack={handleBack}
-                                initialData={createdHabitData}
-                            />
-                        )}
-
-                        {currentStep === 5 && (
                             <NotesIntroStep
                                 taskTitle={createdTaskData?.title ?? null}
                                 onNext={handleNext}
@@ -282,7 +266,7 @@ export function Onboarding({ userName, onComplete }: OnboardingProps) {
                             />
                         )}
 
-                        {currentStep === 6 && (
+                        {currentStep === 5 && (
                             <ChromeExtensionStep
                                 onNext={handleOnboardingComplete}
                                 onBack={handleBack}
