@@ -24,7 +24,7 @@ export function ToneBadge({
   return (
     <span
       className={cn(
-        "inline-flex min-w-0 items-center gap-1 whitespace-nowrap text-[length:var(--type-meta-size)] font-[var(--type-meta-weight)] leading-none",
+        "inline-flex min-w-0 items-center gap-1 whitespace-nowrap text-[length:var(--type-meta-size)] font-[var(--type-meta-weight)] leading-[var(--type-meta-line)]",
         className
       )}
       style={{ color: tone }}
