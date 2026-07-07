@@ -9,14 +9,6 @@ import {
   useDeleteTask as _useDeleteTask,
   useUpdateTaskPositions as _useUpdateTaskPositions,
   useArchiveCompletedTasks as _useArchiveCompletedTasks,
-  habitsQueryOptions as _habitsQueryOptions,
-  habitQueryOptions as _habitQueryOptions,
-  habitTrackerQueryOptions as _habitTrackerQueryOptions,
-  useCreateHabit as _useCreateHabit,
-  useUpdateHabit as _useUpdateHabit,
-  useDeleteHabit as _useDeleteHabit,
-  useTrackHabit as _useTrackHabit,
-  useUntrackHabit as _useUntrackHabit,
   notesQueryOptions as _notesQueryOptions,
   noteQueryOptions as _noteQueryOptions,
   notesCountQueryOptions as _notesCountQueryOptions,
@@ -32,7 +24,6 @@ import {
   useArchiveProject as _useArchiveProject,
   activityQueryOptions as _activityQueryOptions,
   searchTasksQueryOptions as _searchTasksQueryOptions,
-  searchHabitsQueryOptions as _searchHabitsQueryOptions,
   searchNotesQueryOptions as _searchNotesQueryOptions,
 } from "@mindtab/core";
 
@@ -46,16 +37,6 @@ export const useUpdateTask = () => _useUpdateTask(api);
 export const useDeleteTask = () => _useDeleteTask(api);
 export const useUpdateTaskPositions = () => _useUpdateTaskPositions(api);
 export const useArchiveCompletedTasks = () => _useArchiveCompletedTasks(api);
-
-// Habits - bind api client
-export const habitsQueryOptions = () => _habitsQueryOptions(api);
-export const habitQueryOptions = (id: string) => _habitQueryOptions(api, id);
-export const habitTrackerQueryOptions = () => _habitTrackerQueryOptions(api);
-export const useCreateHabit = () => _useCreateHabit(api);
-export const useUpdateHabit = () => _useUpdateHabit(api);
-export const useDeleteHabit = () => _useDeleteHabit(api);
-export const useTrackHabit = () => _useTrackHabit(api);
-export const useUntrackHabit = () => _useUntrackHabit(api);
 
 // Notes - bind api client
 export const notesQueryOptions = (params?: Parameters<typeof _notesQueryOptions>[1]) => _notesQueryOptions(api, params);
@@ -79,8 +60,9 @@ export const activityQueryOptions = (userId: string) => _activityQueryOptions(ap
 
 // Search - bind api client
 export const searchTasksQueryOptions = (query: string) => _searchTasksQueryOptions(api, query);
-export const searchHabitsQueryOptions = (query: string) => _searchHabitsQueryOptions(api, query);
 export const searchNotesQueryOptions = (query: string) => _searchNotesQueryOptions(api, query);
 
 // Auth stays web-specific
 export { useAuth } from "./use-auth";
+export { conversationsQueryOptions, conversationMessagesQueryOptions } from "./use-chat";
+export { savesQueryOptions, saveQueryOptions } from "./use-saves";

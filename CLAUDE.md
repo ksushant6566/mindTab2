@@ -82,6 +82,16 @@ migrate -path migrations -database $DATABASE_URL down           # Roll back migr
 - Path alias: `~/` maps to `src/` in the web app
 - Database tables use clean domain names; historical migrations still include legacy table names
 
+## Web Appearance Ground Rules
+
+- Use shared design tokens and UI primitives for new web UI. Do not hand-write typography classes in feature components when a primitive can express the intent.
+- Use `Text`, `Heading`, `MetaText`, and `CodeText` from `apps/web/src/components/ui/typography.tsx` for display text. `CodeText` and `font-mono` are only for real code, IDs, task keys, keyboard shortcuts, and similar machine-readable values.
+- Use semantic tone helpers and badges for meaningful colors. Priority, impact, status, danger, note, and project colors must come from semantic tokens such as `--tone-priority-*`, `--tone-impact-*`, `--tone-status-*`, `--tone-danger`, `--tone-note`, and `--tone-project`.
+- Preserve meaningful color distinctions. Do not flatten task priority, impact, status, destructive actions, notes, or projects into one generic text color.
+- Font presets must route through `--font-ui` and `--font-code`. Feature components should not hard-code font families.
+- Raw Tailwind utilities like `text-sm`, `text-[13px]`, `font-semibold`, `tracking-*`, `leading-*`, and palette-specific `text-[var(--...)]` are allowed only in `components/ui` primitives or as documented exceptions.
+- Before finishing web UI work, run `pnpm --filter @mindtab/web audit:typography` and keep new raw typography findings out of feature components unless there is a deliberate reason.
+
 ## Domains
 
 | Domain            | Service     |

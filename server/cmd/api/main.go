@@ -215,8 +215,6 @@ func main() {
 	emailAuthHandler := handler.NewEmailAuthHandler(queries, pool, cfg.JWTSecret, emailService)
 	usersHandler := handler.NewUsersHandler(queries)
 	tasksHandler := handler.NewTasksHandler(queries, pool)
-	habitsHandler := handler.NewHabitsHandler(queries, pool)
-	habitTrackerHandler := handler.NewHabitTrackerHandler(queries)
 	notesHandler := handler.NewNotesHandler(queries)
 	projectsHandler := handler.NewProjectsHandler(queries, pool)
 	activityHandler := handler.NewActivityHandler(queries)
@@ -283,9 +281,6 @@ func main() {
 	registry.Register(chat.NewCreateTaskTool(queries))
 	registry.Register(chat.NewUpdateTaskTool(queries))
 	registry.Register(chat.NewDeleteTaskTool(queries))
-	registry.Register(chat.NewListHabitsTool(queries))
-	registry.Register(chat.NewCreateHabitTool(queries))
-	registry.Register(chat.NewToggleHabitTool(queries))
 	registry.Register(chat.NewListNotesTool(queries))
 	registry.Register(chat.NewCreateNoteTool(queries))
 	registry.Register(chat.NewUpdateNoteTool(queries))
@@ -295,7 +290,6 @@ func main() {
 	registry.Register(chat.NewSearchVaultTool(queries, semanticSearch))
 	registry.Register(chat.NewGetVaultItemTool(queries))
 	// Tier 1 — Analytics
-	registry.Register(chat.NewGetHabitStatsTool(queries))
 	registry.Register(chat.NewGetActivitySummaryTool(queries))
 	registry.Register(chat.NewGetUserProfileTool(queries))
 	// Tier 2 — Search & Detail
@@ -305,14 +299,10 @@ func main() {
 	registry.Register(chat.NewGetTaskDetailTool(queries))
 	// Tier 3 — Power User
 	registry.Register(chat.NewGetProjectStatsTool(queries))
-	registry.Register(chat.NewDeleteHabitTool(queries))
-	registry.Register(chat.NewUpdateHabitTool(queries))
-	registry.Register(chat.NewSearchHabitsTool(queries))
 	registry.Register(chat.NewUpdateProjectTool(queries))
 	// Tier 4 — Intelligence
 	registry.Register(chat.NewGetDailyBriefingTool(queries))
 	registry.Register(chat.NewSearchEverythingTool(queries, semanticSearch))
-	registry.Register(chat.NewGetHabitPatternsTool(queries))
 	registry.Register(chat.NewComparePeriodsTool(queries))
 	registry.Register(chat.NewGetStaleItemsTool(queries))
 	orchestrator := chat.NewOrchestrator(queries, llmChain, registry)
@@ -320,15 +310,6 @@ func main() {
 	r.Get("/ws/chat", wsHandler.HandleChat)
 
 	spaHandler := handler.NewSPAHandler(cfg.StaticDir)
-	authenticatedHabitList := mw.Auth(cfg.JWTSecret)(http.HandlerFunc(habitsHandler.List))
-	r.Get("/habits", func(w http.ResponseWriter, r *http.Request) {
-		if acceptsHTML(r) {
-			spaHandler.ServeHTTP(w, r)
-			return
-		}
-
-		authenticatedHabitList.ServeHTTP(w, r)
-	})
 
 	// Protected routes.
 	r.Group(func(r chi.Router) {
@@ -348,21 +329,9 @@ func main() {
 		r.Get("/tasks/unassigned", tasksHandler.GetUnassigned)
 		r.Patch("/tasks/positions", tasksHandler.UpdatePositions)
 		r.Post("/tasks/archive-completed", tasksHandler.ArchiveCompleted)
-		r.Get("/tasks/{id}/connected-habits", mentionsHandler.ConnectedHabits)
 		r.Get("/tasks/{id}", tasksHandler.Get)
 		r.Patch("/tasks/{id}", tasksHandler.Update)
 		r.Delete("/tasks/{id}", tasksHandler.Delete)
-
-		// Habits.
-		r.Post("/habits", habitsHandler.Create)
-		r.Get("/habits/{id}", habitsHandler.Get)
-		r.Patch("/habits/{id}", habitsHandler.Update)
-		r.Delete("/habits/{id}", habitsHandler.Delete)
-		r.Post("/habits/{id}/track", habitsHandler.Track)
-		r.Delete("/habits/{id}/track", habitsHandler.Untrack)
-
-		// Habit tracker.
-		r.Get("/habit-tracker", habitTrackerHandler.List)
 
 		// Notes — register /notes/count before /notes/{id}.
 		r.Get("/notes", notesHandler.List)
@@ -383,7 +352,6 @@ func main() {
 
 		// Search.
 		r.Get("/search/tasks", searchHandler.Tasks)
-		r.Get("/search/habits", searchHandler.Habits)
 		r.Get("/search/notes", searchHandler.Notes)
 
 		// Mentions / connected knowledge.

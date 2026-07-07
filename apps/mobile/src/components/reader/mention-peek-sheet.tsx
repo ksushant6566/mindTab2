@@ -15,7 +15,6 @@ import { useQuery } from "@tanstack/react-query";
 import {
   ChevronRight,
   Target,
-  Repeat,
   FileText,
 } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
@@ -27,15 +26,13 @@ import { authedFetch } from "~/lib/api-client";
 // ---------------------------------------------------------------------------
 
 type MentionEntity = {
-  type: "task" | "habit" | "note";
+  type: "task" | "note";
   id: string;
   title: string;
   status?: string;
   priority?: string;
   impact?: string;
   projectName?: string;
-  streak?: number;
-  frequency?: string;
   createdAt?: string;
 };
 
@@ -53,16 +50,7 @@ type ConnectedNote = {
   createdAt: string | null;
 };
 
-type ConnectedHabit = {
-  id: string;
-  title: string;
-  frequency: string;
-  createdAt: string | null;
-};
-
-type ConnectedItem =
-  | (ConnectedNote & { kind: "note" })
-  | (ConnectedHabit & { kind: "habit" });
+type ConnectedItem = ConnectedNote & { kind: "note" };
 
 // ---------------------------------------------------------------------------
 // Connected Knowledge API
@@ -82,16 +70,6 @@ async function fetchConnectedNotes(
   return res.json();
 }
 
-async function fetchConnectedHabits(
-  taskId: string,
-): Promise<ConnectedHabit[]> {
-  const res = await authedFetch(
-    `${API_URL}/tasks/${taskId}/connected-habits`,
-  );
-  if (!res.ok) return [];
-  return res.json();
-}
-
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -103,23 +81,19 @@ function capitalize(s: string | undefined | null): string {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-function typeIcon(type: "task" | "habit" | "note") {
+function typeIcon(type: "task" | "note") {
   switch (type) {
     case "task":
       return <Target size={20} color={colors.accent.indigo} />;
-    case "habit":
-      return <Repeat size={20} color={colors.feedback.success} />;
     case "note":
       return <FileText size={20} color={colors.status.active} />;
   }
 }
 
-function typeColor(type: "task" | "habit" | "note"): string {
+function typeColor(type: "task" | "note"): string {
   switch (type) {
     case "task":
       return colors.accent.indigo;
-    case "habit":
-      return colors.feedback.success;
     case "note":
       return colors.status.active;
   }
@@ -192,13 +166,6 @@ export const MentionPeekSheet = forwardRef<BottomSheet, MentionPeekSheetProps>(
       staleTime: 60_000,
     });
 
-    const { data: connectedHabits } = useQuery({
-      queryKey: ["connected-habits", entity?.id],
-      queryFn: () => fetchConnectedHabits(entity!.id),
-      enabled: !!entity && entity.type === "task",
-      staleTime: 60_000,
-    });
-
     // --- Derived display data ---
     const status = entity?.status ? statusDisplay[entity.status] : null;
     const impact = entity?.impact ? impactDisplay[entity.impact] : null;
@@ -212,9 +179,6 @@ export const MentionPeekSheet = forwardRef<BottomSheet, MentionPeekSheetProps>(
     const allConnected: ConnectedItem[] = [
       ...(connectedNotes ?? []).map(
         (n) => ({ ...n, kind: "note" as const }),
-      ),
-      ...(connectedHabits ?? []).map(
-        (h) => ({ ...h, kind: "habit" as const }),
       ),
     ];
     const hasConnections = allConnected.length > 0;
@@ -279,32 +243,6 @@ export const MentionPeekSheet = forwardRef<BottomSheet, MentionPeekSheetProps>(
                       </Text>
                     </View>
                   )}
-                  {entity.type === "habit" && (
-                    <View style={[styles.pill, pillTint(colors.text.muted)]}>
-                      <Text
-                        style={[
-                          styles.pillLabel,
-                          { color: colors.text.secondary },
-                        ]}
-                      >
-                        {capitalize(entity.frequency ?? "daily")}
-                      </Text>
-                    </View>
-                  )}
-                  {entity.type === "habit" && (entity.streak ?? 0) > 0 && (
-                    <View
-                      style={[styles.pill, pillTint(colors.streak.orange)]}
-                    >
-                      <Text
-                        style={[
-                          styles.pillLabel,
-                          { color: colors.streak.orange },
-                        ]}
-                      >
-                        🔥 {entity.streak}d
-                      </Text>
-                    </View>
-                  )}
                 </View>
 
                 {/* Meta line */}
@@ -339,17 +277,10 @@ export const MentionPeekSheet = forwardRef<BottomSheet, MentionPeekSheetProps>(
                               }
                             >
                               <View style={styles.listItem}>
-                                {item.kind === "note" ? (
-                                  <FileText
-                                    size={15}
-                                    color={colors.status.active}
-                                  />
-                                ) : (
-                                  <Repeat
-                                    size={15}
-                                    color={colors.feedback.success}
-                                  />
-                                )}
+                                <FileText
+                                  size={15}
+                                  color={colors.status.active}
+                                />
                                 <View style={styles.listItemText}>
                                   <Text
                                     style={styles.listItemTitle}
@@ -357,16 +288,12 @@ export const MentionPeekSheet = forwardRef<BottomSheet, MentionPeekSheetProps>(
                                   >
                                     {item.title}
                                   </Text>
-                                  {item.kind === "note" && item.preview ? (
+                                  {item.preview ? (
                                     <Text
                                       style={styles.listItemSub}
                                       numberOfLines={1}
                                     >
                                       {item.preview}
-                                    </Text>
-                                  ) : item.kind === "habit" ? (
-                                    <Text style={styles.listItemSub}>
-                                      {capitalize(item.frequency)}
                                     </Text>
                                   ) : null}
                                 </View>

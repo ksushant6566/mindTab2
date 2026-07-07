@@ -2,15 +2,15 @@ import { type CheckedState } from "@radix-ui/react-checkbox";
 import {
     CalendarDays,
     Edit3,
-    Flag,
     GripVertical,
     Link2Off,
     Trash2,
-    Zap,
 } from "lucide-react";
 import React from "react";
 import { Button } from "~/components/ui/button";
 import { Checkbox } from "~/components/ui/checkbox";
+import { CodeText, Text } from "~/components/ui/typography";
+import { ImpactBadge, PriorityBadge } from "~/components/ui/tone-badge";
 import { cn } from "~/lib/utils";
 
 export type TaskCardTask = {
@@ -31,22 +31,6 @@ export type TaskCardTask = {
     } | null;
     [key: string]: any;
 };
-
-const priorityMeta = {
-    priority_1: { label: "P1", tone: "var(--rose)" },
-    priority_2: { label: "P2", tone: "var(--amber)" },
-    priority_3: { label: "P3", tone: "var(--cyan)" },
-    priority_4: { label: "P4", tone: "var(--text-3)" },
-} as const;
-
-const impactMeta = {
-    low: { label: "Low", dots: 1, tone: "var(--text-3)" },
-    medium: { label: "Medium", dots: 2, tone: "var(--cyan)" },
-    high: { label: "High", dots: 3, tone: "var(--amber)" },
-} as const;
-
-type PriorityMeta = (typeof priorityMeta)[keyof typeof priorityMeta];
-type ImpactMeta = (typeof impactMeta)[keyof typeof impactMeta];
 
 type TaskCardVisualProps = {
     task: TaskCardTask;
@@ -90,8 +74,6 @@ export const TaskCardVisual = React.forwardRef<HTMLElement, TaskCardVisualProps>
     readOnly = false,
 }, ref) {
     const completed = ["completed", "archived"].includes(task.status);
-    const priority = priorityMeta[task.priority as keyof typeof priorityMeta] ?? priorityMeta.priority_4;
-    const impact = impactMeta[task.impact as keyof typeof impactMeta] ?? impactMeta.low;
     const projectName = task.project?.name || task.projectName;
     const taskCode = task.key || task.code || `TASK-${String(task.id).slice(0, 4).toUpperCase()}`;
     const actionSpace = showCalendarActions && hasSchedule ? "wide" : "normal";
@@ -99,14 +81,14 @@ export const TaskCardVisual = React.forwardRef<HTMLElement, TaskCardVisualProps>
     const content = (
         <div className="flex min-w-0 items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
-                <div className={cn("truncate text-[13.5px] font-medium leading-5 tracking-normal text-foreground", completed && "text-muted-foreground line-through decoration-muted-foreground/70")}>
+                <Text as="div" variant="body" className={cn("truncate", completed && "text-muted-foreground line-through decoration-muted-foreground/70")}>
                     {task.title}
-                </div>
+                </Text>
                 <TaskMetadata
                     taskCode={taskCode}
                     projectName={projectName}
-                    priority={priority}
-                    impact={impact}
+                    priority={task.priority}
+                    impact={task.impact}
                     surface={surface}
                     actionSpace={actionSpace}
                 />
@@ -233,51 +215,29 @@ function TaskMetadata({
 }: {
     taskCode: string;
     projectName?: string | null;
-    priority: PriorityMeta;
-    impact: ImpactMeta;
+    priority?: string | null;
+    impact?: string | null;
     surface: "list" | "kanban";
     actionSpace: "normal" | "wide";
 }) {
     const actionSpaceClassName = actionSpace === "wide" ? "pr-24" : "pr-16";
 
     return (
-        <div className={cn("grid min-w-0 gap-1 font-mono text-[10.5px] uppercase tracking-[0.04em] text-muted-foreground", surface === "list" ? "mt-1" : "mt-0.5")}>
+        <div className={cn("grid min-w-0 gap-1 text-muted-foreground", surface === "list" ? "mt-1" : "mt-0.5")}>
             <div className="flex min-w-0 items-center gap-2">
-                <span className="shrink-0">{taskCode}</span>
+                <CodeText className="shrink-0 uppercase tracking-[0.04em]">{taskCode}</CodeText>
                 {projectName && (
                     <>
                         <span className="shrink-0 text-[var(--text-4)]">·</span>
-                        <span className="min-w-0 truncate lowercase">{projectName}</span>
+                        <Text as="span" variant="subtle" className="min-w-0 truncate lowercase">{projectName}</Text>
                     </>
                 )}
             </div>
             <div className={cn("flex min-w-0 items-center gap-2", actionSpaceClassName)}>
-                <PriorityMark priority={priority} />
+                <PriorityBadge priority={priority} />
                 <span className="shrink-0 text-[var(--text-4)]">·</span>
-                <ImpactMark impact={impact} />
+                <ImpactBadge impact={impact} />
             </div>
         </div>
-    );
-}
-
-function PriorityMark({ priority }: { priority: PriorityMeta }) {
-    return (
-        <span className="inline-flex min-w-0 items-center gap-1 whitespace-nowrap font-mono text-[10.5px] font-medium uppercase leading-none tracking-[0.04em]" style={{ color: priority.tone }}>
-            <Flag className="h-3 w-3 shrink-0" fill="currentColor" />
-            <span className="truncate">{priority.label}</span>
-        </span>
-    );
-}
-
-function ImpactMark({ impact }: { impact: ImpactMeta }) {
-    return (
-        <span className="inline-flex min-w-0 items-center gap-1 whitespace-nowrap font-mono text-[10.5px] font-medium uppercase leading-none tracking-[0.04em]" style={{ color: impact.tone }}>
-            <span className="inline-flex shrink-0 items-center gap-0.5">
-                {Array.from({ length: impact.dots }).map((_, index) => (
-                    <Zap key={index} className="h-3 w-3" fill="currentColor" />
-                ))}
-            </span>
-            <span className="truncate">{impact.label}</span>
-        </span>
     );
 }

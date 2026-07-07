@@ -11,66 +11,6 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const getHabitActivity = `-- name: GetHabitActivity :many
-SELECT created_at FROM habits
-WHERE user_id = $1 AND created_at >= $2
-`
-
-type GetHabitActivityParams struct {
-	UserID    string             `json:"user_id"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
-}
-
-func (q *Queries) GetHabitActivity(ctx context.Context, arg GetHabitActivityParams) ([]pgtype.Timestamptz, error) {
-	rows, err := q.db.Query(ctx, getHabitActivity, arg.UserID, arg.CreatedAt)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []pgtype.Timestamptz
-	for rows.Next() {
-		var created_at pgtype.Timestamptz
-		if err := rows.Scan(&created_at); err != nil {
-			return nil, err
-		}
-		items = append(items, created_at)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const getHabitTrackerActivity = `-- name: GetHabitTrackerActivity :many
-SELECT date FROM habit_records
-WHERE user_id = $1 AND date >= $2::date
-`
-
-type GetHabitTrackerActivityParams struct {
-	UserID  string      `json:"user_id"`
-	Column2 pgtype.Date `json:"column_2"`
-}
-
-func (q *Queries) GetHabitTrackerActivity(ctx context.Context, arg GetHabitTrackerActivityParams) ([]pgtype.Date, error) {
-	rows, err := q.db.Query(ctx, getHabitTrackerActivity, arg.UserID, arg.Column2)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []pgtype.Date
-	for rows.Next() {
-		var date pgtype.Date
-		if err := rows.Scan(&date); err != nil {
-			return nil, err
-		}
-		items = append(items, date)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const getNoteActivity = `-- name: GetNoteActivity :many
 SELECT created_at, updated_at FROM notes
 WHERE user_id = $1 AND created_at >= $2

@@ -1,4 +1,4 @@
-import { Clock3, Edit3, FileText, FolderOpen, Repeat2, Target, Trash2 } from "lucide-react";
+import { Clock3, Edit3, FileText, FolderOpen, Target, Trash2 } from "lucide-react";
 import React, { useMemo } from "react";
 import { Button } from "~/components/ui/button";
 import { cn, getTimeAgo } from "~/lib/utils";
@@ -34,11 +34,6 @@ const mentionMeta: Record<
         icon: Target,
         className: "text-[var(--green)]",
     },
-    habit: {
-        label: "Habit",
-        icon: Repeat2,
-        className: "text-[var(--cyan)]",
-    },
     note: {
         label: "Note",
         icon: FileText,
@@ -61,7 +56,7 @@ export const NotePreview = ({
     const contentHtml = useMemo(() => sanitizeRichText(note.content), [note.content]);
     const mentionedItems = useMemo(() => {
         const mentions = getMentionedItems(note.content);
-        return [...mentions.task, ...mentions.habit, ...mentions.note];
+        return [...mentions.task, ...mentions.note];
     }, [note.content]);
     const visibleMentions = mentionedItems.slice(0, 3);
     const hiddenMentionCount = Math.max(mentionedItems.length - visibleMentions.length, 0);

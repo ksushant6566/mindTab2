@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "lint": "tsc --noEmit",
+    "audit:typography": "node scripts/check-typography.mjs",
     "clean": "rm -rf dist"
   },
   "dependencies": {

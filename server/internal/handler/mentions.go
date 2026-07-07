@@ -33,13 +33,6 @@ type connectedNoteJSON struct {
 	CreatedAt *time.Time `json:"createdAt"`
 }
 
-type connectedHabitJSON struct {
-	ID        string     `json:"id"`
-	Title     string     `json:"title"`
-	Frequency string     `json:"frequency"`
-	CreatedAt *time.Time `json:"createdAt"`
-}
-
 // --- HTML stripping for preview ---
 
 var htmlTagRe = regexp.MustCompile(`<[^>]*>`)
@@ -70,10 +63,10 @@ func (h *MentionsHandler) ConnectedNotes(w http.ResponseWriter, r *http.Request)
 
 	// Validate entityType
 	switch entityType {
-	case "task", "habit", "note":
+	case "task", "note":
 		// ok
 	default:
-		WriteError(w, http.StatusBadRequest, "entityType must be task, habit, or note")
+		WriteError(w, http.StatusBadRequest, "entityType must be task or note")
 		return
 	}
 
@@ -106,57 +99,6 @@ func (h *MentionsHandler) ConnectedNotes(w http.ResponseWriter, r *http.Request)
 			Preview:   preview,
 			UpdatedAt: timestamptzToPtr(n.UpdatedAt),
 			CreatedAt: timestamptzToPtr(n.CreatedAt),
-		})
-	}
-
-	WriteJSON(w, http.StatusOK, result)
-}
-
-// ConnectedHabits handles GET /tasks/{id}/connected-habits
-func (h *MentionsHandler) ConnectedHabits(w http.ResponseWriter, r *http.Request) {
-	userID := middleware.UserIDFromContext(r.Context())
-
-	taskID, err := GetUUIDParam(r, "id")
-	if err != nil {
-		WriteError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	// Find habit IDs mentioned in notes that also mention this task
-	taskPattern := fmt.Sprintf("%%data-id=\"task:%s\"%%", taskID.String())
-
-	habitIDs, err := h.queries.GetConnectedHabitIDs(r.Context(), store.GetConnectedHabitIDsParams{
-		UserID:  userID,
-		Content: taskPattern,
-	})
-	if err != nil {
-		slog.Error("failed to get connected habit IDs", "error", err)
-		WriteError(w, http.StatusInternalServerError, "failed to get connected habits")
-		return
-	}
-
-	if len(habitIDs) == 0 {
-		WriteJSON(w, http.StatusOK, []connectedHabitJSON{})
-		return
-	}
-
-	habits, err := h.queries.GetHabitsByIDs(r.Context(), store.GetHabitsByIDsParams{
-		UserID:  userID,
-		Column2: habitIDs,
-	})
-	if err != nil {
-		slog.Error("failed to get habits by IDs", "error", err)
-		WriteError(w, http.StatusInternalServerError, "failed to get connected habits")
-		return
-	}
-
-	result := make([]connectedHabitJSON, 0, len(habits))
-	for _, h := range habits {
-		result = append(result, connectedHabitJSON{
-			ID:        uuidToString(h.ID),
-			Title:     textToString(h.Title),
-			Frequency: ifaceToString(h.Frequency),
-			CreatedAt: timestamptzToPtr(h.CreatedAt),
 		})
 	}
 

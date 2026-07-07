@@ -48,34 +48,6 @@ func (h *SearchHandler) Tasks(w http.ResponseWriter, r *http.Request) {
 	WriteJSON(w, http.StatusOK, result)
 }
 
-// Habits handles GET /search/habits?q=.
-func (h *SearchHandler) Habits(w http.ResponseWriter, r *http.Request) {
-	userID := middleware.UserIDFromContext(r.Context())
-	q := r.URL.Query().Get("q")
-
-	if q == "" {
-		WriteJSON(w, http.StatusOK, []habitJSON{})
-		return
-	}
-
-	habits, err := h.queries.SearchHabits(r.Context(), store.SearchHabitsParams{
-		UserID:  userID,
-		Column2: pgtype.Text{String: q, Valid: true},
-	})
-	if err != nil {
-		slog.Error("failed to search habits", "error", err)
-		WriteError(w, http.StatusInternalServerError, "failed to search habits")
-		return
-	}
-
-	result := make([]habitJSON, 0, len(habits))
-	for _, hab := range habits {
-		result = append(result, habitFromModel(hab))
-	}
-
-	WriteJSON(w, http.StatusOK, result)
-}
-
 // Notes handles GET /search/notes?q=.
 func (h *SearchHandler) Notes(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.UserIDFromContext(r.Context())

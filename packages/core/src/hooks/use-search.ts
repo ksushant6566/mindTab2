@@ -15,20 +15,6 @@ export function searchTasksQueryOptions(api: ApiClient, query: string) {
   });
 }
 
-export function searchHabitsQueryOptions(api: ApiClient, query: string) {
-  return queryOptions({
-    queryKey: ["search", "habits", query],
-    enabled: !!query,
-    queryFn: async () => {
-      const { data, error } = await api.GET("/search/habits", {
-        params: { query: { q: query } },
-      });
-      if (error) throw error;
-      return data ?? [];
-    },
-  });
-}
-
 export function searchNotesQueryOptions(api: ApiClient, query: string) {
   return queryOptions({
     queryKey: ["search", "notes", query],

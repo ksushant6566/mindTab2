@@ -9,7 +9,6 @@ import {
 import { useRouter } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { ProjectPills } from "~/components/dashboard/project-pills";
-import { HabitsBubble } from "~/components/dashboard/habits-bubble";
 import { TasksSection } from "~/components/dashboard/tasks-section";
 import { NotesSection } from "~/components/dashboard/notes-section";
 import { FAB } from "~/components/dashboard/fab";
@@ -65,7 +64,6 @@ export default function Dashboard() {
         <TasksSection projectId={selectedProjectId} />
         <NotesSection projectId={selectedProjectId} />
       </ScrollView>
-      <HabitsBubble />
       <FAB visible={fabVisible} />
     </View>
   );

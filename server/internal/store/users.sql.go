@@ -23,7 +23,7 @@ func (q *Queries) CompleteOnboarding(ctx context.Context, id string) error {
 const createEmailUser = `-- name: CreateEmailUser :one
 INSERT INTO users (id, name, email, email_verified)
 VALUES ($1, $2, $3, NULL)
-RETURNING id, name, email, email_verified, image, xp, onboarding_completed, created_at, updated_at, password_hash, theme, font
+RETURNING id, name, email, email_verified, image, onboarding_completed, created_at, updated_at, password_hash, theme, font
 `
 
 type CreateEmailUserParams struct {
@@ -41,7 +41,6 @@ func (q *Queries) CreateEmailUser(ctx context.Context, arg CreateEmailUserParams
 		&i.Email,
 		&i.EmailVerified,
 		&i.Image,
-		&i.Xp,
 		&i.OnboardingCompleted,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -53,7 +52,7 @@ func (q *Queries) CreateEmailUser(ctx context.Context, arg CreateEmailUserParams
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, name, email, email_verified, image, xp, onboarding_completed, created_at, updated_at, password_hash, theme, font FROM users WHERE email = $1
+SELECT id, name, email, email_verified, image, onboarding_completed, created_at, updated_at, password_hash, theme, font FROM users WHERE email = $1
 `
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
@@ -65,7 +64,6 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.Email,
 		&i.EmailVerified,
 		&i.Image,
-		&i.Xp,
 		&i.OnboardingCompleted,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -77,7 +75,7 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, name, email, email_verified, image, xp, onboarding_completed, created_at, updated_at, password_hash, theme, font FROM users WHERE id = $1
+SELECT id, name, email, email_verified, image, onboarding_completed, created_at, updated_at, password_hash, theme, font FROM users WHERE id = $1
 `
 
 func (q *Queries) GetUserByID(ctx context.Context, id string) (User, error) {
@@ -89,7 +87,6 @@ func (q *Queries) GetUserByID(ctx context.Context, id string) (User, error) {
 		&i.Email,
 		&i.EmailVerified,
 		&i.Image,
-		&i.Xp,
 		&i.OnboardingCompleted,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -130,7 +127,7 @@ SET
     font = COALESCE($2, font),
     updated_at = CURRENT_TIMESTAMP
 WHERE id = $3
-RETURNING id, name, email, email_verified, image, xp, onboarding_completed, created_at, updated_at, password_hash, theme, font
+RETURNING id, name, email, email_verified, image, onboarding_completed, created_at, updated_at, password_hash, theme, font
 `
 
 type UpdateUserAppearanceParams struct {
@@ -148,36 +145,6 @@ func (q *Queries) UpdateUserAppearance(ctx context.Context, arg UpdateUserAppear
 		&i.Email,
 		&i.EmailVerified,
 		&i.Image,
-		&i.Xp,
-		&i.OnboardingCompleted,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-		&i.PasswordHash,
-		&i.Theme,
-		&i.Font,
-	)
-	return i, err
-}
-
-const updateUserXP = `-- name: UpdateUserXP :one
-UPDATE users SET xp = xp + $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING id, name, email, email_verified, image, xp, onboarding_completed, created_at, updated_at, password_hash, theme, font
-`
-
-type UpdateUserXPParams struct {
-	ID string `json:"id"`
-	Xp int32  `json:"xp"`
-}
-
-func (q *Queries) UpdateUserXP(ctx context.Context, arg UpdateUserXPParams) (User, error) {
-	row := q.db.QueryRow(ctx, updateUserXP, arg.ID, arg.Xp)
-	var i User
-	err := row.Scan(
-		&i.ID,
-		&i.Name,
-		&i.Email,
-		&i.EmailVerified,
-		&i.Image,
-		&i.Xp,
 		&i.OnboardingCompleted,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -195,7 +162,7 @@ ON CONFLICT (id) DO UPDATE SET
     name = COALESCE(EXCLUDED.name, users.name),
     image = COALESCE(EXCLUDED.image, users.image),
     updated_at = CURRENT_TIMESTAMP
-RETURNING id, name, email, email_verified, image, xp, onboarding_completed, created_at, updated_at, password_hash, theme, font
+RETURNING id, name, email, email_verified, image, onboarding_completed, created_at, updated_at, password_hash, theme, font
 `
 
 type UpsertUserParams struct {
@@ -219,7 +186,6 @@ func (q *Queries) UpsertUser(ctx context.Context, arg UpsertUserParams) (User, e
 		&i.Email,
 		&i.EmailVerified,
 		&i.Image,
-		&i.Xp,
 		&i.OnboardingCompleted,
 		&i.CreatedAt,
 		&i.UpdatedAt,

@@ -58,27 +58,6 @@ type Conversation struct {
 	DeletedAt pgtype.Timestamptz `json:"deleted_at"`
 }
 
-type Habit struct {
-	ID          pgtype.UUID        `json:"id"`
-	Title       pgtype.Text        `json:"title"`
-	Description pgtype.Text        `json:"description"`
-	Frequency   interface{}        `json:"frequency"`
-	CreatedAt   pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
-	DeletedAt   pgtype.Timestamptz `json:"deleted_at"`
-	UserID      string             `json:"user_id"`
-}
-
-type HabitRecord struct {
-	ID        pgtype.UUID        `json:"id"`
-	HabitID   pgtype.UUID        `json:"habit_id"`
-	Status    interface{}        `json:"status"`
-	Date      pgtype.Date        `json:"date"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
-	UserID    string             `json:"user_id"`
-}
-
 type Job struct {
 	ID           pgtype.UUID        `json:"id"`
 	ContentID    pgtype.UUID        `json:"content_id"`
@@ -120,14 +99,6 @@ type Note struct {
 	ProjectID  pgtype.UUID        `json:"project_id"`
 	DeletedAt  pgtype.Timestamptz `json:"deleted_at"`
 	ArchivedAt pgtype.Timestamptz `json:"archived_at"`
-}
-
-type NoteHabit struct {
-	ID        pgtype.UUID        `json:"id"`
-	NoteID    pgtype.UUID        `json:"note_id"`
-	HabitID   pgtype.UUID        `json:"habit_id"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
 }
 
 type NoteTask struct {
@@ -182,7 +153,6 @@ type User struct {
 	Email               string             `json:"email"`
 	EmailVerified       pgtype.Timestamptz `json:"email_verified"`
 	Image               pgtype.Text        `json:"image"`
-	Xp                  int32              `json:"xp"`
 	OnboardingCompleted bool               `json:"onboarding_completed"`
 	CreatedAt           pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt           pgtype.Timestamptz `json:"updated_at"`

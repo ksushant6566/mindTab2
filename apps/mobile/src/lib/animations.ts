@@ -4,7 +4,7 @@ import type { WithSpringConfig } from "react-native-reanimated";
 export const springs = {
   /** Button presses, toggles, FAB - fast and crisp */
   snappy: { damping: 15, stiffness: 400, mass: 0.8 } satisfies WithSpringConfig,
-  /** Confetti, XP float, celebrations - playful overshoot */
+  /** Confetti and celebrations - playful overshoot */
   bouncy: { damping: 12, stiffness: 350, mass: 1.0 } satisfies WithSpringConfig,
   /** Sheet slides, screen transitions, fades - smooth and controlled */
   smooth: { damping: 20, stiffness: 300, mass: 1.0 } satisfies WithSpringConfig,

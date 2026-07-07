@@ -1,6 +1,6 @@
 import { useEffect, type ReactNode } from "react";
 import { Toaster } from "sonner";
-import { useAppStore, type AppearanceTheme } from "@mindtab/core";
+import { normalizeFontPreset, useAppStore, type AppearanceTheme } from "@mindtab/core";
 import { useAuth } from "~/api/hooks/use-auth";
 
 const darkThemes = new Set<AppearanceTheme>(["midnight", "graphite"]);
@@ -26,7 +26,7 @@ export function AppearanceRoot({ children }: AppearanceRootProps) {
   useEffect(() => {
     const root = document.documentElement;
     root.dataset.theme = theme;
-    root.dataset.font = font;
+    root.dataset.font = normalizeFontPreset(font);
     root.classList.toggle("dark", darkThemes.has(theme));
   }, [theme, font]);
 

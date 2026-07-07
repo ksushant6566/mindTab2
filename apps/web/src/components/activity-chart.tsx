@@ -9,8 +9,6 @@ type Activity = {
     details: {
         tasksCreated: number;
         tasksCompleted: number;
-        habitsCreated: number;
-        habitsMarked: number;
         notesCreated: number;
         notesUpdated: number;
     };
@@ -44,8 +42,6 @@ export function ActivityChart({ activities }: ActivityChartProps) {
             details: {
                 tasksCreated: 0,
                 tasksCompleted: 0,
-                habitsCreated: 0,
-                habitsMarked: 0,
                 notesCreated: 0,
                 notesUpdated: 0
             }
@@ -144,12 +140,6 @@ export function ActivityChart({ activities }: ActivityChartProps) {
                                                                         )}
                                                                         {activity.details.tasksCompleted > 0 && (
                                                                             <p>{activity.details.tasksCompleted} tasks completed</p>
-                                                                        )}
-                                                                        {activity.details.habitsCreated > 0 && (
-                                                                            <p>{activity.details.habitsCreated} habits created</p>
-                                                                        )}
-                                                                        {activity.details.habitsMarked > 0 && (
-                                                                            <p>{activity.details.habitsMarked} habits marked</p>
                                                                         )}
                                                                         {activity.details.notesCreated > 0 && (
                                                                             <p>{activity.details.notesCreated} notes created</p>

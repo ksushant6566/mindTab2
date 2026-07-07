@@ -13,9 +13,6 @@ ON CONFLICT (id) DO UPDATE SET
     updated_at = CURRENT_TIMESTAMP
 RETURNING *;
 
--- name: UpdateUserXP :one
-UPDATE users SET xp = xp + $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *;
-
 -- name: CompleteOnboarding :exec
 UPDATE users SET onboarding_completed = true, updated_at = CURRENT_TIMESTAMP WHERE id = $1;
 

@@ -18,9 +18,9 @@ MindTab is a lightweight and intuitive Chrome extension designed to make task tr
 ## 🤔 How to Use
 
 1. Set your tasks in the dedicated task tracking section
-2. Effortlessly setup habits you want to track
+2. Plan upcoming work from your calendar
 3. Use the notes area to jot down quick thoughts or reflections
-4. Enjoy a distraction-free new tab experience focused on your personal growth
+4. Enjoy a distraction-free new tab experience focused on serious work
 
 ## 🤝 Contributing
 

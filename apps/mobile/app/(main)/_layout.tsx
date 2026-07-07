@@ -26,14 +26,6 @@ export default function MainLayout() {
         options={{ headerShown: true, title: "Task", animation: "fade_from_bottom" }}
       />
       <Stack.Screen
-        name="habits/index"
-        options={{ headerShown: true, title: "Habits", headerRight: () => <HeaderRight /> }}
-      />
-      <Stack.Screen
-        name="habits/[id]"
-        options={{ headerShown: true, title: "Habit" }}
-      />
-      <Stack.Screen
         name="notes/index"
         options={{ headerShown: true, title: "Notes", headerRight: () => <HeaderRight /> }}
       />

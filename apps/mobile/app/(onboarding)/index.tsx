@@ -14,13 +14,12 @@ import { toast } from "sonner-native";
 import { WelcomeStep } from "~/components/onboarding/welcome-step";
 import { CreateProjectStep } from "~/components/onboarding/create-project-step";
 import { CreateTaskStep } from "~/components/onboarding/create-task-step";
-import { CreateHabitStep } from "~/components/onboarding/create-habit-step";
 import { NotesIntroStep } from "~/components/onboarding/notes-intro-step";
 import { ExtensionStep } from "~/components/onboarding/extension-step";
 import { CompleteStep } from "~/components/onboarding/complete-step";
 
-const TOTAL_STEPS = 7;
-const STEP_LABELS = ["Welcome", "Project", "Task", "Habit", "Notes", "Extension", "Complete"];
+const TOTAL_STEPS = 6;
+const STEP_LABELS = ["Welcome", "Project", "Task", "Notes", "Extension", "Complete"];
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 export default function OnboardingScreen() {
@@ -62,10 +61,6 @@ export default function OnboardingScreen() {
   }, [handleNext]);
 
   const handleTaskCreated = useCallback(() => {
-    handleNext();
-  }, [handleNext]);
-
-  const handleHabitCreated = useCallback(() => {
     handleNext();
   }, [handleNext]);
 
@@ -131,12 +126,6 @@ export default function OnboardingScreen() {
           <CreateTaskStep
             projectId={createdProjectId}
             onTaskCreated={handleTaskCreated}
-            onBack={handleBack}
-          />
-        </View>
-        <View style={{ width: SCREEN_WIDTH }}>
-          <CreateHabitStep
-            onHabitCreated={handleHabitCreated}
             onBack={handleBack}
           />
         </View>

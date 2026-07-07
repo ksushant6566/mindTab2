@@ -12,7 +12,6 @@ type ProfileProps = {
         name: string | null;
         email: string;
         image: string | null;
-        xp: number;
         createdAt: string;
     };
 };
@@ -47,7 +46,7 @@ export default function Profile({ userId, user }: ProfileProps) {
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-6">
                     {/* Account Info */}
                     <Card>
                         <CardHeader>
@@ -66,21 +65,8 @@ export default function Profile({ userId, user }: ProfileProps) {
                         </CardContent>
                     </Card>
 
-                    {/* XP Card */}
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>XP</CardTitle>
-                        </CardHeader>
-                        <CardContent className="grid gap-4">
-                            <div className="flex items-center gap-2">
-                                <div className="h-2 w-2 rounded-full bg-yellow-500" />
-                                <p className="text-sm font-medium">{user.xp ?? 0} XP</p>
-                            </div>
-                        </CardContent>
-                    </Card>
-
                     {/* Activity Chart */}
-                    <div className="hidden lg:block col-span-2">
+                    <div className="hidden lg:block">
                         <ActivityChart activities={activity as any[]} />
                     </div>
                 </div>

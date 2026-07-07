@@ -20,7 +20,6 @@ type User = {
   name: string;
   email: string;
   image: string;
-  xp: number;
   onboardingCompleted: boolean;
 };
 

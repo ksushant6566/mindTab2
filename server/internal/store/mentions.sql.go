@@ -11,42 +11,6 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const getConnectedHabitIDs = `-- name: GetConnectedHabitIDs :many
-SELECT DISTINCT (regexp_matches(j.content, 'data-id="habit:([0-9a-f\-]{36})"', 'g'))[1]::uuid AS habit_id
-FROM notes j
-WHERE j.user_id = $1
-  AND j.deleted_at IS NULL
-  AND j.content LIKE $2
-`
-
-type GetConnectedHabitIDsParams struct {
-	UserID  string `json:"user_id"`
-	Content string `json:"content"`
-}
-
-// Find habit UUIDs mentioned in notes that also mention a given task.
-// task_pattern should be like '%data-id="task:UUID"%'.
-// Returns distinct habit IDs extracted via regex from note content.
-func (q *Queries) GetConnectedHabitIDs(ctx context.Context, arg GetConnectedHabitIDsParams) ([]pgtype.UUID, error) {
-	rows, err := q.db.Query(ctx, getConnectedHabitIDs, arg.UserID, arg.Content)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []pgtype.UUID
-	for rows.Next() {
-		var habit_id pgtype.UUID
-		if err := rows.Scan(&habit_id); err != nil {
-			return nil, err
-		}
-		items = append(items, habit_id)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const getConnectedNotes = `-- name: GetConnectedNotes :many
 SELECT j.id, j.title, j.content, j.updated_at, j.created_at
 FROM notes j
@@ -70,8 +34,8 @@ type GetConnectedNotesRow struct {
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
-// Find notes/notes whose content contains a mention of the given entity.
-// mention_pattern should be like '%data-id="task:UUID"%' or '%data-id="habit:UUID"%'.
+// Find notes whose content contains a mention of the given entity.
+// mention_pattern should be like '%data-id="task:UUID"%' or '%data-id="note:UUID"%'.
 func (q *Queries) GetConnectedNotes(ctx context.Context, arg GetConnectedNotesParams) ([]GetConnectedNotesRow, error) {
 	rows, err := q.db.Query(ctx, getConnectedNotes, arg.UserID, arg.Content)
 	if err != nil {
@@ -87,48 +51,6 @@ func (q *Queries) GetConnectedNotes(ctx context.Context, arg GetConnectedNotesPa
 			&i.Content,
 			&i.UpdatedAt,
 			&i.CreatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const getHabitsByIDs = `-- name: GetHabitsByIDs :many
-SELECT id, title, description, frequency, created_at, updated_at, deleted_at, user_id FROM habits
-WHERE user_id = $1
-  AND deleted_at IS NULL
-  AND id = ANY($2::uuid[])
-`
-
-type GetHabitsByIDsParams struct {
-	UserID  string        `json:"user_id"`
-	Column2 []pgtype.UUID `json:"column_2"`
-}
-
-// Fetch habits by a list of IDs for a given user.
-func (q *Queries) GetHabitsByIDs(ctx context.Context, arg GetHabitsByIDsParams) ([]Habit, error) {
-	rows, err := q.db.Query(ctx, getHabitsByIDs, arg.UserID, arg.Column2)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []Habit
-	for rows.Next() {
-		var i Habit
-		if err := rows.Scan(
-			&i.ID,
-			&i.Title,
-			&i.Description,
-			&i.Frequency,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-			&i.DeletedAt,
-			&i.UserID,
 		); err != nil {
 			return nil, err
 		}

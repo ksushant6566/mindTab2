@@ -1,5 +1,5 @@
 import { View, Text } from "react-native";
-import { Target, CheckSquare, FileEdit, FolderOpen } from "lucide-react-native";
+import { Target, CalendarDays, FileEdit, FolderOpen } from "lucide-react-native";
 import { colors } from "~/styles/colors";
 import { Button } from "~/components/ui/button";
 
@@ -11,7 +11,7 @@ type WelcomeStepProps = {
 const features = [
   { icon: FolderOpen, label: "Projects", desc: "Organize areas of your life" },
   { icon: Target, label: "Tasks", desc: "Track progress with priorities" },
-  { icon: CheckSquare, label: "Habits", desc: "Build streaks and earn XP" },
+  { icon: CalendarDays, label: "Calendar", desc: "See what is scheduled" },
   { icon: FileEdit, label: "Notes", desc: "Note and reflect" },
 ];
 

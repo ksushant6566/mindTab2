@@ -3,6 +3,7 @@ package handler
 import (
 	"log/slog"
 	"net/http"
+	"sort"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -21,6 +22,7 @@ func NewActivityHandler(queries store.Querier) *ActivityHandler {
 }
 
 type activityDay struct {
+	Date    string         `json:"date"`
 	Count   int            `json:"count"`
 	Details activityDetail `json:"details"`
 }
@@ -28,8 +30,6 @@ type activityDay struct {
 type activityDetail struct {
 	TasksCreated   int `json:"tasksCreated"`
 	TasksCompleted int `json:"tasksCompleted"`
-	HabitsCreated  int `json:"habitsCreated"`
-	HabitsMarked   int `json:"habitsMarked"`
 	NotesCreated   int `json:"notesCreated"`
 	NotesUpdated   int `json:"notesUpdated"`
 }
@@ -44,15 +44,13 @@ func (h *ActivityHandler) GetUserActivity(w http.ResponseWriter, r *http.Request
 
 	since := time.Now().AddDate(0, 0, -365)
 	sinceTimestamptz := pgtype.Timestamptz{Time: since, Valid: true}
-	sinceDate := pgtype.Date{Time: since, Valid: true}
-
 	activityMap := make(map[string]*activityDay)
 
 	getOrCreate := func(date string) *activityDay {
 		if day, ok := activityMap[date]; ok {
 			return day
 		}
-		day := &activityDay{}
+		day := &activityDay{Date: date}
 		activityMap[date] = day
 		return day
 	}
@@ -80,46 +78,6 @@ func (h *ActivityHandler) GetUserActivity(w http.ResponseWriter, r *http.Request
 		} else {
 			day.Details.TasksCreated++
 		}
-	}
-
-	// Habit activity.
-	habitActivity, err := h.queries.GetHabitActivity(r.Context(), store.GetHabitActivityParams{
-		UserID:    userID,
-		CreatedAt: sinceTimestamptz,
-	})
-	if err != nil {
-		slog.Error("failed to get habit activity", "error", err)
-		WriteError(w, http.StatusInternalServerError, "failed to get activity")
-		return
-	}
-	for _, createdAt := range habitActivity {
-		if !createdAt.Valid {
-			continue
-		}
-		dateKey := createdAt.Time.Format("2006-01-02")
-		day := getOrCreate(dateKey)
-		day.Count++
-		day.Details.HabitsCreated++
-	}
-
-	// Habit tracker activity.
-	trackerActivity, err := h.queries.GetHabitTrackerActivity(r.Context(), store.GetHabitTrackerActivityParams{
-		UserID:  userID,
-		Column2: sinceDate,
-	})
-	if err != nil {
-		slog.Error("failed to get habit tracker activity", "error", err)
-		WriteError(w, http.StatusInternalServerError, "failed to get activity")
-		return
-	}
-	for _, d := range trackerActivity {
-		if !d.Valid {
-			continue
-		}
-		dateKey := d.Time.Format("2006-01-02")
-		day := getOrCreate(dateKey)
-		day.Count++
-		day.Details.HabitsMarked++
 	}
 
 	// Note activity.
@@ -154,5 +112,13 @@ func (h *ActivityHandler) GetUserActivity(w http.ResponseWriter, r *http.Request
 		}
 	}
 
-	WriteJSON(w, http.StatusOK, activityMap)
+	activity := make([]*activityDay, 0, len(activityMap))
+	for _, day := range activityMap {
+		activity = append(activity, day)
+	}
+	sort.Slice(activity, func(i, j int) bool {
+		return activity[i].Date < activity[j].Date
+	})
+
+	WriteJSON(w, http.StatusOK, activity)
 }

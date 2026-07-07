@@ -6,6 +6,9 @@ const Home = lazy(() => import("~/components/home"));
 const Header = lazy(() =>
   import("~/components/header").then((module) => ({ default: module.Header }))
 );
+const AppSidebar = lazy(() =>
+  import("~/components/sidebar").then((module) => ({ default: module.AppSidebar }))
+);
 const MobilePlaceholder = lazy(() => import("~/components/mobile-placeholder"));
 const Onboarding = lazy(() =>
   import("~/components/onboarding").then((module) => ({ default: module.Onboarding }))
@@ -59,12 +62,15 @@ export function IndexPage() {
 
   return (
     <Suspense fallback={<PageFallback />}>
-      <main className="flex h-screen w-full flex-col items-center overflow-hidden bg-background">
-        <div className="mx-auto flex w-full max-w-screen-2xl shrink-0 flex-col items-center px-12 pb-4 pt-6">
-          <Header />
-        </div>
-        <div className="mx-auto flex min-h-0 w-full max-w-screen-2xl flex-1 justify-center px-12 pb-6">
-          <Home />
+      <main className="flex h-screen w-full overflow-hidden bg-background">
+        <AppSidebar />
+        <div className="flex min-w-0 flex-1 flex-col items-center overflow-hidden">
+          <div className="mx-auto flex w-full max-w-screen-2xl shrink-0 flex-col items-center px-10 pb-4 pt-6">
+            <Header />
+          </div>
+          <div className="mx-auto flex min-h-0 w-full max-w-screen-2xl flex-1 justify-center px-10 pb-6">
+            <Home />
+          </div>
         </div>
       </main>
     </Suspense>

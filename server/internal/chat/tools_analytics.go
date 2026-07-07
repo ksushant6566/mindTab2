@@ -4,42 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"math"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/ksushant6566/mindtab/server/internal/providers/llm"
 	"github.com/ksushant6566/mindtab/server/internal/store"
 )
-
-// ---------------------------------------------------------------------------
-// Level helpers
-// ---------------------------------------------------------------------------
-
-var levelThresholds = []int{0, 100, 250, 500, 800, 1200, 1700, 2300, 3000, 4000}
-
-func getLevelForXP(xp int) int {
-	for i := len(levelThresholds) - 1; i >= 0; i-- {
-		if xp >= levelThresholds[i] {
-			return i + 1
-		}
-	}
-	return 1
-}
-
-func getXPForLevel(level int) int {
-	if level <= 1 {
-		return 0
-	}
-	if level-1 < len(levelThresholds) {
-		return levelThresholds[level-1]
-	}
-	return int(math.Round(50 * math.Pow(float64(level-1), 1.5)))
-}
-
-// ---------------------------------------------------------------------------
-// GetActivitySummaryTool
-// ---------------------------------------------------------------------------
 
 // GetActivitySummaryArgs holds validated arguments for get_activity_summary.
 type GetActivitySummaryArgs struct {
@@ -61,7 +31,7 @@ func NewGetActivitySummaryTool(queries store.Querier) *GetActivitySummaryTool {
 func (t *GetActivitySummaryTool) Name() string { return "get_activity_summary" }
 
 func (t *GetActivitySummaryTool) Description() string {
-	return "Get a summary of the user's activity (tasks created/completed, habits tracked, notes written) for a given period. Defaults to the past week."
+	return "Get a summary of the user's activity (tasks created/completed and notes written) for a given period. Defaults to the past week."
 }
 
 func (t *GetActivitySummaryTool) Schema() llm.ToolDefinition {
@@ -121,8 +91,6 @@ func (t *GetActivitySummaryTool) Execute(ctx context.Context, userID string, arg
 	}
 
 	startTimestamp := pgtype.Timestamptz{Time: startTime, Valid: true}
-	startDate := pgtype.Date{Time: startTime, Valid: true}
-
 	// ---- Tasks ----
 	taskRows, err := t.queries.GetTaskActivity(ctx, store.GetTaskActivityParams{
 		UserID:    userID,
@@ -142,27 +110,6 @@ func (t *GetActivitySummaryTool) Execute(ctx context.Context, userID string, arg
 		if ifaceToString(row.Status) == "completed" {
 			tasksCompleted++
 		}
-	}
-
-	// ---- Habit tracker ----
-	habitDates, err := t.queries.GetHabitTrackerActivity(ctx, store.GetHabitTrackerActivityParams{
-		UserID:  userID,
-		Column2: startDate,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("get habit tracker activity: %w", err)
-	}
-
-	habitsCompleted := 0
-	for _, d := range habitDates {
-		if !d.Valid {
-			continue
-		}
-		t := d.Time
-		if t.After(endTime) {
-			continue
-		}
-		habitsCompleted++
 	}
 
 	// ---- Notes ----
@@ -187,10 +134,9 @@ func (t *GetActivitySummaryTool) Execute(ctx context.Context, userID string, arg
 			"start": startTime.Format("2006-01-02"),
 			"end":   endTime.Format("2006-01-02"),
 		},
-		"tasks_created":    tasksCreated,
-		"tasks_completed":  tasksCompleted,
-		"habits_completed": habitsCompleted,
-		"notes_written":    notesWritten,
+		"tasks_created":   tasksCreated,
+		"tasks_completed": tasksCompleted,
+		"notes_written":   notesWritten,
 	}, nil
 }
 
@@ -198,7 +144,7 @@ func (t *GetActivitySummaryTool) Execute(ctx context.Context, userID string, arg
 // GetUserProfileTool
 // ---------------------------------------------------------------------------
 
-// GetUserProfileTool implements the Tool interface for retrieving user profile and XP info.
+// GetUserProfileTool implements the Tool interface for retrieving user profile info.
 type GetUserProfileTool struct {
 	queries store.Querier
 }
@@ -211,7 +157,7 @@ func NewGetUserProfileTool(queries store.Querier) *GetUserProfileTool {
 func (t *GetUserProfileTool) Name() string { return "get_user_profile" }
 
 func (t *GetUserProfileTool) Description() string {
-	return "Get the user's profile including name, email, current XP, level, and XP needed to reach the next level."
+	return "Get the user's profile including name and email."
 }
 
 func (t *GetUserProfileTool) Schema() llm.ToolDefinition {
@@ -232,15 +178,8 @@ func (t *GetUserProfileTool) Execute(ctx context.Context, userID string, _ any) 
 		return nil, fmt.Errorf("get user by id: %w", err)
 	}
 
-	xp := int(user.Xp)
-	level := getLevelForXP(xp)
-	xpToNextLevel := getXPForLevel(level+1) - xp
-
 	return map[string]interface{}{
-		"name":             pgtextToString(user.Name),
-		"email":            user.Email,
-		"xp":               xp,
-		"level":            level,
-		"xp_to_next_level": xpToNextLevel,
+		"name":  pgtextToString(user.Name),
+		"email": user.Email,
 	}, nil
 }

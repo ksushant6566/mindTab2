@@ -2,13 +2,13 @@ import { View, Text, Pressable, StyleSheet } from "react-native";
 import { useState, useEffect, useCallback } from "react";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
-import { searchTasksQueryOptions, searchHabitsQueryOptions, searchNotesQueryOptions } from "@mindtab/core";
+import { searchTasksQueryOptions, searchNotesQueryOptions } from "@mindtab/core";
 import { api } from "~/lib/api-client";
 import { Input } from "~/components/ui/input";
 import { SearchResults } from "~/components/command-palette/search-results";
 import type { SearchFilter } from "~/components/command-palette/search-results";
 import { Chip } from "~/components/ui/chip";
-import { X, Target, CheckSquare, FileEdit } from "lucide-react-native";
+import { X, Target, FileEdit } from "lucide-react-native";
 import { colors } from "~/styles/colors";
 
 function useDebounce(value: string, delay: number) {
@@ -23,7 +23,6 @@ function useDebounce(value: string, delay: number) {
 const SEARCH_FILTERS: { key: SearchFilter; label: string }[] = [
   { key: "all", label: "All" },
   { key: "tasks", label: "Tasks" },
-  { key: "habits", label: "Habits" },
   { key: "notes", label: "Notes" },
 ];
 
@@ -37,7 +36,6 @@ export default function CommandPaletteModal() {
   const debouncedQuery = useDebounce(query, 300);
 
   const { data: tasks = [] } = useQuery(searchTasksQueryOptions(api, debouncedQuery));
-  const { data: habits = [] } = useQuery(searchHabitsQueryOptions(api, debouncedQuery));
   const { data: notes = [] } = useQuery(searchNotesQueryOptions(api, debouncedQuery));
 
   const handleQuickAction = useCallback((route: string) => {
@@ -51,7 +49,7 @@ export default function CommandPaletteModal() {
         <Input
           value={query}
           onChangeText={setQuery}
-          placeholder="Search tasks, habits, notes..."
+          placeholder="Search tasks and notes..."
           autoFocus
           style={styles.searchInput}
         />
@@ -83,13 +81,6 @@ export default function CommandPaletteModal() {
             <Text style={styles.quickActionText}>Create Task</Text>
           </Pressable>
           <Pressable
-            onPress={() => handleQuickAction("/(modals)/create-habit")}
-            style={styles.quickActionRow}
-          >
-            <CheckSquare size={18} color={colors.text.muted} />
-            <Text style={styles.quickActionText}>Create Habit</Text>
-          </Pressable>
-          <Pressable
             onPress={() => handleQuickAction("/(modals)/create-note")}
             style={styles.quickActionRow}
           >
@@ -100,7 +91,6 @@ export default function CommandPaletteModal() {
       ) : (
         <SearchResults
           tasks={tasks as any[]}
-          habits={habits as any[]}
           notes={notes as any[]}
           activeFilter={activeFilter}
         />

@@ -14,7 +14,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   noteQueryOptions,
   taskQueryOptions,
-  habitQueryOptions,
   useDeleteNote,
   useUpdateNote,
 } from "@mindtab/core";
@@ -76,7 +75,7 @@ function escapeHtml(str: string): string {
 // ---------------------------------------------------------------------------
 
 type MentionEntity = {
-  type: "task" | "habit" | "note";
+  type: "task" | "note";
   id: string;
   title: string;
   status?: string;
@@ -373,8 +372,10 @@ export default function NoteDetailScreen() {
 
   const handleMentionPress = useCallback(
     async (type: string, mentionId: string, label: string) => {
+      if (type !== "task" && type !== "note") return;
+
       let entity: MentionEntity = {
-        type: type as "task" | "habit" | "note",
+        type,
         id: mentionId,
         title: label || capitalize(type),
       };
@@ -395,19 +396,6 @@ export default function NoteDetailScreen() {
               createdAt: task.createdAt,
             };
           }
-        } else if (type === "habit") {
-          const habit = (await queryClient.fetchQuery(
-            habitQueryOptions(api, mentionId),
-          )) as any;
-          if (habit) {
-            entity = {
-              ...entity,
-              title: habit.name || habit.title || label,
-              frequency: habit.frequency,
-              streak: habit.currentStreak ?? habit.streak ?? 0,
-              createdAt: habit.createdAt,
-            };
-          }
         }
       } catch {
         // Use fallback label data if fetch fails
@@ -426,12 +414,6 @@ export default function NoteDetailScreen() {
         case "task":
           router.push({
             pathname: "/(main)/tasks/[id]",
-            params: { id: mentionId, ...params },
-          });
-          break;
-        case "habit":
-          router.push({
-            pathname: "/(main)/habits/[id]",
             params: { id: mentionId, ...params },
           });
           break;
