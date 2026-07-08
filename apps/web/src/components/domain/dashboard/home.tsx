@@ -1,6 +1,4 @@
 import React, { Suspense, useEffect, useMemo, useState } from "react";
-import { Button } from "~/components/ui/button";
-import { Clock } from "~/components/clock";
 import { LoadingState } from "~/components/patterns";
 import { useAppStore, EActiveLayout } from "@mindtab/core";
 import type { ActiveLayout } from "@mindtab/core";
@@ -90,10 +88,6 @@ export default function Component() {
         }
     }, [activeElement, layout, setStoreActiveElement]);
 
-    const handleActiveElementChange = (newActiveElement: ActiveLayout) => {
-        setStoreActiveElement(newActiveElement);
-    };
-
     if (!isHydrated) return null;
 
     return (
@@ -102,33 +96,8 @@ export default function Component() {
         >
             <div
                 className="grid h-full min-h-0 w-full grid-cols-10 gap-4"
-                style={{ gridTemplateRows: "auto minmax(0, 1fr)" }}
+                style={{ gridTemplateRows: "minmax(0, 1fr)" }}
             >
-                <div className="flex justify-between items-center col-span-10">
-                    <Clock />
-                    <div className="flex flex-row gap-8">
-                        <div className="flex gap-2">
-                            {layout[layout.activeColumn as "col1" | "col2"].elements
-                                .filter((element) => element.title !== EActiveLayout.Calendar)
-                                .map((element) => (
-                                <Button
-                                    key={element.title}
-                                    size={"sm"}
-                                    onClick={() =>
-                                        handleActiveElementChange(element.title)
-                                    }
-                                    variant={
-                                        activeElement === element.title
-                                            ? "default"
-                                            : "secondary"
-                                    }
-                                >
-                                    {element.title}
-                                </Button>
-                            ))}
-                        </div>
-                    </div>
-                </div>
                 <div className={`${isCalendarActive ? "col-span-10" : layout.col1.style} flex min-h-0 min-w-0 flex-col`}>
                     {layout.col1.elements.map((element) => {
                         if (!visitedCol1Elements.has(element.title)) return null;

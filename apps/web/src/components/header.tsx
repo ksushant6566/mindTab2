@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react'
 import { CommandMenu } from './command-menu'
 import Streak from './streak'
-import { HeaderBar } from '~/components/layout'
+import { HeaderBar, Inline } from '~/components/layout'
+import { WorkstationHeaderProject } from '~/components/domain/navigation/workstation-header-project'
 
 export const Header = () => {
   const [isHydrated, setIsHydrated] = useState(false)
@@ -14,8 +15,11 @@ export const Header = () => {
 
   return (
     <HeaderBar>
-      <CommandMenu />
-      <Streak />
+      <WorkstationHeaderProject />
+      <Inline gap="lg">
+        <CommandMenu />
+        <Streak />
+      </Inline>
     </HeaderBar>
   )
 }

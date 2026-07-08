@@ -15,7 +15,7 @@ export function SidebarShell({ className, ...props }: DivProps) {
 }
 
 export function SidebarHeader({ className, ...props }: DivProps) {
-  return <div className={cn("flex h-14 items-center justify-between gap-2 px-3", className)} {...props} />;
+  return <div className={cn("flex h-10 items-center justify-between gap-2 px-3", className)} {...props} />;
 }
 
 export function SidebarSection({

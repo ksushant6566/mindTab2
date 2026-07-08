@@ -178,6 +178,7 @@ export function AppSidebar() {
         <SidebarShell
             className={cn(
                 "relative h-screen shrink-0 transition-[width] duration-200",
+                "pt-5",
                 collapsed ? "w-[64px]" : "w-[300px]"
             )}
         >
@@ -211,7 +212,7 @@ export function AppSidebar() {
                     type="button"
                     variant="outline"
                     size="icon"
-                    className="absolute right-[-14px] top-4 z-20 h-7 w-7 rounded-full bg-card shadow-sm"
+                    className="absolute right-[-14px] top-[26px] z-20 h-7 w-7 rounded-full bg-card shadow-sm"
                     title="Expand sidebar"
                     aria-label="Expand sidebar"
                     onClick={() => setCollapsed(false)}

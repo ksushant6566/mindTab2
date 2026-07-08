@@ -14,7 +14,7 @@ export function WorkstationFrame({ sidebar, header, children }: WorkstationFrame
     <main className="flex h-screen w-full overflow-hidden bg-background">
       {sidebar}
       <div className="flex min-w-0 flex-1 flex-col items-center overflow-hidden">
-        <div className="mx-auto flex w-full max-w-screen-2xl shrink-0 flex-col items-center px-10 pb-4 pt-6">
+        <div className="mx-auto flex w-full max-w-screen-2xl shrink-0 flex-col items-center px-10 pb-6 pt-5">
           {header}
         </div>
         <div className="mx-auto flex min-h-0 w-full max-w-screen-2xl flex-1 justify-center px-10 pb-6">
@@ -26,7 +26,7 @@ export function WorkstationFrame({ sidebar, header, children }: WorkstationFrame
 }
 
 export function HeaderBar({ children }: { children: React.ReactNode }) {
-  return <div className="flex w-full items-center justify-end gap-6">{children}</div>;
+  return <div className="flex h-10 w-full items-center justify-between gap-6">{children}</div>;
 }
 
 type PageProps = DivProps & {
