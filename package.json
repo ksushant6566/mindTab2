@@ -8,6 +8,10 @@
     "build": "pnpm --filter @mindtab/api-spec build && pnpm --filter @mindtab/shared build && pnpm --filter @mindtab/web build",
     "build:landing": "pnpm --filter @mindtab/landing build",
     "lint": "pnpm -r lint",
+    "e2e:web": "corepack pnpm --filter @mindtab/web e2e",
+    "e2e:web:headed": "corepack pnpm --filter @mindtab/web e2e:headed",
+    "e2e:web:ui": "corepack pnpm --filter @mindtab/web e2e:ui",
+    "e2e:web:install": "corepack pnpm --filter @mindtab/web e2e:install",
     "clean": "pnpm -r clean"
   },
   "packageManager": "pnpm@9.1.0",

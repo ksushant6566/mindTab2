@@ -56,17 +56,18 @@
 
   /* Code and preformatted text styles */
   code {
-    background-color: var(--purple-light);
+    background-color: var(--prose-code-bg);
     border-radius: 0.4rem;
-    color: var(--black);
+    color: var(--prose-code-text);
+    font-family: var(--font-code);
     font-size: 0.85rem;
     padding: 0.25em 0.3em;
   }
 
   pre {
-    background: var(--black);
+    background: var(--prose-pre-bg);
     border-radius: 0.5rem;
-    color: var(--white);
+    color: var(--prose-pre-text);
     font-family: var(--font-code);
     margin: 1.5rem 0;
     padding: 0.75rem 1rem;
@@ -80,14 +81,14 @@
   }
 
   blockquote {
-    border-left: 3px solid var(--gray-3);
+    border-left: 3px solid var(--prose-quote-border);
     margin: 1.5rem 0;
     padding-left: 1rem;
   }
 
   hr {
     border: none;
-    border-top: 1px solid var(--gray-2);
+    border-top: 1px solid var(--prose-rule);
     margin: 2rem 0;
   }
 }

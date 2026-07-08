@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { CommandMenu } from './command-menu'
 import Streak from './streak'
+import { HeaderBar } from '~/components/layout'
 
 export const Header = () => {
   const [isHydrated, setIsHydrated] = useState(false)
@@ -12,9 +13,9 @@ export const Header = () => {
   if (!isHydrated) return null
 
   return (
-    <div className="flex w-full justify-end items-center gap-6">
+    <HeaderBar>
       <CommandMenu />
       <Streak />
-    </div>
+    </HeaderBar>
   )
 }

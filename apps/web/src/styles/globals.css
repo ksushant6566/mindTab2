@@ -26,6 +26,8 @@
 /* Global scrollbar */
 html {
     scrollbar-gutter: stable;
+    width: 100%;
+    overflow-x: hidden;
 }
 ::-webkit-scrollbar {
     width: 10px;

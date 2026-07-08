@@ -2,7 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
 
-const apiUrl = process.env.API_URL || "http://localhost:8080";
+const apiUrl = process.env.API_URL || "http://localhost:8081";
 const apiProxy = { target: apiUrl, changeOrigin: true };
 
 export default defineConfig({
@@ -23,6 +23,10 @@ export default defineConfig({
       "/projects": apiProxy,
       "/activity": apiProxy,
       "/search": apiProxy,
+      "/saves": apiProxy,
+      "/conversations": apiProxy,
+      "/chat/attachments": apiProxy,
+      "/ws": { ...apiProxy, ws: true },
       "/sync": apiProxy,
       "/health": apiProxy,
     },

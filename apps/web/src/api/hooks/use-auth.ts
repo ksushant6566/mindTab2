@@ -31,6 +31,9 @@ interface AuthState {
   _refreshSession: () => Promise<AuthSession | null>;
   setSession: (session: AuthSession) => void;
   login: (googleIdToken: string) => Promise<AuthSession>;
+  emailSignup: (email: string, password: string, name: string) => Promise<void>;
+  emailVerify: (email: string, code: string) => Promise<AuthSession>;
+  emailSignin: (email: string, password: string) => Promise<AuthSession>;
   updateAppearance: (appearance: Partial<AppearanceSettings & GeneralSettings>) => Promise<User>;
   logout: () => Promise<void>;
 }
@@ -131,6 +134,50 @@ const useAuthStore = create<AuthState>((set, get) => ({
     return session;
   },
 
+  emailSignup: async (email, password, name) => {
+    const { error } = await api.POST("/auth/email/signup", {
+      body: { email, password, name },
+    });
+
+    if (error) {
+      throw new Error(getAuthErrorMessage(error, "Sign up failed"));
+    }
+  },
+
+  emailVerify: async (email, code) => {
+    const { data, error } = await api.POST("/auth/email/verify", {
+      body: { email, code },
+    });
+
+    if (error || !data) {
+      throw new Error(getAuthErrorMessage(error, "Verification failed"));
+    }
+
+    const session = {
+      accessToken: data.accessToken,
+      user: normalizeUser(data.user as User),
+    };
+    get().setSession(session);
+    return session;
+  },
+
+  emailSignin: async (email, password) => {
+    const { data, error } = await api.POST("/auth/email/signin", {
+      body: { email, password },
+    });
+
+    if (error || !data) {
+      throw new Error(getAuthErrorMessage(error, "Sign in failed"));
+    }
+
+    const session = {
+      accessToken: data.accessToken,
+      user: normalizeUser(data.user as User),
+    };
+    get().setSession(session);
+    return session;
+  },
+
   updateAppearance: async (appearance) => {
     const { data, error } = await api.PATCH("/users/me", {
       body: appearance,
@@ -183,10 +230,25 @@ export function useAuth() {
     isLoading: store.isLoading,
     login: store.login,
     setSession: store.setSession,
+    emailSignup: store.emailSignup,
+    emailVerify: store.emailVerify,
+    emailSignin: store.emailSignin,
     updateAppearance: store.updateAppearance,
     logout: store.logout,
     refreshSession: store._refreshSession,
   };
+}
+
+function getAuthErrorMessage(error: unknown, fallback: string) {
+  if (
+    error &&
+    typeof error === "object" &&
+    "error" in error &&
+    typeof error.error === "string"
+  ) {
+    return error.error;
+  }
+  return fallback;
 }
 
 function normalizeUser(user: User): User {

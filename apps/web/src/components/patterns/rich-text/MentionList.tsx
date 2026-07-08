@@ -91,7 +91,7 @@ const MentionList: ForwardRefRenderFunction<MentionListRef, MentionListProps> = 
     }))
 
     return (
-        <div className="z-50 overflow-hidden rounded-[var(--r-3)] border border-border bg-[var(--bg-elev)] p-1 shadow-[0_18px_44px_-34px_rgba(0,0,0,0.95)]">
+        <div className="z-50 overflow-hidden rounded-[var(--r-3)] border border-border bg-[var(--bg-elev)] p-1 shadow-[var(--shadow-popover)]">
             <div ref={scrollAreaRef} className="custom-scrollbar flex max-h-[350px] w-[320px] flex-col gap-1 overflow-y-auto">
                 {props.items.length
                     ? props.items.map((item, index) => (
@@ -117,7 +117,7 @@ const MentionList: ForwardRefRenderFunction<MentionListRef, MentionListProps> = 
                                 {item.status && (
                                     <span className={cn(
                                         'inline-flex items-center rounded-[var(--r-2)] border border-border bg-background px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.05em]',
-                                        item.status === 'completed' ? 'text-[var(--green)]' : 'text-muted-foreground'
+                                        item.status === 'completed' ? 'text-[var(--tone-status-done)]' : 'text-muted-foreground'
                                     )}>
                                         {item.status}
                                     </span>
@@ -140,6 +140,6 @@ function MentionIcon({ type }: { type: string }) {
 }
 
 function getResourceClassName(type: string) {
-    if (type === 'task') return 'text-[var(--green)]'
-    return 'text-[var(--amber)]'
+    if (type === 'task') return 'text-[var(--tone-task)]'
+    return 'text-[var(--tone-note)]'
 }

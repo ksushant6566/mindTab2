@@ -5,6 +5,10 @@ dist/
 *.log
 *.tsbuildinfo
 .DS_Store
+test-results/
+playwright-report/
+apps/web/test-results/
+apps/web/playwright-report/
 
 # Go
 server/bin/

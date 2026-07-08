@@ -208,8 +208,29 @@
   --tone-status-done: var(--green);
   --tone-status-archived: var(--text-4);
   --tone-danger: var(--rose);
+  --tone-task: var(--green);
   --tone-note: var(--amber);
   --tone-project: var(--cyan);
+  --tone-appearance: var(--violet);
+  --tone-calendar-now: var(--rose);
+
+  --shadow-inset: 0 1px 0 rgba(255,255,255,0.04) inset;
+  --shadow-elevated: 0 18px 48px -32px rgba(0,0,0,0.65);
+  --shadow-card-hover: 0 10px 28px -26px rgba(0,0,0,0.85);
+  --shadow-popover: 0 18px 44px -34px rgba(0,0,0,0.95);
+  --shadow-command: 0 22px 72px -48px rgba(0,0,0,0.95);
+  --shadow-dialog: 0 20px 64px -48px rgba(0,0,0,0.95);
+  --shadow-drop-target: 0 0 0 1px var(--ink-line), 0 18px 46px -38px rgba(0,0,0,0.95);
+
+  --overlay-subtle: rgba(255,255,255,0.04);
+  --overlay-backdrop: rgba(0,0,0,0.8);
+
+  --prose-code-bg: var(--bg-soft);
+  --prose-code-text: var(--text);
+  --prose-pre-bg: var(--bg-elev);
+  --prose-pre-text: var(--text);
+  --prose-rule: var(--border);
+  --prose-quote-border: var(--border-2);
 }
 
 [data-ui-font="inter"],

@@ -44,7 +44,7 @@ export function Calendar({
     };
 
     return (
-        <div className={cn("w-[284px] rounded-[var(--r-2)] border border-border bg-popover p-3 text-popover-foreground shadow-[0_18px_44px_-34px_rgba(0,0,0,0.95)]", className)}>
+        <div className={cn("w-[284px] rounded-[var(--r-2)] border border-border bg-popover p-3 text-popover-foreground shadow-[var(--shadow-popover)]", className)}>
             <div className="mb-3 flex items-center justify-between gap-2">
                 <Heading as="div" variant="panel">{format(visibleMonth, "MMMM yyyy")}</Heading>
                 <div className="flex items-center gap-1">
