@@ -119,14 +119,60 @@ function seedE2EUser(
   const onboardingCompleted = options.onboardingCompleted ? "true" : "false";
 
   const sql = `
-INSERT INTO users (id, name, email, email_verified, onboarding_completed, password_hash, updated_at)
-VALUES (${userId}, ${name}, ${email}, CURRENT_TIMESTAMP, ${onboardingCompleted}, ${passwordHash}, CURRENT_TIMESTAMP)
+INSERT INTO users (
+  id,
+  name,
+  email,
+  email_verified,
+  onboarding_completed,
+  password_hash,
+  theme,
+  font,
+  code_font,
+  appearance_template,
+  accent_color,
+  background_color,
+  foreground_color,
+  contrast,
+  font_size,
+  radius,
+  updated_at
+)
+VALUES (
+  ${userId},
+  ${name},
+  ${email},
+  CURRENT_TIMESTAMP,
+  ${onboardingCompleted},
+  ${passwordHash},
+  'system',
+  'geist',
+  'system-mono',
+  'codex',
+  '#0169CC',
+  '#111111',
+  '#FCFCFC',
+  60,
+  14,
+  7,
+  CURRENT_TIMESTAMP
+)
 ON CONFLICT (id) DO UPDATE SET
   name = EXCLUDED.name,
   email = EXCLUDED.email,
   email_verified = CURRENT_TIMESTAMP,
   onboarding_completed = EXCLUDED.onboarding_completed,
   password_hash = EXCLUDED.password_hash,
+  theme = EXCLUDED.theme,
+  font = EXCLUDED.font,
+  code_font = EXCLUDED.code_font,
+  appearance_template = EXCLUDED.appearance_template,
+  accent_color = EXCLUDED.accent_color,
+  background_color = EXCLUDED.background_color,
+  foreground_color = EXCLUDED.foreground_color,
+  contrast = EXCLUDED.contrast,
+  font_size = EXCLUDED.font_size,
+  radius = EXCLUDED.radius,
   updated_at = CURRENT_TIMESTAMP;
 
 ${options.seedWorkspace ? `

@@ -90,6 +90,7 @@ type userJSON struct {
 	ForegroundColor     string `json:"foregroundColor"`
 	Contrast            int32  `json:"contrast"`
 	FontSize            int32  `json:"fontSize"`
+	Radius              int32  `json:"radius"`
 	WeekStartDay        string `json:"weekStartDay"`
 	TimeFormat          string `json:"timeFormat"`
 	TimeZone            string `json:"timeZone"`
@@ -111,6 +112,7 @@ func toUserJSON(u store.User) userJSON {
 		ForegroundColor:     normalizeUserColor(u.ForegroundColor, "#FCFCFC"),
 		Contrast:            normalizeIntRange(u.Contrast, 60, 0, 100),
 		FontSize:            normalizeIntRange(u.FontSize, 14, 12, 20),
+		Radius:              normalizeIntRange(u.Radius, 7, 0, 20),
 		WeekStartDay:        normalizeWeekStartDay(u.WeekStartDay),
 		TimeFormat:          normalizeTimeFormat(u.TimeFormat),
 		TimeZone:            normalizeTimeZone(u.TimeZone),
@@ -130,23 +132,23 @@ func normalizeUserTheme(theme string) string {
 
 func normalizeUserFont(font string) string {
 	switch font {
-	case "linear", "raycast", "geist":
-		return "geist"
-	case "system":
+	case "geist", "inter", "system", "sf-pro", "helvetica", "avenir", "ibm-plex", "roboto", "segoe":
 		return font
-	case "satoshi":
-		return "satoshi"
+	case "github", "notion":
+		return "system"
+	case "codex", "linear", "raycast", "satoshi":
+		return "geist"
 	default:
-		return "inter"
+		return "geist"
 	}
 }
 
 func normalizeCodeFont(font string) string {
 	switch font {
-	case "jetbrains", "geist-mono", "sf-mono", "fira-code", "system-mono":
+	case "system-mono", "geist-mono", "sf-mono", "jetbrains", "fira-code", "cascadia", "menlo", "monaco":
 		return font
 	default:
-		return "jetbrains"
+		return "system-mono"
 	}
 }
 

@@ -11,7 +11,11 @@ const sidebarItemClassName =
 const sidebarItemActiveClassName = "bg-secondary text-foreground";
 
 export function SidebarShell({ className, ...props }: DivProps) {
-  return <aside className={cn("flex h-full min-h-0 w-[300px] flex-col border-r border-border bg-sidebar text-sidebar-foreground", className)} {...props} />;
+  return <aside className={cn("flex h-full min-h-0 flex-col border-r border-border bg-card/85 text-card-foreground backdrop-blur", className)} {...props} />;
+}
+
+export function SidebarHeader({ className, ...props }: DivProps) {
+  return <div className={cn("flex h-14 items-center justify-between gap-2 px-3", className)} {...props} />;
 }
 
 export function SidebarSection({
@@ -150,6 +154,22 @@ export function SidebarAccountItem({
 
 export function SidebarAccountMenu({ className, ...props }: DivProps) {
   return <div className={cn("border-t border-border", className)} {...props} />;
+}
+
+export function SidebarAccountPopover({ className, ...props }: DivProps) {
+  return (
+    <div
+      className={cn(
+        "absolute bottom-[72px] left-3 right-3 z-20 overflow-hidden rounded-[var(--r-3)] border border-border bg-popover p-2 text-[length:var(--type-body-size)] font-[var(--type-body-weight)] leading-[var(--type-body-line)] text-popover-foreground shadow-[var(--shadow-popover)]",
+        className
+      )}
+      {...props}
+    />
+  );
+}
+
+export function SidebarAccountPopoverHeader({ className, ...props }: DivProps) {
+  return <div className={cn("flex h-9 items-center border-b border-border px-2 text-muted-foreground", className)} {...props} />;
 }
 
 function SidebarAccountAvatar({ user }: { user?: SidebarAccountUser | null }) {

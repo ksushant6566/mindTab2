@@ -1,0 +1,3 @@
+ALTER TABLE users
+  ADD COLUMN radius INTEGER NOT NULL DEFAULT 7,
+  ADD CONSTRAINT users_radius_check CHECK (radius BETWEEN 0 AND 20);

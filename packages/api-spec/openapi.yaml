@@ -390,10 +390,10 @@ paths:
                   enum: [system, dark, light]
                 uiFont:
                   type: string
-                  enum: [inter, geist, system, satoshi]
+                  enum: [geist, inter, system, sf-pro, helvetica, avenir, ibm-plex, roboto, segoe]
                 codeFont:
                   type: string
-                  enum: [jetbrains, geist-mono, sf-mono, fira-code, system-mono]
+                  enum: [system-mono, geist-mono, sf-mono, jetbrains, fira-code, cascadia, menlo, monaco]
                 appearanceTemplate:
                   type: string
                   enum: [absolutely, ayu, catppuccin, codex, dracula, everforest, github, gruvbox, linear, lobster, material, matrix, monokai, night-owl, nord, notion, one, oscurange, proof, rose-pine, sentry, solarized, temple, tokyo-night, vscode-plus]
@@ -413,6 +413,10 @@ paths:
                 fontSize:
                   type: integer
                   minimum: 12
+                  maximum: 20
+                radius:
+                  type: integer
+                  minimum: 0
                   maximum: 20
                 weekStartDay:
                   type: string
@@ -1512,6 +1516,7 @@ components:
         - foregroundColor
         - contrast
         - fontSize
+        - radius
         - weekStartDay
         - timeFormat
         - timeZone
@@ -1539,12 +1544,12 @@ components:
           default: system
         uiFont:
           type: string
-          enum: [inter, geist, system, satoshi]
-          default: inter
+          enum: [geist, inter, system, sf-pro, helvetica, avenir, ibm-plex, roboto, segoe]
+          default: geist
         codeFont:
           type: string
-          enum: [jetbrains, geist-mono, sf-mono, fira-code, system-mono]
-          default: jetbrains
+          enum: [system-mono, geist-mono, sf-mono, jetbrains, fira-code, cascadia, menlo, monaco]
+          default: system-mono
         appearanceTemplate:
           type: string
           enum: [absolutely, ayu, catppuccin, codex, dracula, everforest, github, gruvbox, linear, lobster, material, matrix, monokai, night-owl, nord, notion, one, oscurange, proof, rose-pine, sentry, solarized, temple, tokyo-night, vscode-plus]
@@ -1571,6 +1576,11 @@ components:
           minimum: 12
           maximum: 20
           default: 14
+        radius:
+          type: integer
+          minimum: 0
+          maximum: 20
+          default: 7
         weekStartDay:
           type: string
           enum: [monday, sunday, saturday]

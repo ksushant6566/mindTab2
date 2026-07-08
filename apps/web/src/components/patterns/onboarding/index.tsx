@@ -108,13 +108,13 @@ export function Onboarding({ userName, onComplete }: OnboardingProps) {
                     animate={{ opacity: 1 }}
                     transition={{ duration: 0.6 }}
                 >
-                    <div className="h-[500px] w-[500px] rounded-full bg-emerald-500/8 blur-[100px]" />
+                    <div className="h-[500px] w-[500px] rounded-full bg-[color-mix(in_srgb,var(--tone-status-done)_8%,transparent)] blur-[100px]" />
                 </motion.div>
 
                 {Array.from({ length: 12 }).map((_, i) => (
                     <motion.div
                         key={i}
-                        className="absolute h-1 w-1 rounded-full bg-emerald-400/60"
+                        className="absolute h-1 w-1 rounded-full bg-[color-mix(in_srgb,var(--tone-status-done)_60%,transparent)]"
                         initial={{
                             opacity: 0,
                             scale: 0,
@@ -142,7 +142,7 @@ export function Onboarding({ userName, onComplete }: OnboardingProps) {
                     transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
                 >
                     <motion.div
-                        className="flex h-18 w-18 items-center justify-center rounded-full bg-emerald-500/15 border border-emerald-500/20"
+                        className="flex size-[4.5rem] items-center justify-center rounded-full border border-[color-mix(in_srgb,var(--tone-status-done)_20%,transparent)] bg-[color-mix(in_srgb,var(--tone-status-done)_15%,transparent)]"
                         initial={{ scale: 0 }}
                         animate={{ scale: 1 }}
                         transition={{
@@ -162,7 +162,7 @@ export function Onboarding({ userName, onComplete }: OnboardingProps) {
                                 delay: 0.35,
                             }}
                         >
-                            <Check className="h-8 w-8 text-emerald-400" strokeWidth={2.5} />
+                            <Check className="h-8 w-8 text-[var(--tone-status-done)]" strokeWidth={2.5} />
                         </motion.div>
                     </motion.div>
                     <motion.h2

@@ -63,6 +63,32 @@ test.describe("authenticated workstation visual checks", () => {
     await context.close();
   });
 
+  test("sidebar profile menu opens profile settings", async ({ browser, request }) => {
+    const { context, page } = await createAuthenticatedPage(browser, request);
+
+    await page.goto("/");
+    await page.getByRole("button", { name: /MindTab E2E/i }).click();
+    await page.getByRole("button", { name: "Profile" }).click();
+    await expect(page).toHaveURL(/\/settings\?section=profile/);
+    await expect(page.getByRole("heading", { name: "Profile" })).toBeVisible();
+
+    await context.close();
+  });
+
+  test("command menu settings items deep-link to settings sections", async ({ browser, request }) => {
+    const { context, page } = await createAuthenticatedPage(browser, request);
+
+    await page.goto("/");
+    await page.getByRole("button", { name: /⌘K/ }).click();
+    await expect(page.getByText("Settings")).toBeVisible();
+    await expect(page.getByText("Theme: Dark")).toHaveCount(0);
+    await page.getByText("Keyboard Shortcuts").click();
+    await expect(page).toHaveURL(/\/settings\?section=shortcuts/);
+    await expect(page.getByRole("heading", { name: "Keyboard Shortcuts" })).toBeVisible();
+
+    await context.close();
+  });
+
   test("task dialog renders from a dashboard task card", async ({ browser, request }) => {
     const { context, page } = await createAuthenticatedPage(browser, request);
 

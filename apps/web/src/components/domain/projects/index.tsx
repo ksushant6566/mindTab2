@@ -1,8 +1,4 @@
 export {
-  ProjectTabs,
-} from "./project-tabs";
-
-export {
   CreateProjectDialog,
 } from "./create-project-dialog";
 

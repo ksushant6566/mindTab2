@@ -725,15 +725,15 @@ export interface components {
              */
             theme: "system" | "dark" | "light";
             /**
-             * @default inter
+             * @default geist
              * @enum {string}
              */
-            uiFont: "inter" | "geist" | "system" | "satoshi";
+            uiFont: "geist" | "inter" | "system" | "sf-pro" | "helvetica" | "avenir" | "ibm-plex" | "roboto" | "segoe";
             /**
-             * @default jetbrains
+             * @default system-mono
              * @enum {string}
              */
-            codeFont: "jetbrains" | "geist-mono" | "sf-mono" | "fira-code" | "system-mono";
+            codeFont: "system-mono" | "geist-mono" | "sf-mono" | "jetbrains" | "fira-code" | "cascadia" | "menlo" | "monaco";
             /**
              * @default codex
              * @enum {string}
@@ -749,6 +749,8 @@ export interface components {
             contrast: number;
             /** @default 14 */
             fontSize: number;
+            /** @default 7 */
+            radius: number;
             /**
              * @default monday
              * @enum {string}
@@ -1537,9 +1539,9 @@ export interface operations {
                     /** @enum {string} */
                     theme?: "system" | "dark" | "light";
                     /** @enum {string} */
-                    uiFont?: "inter" | "geist" | "system" | "satoshi";
+                    uiFont?: "geist" | "inter" | "system" | "sf-pro" | "helvetica" | "avenir" | "ibm-plex" | "roboto" | "segoe";
                     /** @enum {string} */
-                    codeFont?: "jetbrains" | "geist-mono" | "sf-mono" | "fira-code" | "system-mono";
+                    codeFont?: "system-mono" | "geist-mono" | "sf-mono" | "jetbrains" | "fira-code" | "cascadia" | "menlo" | "monaco";
                     /** @enum {string} */
                     appearanceTemplate?: "absolutely" | "ayu" | "catppuccin" | "codex" | "dracula" | "everforest" | "github" | "gruvbox" | "linear" | "lobster" | "material" | "matrix" | "monokai" | "night-owl" | "nord" | "notion" | "one" | "oscurange" | "proof" | "rose-pine" | "sentry" | "solarized" | "temple" | "tokyo-night" | "vscode-plus";
                     accentColor?: string;
@@ -1547,6 +1549,7 @@ export interface operations {
                     foregroundColor?: string;
                     contrast?: number;
                     fontSize?: number;
+                    radius?: number;
                     /** @enum {string} */
                     weekStartDay?: "monday" | "sunday" | "saturday";
                     /** @enum {string} */

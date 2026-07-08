@@ -31,8 +31,8 @@ export const mindtabRadii = {
 } as const;
 
 export const mindtabFonts = {
-  sans: "Inter",
-  mono: "JetBrains Mono",
+  sans: "Geist",
+  mono: "System Mono",
 } as const;
 
 export const mindtabEasing = {

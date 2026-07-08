@@ -28,6 +28,7 @@ SET
     contrast = COALESCE(sqlc.narg('contrast'), contrast),
     font_size = COALESCE(sqlc.narg('font_size'), font_size),
     code_font = COALESCE(sqlc.narg('code_font'), code_font),
+    radius = COALESCE(sqlc.narg('radius'), radius),
     week_start_day = COALESCE(sqlc.narg('week_start_day'), week_start_day),
     time_format = COALESCE(sqlc.narg('time_format'), time_format),
     time_zone = COALESCE(sqlc.narg('time_zone'), time_zone),

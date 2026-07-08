@@ -1,10 +1,10 @@
 import * as React from "react";
 import { Check } from "lucide-react";
-import { Button } from "~/components/ui/button";
 import { Label } from "~/components/ui/label";
+import { Slider } from "~/components/ui/slider";
 import { CodeText, Heading, MetaText, Text } from "~/components/ui/typography";
 import { Panel, ScrollPanel, Stack, Surface } from "~/components/layout";
-import { SidebarItem } from "~/components/domain/navigation";
+import { SidebarItem, SidebarShell } from "~/components/domain/navigation";
 import { cn } from "~/lib/utils";
 
 type DivProps = React.HTMLAttributes<HTMLDivElement>;
@@ -15,8 +15,8 @@ export function SettingsShell({ className, ...props }: DivProps) {
 
 export function SettingsSidebar({ className, ...props }: DivProps) {
   return (
-    <aside
-      className={cn("flex min-h-0 flex-col border-r border-border bg-[var(--bg-soft)] px-3 py-4", className)}
+    <SidebarShell
+      className={cn("min-h-screen px-3 py-4", className)}
       {...props}
     />
   );
@@ -35,17 +35,19 @@ export function SettingsSection({
   description,
   children,
   className,
+  gap = "md",
 }: {
   title?: React.ReactNode;
   description?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
+  gap?: React.ComponentProps<typeof Stack>["gap"];
 }) {
   return (
-    <Stack gap="md" className={className}>
+    <Stack gap={gap} className={className}>
       {title || description ? (
         <Stack gap="xs">
-          {title ? <Heading variant="section">{title}</Heading> : null}
+          {title ? <Heading variant="page">{title}</Heading> : null}
           {description ? <Text variant="muted">{description}</Text> : null}
         </Stack>
       ) : null}
@@ -70,7 +72,7 @@ export function SettingsRow({
   className?: string;
 }) {
   return (
-    <div className={cn("grid min-h-14 grid-cols-[minmax(0,1fr)_auto] items-center gap-6 border-b border-border px-4 py-3 last:border-b-0", className)}>
+    <div className={cn("grid min-h-11 grid-cols-[minmax(0,1fr)_auto] items-center gap-5 border-b-[0.75px] border-border px-4 py-2 last:border-b-0", className)}>
       <Stack gap="xs" className="min-w-0">
         <div className="flex min-w-0 items-center gap-2">
           {icon ? <span className="shrink-0 text-muted-foreground">{icon}</span> : null}
@@ -94,10 +96,15 @@ export function ColorControl({
   onChange?: (value: string) => void;
   className?: string;
 }) {
+  const foreground = getReadableControlText(value);
+
   return (
-    <label className={cn("flex h-9 w-[160px] cursor-pointer items-center gap-2 rounded-[var(--r-3)] border border-border bg-background px-2", className)}>
-      <span className="size-5 rounded-full border border-border" style={{ backgroundColor: value }} aria-hidden="true" />
-      <CodeText className="text-foreground">{value}</CodeText>
+    <label
+      className={cn("flex h-9 w-[160px] cursor-pointer items-center gap-2 rounded-[var(--r-3)] border border-border px-2", className)}
+      style={{ backgroundColor: value }}
+    >
+      <span className="size-5 rounded-full border border-current opacity-50" aria-hidden="true" style={{ color: foreground }} />
+      <CodeText style={{ color: foreground }}>{value}</CodeText>
       <input
         type="color"
         value={value}
@@ -106,6 +113,15 @@ export function ColorControl({
       />
     </label>
   );
+}
+
+function getReadableControlText(hex: string) {
+  const normalized = /^#[0-9a-fA-F]{6}$/.test(hex) ? hex.slice(1) : "111111";
+  const r = parseInt(normalized.slice(0, 2), 16);
+  const g = parseInt(normalized.slice(2, 4), 16);
+  const b = parseInt(normalized.slice(4, 6), 16);
+  const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+  return luminance > 0.62 ? "#111111" : "#FFFFFF";
 }
 
 export function RangeControl({
@@ -129,15 +145,14 @@ export function RangeControl({
 }) {
   return (
     <div className={cn("flex w-[250px] items-center gap-3", disabled && "opacity-45", className)}>
-      <input
-        type="range"
+      <Slider
         min={min}
         max={max}
         step={step}
-        value={value}
+        value={[value]}
         disabled={disabled}
-        onChange={(event) => onChange?.(Number(event.target.value))}
-        className="h-1 flex-1 accent-primary"
+        onValueChange={(nextValue) => onChange?.(nextValue[0] ?? value)}
+        className="flex-1"
       />
       <CodeText className="w-10 text-right text-foreground">{value}{suffix}</CodeText>
     </div>
@@ -204,6 +219,16 @@ export function SettingsScrollArea({ className, ...props }: DivProps) {
   return <ScrollPanel className={cn("flex-1 pr-1", className)} {...props} />;
 }
 
-export function SettingsBackButton(props: React.ComponentProps<typeof Button>) {
-  return <Button variant="ghost" size="sm" {...props} />;
+export function SettingsBackButton({
+  icon,
+  children,
+  ...props
+}: React.ComponentProps<typeof SidebarItem> & {
+  icon?: React.ReactNode;
+}) {
+  return (
+    <SidebarItem icon={icon} {...props}>
+      {children}
+    </SidebarItem>
+  );
 }

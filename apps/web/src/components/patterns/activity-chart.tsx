@@ -18,6 +18,14 @@ type ActivityChartProps = {
     activities: Activity[];
 };
 
+const activityLevelClassNames = [
+    "bg-muted",
+    "bg-[var(--tone-activity-1)]",
+    "bg-[var(--tone-activity-2)]",
+    "bg-[var(--tone-activity-3)]",
+    "bg-[var(--tone-activity-4)]",
+] as const;
+
 export function ActivityChart({ activities }: ActivityChartProps) {
     // Get last 365 days
     const today = new Date();
@@ -112,18 +120,7 @@ export function ActivityChart({ activities }: ActivityChartProps) {
                                                 <TooltipProvider key={`${weekIndex}-${dayIndex}`}>
                                                     <Tooltip>
                                                         <TooltipTrigger>
-                                                            <div
-                                                                className={`h-3.5 w-3.5 rounded ${level === 0
-                                                                    ? 'bg-muted'
-                                                                    : level === 1
-                                                                        ? 'bg-emerald-200 dark:bg-emerald-900'
-                                                                        : level === 2
-                                                                            ? 'bg-emerald-300 dark:bg-emerald-700'
-                                                                            : level === 3
-                                                                                ? 'bg-emerald-400 dark:bg-emerald-500'
-                                                                                : 'bg-emerald-500 dark:bg-emerald-300'
-                                                                    }`}
-                                                            />
+                                                            <div className={`h-3.5 w-3.5 rounded ${activityLevelClassNames[level]}`} />
                                                         </TooltipTrigger>
                                                         <TooltipContent>
                                                             <div className="text-sm">
@@ -162,10 +159,10 @@ export function ActivityChart({ activities }: ActivityChartProps) {
                                 <span>Less</span>
                                 <div className="flex gap-1">
                                     <div className="h-3 w-3 rounded-sm bg-muted" />
-                                    <div className="h-3 w-3 rounded-sm bg-emerald-200 dark:bg-emerald-900" />
-                                    <div className="h-3 w-3 rounded-sm bg-emerald-300 dark:bg-emerald-700" />
-                                    <div className="h-3 w-3 rounded-sm bg-emerald-400 dark:bg-emerald-500" />
-                                    <div className="h-3 w-3 rounded-sm bg-emerald-500 dark:bg-emerald-300" />
+                                    <div className="h-3 w-3 rounded-sm bg-[var(--tone-activity-1)]" />
+                                    <div className="h-3 w-3 rounded-sm bg-[var(--tone-activity-2)]" />
+                                    <div className="h-3 w-3 rounded-sm bg-[var(--tone-activity-3)]" />
+                                    <div className="h-3 w-3 rounded-sm bg-[var(--tone-activity-4)]" />
                                 </div>
                                 <span>More</span>
                             </div>

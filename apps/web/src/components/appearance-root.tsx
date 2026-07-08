@@ -17,6 +17,7 @@ export function AppearanceRoot({ children }: AppearanceRootProps) {
   const foregroundColor = useAppStore((state) => state.foregroundColor);
   const contrast = useAppStore((state) => state.contrast);
   const fontSize = useAppStore((state) => state.fontSize);
+  const radius = useAppStore((state) => state.radius);
   const setAppearance = useAppStore((state) => state.setAppearance);
   const [prefersDark, setPrefersDark] = useState(() =>
     typeof window === "undefined" ? true : window.matchMedia("(prefers-color-scheme: dark)").matches
@@ -43,6 +44,7 @@ export function AppearanceRoot({ children }: AppearanceRootProps) {
       foregroundColor: user.foregroundColor,
       contrast: user.contrast,
       fontSize: user.fontSize,
+      radius: user.radius,
       weekStartDay: user.weekStartDay,
       timeFormat: user.timeFormat,
       timeZone: user.timeZone,
@@ -55,6 +57,7 @@ export function AppearanceRoot({ children }: AppearanceRootProps) {
     user?.codeFont,
     user?.contrast,
     user?.fontSize,
+    user?.radius,
     user?.foregroundColor,
     user?.theme,
     user?.timeFormat,
@@ -72,6 +75,7 @@ export function AppearanceRoot({ children }: AppearanceRootProps) {
       foregroundColor,
       contrast,
       fontSize,
+      radius,
     });
 
     root.dataset.appearanceMode = theme;
@@ -83,7 +87,7 @@ export function AppearanceRoot({ children }: AppearanceRootProps) {
     Object.entries(palette).forEach(([key, value]) => {
       root.style.setProperty(key, value);
     });
-  }, [accentColor, backgroundColor, codeFont, contrast, fontSize, foregroundColor, prefersDark, theme, uiFont]);
+  }, [accentColor, backgroundColor, codeFont, contrast, fontSize, foregroundColor, prefersDark, radius, theme, uiFont]);
 
   const resolvedTheme = resolveTheme(theme, prefersDark);
 
@@ -101,6 +105,7 @@ type PaletteInput = {
   foregroundColor: string;
   contrast: number;
   fontSize: number;
+  radius: number;
 };
 
 function buildCustomPalette({
@@ -109,14 +114,17 @@ function buildCustomPalette({
   foregroundColor,
   contrast,
   fontSize,
+  radius,
 }: PaletteInput) {
-  const borderRatio = 0.1 + (contrast / 100) * 0.22;
-  const elevatedRatio = 0.04 + (contrast / 100) * 0.06;
-  const softRatio = 0.08 + (contrast / 100) * 0.1;
+  const contrastRatio = contrast / 100;
+  const borderRatio = 0.1 + contrastRatio * 0.14;
+  const elevatedRatio = contrastRatio * 0.08;
+  const softRatio = 0.055 + contrastRatio * 0.075;
+  const hoverRatio = 0.065 + contrastRatio * 0.075;
   const bgElev = mixHex(backgroundColor, foregroundColor, elevatedRatio);
   const bgSoft = mixHex(backgroundColor, foregroundColor, softRatio);
   const border = mixHex(backgroundColor, foregroundColor, borderRatio);
-  const borderStrong = mixHex(backgroundColor, foregroundColor, Math.min(0.42, borderRatio + 0.1));
+  const borderStrong = mixHex(backgroundColor, foregroundColor, 0.14 + contrastRatio * 0.18);
   const mutedForeground = mixHex(foregroundColor, backgroundColor, 0.38);
   const lowContrastForeground = mixHex(foregroundColor, backgroundColor, 0.58);
 
@@ -124,7 +132,7 @@ function buildCustomPalette({
     "--bg": backgroundColor,
     "--bg-elev": bgElev,
     "--bg-soft": bgSoft,
-    "--bg-hover": mixHex(backgroundColor, foregroundColor, Math.min(0.32, softRatio + 0.1)),
+    "--bg-hover": mixHex(backgroundColor, foregroundColor, hoverRatio),
     "--border": border,
     "--border-2": borderStrong,
     "--text": foregroundColor,
@@ -154,9 +162,15 @@ function buildCustomPalette({
     "--ring": toHslTriplet(accentColor),
     "--type-body-size": `${fontSize / 16}rem`,
     "--type-label-size": `${fontSize / 16}rem`,
-    "--type-title-size": `${(fontSize + 4) / 16}rem`,
+    "--type-title-size": `${(fontSize + 10) / 16}rem`,
+    "--type-title-line": `${(fontSize + 18) / 16}rem`,
     "--type-meta-size": `${Math.max(11, fontSize - 2) / 16}rem`,
     "--type-code-size": `${Math.max(11, fontSize - 2) / 16}rem`,
+    "--r-1": `${(radius * 3) / 7}px`,
+    "--r-2": `${(radius * 5) / 7}px`,
+    "--r-3": `${radius}px`,
+    "--r-4": `${(radius * 10) / 7}px`,
+    "--r-5": `${radius * 2}px`,
   };
 }
 

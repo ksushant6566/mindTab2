@@ -1,0 +1,3 @@
+ALTER TABLE users
+  DROP CONSTRAINT IF EXISTS users_radius_check,
+  DROP COLUMN IF EXISTS radius;

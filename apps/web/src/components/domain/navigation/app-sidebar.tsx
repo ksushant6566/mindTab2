@@ -17,8 +17,14 @@ import {
     SidebarActionButton,
     SidebarAccountItem,
     SidebarAccountMenu,
+    SidebarAccountPopover,
+    SidebarAccountPopoverHeader,
+    SidebarContent,
     SidebarGeneralChatLink,
+    SidebarHeader,
     SidebarItem,
+    SidebarLogo,
+    SidebarShell,
     SidebarProjectGroup,
     SidebarSectionButton,
 } from "~/components/domain/navigation";
@@ -169,20 +175,20 @@ export function AppSidebar() {
     };
 
     return (
-        <aside
+        <SidebarShell
             className={cn(
-                "relative flex h-screen shrink-0 flex-col border-r border-border bg-card/85 backdrop-blur transition-[width] duration-200",
+                "relative h-screen shrink-0 transition-[width] duration-200",
                 collapsed ? "w-[64px]" : "w-[300px]"
             )}
         >
-            <div className="flex h-14 items-center justify-between gap-2 px-3">
+            <SidebarHeader>
                 {collapsed ? (
-                    <Link to="/" className="min-w-0 overflow-hidden px-2">
-                        <span className="block truncate text-2xl font-light leading-none text-foreground">MindTab</span>
+                    <Link to="/" className="min-w-0 overflow-hidden">
+                        <SidebarLogo className="h-auto px-2">MindTab</SidebarLogo>
                     </Link>
                 ) : (
-                    <Link to="/" className="min-w-0 flex-1 overflow-hidden px-2">
-                        <span className="block truncate text-2xl font-light leading-none text-foreground">MindTab</span>
+                    <Link to="/" className="min-w-0 flex-1 overflow-hidden">
+                        <SidebarLogo className="h-auto px-2">MindTab</SidebarLogo>
                     </Link>
                 )}
                 {!collapsed && (
@@ -198,7 +204,7 @@ export function AppSidebar() {
                         <ChevronsLeft className="h-4 w-4" />
                     </Button>
                 )}
-            </div>
+            </SidebarHeader>
 
             {collapsed && (
                 <Button
@@ -214,7 +220,7 @@ export function AppSidebar() {
                 </Button>
             )}
 
-            <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-3 pb-4 [scrollbar-gutter:stable]">
+            <SidebarContent className="custom-scrollbar px-3 pb-4 pt-0">
                 <div className="mt-3 space-y-1">
                     <SidebarActionButton collapsed={collapsed} icon={<PencilLine className="h-4 w-4" />} label="New chat" onClick={() => void navigate({ to: "/chat" })} />
                     <SidebarActionButton collapsed={collapsed} icon={<Shield className="h-4 w-4" />} label="Vault" onClick={() => void navigate({ to: "/vault" })} />
@@ -276,29 +282,32 @@ export function AppSidebar() {
                         </section>
                     </div>
                 )}
-            </div>
+            </SidebarContent>
 
             {!collapsed && (
                 <SidebarAccountMenu>
                     <SidebarAccountItem user={user} onClick={() => setAccountMenuOpen((value) => !value)} />
 
                     {accountMenuOpen && (
-                        <div className="absolute bottom-[72px] left-3 right-3 z-20 overflow-hidden rounded-[var(--r-3)] border border-border bg-popover p-2 text-sm shadow-lg">
-                            <div className="flex h-9 items-center border-b border-border px-2 text-muted-foreground">
+                        <SidebarAccountPopover>
+                            <SidebarAccountPopoverHeader>
                                 <div className="truncate">{user?.email ?? "Personal account"}</div>
-                            </div>
+                            </SidebarAccountPopoverHeader>
                             <div className="py-1">
                                 <SidebarItem
-                                    disabled
+                                    onClick={() => {
+                                        setAccountMenuOpen(false);
+                                        void navigate({ to: "/settings", search: { section: "profile" } });
+                                    }}
                                     icon={<UserCircle className="h-4 w-4" />}
-                                    className="h-9 px-2 opacity-60"
+                                    className="h-9 px-2"
                                 >
                                     Profile
                                 </SidebarItem>
                                 <SidebarItem
                                     onClick={() => {
                                         setAccountMenuOpen(false);
-                                        void navigate({ to: "/settings" });
+                                        void navigate({ to: "/settings", search: { section: "general" } });
                                     }}
                                     icon={<Settings className="h-4 w-4" />}
                                     className="h-9 px-2"
@@ -315,11 +324,11 @@ export function AppSidebar() {
                                     Log out
                                 </SidebarItem>
                             </div>
-                        </div>
+                        </SidebarAccountPopover>
                     )}
                 </SidebarAccountMenu>
             )}
-        </aside>
+        </SidebarShell>
     );
 }
 

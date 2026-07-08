@@ -42,9 +42,9 @@ export function ChromeExtensionStep({ onNext, onBack, isLastStep = false, loadin
             >
                 <div className="flex items-center gap-2 px-4 py-2.5 bg-muted/30 border-b border-border/50">
                     <div className="flex gap-1.5">
-                        <div className="h-2.5 w-2.5 rounded-full bg-red-500/40" />
-                        <div className="h-2.5 w-2.5 rounded-full bg-yellow-500/40" />
-                        <div className="h-2.5 w-2.5 rounded-full bg-green-500/40" />
+                        <div className="h-2.5 w-2.5 rounded-full bg-[color-mix(in_srgb,var(--tone-danger)_40%,transparent)]" />
+                        <div className="h-2.5 w-2.5 rounded-full bg-[color-mix(in_srgb,var(--tone-status-todo)_40%,transparent)]" />
+                        <div className="h-2.5 w-2.5 rounded-full bg-[color-mix(in_srgb,var(--tone-status-done)_40%,transparent)]" />
                     </div>
                     <div className="flex-1 flex justify-center">
                         <div className="flex items-center gap-2 rounded-md bg-background/60 border border-border/30 px-3 py-1 text-xs text-muted-foreground/70 min-w-[200px]">
@@ -79,14 +79,14 @@ export function ChromeExtensionStep({ onNext, onBack, isLastStep = false, loadin
                                     <div className="rounded border border-border/20 bg-card/30 p-1.5 space-y-1">
                                         <div className="h-1 w-[80%] rounded bg-foreground/10" />
                                         <div className="flex gap-0.5">
-                                            <div className="h-1 w-3 rounded bg-red-500/25" />
-                                            <div className="h-1 w-2 rounded bg-yellow-500/20" />
+                                            <div className="h-1 w-3 rounded bg-[color-mix(in_srgb,var(--tone-danger)_25%,transparent)]" />
+                                            <div className="h-1 w-2 rounded bg-[color-mix(in_srgb,var(--tone-status-todo)_20%,transparent)]" />
                                         </div>
                                     </div>
                                     <div className="rounded border border-border/15 bg-card/20 p-1.5 space-y-1">
-                                        <div className="h-1 w-[60%] rounded bg-foreground/8" />
+                                        <div className="h-1 w-[60%] rounded bg-foreground/[0.08]" />
                                         <div className="flex gap-0.5">
-                                            <div className="h-1 w-3 rounded bg-green-500/20" />
+                                            <div className="h-1 w-3 rounded bg-[color-mix(in_srgb,var(--tone-status-done)_20%,transparent)]" />
                                         </div>
                                     </div>
                                 </div>
@@ -94,13 +94,13 @@ export function ChromeExtensionStep({ onNext, onBack, isLastStep = false, loadin
                                     <div className="grid grid-cols-8 gap-0.5">
                                         <div className="h-1 rounded bg-foreground/5" />
                                         {[true, false, true, false, false, false, false].map((on, i) => (
-                                            <div key={i} className={`h-2.5 rounded-sm ${on ? "bg-emerald-500/25" : "bg-muted/10"}`} />
+                                            <div key={i} className={`h-2.5 rounded-sm ${on ? "bg-[color-mix(in_srgb,var(--tone-activity-4)_25%,transparent)]" : "bg-muted/10"}`} />
                                         ))}
                                     </div>
                                     <div className="grid grid-cols-8 gap-0.5">
                                         <div className="h-1 rounded bg-foreground/5" />
                                         {[true, true, false, false, false, false, false].map((on, i) => (
-                                            <div key={i} className={`h-2.5 rounded-sm ${on ? "bg-emerald-500/25" : "bg-muted/10"}`} />
+                                            <div key={i} className={`h-2.5 rounded-sm ${on ? "bg-[color-mix(in_srgb,var(--tone-activity-4)_25%,transparent)]" : "bg-muted/10"}`} />
                                         ))}
                                     </div>
                                 </div>

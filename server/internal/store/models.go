@@ -169,6 +169,7 @@ type User struct {
 	TimeFormat          string             `json:"time_format"`
 	TimeZone            string             `json:"time_zone"`
 	CodeFont            string             `json:"code_font"`
+	Radius              int32              `json:"radius"`
 }
 
 type VerificationToken struct {

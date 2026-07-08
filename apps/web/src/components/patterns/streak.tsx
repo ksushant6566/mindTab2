@@ -44,7 +44,7 @@ export default function Streak() {
     return (
         <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
-                <div className={`h-2 w-2 rounded-full ${streak === 0 ? 'bg-red-500' : 'bg-green-500'}`}></div>
+                <div className={`h-2 w-2 rounded-full ${streak === 0 ? 'bg-[var(--tone-danger)]' : 'bg-[var(--tone-status-done)]'}`}></div>
                 <p className="text-sm font-medium">{streak} days streak</p>
             </div>
         </div>

@@ -1,18 +1,19 @@
 import {
     Check,
     FileText,
-    Laptop,
     ListTodo,
     Loader,
     LogOut,
     LucideIcon,
-    Moon,
     Notebook,
+    Palette,
     PlusIcon,
-    Sun,
-    Type,
+    Settings,
+    UserCircle,
+    Keyboard,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { Button } from "~/components/ui/button";
 import {
     CommandDialog,
@@ -37,47 +38,15 @@ import { TaskDialog, type TaskDialogInput } from "~/components/tasks/task-dialog
 import { getScheduleDraftPayload } from "~/components/tasks/task-schedule-fields";
 import {
     useAppStore,
-    type AppearanceSettings,
-    type AppearanceTheme,
-    type UIFontPreset,
 } from "@mindtab/core";
-import { toast } from "sonner";
 import { cn } from "~/lib/utils";
 import { useCalendarSchedules } from "~/lib/calendar-schedules";
 
 const COMMAND_PROMPT_INTERVAL_MS = 3000;
 
-const themeOptions: {
-    value: AppearanceTheme;
-    label: string;
-    icon: LucideIcon;
-    colors: Pick<AppearanceSettings, "backgroundColor" | "foregroundColor" | "accentColor" | "contrast">;
-}[] = [
-    { value: "system", label: "Theme: System", icon: Laptop, colors: { backgroundColor: "#111111", foregroundColor: "#FCFCFC", accentColor: "#0169CC", contrast: 60 } },
-    { value: "dark", label: "Theme: Dark", icon: Moon, colors: { backgroundColor: "#111111", foregroundColor: "#FCFCFC", accentColor: "#0169CC", contrast: 60 } },
-    { value: "light", label: "Theme: Light", icon: Sun, colors: { backgroundColor: "#FFFFFF", foregroundColor: "#0D0D0D", accentColor: "#0169CC", contrast: 45 } },
-];
-
-const fontOptions: {
-    value: UIFontPreset;
-    label: string;
-    icon: LucideIcon;
-}[] = [
-    { value: "inter", label: "UI Font: Inter", icon: Type },
-    { value: "geist", label: "UI Font: Geist", icon: Type },
-    { value: "system", label: "UI Font: System", icon: Type },
-    { value: "satoshi", label: "UI Font: Satoshi", icon: Type },
-];
-
 export const CommandMenu = () => {
-    const { logout, updateAppearance } = useAuth();
-    const appearanceTheme = useAppStore((state) => state.appearanceTheme);
-    const uiFontPreset = useAppStore((state) => state.uiFontPreset);
-    const accentColor = useAppStore((state) => state.accentColor);
-    const backgroundColor = useAppStore((state) => state.backgroundColor);
-    const foregroundColor = useAppStore((state) => state.foregroundColor);
-    const contrast = useAppStore((state) => state.contrast);
-    const setAppearance = useAppStore((state) => state.setAppearance);
+    const navigate = useNavigate();
+    const { logout } = useAuth();
 
     const [searchQuery, setSearchQuery] = useState<string | null>(null);
     const [open, setOpen] = useState(false);
@@ -185,42 +154,10 @@ export const CommandMenu = () => {
         }
     };
 
-    const handleAppearanceChange = useCallback(
-        async (appearance: {
-            theme?: AppearanceTheme;
-            uiFont?: UIFontPreset;
-        } & Partial<AppearanceSettings>) => {
-            if (
-                appearance.theme === appearanceTheme ||
-                appearance.uiFont === uiFontPreset
-            ) {
-                setOpen(false);
-                return;
-            }
-
-            const previousAppearance = {
-                theme: appearanceTheme,
-                uiFont: uiFontPreset,
-                accentColor,
-                backgroundColor,
-                foregroundColor,
-                contrast,
-            };
-
-            setAppearance(appearance);
-            setOpen(false);
-
-            try {
-                await updateAppearance(appearance);
-            } catch (error: any) {
-                setAppearance(previousAppearance);
-                toast.error(error?.message || "Failed to update appearance", {
-                    position: "top-right",
-                });
-            }
-        },
-        [accentColor, appearanceTheme, backgroundColor, contrast, uiFontPreset, foregroundColor, setAppearance, updateAppearance]
-    );
+    const openSettingsSection = useCallback((section: "general" | "profile" | "appearance" | "shortcuts") => {
+        setOpen(false);
+        void navigate({ to: "/settings", search: { section } });
+    }, [navigate]);
 
     const commandMenuGroups = useMemo(
         () => [
@@ -263,27 +200,28 @@ export const CommandMenu = () => {
                 ],
             },
             {
-                heading: "Appearance",
-                items: [
-                    ...themeOptions.map((option) => ({
-                        label: option.label,
-                        icon: option.icon,
-                        active: option.value === appearanceTheme,
-                        onClick: () =>
-                            handleAppearanceChange({ theme: option.value, ...option.colors }),
-                    })),
-                    ...fontOptions.map((option) => ({
-                        label: option.label,
-                        icon: option.icon,
-                        active: option.value === uiFontPreset,
-                        onClick: () =>
-                            handleAppearanceChange({ uiFont: option.value }),
-                    })),
-                ],
-            },
-            {
                 heading: "Settings",
                 items: [
+                    {
+                        label: "Appearance",
+                        icon: Palette,
+                        onClick: () => openSettingsSection("appearance"),
+                    },
+                    {
+                        label: "General",
+                        icon: Settings,
+                        onClick: () => openSettingsSection("general"),
+                    },
+                    {
+                        label: "Profile",
+                        icon: UserCircle,
+                        onClick: () => openSettingsSection("profile"),
+                    },
+                    {
+                        label: "Keyboard Shortcuts",
+                        icon: Keyboard,
+                        onClick: () => openSettingsSection("shortcuts"),
+                    },
                     {
                         label: "Logout",
                         icon: LogOut,
@@ -295,7 +233,7 @@ export const CommandMenu = () => {
                 ],
             },
         ],
-        [appearanceTheme, uiFontPreset, handleAppearanceChange, logout]
+        [logout, openSettingsSection]
     );
 
     const searchResults = useMemo(() => {
@@ -493,7 +431,6 @@ const CommandMenuGroup = ({ heading, items }: TCommandMenuGroupProps) => {
 function getCommandGroupTone(heading: string) {
     if (heading === "Tasks" || heading === "Search Results") return "text-[var(--tone-task)]";
     if (heading === "Notes") return "text-[var(--tone-note)]";
-    if (heading === "Appearance") return "text-[var(--tone-appearance)]";
-    if (heading === "Settings") return "text-[var(--tone-danger)]";
+    if (heading === "Settings") return "text-[var(--tone-appearance)]";
     return "text-muted-foreground";
 }

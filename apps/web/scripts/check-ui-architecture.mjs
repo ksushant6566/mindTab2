@@ -65,6 +65,22 @@ const checkGroups = [
   },
 ];
 
+const globalGuardrailGroups = [
+  {
+    name: "undefined-semantic-token",
+    patterns: [
+      /\b(?:bg|text|border|ring|from|to|via|hover:bg|hover:text|active:bg|active:text|focus:bg|focus:text)-sidebar(?:-[a-z]+)*\b/g,
+    ],
+  },
+  {
+    name: "known-tailwind-noop",
+    patterns: [
+      /\b(?:h|w|size)-18\b/g,
+      /\b[a-z:-]+-[^\s"'`]*\/8\b/g,
+    ],
+  },
+];
+
 function collectFiles(dir) {
   const entries = readdirSync(dir);
   const files = [];
@@ -100,11 +116,32 @@ function classifyFile(filePath) {
 const findings = [];
 
 for (const filePath of collectFiles(srcDir)) {
-  if (isApprovedFile(filePath)) continue;
-
   const source = readFileSync(filePath, "utf8");
   const lines = source.split("\n");
   const bucket = classifyFile(filePath);
+
+  lines.forEach((line, index) => {
+    for (const group of globalGuardrailGroups) {
+      const matches = new Set();
+      for (const pattern of group.patterns) {
+        pattern.lastIndex = 0;
+        for (const match of line.matchAll(pattern)) {
+          matches.add(match[0]);
+        }
+      }
+      if (matches.size > 0) {
+        findings.push({
+          file: path.relative(root, filePath),
+          line: index + 1,
+          bucket,
+          group: group.name,
+          utilities: [...matches].sort(),
+        });
+      }
+    }
+  });
+
+  if (isApprovedFile(filePath)) continue;
 
   lines.forEach((line, index) => {
     for (const group of checkGroups) {

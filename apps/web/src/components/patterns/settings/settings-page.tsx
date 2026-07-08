@@ -1,11 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowLeft,
   CalendarDays,
-  Check,
   Clock3,
   Globe2,
   Keyboard,
@@ -18,10 +17,8 @@ import {
 import { toast } from "sonner";
 import {
   appearanceTemplates,
-  codeFontPresets,
   normalizeAppearanceSettings,
   normalizeGeneralSettings,
-  uiFontPresets,
   useAppStore,
   type AppearanceSettings,
   type AppearanceTemplate,
@@ -57,9 +54,19 @@ import {
   SettingsSidebar,
 } from "~/components/patterns/settings";
 import { SidebarAccountItem, SidebarAccountMenu } from "~/components/domain/navigation";
+import {
+  appearanceTemplateOptions,
+  appearanceThemeOptions,
+  codeFontOptions,
+  getTemplateVariant,
+  resolveAppearanceTemplateSettings,
+  type TemplateOption,
+  uiFontOptions,
+} from "~/lib/appearance";
 import { cn } from "~/lib/utils";
 
 type SettingsSection = "general" | "profile" | "appearance" | "shortcuts";
+type SettingsPatch = Partial<AppearanceSettings & GeneralSettings>;
 
 const sections: Array<{ id: SettingsSection; label: string; icon: ReactNode }> = [
   { id: "general", label: "General", icon: <Settings className="h-4 w-4" /> },
@@ -68,106 +75,12 @@ const sections: Array<{ id: SettingsSection; label: string; icon: ReactNode }> =
   { id: "shortcuts", label: "Keyboard Shortcuts", icon: <Keyboard className="h-4 w-4" /> },
 ];
 
-const themeOptions: Array<{
-  value: AppearanceTheme;
-  label: string;
-  description: string;
-  background: string;
-  foreground: string;
-}> = [
-  { value: "system", label: "System", description: "Follow this device", background: "#181818", foreground: "#FFFFFF" },
-  { value: "dark", label: "Dark", description: "Always use dark mode", background: "#111111", foreground: "#FCFCFC" },
-  { value: "light", label: "Light", description: "Always use light mode", background: "#FFFFFF", foreground: "#0D0D0D" },
-];
+const debouncedAppearanceKeys = new Set<keyof AppearanceSettings>(["contrast", "fontSize", "radius"]);
+const settingsSaveDelayMs = 600;
 
-type TemplateVariant = "dark" | "light";
-
-type TemplateOption = {
-  label: string;
-  swatch: string;
-  settings: Pick<AppearanceSettings, "appearanceTemplate" | "accentColor" | "backgroundColor" | "foregroundColor" | "contrast">;
-};
-
-const templateOptions: Record<TemplateVariant, Partial<Record<AppearanceTemplate, TemplateOption>>> = {
-  light: {
-    absolutely: template("Absolutely", "absolutely", "#CC7D5E", "#F9F9F7", "#2D2D2B", 45),
-    catppuccin: template("Catppuccin", "catppuccin", "#8839EF", "#EFF1F5", "#4C4F69", 45),
-    codex: template("Codex", "codex", "#0169CC", "#FFFFFF", "#0D0D0D", 45),
-    everforest: template("Everforest", "everforest", "#93B259", "#FDF6E3", "#5C6A72", 45),
-    github: template("GitHub", "github", "#0969DA", "#FFFFFF", "#1F2328", 45),
-    gruvbox: template("Gruvbox", "gruvbox", "#458588", "#FBF1C7", "#3C3836", 45),
-    linear: template("Linear", "linear", "#5E6AD2", "#F7F8FA", "#2A3140", 45),
-    notion: template("Notion", "notion", "#3183D8", "#FFFFFF", "#37352F", 45),
-    one: template("One", "one", "#526FFF", "#FAFAFA", "#383A42", 45),
-    proof: template("Proof", "proof", "#3D755D", "#F5F3ED", "#2F312D", 45),
-    "rose-pine": template("Rose Pine", "rose-pine", "#D7827E", "#FAF4ED", "#575279", 45),
-    solarized: template("Solarized", "solarized", "#B58900", "#FDF6E3", "#657B83", 45),
-    "vscode-plus": template("VS Code Plus", "vscode-plus", "#007ACC", "#FFFFFF", "#000000", 45),
-  },
-  dark: {
-    absolutely: template("Absolutely", "absolutely", "#CC7D5E", "#2D2D2B", "#F9F9F7", 60),
-    ayu: template("Ayu", "ayu", "#E6B450", "#0B0E14", "#BFBDB6", 60),
-    catppuccin: template("Catppuccin", "catppuccin", "#CBA6F7", "#1E1E2E", "#CDD6F4", 60),
-    codex: template("Codex", "codex", "#0169CC", "#111111", "#FCFCFC", 60),
-    dracula: template("Dracula", "dracula", "#FF79C6", "#282A36", "#F8F8F2", 60),
-    everforest: template("Everforest", "everforest", "#A7C080", "#2D353B", "#D3C6AA", 60),
-    github: template("GitHub", "github", "#1F6FEB", "#0D1117", "#E6EDF3", 60),
-    gruvbox: template("Gruvbox", "gruvbox", "#458588", "#282828", "#EBDBB2", 60),
-    linear: template("Linear", "linear", "#5E6AD2", "#17181D", "#E6E9EF", 60),
-    lobster: template("Lobster", "lobster", "#FF5C5C", "#111827", "#E4E4E7", 60),
-    material: template("Material", "material", "#80CBC4", "#212121", "#EEFFFF", 60),
-    matrix: template("Matrix", "matrix", "#1EFF5A", "#040805", "#B8FFCA", 60),
-    monokai: template("Monokai", "monokai", "#99947C", "#272822", "#F8F8F2", 60),
-    "night-owl": template("Night Owl", "night-owl", "#44596B", "#011627", "#D6DEEB", 60),
-    nord: template("Nord", "nord", "#88C0D0", "#2E3440", "#D8DEE9", 60),
-    notion: template("Notion", "notion", "#3183D8", "#191919", "#D9D9D8", 60),
-    one: template("One", "one", "#4D78CC", "#282C34", "#ABB2BF", 60),
-    oscurange: template("Oscurange", "oscurange", "#F9B98C", "#0B0B0F", "#E6E6E6", 60),
-    "rose-pine": template("Rose Pine", "rose-pine", "#EA9A97", "#232136", "#E0DEF4", 60),
-    sentry: template("Sentry", "sentry", "#7055F6", "#2D2935", "#E6DFF9", 60),
-    solarized: template("Solarized", "solarized", "#D30102", "#002B36", "#839496", 60),
-    temple: template("Temple", "temple", "#E4F222", "#02120C", "#C7E6DA", 60),
-    "tokyo-night": template("Tokyo Night", "tokyo-night", "#3D59A1", "#1A1B26", "#A9B1D6", 60),
-    "vscode-plus": template("VS Code Plus", "vscode-plus", "#007ACC", "#1E1E1E", "#D4D4D4", 60),
-  },
-};
-
-function template(
-  label: string,
-  appearanceTemplate: AppearanceTemplate,
-  accentColor: string,
-  backgroundColor: string,
-  foregroundColor: string,
-  contrast: number
-): TemplateOption {
-  return {
-    label,
-    swatch: accentColor,
-    settings: {
-      appearanceTemplate,
-      accentColor,
-      backgroundColor,
-      foregroundColor,
-      contrast,
-    },
-  };
-}
-
-function getTemplateVariant(theme: AppearanceTheme, prefersDark: boolean): TemplateVariant {
-  if (theme === "system") return prefersDark ? "dark" : "light";
-  return theme;
-}
-
-function resolveTemplateSettings(
-  theme: AppearanceTheme,
-  appearanceTemplate: AppearanceTemplate,
-  variant: TemplateVariant
-): Partial<AppearanceSettings> {
-  const resolvedTemplate = templateOptions[variant][appearanceTemplate] ?? templateOptions[variant].codex!;
-  return {
-    theme,
-    ...resolvedTemplate.settings,
-  };
+function shouldDebounceSettingsPatch(next: SettingsPatch) {
+  const keys = Object.keys(next) as Array<keyof SettingsPatch>;
+  return keys.length > 0 && keys.every((key) => debouncedAppearanceKeys.has(key as keyof AppearanceSettings));
 }
 
 function usePrefersDark() {
@@ -219,10 +132,13 @@ const shortcutGroups = [
 
 export function SettingsPage() {
   const navigate = useNavigate();
+  const search = useSearch({ strict: false }) as { section?: string };
   const { user, isAuthenticated, isLoading, updateAppearance } = useAuth();
   const setAppearance = useAppStore((state) => state.setAppearance);
-  const [activeSection, setActiveSection] = useState<SettingsSection>("appearance");
+  const activeSection = getSettingsSection(search.section);
   const [searchQuery, setSearchQuery] = useState("");
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingSaveRef = useRef<SettingsPatch>({});
   const [draft, setDraft] = useState<(AppearanceSettings & GeneralSettings)>(() => ({
     ...normalizeAppearanceSettings(null),
     ...normalizeGeneralSettings(null),
@@ -252,10 +168,8 @@ export function SettingsPage() {
     return sections.filter((section) => section.label.toLowerCase().includes(query));
   }, [searchQuery]);
 
-  const commitSettings = async (next: Partial<AppearanceSettings & GeneralSettings>) => {
-    const nextDraft = { ...draft, ...next };
-    setDraft(nextDraft);
-    setAppearance(next);
+  const persistSettings = useCallback(async (next: SettingsPatch) => {
+    if (Object.keys(next).length === 0) return;
 
     try {
       await updateAppearance(next);
@@ -270,6 +184,42 @@ export function SettingsPage() {
         setAppearance(restored);
       }
     }
+  }, [setAppearance, updateAppearance, user]);
+
+  useEffect(() => () => {
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+    }
+    const pendingSave = pendingSaveRef.current;
+    pendingSaveRef.current = {};
+    if (Object.keys(pendingSave).length > 0) {
+      void persistSettings(pendingSave);
+    }
+  }, [persistSettings]);
+
+  const commitSettings = (next: SettingsPatch) => {
+    setDraft((currentDraft) => ({ ...currentDraft, ...next }));
+    setAppearance(next);
+
+    if (shouldDebounceSettingsPatch(next)) {
+      pendingSaveRef.current = { ...pendingSaveRef.current, ...next };
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = setTimeout(() => {
+        const pendingSave = pendingSaveRef.current;
+        pendingSaveRef.current = {};
+        saveTimerRef.current = null;
+        void persistSettings(pendingSave);
+      }, settingsSaveDelayMs);
+      return;
+    }
+
+    const immediateSave = { ...pendingSaveRef.current, ...next };
+    pendingSaveRef.current = {};
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
+    void persistSettings(immediateSave);
   };
 
   if (isLoading) {
@@ -282,15 +232,13 @@ export function SettingsPage() {
 
   return (
     <SettingsShell className="h-screen grid-cols-[292px_minmax(0,1fr)] overflow-hidden">
-      <SettingsSidebar className="bg-[var(--bg-elev)]/80 px-0 py-0">
-        <div className="flex h-11 items-center gap-2 px-4">
-          <span className="size-3 rounded-full bg-[var(--rose)]" />
-          <span className="size-3 rounded-full bg-[var(--amber)]" />
-          <span className="size-3 rounded-full bg-[var(--green)]" />
-        </div>
-        <div className="px-3 pb-3">
-          <SettingsBackButton onClick={() => void navigate({ to: "/" })} className="justify-start px-2">
-            <ArrowLeft className="h-4 w-4" />
+      <SettingsSidebar className="px-0 py-0">
+        <div className="px-3 pb-3 pt-4">
+          <SettingsBackButton
+            onClick={() => void navigate({ to: "/" })}
+            icon={<ArrowLeft className="h-4 w-4" />}
+            className="gap-3 px-2"
+          >
             <span>Back to app</span>
           </SettingsBackButton>
           <div className="mt-3 flex h-9 items-center gap-2 rounded-[var(--r-3)] border border-border bg-background px-3 text-muted-foreground">
@@ -309,7 +257,7 @@ export function SettingsPage() {
             {filteredSections.map((section) => (
               <SettingsNavItem
                 key={section.id}
-                onClick={() => setActiveSection(section.id)}
+                onClick={() => void navigate({ to: "/settings", search: { section: section.id } })}
                 active={activeSection === section.id}
                 icon={section.icon}
                 className="gap-3 px-2"
@@ -325,7 +273,7 @@ export function SettingsPage() {
       </SettingsSidebar>
 
       <SettingsMainPanel className="custom-scrollbar px-0 py-0">
-        <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-10 py-12">
+        <div className="mx-auto flex w-full max-w-4xl flex-col gap-8 px-10 py-12">
           {activeSection === "general" && (
             <GeneralSettingsSection draft={draft} onChange={commitSettings} />
           )}
@@ -345,6 +293,10 @@ export function SettingsPage() {
       </SettingsMainPanel>
     </SettingsShell>
   );
+}
+
+function getSettingsSection(value?: string): SettingsSection {
+  return sections.some((section) => section.id === value) ? value as SettingsSection : "appearance";
 }
 
 function GeneralSettingsSection({
@@ -436,47 +388,32 @@ function AppearanceSettingsSection({
   onChange: (next: Partial<AppearanceSettings>) => void;
 }) {
   const prefersDark = usePrefersDark();
-  const templateVariant = getTemplateVariant(draft.theme, prefersDark);
-  const availableTemplates = appearanceTemplates.filter((templateName) => templateOptions[templateVariant][templateName]);
+  const templateVariant = getVisibleTemplateVariant(draft.backgroundColor, draft.theme, prefersDark);
+  const availableTemplates = appearanceTemplates.filter((templateName) => appearanceTemplateOptions[templateVariant][templateName]);
   const selectedTemplate = availableTemplates.includes(draft.appearanceTemplate) ? draft.appearanceTemplate : "codex";
-  const currentTemplate = templateOptions[templateVariant][selectedTemplate] ?? templateOptions[templateVariant].codex!;
+  const currentTemplate = appearanceTemplateOptions[templateVariant][selectedTemplate] ?? appearanceTemplateOptions[templateVariant].codex!;
   const handleModeChange = (theme: AppearanceTheme) => {
-    const nextVariant = getTemplateVariant(theme, prefersDark);
-    onChange(resolveTemplateSettings(theme, draft.appearanceTemplate, nextVariant));
+    onChange(resolveAppearanceTemplateSettings(theme, draft.appearanceTemplate, prefersDark));
   };
 
   return (
-    <SettingsPanel title="Appearance" description="Tune MindTab’s theme, color, and typography.">
-      <div className="grid gap-4 md:grid-cols-3">
-        {themeOptions.map((theme) => (
+    <SettingsPanel title="Appearance" gap="xl">
+      <div className="grid gap-6 md:grid-cols-3">
+        {appearanceThemeOptions.map((theme) => (
           <button
             key={theme.value}
             type="button"
             onClick={() => handleModeChange(theme.value)}
-            className={cn(
-              "rounded-[var(--r-4)] border border-border bg-[var(--bg-elev)] p-2 text-left transition-colors hover:border-[var(--border-2)]",
-              draft.theme === theme.value && "border-primary ring-1 ring-primary/40"
-            )}
+            className="group min-w-0 text-center"
           >
-            <div className="h-28 overflow-hidden rounded-[var(--r-3)] border border-border" style={{ background: theme.background }}>
-              <div className="h-full p-4">
-                <div className="mb-4 h-2 w-1/2 rounded-full opacity-25" style={{ background: theme.foreground }} />
-                <div className="rounded-[var(--r-3)] p-3" style={{ background: mixForPreview(theme.background, theme.foreground, 0.12) }}>
-                  <div className="mb-3 h-2 w-20 rounded-full opacity-25" style={{ background: theme.foreground }} />
-                  <div className="space-y-2">
-                    <div className="h-px opacity-15" style={{ background: theme.foreground }} />
-                    <div className="h-px opacity-15" style={{ background: theme.foreground }} />
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="mt-3 flex items-center justify-between gap-2 px-1">
-              <div>
-                <Text as="div">{theme.label}</Text>
-                <MetaText as="div">{theme.description}</MetaText>
-              </div>
-              {draft.theme === theme.value && <Check className="h-4 w-4 text-primary" />}
-            </div>
+            <ThemeModePreview theme={theme.value} selected={draft.theme === theme.value} />
+            <Text
+              as="div"
+              variant={draft.theme === theme.value ? "body" : "muted"}
+              className="mt-4 transition-colors group-hover:text-foreground"
+            >
+              {theme.label}
+            </Text>
           </button>
         ))}
       </div>
@@ -487,21 +424,22 @@ function AppearanceSettingsSection({
             value={selectedTemplate}
             onValueChange={(value) => onChange({
               theme: draft.theme,
-              ...templateOptions[templateVariant][value as AppearanceTemplate]!.settings,
+              ...appearanceTemplateOptions[templateVariant][value as AppearanceTemplate]!.settings,
             })}
           >
             <SelectTrigger className="h-9 w-[220px]">
               <span className="flex items-center gap-2">
-                <span className="flex size-6 items-center justify-center rounded-[var(--r-2)] bg-background">
-                  <span className="size-3 rounded-full" style={{ background: currentTemplate.swatch }} />
-                </span>
-                <SelectValue />
+                <TemplatePreviewMark template={currentTemplate} />
+                <span>{currentTemplate.label}</span>
               </span>
             </SelectTrigger>
             <SelectContent>
               {availableTemplates.map((template) => (
                 <SelectItem key={template} value={template}>
-                  {templateOptions[templateVariant][template]!.label}
+                  <span className="flex min-w-0 items-center gap-3">
+                    <TemplatePreviewMark template={appearanceTemplateOptions[templateVariant][template]!} />
+                    <span className="truncate">{appearanceTemplateOptions[templateVariant][template]!.label}</span>
+                  </span>
                 </SelectItem>
               ))}
             </SelectContent>
@@ -519,11 +457,13 @@ function AppearanceSettingsSection({
         <SettingsRow label="UI font">
           <Select value={draft.uiFont} onValueChange={(uiFont) => onChange({ uiFont: uiFont as UIFontPreset })}>
             <SelectTrigger className="h-9 w-[220px]">
-              <SelectValue />
+              <FontOptionLabel option={uiFontOptions.find((font) => font.value === draft.uiFont) ?? uiFontOptions[0]} />
             </SelectTrigger>
             <SelectContent>
-              {uiFontPresets.map((font) => (
-                <SelectItem key={font} value={font}>{labelize(font)}</SelectItem>
+              {uiFontOptions.map((font) => (
+                <SelectItem key={font.value} value={font.value}>
+                  <FontOptionLabel option={font} />
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -531,11 +471,13 @@ function AppearanceSettingsSection({
         <SettingsRow label="Code font">
           <Select value={draft.codeFont} onValueChange={(codeFont) => onChange({ codeFont: codeFont as CodeFontPreset })}>
             <SelectTrigger className="h-9 w-[220px]">
-              <SelectValue />
+              <FontOptionLabel option={codeFontOptions.find((font) => font.value === draft.codeFont) ?? codeFontOptions[0]} />
             </SelectTrigger>
             <SelectContent>
-              {codeFontPresets.map((font) => (
-                <SelectItem key={font} value={font}>{labelize(font)}</SelectItem>
+              {codeFontOptions.map((font) => (
+                <SelectItem key={font.value} value={font.value}>
+                  <FontOptionLabel option={font} />
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -546,8 +488,143 @@ function AppearanceSettingsSection({
         <SettingsRow label="Font size">
           <RangeControl value={draft.fontSize} min={12} max={20} suffix="px" onChange={(fontSize) => onChange({ fontSize })} />
         </SettingsRow>
+        <SettingsRow label="Radius">
+          <RangeControl value={draft.radius} min={0} max={20} suffix="px" onChange={(radius) => onChange({ radius })} />
+        </SettingsRow>
       </SettingsCard>
     </SettingsPanel>
+  );
+}
+
+function TemplatePreviewMark({ template }: { template: TemplateOption }) {
+  const { accentColor, backgroundColor, foregroundColor } = template.settings;
+
+  return (
+    <span
+      className="flex size-7 shrink-0 items-center justify-center rounded-[var(--r-2)] border text-[length:var(--type-meta-size)] font-[var(--type-label-weight)] leading-none"
+      style={{
+        backgroundColor,
+        borderColor: accentColor,
+        color: accentColor,
+        boxShadow: `inset 0 0 0 1px ${toPreviewBorder(foregroundColor, backgroundColor)}`,
+      }}
+      aria-hidden="true"
+    >
+      Aa
+    </span>
+  );
+}
+
+function FontOptionLabel<T extends UIFontPreset | CodeFontPreset>({ option }: { option: { value: T; label: string } }) {
+  return (
+    <span className="truncate" style={{ fontFamily: getFontPreviewStack(option.value) }}>
+      {option.label}
+    </span>
+  );
+}
+
+function getFontPreviewStack(font: UIFontPreset | CodeFontPreset) {
+  switch (font) {
+    case "geist":
+      return '"Geist", -apple-system, BlinkMacSystemFont, system-ui, sans-serif';
+    case "inter":
+      return 'Inter, "Inter Variable", "Geist", -apple-system, BlinkMacSystemFont, system-ui, sans-serif';
+    case "sf-pro":
+      return '"SF Pro Display", "SF Pro Text", -apple-system, BlinkMacSystemFont, system-ui, sans-serif';
+    case "helvetica":
+      return '"Helvetica Neue", Helvetica, Arial, sans-serif';
+    case "avenir":
+      return 'Avenir, "Avenir Next", "Helvetica Neue", Arial, sans-serif';
+    case "ibm-plex":
+      return '"IBM Plex Sans", "Geist", -apple-system, BlinkMacSystemFont, system-ui, sans-serif';
+    case "roboto":
+      return 'Roboto, "Geist", Arial, sans-serif';
+    case "segoe":
+      return '"Segoe UI", "Geist", Arial, sans-serif';
+    case "geist-mono":
+      return '"Geist Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
+    case "system-mono":
+      return 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
+    case "sf-mono":
+      return '"SF Mono", SFMono-Regular, ui-monospace, Menlo, Monaco, Consolas, monospace';
+    case "jetbrains":
+      return '"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
+    case "fira-code":
+      return '"Fira Code", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
+    case "cascadia":
+      return '"Cascadia Code", "Cascadia Mono", ui-monospace, Consolas, monospace';
+    case "menlo":
+      return 'Menlo, Monaco, Consolas, ui-monospace, monospace';
+    case "monaco":
+      return 'Monaco, Menlo, Consolas, ui-monospace, monospace';
+    default:
+      return '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif';
+  }
+}
+
+function getVisibleTemplateVariant(backgroundColor: string, theme: AppearanceTheme, prefersDark: boolean) {
+  if (/^#[0-9a-fA-F]{6}$/.test(backgroundColor)) {
+    const hex = backgroundColor.slice(1);
+    const r = parseInt(hex.slice(0, 2), 16);
+    const g = parseInt(hex.slice(2, 4), 16);
+    const b = parseInt(hex.slice(4, 6), 16);
+    const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+    return luminance > 0.55 ? "light" : "dark";
+  }
+
+  return getTemplateVariant(theme, prefersDark);
+}
+
+function toPreviewBorder(foregroundColor: string, backgroundColor: string) {
+  return `color-mix(in srgb, ${foregroundColor} 20%, ${backgroundColor})`;
+}
+
+function ThemeModePreview({ theme, selected }: { theme: AppearanceTheme; selected: boolean }) {
+  if (theme === "system") {
+    return (
+      <div
+        className={cn(
+          "relative h-40 overflow-hidden rounded-[var(--r-5)] border border-border transition-colors group-hover:border-[var(--border-2)]",
+          selected && "border-primary ring-1 ring-primary/60"
+        )}
+      >
+        <div className="absolute inset-0 grid grid-cols-2">
+          <div className="bg-[#EDEDED]" />
+          <div className="bg-[#3A3A39]" />
+        </div>
+        <div className="absolute inset-x-5 bottom-0 h-[72%] overflow-hidden rounded-t-[var(--r-5)] bg-[#F7F7F7] shadow-sm">
+          <div className="absolute inset-y-0 right-0 w-1/2 bg-[#333332]" />
+          <div className="absolute left-[36%] top-[42%] h-3 w-16 rounded-full bg-[#C8C8C8]" />
+          <div className="absolute left-[26%] top-[52%] h-1.5 w-36 rounded-full bg-[#DCDCDC]" />
+          <div className="absolute bottom-8 left-6 h-3 w-24 rounded-full bg-[#D7D7D7]" />
+          <div className="absolute bottom-8 right-6 h-3 w-24 rounded-full bg-[#797978]" />
+        </div>
+      </div>
+    );
+  }
+
+  const dark = theme === "dark";
+
+  return (
+    <div
+      className={cn(
+        "relative h-40 overflow-hidden rounded-[var(--r-5)] border border-border transition-colors group-hover:border-[var(--border-2)]",
+        dark ? "bg-[#5E5E5C]" : "bg-[#F4F4F4]",
+        selected && "border-primary ring-1 ring-primary/60"
+      )}
+    >
+      <div className="absolute inset-x-14 top-5 h-3 rounded-full bg-black/15" />
+      <div className="absolute inset-x-20 top-9 h-2 rounded-full bg-black/10" />
+      <div className="absolute inset-x-10 bottom-0 h-[64%] overflow-hidden rounded-t-[var(--r-5)] bg-white">
+        <div className="p-5">
+          <div className="mb-5 h-3 w-28 rounded-full bg-black/15" />
+          <div className="mb-5 h-px bg-black/5" />
+          <div className="mb-3 h-3 w-28 rounded-full bg-black/15" />
+          <div className="mb-5 h-px bg-black/5" />
+          <div className="h-3 w-28 rounded-full bg-black/15" />
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -587,26 +664,4 @@ function ProfileAvatar({ user, className }: { user: Pick<User, "name" | "image">
       )}
     </div>
   );
-}
-
-function labelize(value: string) {
-  return value
-    .split("-")
-    .map((part) => part.slice(0, 1).toUpperCase() + part.slice(1))
-    .join(" ");
-}
-
-function mixForPreview(from: string, to: string, amount: number) {
-  const a = parseColor(from);
-  const b = parseColor(to);
-  return `rgb(${Math.round(a.r + (b.r - a.r) * amount)}, ${Math.round(a.g + (b.g - a.g) * amount)}, ${Math.round(a.b + (b.b - a.b) * amount)})`;
-}
-
-function parseColor(hex: string) {
-  const normalized = /^#[0-9a-fA-F]{6}$/.test(hex) ? hex.slice(1) : "0F0F11";
-  return {
-    r: parseInt(normalized.slice(0, 2), 16),
-    g: parseInt(normalized.slice(2, 4), 16),
-    b: parseInt(normalized.slice(4, 6), 16),
-  };
 }

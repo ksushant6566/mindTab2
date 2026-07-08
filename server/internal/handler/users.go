@@ -49,6 +49,7 @@ type updateMeRequest struct {
 	ForegroundColor     *string `json:"foregroundColor,omitempty"`
 	Contrast            *int32  `json:"contrast,omitempty"`
 	FontSize            *int32  `json:"fontSize,omitempty"`
+	Radius              *int32  `json:"radius,omitempty"`
 	WeekStartDay        *string `json:"weekStartDay,omitempty"`
 	TimeFormat          *string `json:"timeFormat,omitempty"`
 	TimeZone            *string `json:"timeZone,omitempty"`
@@ -61,15 +62,21 @@ var validUserThemes = map[string]bool{
 }
 
 var validUIFonts = map[string]bool{
-	"inter":   true,
-	"geist":   true,
-	"system":  true,
-	"satoshi": true,
-	"codex":   true,
-	"linear":  true,
-	"github":  true,
-	"notion":  true,
-	"raycast": true,
+	"geist":     true,
+	"inter":     true,
+	"system":    true,
+	"sf-pro":    true,
+	"helvetica": true,
+	"avenir":    true,
+	"ibm-plex":  true,
+	"roboto":    true,
+	"segoe":     true,
+	"satoshi":   true,
+	"codex":     true,
+	"linear":    true,
+	"github":    true,
+	"notion":    true,
+	"raycast":   true,
 }
 
 var validCodeFonts = map[string]bool{
@@ -78,34 +85,37 @@ var validCodeFonts = map[string]bool{
 	"sf-mono":     true,
 	"fira-code":   true,
 	"system-mono": true,
+	"cascadia":    true,
+	"menlo":       true,
+	"monaco":      true,
 }
 
 var validAppearanceTemplates = map[string]bool{
-	"absolutely":   true,
-	"ayu":          true,
-	"catppuccin":   true,
-	"codex":        true,
-	"dracula":      true,
-	"everforest":   true,
-	"github":       true,
-	"gruvbox":      true,
-	"linear":       true,
-	"lobster":      true,
-	"material":     true,
-	"matrix":       true,
-	"monokai":      true,
-	"night-owl":    true,
-	"nord":         true,
-	"notion":       true,
-	"one":          true,
-	"oscurange":    true,
-	"proof":        true,
-	"rose-pine":    true,
-	"sentry":       true,
-	"solarized":    true,
-	"temple":       true,
-	"tokyo-night":  true,
-	"vscode-plus":  true,
+	"absolutely":  true,
+	"ayu":         true,
+	"catppuccin":  true,
+	"codex":       true,
+	"dracula":     true,
+	"everforest":  true,
+	"github":      true,
+	"gruvbox":     true,
+	"linear":      true,
+	"lobster":     true,
+	"material":    true,
+	"matrix":      true,
+	"monokai":     true,
+	"night-owl":   true,
+	"nord":        true,
+	"notion":      true,
+	"one":         true,
+	"oscurange":   true,
+	"proof":       true,
+	"rose-pine":   true,
+	"sentry":      true,
+	"solarized":   true,
+	"temple":      true,
+	"tokyo-night": true,
+	"vscode-plus": true,
 }
 
 var validWeekStartDays = map[string]bool{
@@ -149,6 +159,7 @@ func (h *UsersHandler) UpdateMe(w http.ResponseWriter, r *http.Request) {
 		req.ForegroundColor != nil ||
 		req.Contrast != nil ||
 		req.FontSize != nil ||
+		req.Radius != nil ||
 		req.WeekStartDay != nil ||
 		req.TimeFormat != nil ||
 		req.TimeZone != nil {
@@ -185,7 +196,7 @@ func (h *UsersHandler) UpdateMe(w http.ResponseWriter, r *http.Request) {
 				WriteError(w, http.StatusBadRequest, "invalid code font")
 				return
 			}
-			params.CodeFont = pgtype.Text{String: *req.CodeFont, Valid: true}
+			params.CodeFont = pgtype.Text{String: normalizeCodeFont(*req.CodeFont), Valid: true}
 		}
 
 		if req.AppearanceTemplate != nil {
@@ -237,6 +248,14 @@ func (h *UsersHandler) UpdateMe(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			params.FontSize = pgtype.Int4{Int32: *req.FontSize, Valid: true}
+		}
+
+		if req.Radius != nil {
+			if *req.Radius < 0 || *req.Radius > 20 {
+				WriteError(w, http.StatusBadRequest, "invalid radius")
+				return
+			}
+			params.Radius = pgtype.Int4{Int32: *req.Radius, Valid: true}
 		}
 
 		if req.WeekStartDay != nil {

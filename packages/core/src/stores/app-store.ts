@@ -12,13 +12,33 @@ export type ActiveLayout = (typeof EActiveLayout)[keyof typeof EActiveLayout];
 export const appearanceThemes = ["system", "dark", "light"] as const;
 export type AppearanceTheme = (typeof appearanceThemes)[number];
 
-export const uiFontPresets = ["inter", "geist", "system", "satoshi"] as const;
+export const uiFontPresets = [
+  "geist",
+  "inter",
+  "system",
+  "sf-pro",
+  "helvetica",
+  "avenir",
+  "ibm-plex",
+  "roboto",
+  "segoe",
+] as const;
 export type UIFontPreset = (typeof uiFontPresets)[number];
-export type LegacyFontPreset = "codex" | "linear" | "github" | "notion" | "raycast";
+export type LegacyFontPreset = "codex" | "linear" | "github" | "notion" | "raycast" | "inter" | "satoshi";
 export type StoredUIFontPreset = UIFontPreset | LegacyFontPreset;
 
-export const codeFontPresets = ["jetbrains", "geist-mono", "sf-mono", "fira-code", "system-mono"] as const;
+export const codeFontPresets = [
+  "system-mono",
+  "geist-mono",
+  "sf-mono",
+  "jetbrains",
+  "fira-code",
+  "cascadia",
+  "menlo",
+  "monaco",
+] as const;
 export type CodeFontPreset = (typeof codeFontPresets)[number];
+export type LegacyCodeFontPreset = "jetbrains" | "geist-mono" | "sf-mono" | "fira-code";
 
 export const appearanceTemplates = [
   "absolutely",
@@ -65,6 +85,7 @@ export type AppearanceSettings = {
   foregroundColor: string;
   contrast: number;
   fontSize: number;
+  radius: number;
 };
 
 export type GeneralSettings = {
@@ -75,14 +96,15 @@ export type GeneralSettings = {
 
 export const defaultAppearanceSettings: AppearanceSettings = {
   theme: "system",
-  uiFont: "inter",
-  codeFont: "jetbrains",
+  uiFont: "geist",
+  codeFont: "system-mono",
   appearanceTemplate: "codex",
   accentColor: "#0169CC",
   backgroundColor: "#111111",
   foregroundColor: "#FCFCFC",
   contrast: 60,
   fontSize: 14,
+  radius: 7,
 };
 
 export const defaultGeneralSettings: GeneralSettings = {
@@ -93,9 +115,9 @@ export const defaultGeneralSettings: GeneralSettings = {
 
 export function normalizeUIFontPreset(font: string | null | undefined): UIFontPreset {
   if (!font) return defaultAppearanceSettings.uiFont;
-  if (font === "codex" || font === "github" || font === "notion" || font === "inter") return "inter";
-  if (font === "linear" || font === "raycast" || font === "geist") return "geist";
   if ((uiFontPresets as readonly string[]).includes(font)) return font as UIFontPreset;
+  if (font === "system" || font === "github" || font === "notion") return "system";
+  if (font === "codex" || font === "linear" || font === "raycast" || font === "satoshi") return "geist";
   return defaultAppearanceSettings.uiFont;
 }
 
@@ -142,6 +164,7 @@ export function normalizeAppearanceSettings(
     foregroundColor: normalizeHexColor(settings?.foregroundColor, defaultAppearanceSettings.foregroundColor),
     contrast: normalizeRange(settings?.contrast, defaultAppearanceSettings.contrast, 0, 100),
     fontSize: normalizeRange(settings?.fontSize, defaultAppearanceSettings.fontSize, 12, 20),
+    radius: normalizeRange(settings?.radius, defaultAppearanceSettings.radius, 0, 20),
   };
 }
 
@@ -166,6 +189,7 @@ interface AppState {
   foregroundColor: string;
   contrast: number;
   fontSize: number;
+  radius: number;
   weekStartDay: WeekStartDay;
   timeFormat: TimeFormat;
   timeZone: string;
@@ -193,6 +217,7 @@ export const useAppStore = create<AppState>()(
       foregroundColor: defaultAppearanceSettings.foregroundColor,
       contrast: defaultAppearanceSettings.contrast,
       fontSize: defaultAppearanceSettings.fontSize,
+      radius: defaultAppearanceSettings.radius,
       weekStartDay: defaultGeneralSettings.weekStartDay,
       timeFormat: defaultGeneralSettings.timeFormat,
       timeZone: defaultGeneralSettings.timeZone,
@@ -215,6 +240,7 @@ export const useAppStore = create<AppState>()(
           foregroundColor: normalizeHexColor(appearance.foregroundColor, state.foregroundColor),
           contrast: normalizeRange(appearance.contrast, state.contrast, 0, 100),
           fontSize: normalizeRange(appearance.fontSize, state.fontSize, 12, 20),
+          radius: normalizeRange(appearance.radius, state.radius, 0, 20),
           weekStartDay: appearance.weekStartDay ? normalizeWeekStartDay(appearance.weekStartDay) : state.weekStartDay,
           timeFormat: appearance.timeFormat ? normalizeTimeFormat(appearance.timeFormat) : state.timeFormat,
           timeZone: appearance.timeZone && appearance.timeZone.length <= 64 ? appearance.timeZone : state.timeZone,
@@ -235,6 +261,7 @@ export const useAppStore = create<AppState>()(
           foregroundColor: normalizeHexColor(persisted?.foregroundColor, currentState.foregroundColor),
           contrast: normalizeRange(persisted?.contrast, currentState.contrast, 0, 100),
           fontSize: normalizeRange(persisted?.fontSize, currentState.fontSize, 12, 20),
+          radius: normalizeRange(persisted?.radius, currentState.radius, 0, 20),
           weekStartDay: normalizeWeekStartDay(persisted?.weekStartDay),
           timeFormat: normalizeTimeFormat(persisted?.timeFormat),
           timeZone: persisted?.timeZone && persisted.timeZone.length <= 64 ? persisted.timeZone : currentState.timeZone,
@@ -253,6 +280,7 @@ export const useAppStore = create<AppState>()(
         foregroundColor: state.foregroundColor,
         contrast: state.contrast,
         fontSize: state.fontSize,
+        radius: state.radius,
         weekStartDay: state.weekStartDay,
         timeFormat: state.timeFormat,
         timeZone: state.timeZone,
