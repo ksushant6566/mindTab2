@@ -230,7 +230,7 @@ export function AppSidebar() {
                 </div>
 
                 {!collapsed && (
-                    <div className="mt-6 space-y-5">
+                    <div className="mt-4 space-y-4">
                         <section>
                             <SidebarSectionButton open={pinnedOpen} onClick={() => setPinnedOpen((value) => !value)}>
                                 Pinned
