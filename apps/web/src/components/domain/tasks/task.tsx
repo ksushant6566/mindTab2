@@ -8,10 +8,10 @@ type TaskDialogOpenMode = "view" | "edit";
 interface TaskProps {
     task: TaskCardTask;
     onEdit: (id: string, mode?: TaskDialogOpenMode) => void;
-    onDelete: (id: string) => void;
+    onDelete?: (id: string) => void;
     onToggleStatus?: (id: string, checked: CheckedState) => void;
     onUpdate?: (id: string, task: Record<string, unknown>) => void;
-    isDeleting: boolean;
+    isDeleting?: boolean;
     deleteVariables?: string;
     cardVariant?: "default" | "planning";
     surface?: "list" | "kanban";

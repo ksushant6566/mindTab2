@@ -1008,9 +1008,6 @@ export function Calendar({ isActive = true }: CalendarProps) {
                 onProjectFilterChange={setPlanningProjectFilter}
                 onStatusFilterChange={setPlanningStatusFilter}
                 onEditTask={handleEditTask}
-                onDeleteTask={handleDeleteTask}
-                isDeleting={isDeletingTask}
-                deleteVariables={deleteTaskVariables}
             />
         </div>
         <CalendarDetailDialog

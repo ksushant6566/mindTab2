@@ -53,9 +53,6 @@ type SchedulingTrayProps = {
     onProjectFilterChange: (value: string) => void;
     onStatusFilterChange: (value: PlanningStatusFilter) => void;
     onEditTask: (taskId: string, mode?: "view" | "edit") => void;
-    onDeleteTask: (taskId: string) => void;
-    isDeleting: boolean;
-    deleteVariables?: string;
 };
 
 export function SchedulingTray({
@@ -67,9 +64,6 @@ export function SchedulingTray({
     onProjectFilterChange,
     onStatusFilterChange,
     onEditTask,
-    onDeleteTask,
-    isDeleting,
-    deleteVariables,
 }: SchedulingTrayProps) {
     const statusCounts = useMemo(
         () => ({
@@ -135,9 +129,6 @@ export function SchedulingTray({
                             key={task.id}
                             task={toTaskCardTask(task)}
                             onEdit={onEditTask}
-                            onDelete={onDeleteTask}
-                            isDeleting={isDeleting}
-                            deleteVariables={deleteVariables}
                             cardVariant="planning"
                             surface="kanban"
                             nativeDragTaskId={task.id}
