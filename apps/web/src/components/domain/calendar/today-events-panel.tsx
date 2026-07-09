@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { addDays, addMinutes, endOfDay, format, isSameDay, parseISO, startOfDay } from "date-fns";
-import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { EActiveLayout, useAppStore } from "@mindtab/core";
 import { tasksQueryOptions, useCreateTask, useDeleteTask, useUpdateTask } from "~/api/hooks";
 import { SkeletonBlock } from "~/components/patterns";
@@ -298,6 +298,16 @@ export function TodayEventsPanel() {
                         slotClassName="bg-background/25 transition-colors group-hover/cell:bg-transparent"
                         getSlotAriaLabel={({ slotDate }) => `${format(dayStart, "MMMM d")} at ${format(slotDate, "h a")}, create scheduled task`}
                         onSlotClick={({ hour }) => openCreateTaskAtSlot(hour)}
+                        renderSlotContent={({ items }) =>
+                            items.length === 0 ? (
+                                <div className="pointer-events-none flex h-full items-start justify-end opacity-0 transition-opacity group-hover/cell:opacity-100 group-focus/cell:opacity-100">
+                                    <MetaText className="inline-flex items-center gap-1 rounded-[var(--r-2)] border border-border bg-background/80 px-1.5 py-0.5 shadow-sm">
+                                        <Plus className="h-3 w-3" />
+                                        Task
+                                    </MetaText>
+                                </div>
+                            ) : null
+                        }
                         renderEvent={(item) =>
                             <TodayTimelineEvent
                                 key={item.schedule.taskId}
