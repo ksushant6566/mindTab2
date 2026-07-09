@@ -20,12 +20,12 @@ type TaskRecord = {
 
 export function TodayEventsPanel() {
     const { schedules } = useCalendarSchedules();
-    const { activeProjectId, setActiveElement } = useAppStore();
+    const { setActiveElement, setActiveProjectId } = useAppStore();
     const { data: tasksData, isLoading } = useQuery(
-        tasksQueryOptions(activeProjectId ? { projectId: activeProjectId, includeArchived: false } : { includeArchived: false })
+        tasksQueryOptions({ includeArchived: true })
     );
 
-    const tasks = useMemo(() => ((tasksData as TaskRecord[]) ?? []).filter((task) => task.status !== "archived"), [tasksData]);
+    const tasks = useMemo(() => ((tasksData as TaskRecord[]) ?? []), [tasksData]);
     const taskById = useMemo(() => new Map(tasks.map((task) => [task.id, task])), [tasks]);
     const today = useMemo(() => new Date(), []);
 
@@ -53,7 +53,10 @@ export function TodayEventsPanel() {
                     className="h-8 w-8 shrink-0"
                     title="Open calendar"
                     aria-label="Open calendar"
-                    onClick={() => setActiveElement(EActiveLayout.Calendar)}
+                    onClick={() => {
+                        setActiveProjectId(null);
+                        setActiveElement(EActiveLayout.Calendar);
+                    }}
                 >
                     <ExternalLink className="h-4 w-4" />
                 </Button>

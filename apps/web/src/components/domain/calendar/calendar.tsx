@@ -14,17 +14,16 @@ import {
     startOfWeek,
 } from "date-fns";
 import {
-    CalendarDays,
     Clock3,
     Link2Off,
     Plus,
 } from "lucide-react";
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useAppStore } from "@mindtab/core";
 import { type CheckedState } from "@radix-ui/react-checkbox";
 import {
     tasksQueryOptions,
+    projectsQueryOptions,
     useCreateTask,
     useDeleteTask,
     useUpdateTask,
@@ -33,6 +32,7 @@ import { TaskDialog, type TaskDialogInput, type TaskDialogMode } from "~/compone
 import { createEnabledScheduleDraft, getScheduleDraftPayload } from "~/components/tasks/task-schedule-fields";
 import { Task } from "~/components/tasks/task";
 import { Button } from "~/components/ui/button";
+import { SegmentedControl } from "~/components/ui/segmented-control";
 import { Heading, MetaText, Text } from "~/components/ui/typography";
 import {
     CalendarDetailDialog,
@@ -42,8 +42,8 @@ import {
     CalendarTimeGrid,
     CalendarTimedEvent,
     CalendarToolbar,
-    CalendarUnscheduledPanel,
 } from "./primitives";
+import { SchedulingTray, type PlanningStatusFilter, type SchedulingTrayProject } from "./scheduling-tray";
 import { type CalendarSchedule, useCalendarSchedules } from "~/lib/calendar-schedules";
 import { cn } from "~/lib/utils";
 import { getStatusTone } from "~/lib/tones";
@@ -61,6 +61,9 @@ type TaskRecord = {
     createdAt?: string | null;
     updatedAt?: string | null;
     projectId?: string | null;
+    projectName?: string | null;
+    key?: string | null;
+    code?: string | null;
     project?: {
         id?: string | null;
         name?: string | null;
@@ -96,7 +99,6 @@ const VIEW_LABELS: Array<{ value: CalendarView; label: string }> = [
     { value: "week", label: "Week" },
     { value: "month", label: "Month" },
 ];
-
 function getTaskStatusStyle(task?: TaskRecord): React.CSSProperties {
     const tone = getStatusTone(task?.status);
     return {
@@ -115,6 +117,39 @@ function getTaskTone(task?: TaskRecord) {
 
 function getTaskProjectId(task: TaskRecord) {
     return task.projectId ?? task.project?.id ?? null;
+}
+
+function getPriorityRank(priority?: string | null) {
+    if (priority === "priority_1") return 0;
+    if (priority === "priority_2") return 1;
+    if (priority === "priority_3") return 2;
+    return 3;
+}
+
+function getImpactRank(impact?: string | null) {
+    if (impact === "high") return 0;
+    if (impact === "medium") return 1;
+    return 2;
+}
+
+function getStatusRank(status?: string | null) {
+    if (status === "in_progress") return 0;
+    return 1;
+}
+
+function getTaskRecency(task: TaskRecord) {
+    const value = task.updatedAt || task.createdAt || "";
+    const time = new Date(value).getTime();
+    return Number.isFinite(time) ? time : 0;
+}
+
+function sortPlanningTasks(left: TaskRecord, right: TaskRecord) {
+    return (
+        getStatusRank(left.status) - getStatusRank(right.status) ||
+        getPriorityRank(left.priority) - getPriorityRank(right.priority) ||
+        getImpactRank(left.impact) - getImpactRank(right.impact) ||
+        getTaskRecency(right) - getTaskRecency(left)
+    );
 }
 
 function isStatusOnlyUpdate(values: Record<string, unknown>) {
@@ -257,14 +292,16 @@ export function Calendar({ isActive = true }: CalendarProps) {
     const [selectedTaskMode, setSelectedTaskMode] = useState<TaskDialogMode>("view");
     const [selectedTaskSnapshot, setSelectedTaskSnapshot] = useState<TaskRecord | null>(null);
     const [dragTarget, setDragTarget] = useState<string | null>(null);
+    const [planningProjectFilter, setPlanningProjectFilter] = useState("all");
+    const [planningStatusFilter, setPlanningStatusFilter] = useState<PlanningStatusFilter>("all");
     const [currentTime, setCurrentTime] = useState(() => new Date());
     const [timeGridGutter, setTimeGridGutter] = useState(0);
     const timeGridScrollRef = useRef<HTMLDivElement | null>(null);
     const { schedules, setSchedule, scheduleTask, unscheduleTask } = useCalendarSchedules();
-    const { activeProjectId } = useAppStore();
     const { data: tasksData, isLoading } = useQuery(
-        tasksQueryOptions(activeProjectId ? { projectId: activeProjectId, includeArchived: false } : { includeArchived: false })
+        tasksQueryOptions({ includeArchived: true })
     );
+    const { data: projectsData } = useQuery(projectsQueryOptions());
     const { mutate: createTask, isPending: isCreatingTask } = useCreateTask();
     const { mutate: updateTask } = useUpdateTask();
     const {
@@ -273,7 +310,8 @@ export function Calendar({ isActive = true }: CalendarProps) {
         variables: deleteTaskVariables,
     } = useDeleteTask();
 
-    const tasks = useMemo(() => ((tasksData as TaskRecord[]) ?? []).filter((task) => task.status !== "archived"), [tasksData]);
+    const tasks = useMemo(() => ((tasksData as TaskRecord[]) ?? []), [tasksData]);
+    const projects = useMemo(() => ((projectsData as SchedulingTrayProject[]) ?? []).filter((project) => project.id), [projectsData]);
     const taskById = useMemo(() => new Map(tasks.map((task) => [task.id, task])), [tasks]);
     const visibleDays = useMemo(() => getVisibleDays(view, anchorDate), [anchorDate, view]);
 
@@ -286,9 +324,25 @@ export function Calendar({ isActive = true }: CalendarProps) {
         [schedules, taskById]
     );
 
-    const unscheduledTasks = useMemo(
-        () => tasks.filter((task) => !schedules[task.id]),
-        [schedules, tasks]
+    const projectFilteredPlanningTasks = useMemo(
+        () =>
+            tasks
+                .filter((task) => {
+                if (!["pending", "in_progress"].includes(task.status ?? "")) return false;
+                if (schedules[task.id]) return false;
+                if (planningProjectFilter === "all") return true;
+                if (planningProjectFilter === "unassigned") return !getTaskProjectId(task);
+                return getTaskProjectId(task) === planningProjectFilter;
+            })
+                .sort(sortPlanningTasks),
+        [planningProjectFilter, schedules, tasks]
+    );
+    const planningTasks = useMemo(
+        () =>
+            projectFilteredPlanningTasks.filter((task) =>
+                planningStatusFilter === "all" ? true : task.status === planningStatusFilter
+            ),
+        [planningStatusFilter, projectFilteredPlanningTasks]
     );
     const monthRows = Math.ceil(visibleDays.length / 7);
     const detailItems = useMemo(() => {
@@ -400,16 +454,6 @@ export function Calendar({ isActive = true }: CalendarProps) {
         setCreateSlot({ startAt: start.toISOString(), endAt: end.toISOString() });
     };
 
-    const openCreateTaskNextHour = () => {
-        const start = new Date();
-        start.setMinutes(0, 0, 0);
-        start.setHours(start.getHours() + 1);
-        setCreateSlot({
-            startAt: start.toISOString(),
-            endAt: addMinutes(start, DEFAULT_EVENT_DURATION_MINUTES).toISOString(),
-        });
-    };
-
     const openCreateTaskFromDetails = () => {
         if (!detailDialog) return;
         const start = detailDialog.kind === "slot"
@@ -478,7 +522,7 @@ export function Calendar({ isActive = true }: CalendarProps) {
         if (!createSlot) return;
 
         const { schedule, ...taskFields } = task;
-        const taskData = activeProjectId ? { ...taskFields, status: "pending", projectId: activeProjectId } : { ...taskFields, status: "pending" };
+        const taskData = { ...taskFields, status: "pending", projectId: null };
         const schedulePayload = getScheduleDraftPayload(schedule);
         const slot = createSlot;
         createTask(taskData, {
@@ -714,10 +758,10 @@ export function Calendar({ isActive = true }: CalendarProps) {
                                     style={{ height: TIME_ROW_HEIGHT }}
                                 >
                                     {items.length === 0 ? (
-                                        <div className="pointer-events-none flex h-full items-start justify-end opacity-0 transition-opacity group-hover/cell:opacity-100 group-focus/cell:opacity-100">
+                                        <div className={cn("pointer-events-none flex h-full items-start justify-end opacity-0 transition-opacity group-hover/cell:opacity-100 group-focus/cell:opacity-100", dragTarget === targetKey && "opacity-100")}>
                                             <MetaText className="inline-flex items-center gap-1 rounded-[var(--r-2)] border border-border bg-background/80 px-1.5 py-0.5 shadow-sm">
                                                 <Plus className="h-3 w-3" />
-                                                Task
+                                                {dragTarget === targetKey ? `Drop at ${format(normalizeSlot(day, hour), "h a")}` : "Task"}
                                             </MetaText>
                                         </div>
                                     ) : (
@@ -809,9 +853,9 @@ export function Calendar({ isActive = true }: CalendarProps) {
                                     {format(day, "d")}
                                 </Heading>
                                 {items.length === 0 && (
-                                    <MetaText className="pointer-events-none inline-flex items-center gap-1 rounded-[var(--r-2)] border border-border bg-background/80 px-1.5 py-0.5 opacity-0 shadow-sm transition-opacity group-hover/cell:opacity-100 group-focus/cell:opacity-100">
+                                    <MetaText className={cn("pointer-events-none inline-flex items-center gap-1 rounded-[var(--r-2)] border border-border bg-background/80 px-1.5 py-0.5 opacity-0 shadow-sm transition-opacity group-hover/cell:opacity-100 group-focus/cell:opacity-100", dragTarget === targetKey && "opacity-100")}>
                                         <Plus className="h-3 w-3" />
-                                        Task
+                                        {dragTarget === targetKey ? `Drop on ${format(day, "MMM d")}` : "Task"}
                                     </MetaText>
                                 )}
                             </div>
@@ -850,21 +894,12 @@ export function Calendar({ isActive = true }: CalendarProps) {
                         <Button variant="outline" size="sm" onClick={() => setAnchorDate(new Date())}>
                             Today
                         </Button>
-                        <div className="flex rounded-[var(--r-2)] border border-border bg-secondary p-0.5">
-                            {VIEW_LABELS.map((option) => (
-                                <button
-                                    key={option.value}
-                                    type="button"
-                                    onClick={() => setView(option.value)}
-                                    className={cn(
-                                        "h-7 rounded-[var(--r-1)] px-3 text-[length:var(--type-meta-size)] text-muted-foreground transition-colors",
-                                        view === option.value && "bg-primary text-primary-foreground shadow-sm"
-                                    )}
-                                >
-                                    {option.label}
-                                </button>
-                            ))}
-                        </div>
+                        <SegmentedControl
+                            aria-label="Calendar view"
+                            value={view}
+                            options={VIEW_LABELS}
+                            onValueChange={setView}
+                        />
                     </div>
                     }
                 />
@@ -880,48 +915,19 @@ export function Calendar({ isActive = true }: CalendarProps) {
                 )}
             </section>
 
-            <aside className="flex w-[286px] shrink-0 flex-col gap-3">
-                <CalendarUnscheduledPanel
-                    eyebrow="Unscheduled"
-                    title={`${unscheduledTasks.length} tasks`}
-                    description="Drag to calendar or click to edit."
-                    className="min-w-0"
-                >
-                    <div className="custom-scrollbar max-h-[62vh] space-y-2 overflow-auto pr-1">
-                        {unscheduledTasks.length === 0 ? (
-                            <div className="rounded-[var(--r-2)] border border-dashed border-border px-3 py-4 text-center">
-                                <Text variant="muted">All tasks are scheduled.</Text>
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    className="mt-3 h-8 gap-1.5"
-                                    onClick={openCreateTaskNextHour}
-                                >
-                                    <Plus className="h-3.5 w-3.5" />
-                                    Create scheduled task
-                                </Button>
-                            </div>
-                        ) : (
-                            unscheduledTasks.map((task) => (
-                                <Task
-                                    key={task.id}
-                                    task={task as any}
-                                    onEdit={handleEditTask}
-                                    onDelete={handleDeleteTask}
-                                    onToggleStatus={handleToggleTaskStatus}
-                                    onUpdate={handleUpdateTask}
-                                    isDeleting={isDeletingTask}
-                                    deleteVariables={deleteTaskVariables}
-                                    surface="list"
-                                    nativeDragTaskId={task.id}
-                                />
-                            ))
-                        )}
-                    </div>
-                </CalendarUnscheduledPanel>
-
-            </aside>
+            <SchedulingTray
+                tasks={planningTasks}
+                statusCountTasks={projectFilteredPlanningTasks}
+                projects={projects}
+                projectFilter={planningProjectFilter}
+                statusFilter={planningStatusFilter}
+                onProjectFilterChange={setPlanningProjectFilter}
+                onStatusFilterChange={setPlanningStatusFilter}
+                onEditTask={handleEditTask}
+                onDeleteTask={handleDeleteTask}
+                isDeleting={isDeletingTask}
+                deleteVariables={deleteTaskVariables}
+            />
         </div>
         <CalendarDetailDialog
             open={!!detailDialog}
@@ -986,7 +992,7 @@ export function Calendar({ isActive = true }: CalendarProps) {
             }}
             onCreate={handleCreateTask}
             isSaving={isCreatingTask}
-            defaultValues={{ status: "pending", projectId: activeProjectId, schedule: createSlotScheduleDraft }}
+            defaultValues={{ status: "pending", projectId: null, schedule: createSlotScheduleDraft }}
         />
         {selectedTask && (
             <TaskDialog

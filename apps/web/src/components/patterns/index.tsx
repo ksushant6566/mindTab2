@@ -1,6 +1,7 @@
 import * as React from "react";
 import { AlertCircle, Loader2 } from "lucide-react";
 import { Button } from "~/components/ui/button";
+import { SegmentedControl } from "~/components/ui/segmented-control";
 import { Skeleton } from "~/components/ui/skeleton";
 import { Heading, MetaText, Text } from "~/components/ui/typography";
 import { Inline, Stack, Surface } from "~/components/layout";
@@ -77,42 +78,7 @@ export function ErrorState({
   );
 }
 
-type Option<T extends string> = {
-  value: T;
-  label: React.ReactNode;
-  disabled?: boolean;
-};
-
-export function SegmentedControl<T extends string>({
-  value,
-  options,
-  onValueChange,
-  className,
-}: {
-  value: T;
-  options: Array<Option<T>>;
-  onValueChange: (value: T) => void;
-  className?: string;
-}) {
-  return (
-    <div className={cn("inline-flex rounded-[var(--r-2)] border border-border bg-[var(--bg-soft)] p-0.5", className)}>
-      {options.map((option) => (
-        <button
-          key={option.value}
-          type="button"
-          disabled={option.disabled}
-          onClick={() => onValueChange(option.value)}
-          className={cn(
-            "rounded-[calc(var(--r-2)-2px)] px-3 py-1.5 text-[length:var(--type-label-size)] font-[var(--type-label-weight)] leading-[var(--type-label-line)] text-muted-foreground transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-50",
-            option.value === value && "bg-[var(--bg-elev)] text-foreground shadow-[var(--shadow-inset)]"
-          )}
-        >
-          {option.label}
-        </button>
-      ))}
-    </div>
-  );
-}
+export { SegmentedControl };
 
 export function FilterTabs<T extends string>(props: React.ComponentProps<typeof SegmentedControl<T>>) {
   return <SegmentedControl {...props} />;

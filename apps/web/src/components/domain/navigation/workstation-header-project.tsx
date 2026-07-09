@@ -39,7 +39,7 @@ export function WorkstationHeaderProject() {
     return conversations.find((conversation) => conversation.id === conversationId) ?? null;
   }, [conversationId, conversations]);
 
-  const contextProjectId = getConversationProjectId(activeConversation) ?? (pathname === "/" ? activeProjectId : null);
+  const contextProjectId = getConversationProjectId(activeConversation) ?? (pathname === "/" && activeElement !== EActiveLayout.Calendar ? activeProjectId : null);
 
   const activeProject = useMemo(() => {
     if (!contextProjectId) return null;
@@ -48,7 +48,7 @@ export function WorkstationHeaderProject() {
 
   const projectLabel = activeProject?.name || (contextProjectId ? "Selected project" : null);
   const pageLabel = getPageLabel(pathname, activeElement, activeConversation);
-  const showProjectLabel = Boolean(projectLabel || pathname === "/");
+  const showProjectLabel = Boolean(projectLabel || (pathname === "/" && activeElement !== EActiveLayout.Calendar));
 
   return (
     <Inline gap="sm" className="min-w-0">

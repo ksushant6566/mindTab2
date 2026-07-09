@@ -226,7 +226,7 @@ export function AppSidebar() {
                     <SidebarActionButton collapsed={collapsed} icon={<PencilLine className="h-4 w-4" />} label="New chat" onClick={() => void navigate({ to: "/chat" })} />
                     <SidebarActionButton collapsed={collapsed} icon={<Shield className="h-4 w-4" />} label="Vault" onClick={() => void navigate({ to: "/vault" })} />
                     <SidebarActionButton collapsed={collapsed} icon={<Search className="h-4 w-4" />} label="Search" onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }))} />
-                    <SidebarActionButton collapsed={collapsed} icon={<CalendarDays className="h-4 w-4" />} label="Calendar" onClick={() => openDashboard(EActiveLayout.Calendar)} />
+                    <SidebarActionButton collapsed={collapsed} icon={<CalendarDays className="h-4 w-4" />} label="Calendar" onClick={() => openDashboard(EActiveLayout.Calendar, null)} />
                 </div>
 
                 {!collapsed && (
