@@ -10,9 +10,18 @@ import { createEnabledScheduleDraft, getScheduleDraftPayload } from "~/component
 import { Button } from "~/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "~/components/ui/tooltip";
 import { Heading, MetaText, Text } from "~/components/ui/typography";
-import { type CalendarSchedule, useCalendarSchedules } from "~/lib/calendar-schedules";
+import { useCalendarSchedules } from "~/lib/calendar-schedules";
 import { getStatusTone } from "~/lib/tones";
 import { cn } from "~/lib/utils";
+import {
+    CalendarDayTimeline,
+    type CalendarTimelineItem,
+    type CalendarTimelineLayoutItem,
+    formatCalendarTimeRange,
+    getCalendarMinuteOfDay,
+    getCalendarScheduleMinuteRange,
+    normalizeCalendarSlot,
+} from "./day-timeline";
 
 type TaskRecord = {
     id: string;
@@ -34,26 +43,15 @@ type TaskRecord = {
     [key: string]: any;
 };
 
-type AgendaItem = {
-    schedule: CalendarSchedule;
+type AgendaItem = CalendarTimelineItem<TaskRecord> & {
     task: TaskRecord;
     start: Date;
     end: Date;
 };
-
-type TimedAgendaItem = AgendaItem & {
-    startMinute: number;
-    endMinute: number;
-    top: number;
-    height: number;
-    lane: number;
-    laneCount: number;
-};
+type TimedAgendaItem = CalendarTimelineLayoutItem<AgendaItem>;
 
 type CreateSlotState = { startAt: string; endAt: string } | null;
 
-const HOURS = Array.from({ length: 24 }, (_, index) => index);
-const MINUTES_PER_DAY = 24 * 60;
 const DEFAULT_EVENT_DURATION_MINUTES = 60;
 const TIMELINE_HOUR_HEIGHT = 58;
 const TIMELINE_GUTTER_WIDTH = 42;
@@ -71,97 +69,6 @@ function isDone(task: TaskRecord) {
 
 function overlapsDay(start: Date, end: Date, dayStart: Date, dayEnd: Date) {
     return start <= dayEnd && end >= dayStart;
-}
-
-function getMinuteOfDay(date: Date) {
-    return date.getHours() * 60 + date.getMinutes();
-}
-
-function formatHour(hour: number) {
-    const date = new Date();
-    date.setHours(hour, 0, 0, 0);
-    return format(date, "ha");
-}
-
-function normalizeSlot(date: Date, hour: number, minute = 0) {
-    const next = new Date(date);
-    next.setHours(hour, minute, 0, 0);
-    return next;
-}
-
-function formatAgendaTime(start: Date, end: Date, dayStart: Date, dayEnd: Date) {
-    const crossesDayBoundary = start < dayStart || end > dayEnd;
-    if (crossesDayBoundary) {
-        return `${format(start, "EEE h:mm a")} - ${format(end, "EEE h:mm a")}`;
-    }
-
-    const samePeriod = format(start, "a") === format(end, "a");
-    return samePeriod
-        ? `${format(start, "h:mm")}-${format(end, "h:mm a")}`
-        : `${format(start, "h:mm a")}-${format(end, "h:mm a")}`;
-}
-
-function getAgendaMinuteRange(item: AgendaItem, dayStart: Date, dayEnd: Date) {
-    const startMinute = item.start < dayStart ? 0 : getMinuteOfDay(item.start);
-    const rawEndMinute = item.end > dayEnd ? MINUTES_PER_DAY : getMinuteOfDay(item.end);
-    const endMinute = Math.max(startMinute + 15, Math.min(MINUTES_PER_DAY, rawEndMinute || MINUTES_PER_DAY));
-
-    return { startMinute, endMinute };
-}
-
-function layoutAgendaItems(items: AgendaItem[], dayStart: Date, dayEnd: Date): TimedAgendaItem[] {
-    const sorted = items
-        .map((item) => {
-            const range = getAgendaMinuteRange(item, dayStart, dayEnd);
-            return {
-                ...item,
-                ...range,
-                top: (range.startMinute / 60) * TIMELINE_HOUR_HEIGHT,
-                height: Math.max(
-                    TIMELINE_MIN_EVENT_HEIGHT,
-                    ((range.endMinute - range.startMinute) / 60) * TIMELINE_HOUR_HEIGHT
-                ),
-                lane: 0,
-                laneCount: 1,
-            };
-        })
-        .sort((left, right) => left.startMinute - right.startMinute || left.endMinute - right.endMinute);
-
-    const laidOut: TimedAgendaItem[] = [];
-    let cluster: TimedAgendaItem[] = [];
-    let clusterEnd = -1;
-
-    const flushCluster = () => {
-        if (cluster.length === 0) return;
-
-        const laneEnds: number[] = [];
-        for (const item of cluster) {
-            const lane = laneEnds.findIndex((endMinute) => endMinute <= item.startMinute);
-            const nextLane = lane >= 0 ? lane : laneEnds.length;
-            laneEnds[nextLane] = item.endMinute;
-            item.lane = nextLane;
-        }
-
-        const laneCount = Math.max(1, laneEnds.length);
-        for (const item of cluster) {
-            laidOut.push({ ...item, laneCount });
-        }
-
-        cluster = [];
-        clusterEnd = -1;
-    };
-
-    for (const item of sorted) {
-        if (cluster.length > 0 && item.startMinute >= clusterEnd) {
-            flushCluster();
-        }
-
-        cluster.push(item);
-        clusterEnd = Math.max(clusterEnd, item.endMinute);
-    }
-
-    flushCluster();
-    return laidOut;
 }
 
 function getTaskStatusStyle(task: TaskRecord): React.CSSProperties {
@@ -224,14 +131,8 @@ export function TodayEventsPanel() {
             .filter((item): item is AgendaItem => Boolean(item))
             .sort((left, right) => left.start.getTime() - right.start.getTime());
     }, [dayEnd, dayStart, schedules, taskById]);
-    const timedItems = useMemo(
-        () => layoutAgendaItems(todayItems, dayStart, dayEnd),
-        [dayEnd, dayStart, todayItems]
-    );
-    const currentMinute = getMinuteOfDay(now);
+    const currentMinute = getCalendarMinuteOfDay(now);
     const currentTimeTop = (currentMinute / 60) * TIMELINE_HOUR_HEIGHT;
-    const markerTop = selectedDayIsToday ? currentTimeTop : null;
-    const timelineHeight = HOURS.length * TIMELINE_HOUR_HEIGHT;
     const createSlotScheduleDraft = useMemo(
         () => createSlot ? createEnabledScheduleDraft(parseISO(createSlot.startAt), parseISO(createSlot.endAt)) : undefined,
         [createSlot]
@@ -252,7 +153,7 @@ export function TodayEventsPanel() {
     };
 
     const openCreateTaskAtSlot = (hour: number) => {
-        const start = normalizeSlot(dayStart, hour);
+        const start = normalizeCalendarSlot(dayStart, hour);
         const end = addMinutes(start, DEFAULT_EVENT_DURATION_MINUTES);
         setCreateSlot({ startAt: start.toISOString(), endAt: end.toISOString() });
     };
@@ -318,11 +219,13 @@ export function TodayEventsPanel() {
 
         const targetMinute = selectedDayIsToday
             ? currentMinute
-            : timedItems[0]?.startMinute ?? 8 * 60;
+            : todayItems[0]
+                ? getCalendarScheduleMinuteRange(todayItems[0], dayStart).startMinute
+                : 8 * 60;
         const targetTop = Math.max(0, ((targetMinute / 60) * TIMELINE_HOUR_HEIGHT) - container.clientHeight * 0.38);
         container.scrollTop = targetTop;
         lastScrolledDayRef.current = selectedDayKey;
-    }, [currentMinute, isLoading, selectedDayIsToday, selectedDayKey, timedItems]);
+    }, [currentMinute, dayStart, isLoading, selectedDayIsToday, selectedDayKey, todayItems]);
 
     return (
         <>
@@ -375,21 +278,51 @@ export function TodayEventsPanel() {
                         </Tooltip>
                     </TooltipProvider>
                 </div>
-                <div ref={scrollRef} className="custom-scrollbar min-h-0 w-[calc(100%+6px)] flex-1 overflow-x-hidden overflow-y-auto">
-                    {isLoading ? (
+                {isLoading ? (
+                    <div ref={scrollRef} className="custom-scrollbar min-h-0 w-[calc(100%+6px)] flex-1 overflow-x-hidden overflow-y-auto">
                         <SkeletonBlock className="h-full min-h-[360px]" />
-                    ) : (
-                        <TodayTimeline
-                            items={timedItems}
-                            nowTop={markerTop}
-                            timelineHeight={timelineHeight}
-                            dayStart={dayStart}
-                            dayEnd={dayEnd}
-                            onCreateAtHour={openCreateTaskAtSlot}
-                            onOpenTask={openTaskDialog}
-                        />
-                    )}
-                </div>
+                    </div>
+                ) : (
+                    <CalendarDayTimeline
+                        scrollRef={scrollRef}
+                        items={todayItems}
+                        day={dayStart}
+                        now={now}
+                        showCurrentTime={selectedDayIsToday}
+                        hourHeight={TIMELINE_HOUR_HEIGHT}
+                        gutterWidth={TIMELINE_GUTTER_WIDTH}
+                        minEventHeight={TIMELINE_MIN_EVENT_HEIGHT}
+                        className="custom-scrollbar min-h-0 w-[calc(100%+6px)] flex-1 overflow-x-hidden overflow-y-auto"
+                        timelineClassName="rounded-[var(--r-3)] border border-border bg-card/55"
+                        timeLabelClassName="px-1.5"
+                        slotClassName="bg-background/25 transition-colors group-hover/cell:bg-transparent"
+                        getSlotAriaLabel={({ slotDate }) => `${format(dayStart, "MMMM d")} at ${format(slotDate, "h a")}, create scheduled task`}
+                        onSlotClick={({ hour }) => openCreateTaskAtSlot(hour)}
+                        renderEvent={(item) =>
+                            <TodayTimelineEvent
+                                key={item.schedule.taskId}
+                                item={item}
+                                dayStart={dayStart}
+                                dayEnd={dayEnd}
+                                onOpen={() => openTaskDialog(item.task)}
+                            />
+                        }
+                        emptyState={
+                            <div
+                                className="pointer-events-none absolute inset-x-3 px-3 py-3 text-center"
+                                style={{ top: Math.max(16, currentTimeTop + 18), left: TIMELINE_GUTTER_WIDTH + 8 }}
+                            >
+                                <CalendarDays className="mx-auto h-5 w-5 text-muted-foreground" />
+                                <Heading as="div" variant="panel" className="mt-2">
+                                    Nothing scheduled
+                                </Heading>
+                                <Text variant="muted" className="mt-1">
+                                    Open Calendar to plan the day.
+                                </Text>
+                            </div>
+                        }
+                    />
+                )}
             </div>
 
             {selectedTaskId && currentSelectedTask ? (
@@ -422,86 +355,6 @@ export function TodayEventsPanel() {
                 defaultValues={{ status: "pending", projectId: null, schedule: createSlotScheduleDraft }}
             />
         </>
-    );
-}
-
-function TodayTimeline({
-    items,
-    nowTop,
-    timelineHeight,
-    dayStart,
-    dayEnd,
-    onCreateAtHour,
-    onOpenTask,
-}: {
-    items: TimedAgendaItem[];
-    nowTop: number | null;
-    timelineHeight: number;
-    dayStart: Date;
-    dayEnd: Date;
-    onCreateAtHour: (hour: number) => void;
-    onOpenTask: (task: TaskRecord) => void;
-}) {
-    return (
-        <div
-            className="relative overflow-hidden rounded-[var(--r-3)] border border-border bg-card/55"
-            style={{ height: timelineHeight }}
-        >
-            {HOURS.map((hour) => (
-                <button
-                    type="button"
-                    key={hour}
-                    className="group/slot grid w-full border-b border-border/75 text-left transition-colors last:border-b-0 hover:bg-secondary/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/30"
-                    style={{ height: TIMELINE_HOUR_HEIGHT, gridTemplateColumns: `${TIMELINE_GUTTER_WIDTH}px minmax(0, 1fr)` }}
-                    onClick={() => onCreateAtHour(hour)}
-                    aria-label={`${format(dayStart, "MMMM d")} at ${format(normalizeSlot(dayStart, hour), "h a")}, create scheduled task`}
-                >
-                    <MetaText as="div" className="border-r border-border px-1.5 py-2 text-right">
-                        {formatHour(hour)}
-                    </MetaText>
-                    <div className="bg-background/25 transition-colors group-hover/slot:bg-transparent" />
-                </button>
-            ))}
-
-            {nowTop !== null ? (
-                <div
-                    className="pointer-events-none absolute right-0 z-20 h-px bg-[var(--tone-calendar-now)]"
-                    style={{ top: nowTop, left: TIMELINE_GUTTER_WIDTH }}
-                >
-                    <span className="absolute left-0 top-1/2 size-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[var(--tone-calendar-now)]" />
-                </div>
-            ) : null}
-
-            <div
-                className="pointer-events-none absolute right-0 top-0 z-10"
-                style={{ left: TIMELINE_GUTTER_WIDTH, height: timelineHeight }}
-            >
-                {items.map((item) => (
-                    <TodayTimelineEvent
-                        key={item.schedule.taskId}
-                        item={item}
-                        dayStart={dayStart}
-                        dayEnd={dayEnd}
-                        onOpen={() => onOpenTask(item.task)}
-                    />
-                ))}
-            </div>
-
-            {items.length === 0 ? (
-                <div
-                    className="pointer-events-none absolute inset-x-3 px-3 py-3 text-center"
-                    style={{ top: Math.max(16, (nowTop ?? TIMELINE_HOUR_HEIGHT * 8) + 18), left: TIMELINE_GUTTER_WIDTH + 8 }}
-                >
-                    <CalendarDays className="mx-auto h-5 w-5 text-muted-foreground" />
-                    <Heading as="div" variant="panel" className="mt-2">
-                        Nothing scheduled
-                    </Heading>
-                    <Text variant="muted" className="mt-1">
-                        Open Calendar to plan the day.
-                    </Text>
-                </div>
-            ) : null}
-        </div>
     );
 }
 
@@ -541,7 +394,7 @@ function TodayTimelineEvent({
                 width: `calc(${width} - ${TIMELINE_EVENT_INSET_X * 2}px)`,
             }}
             onClick={onOpen}
-            aria-label={`${task.title || "Untitled task"}, ${tone.label}, ${formatAgendaTime(start, end, dayStart, dayEnd)}`}
+            aria-label={`${task.title || "Untitled task"}, ${tone.label}, ${formatCalendarTimeRange(start, end, { dayStart, dayEnd })}`}
             aria-haspopup="dialog"
         >
             <Text
@@ -560,7 +413,7 @@ function TodayTimelineEvent({
                     className="mt-0.5 truncate"
                     style={{ color: "var(--task-status-fg)" }}
                 >
-                    {formatAgendaTime(start, end, dayStart, dayEnd)}
+                    {formatCalendarTimeRange(start, end, { dayStart, dayEnd })}
                 </MetaText>
             ) : null}
         </button>

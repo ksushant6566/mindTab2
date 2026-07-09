@@ -47,6 +47,7 @@ import { SchedulingTray, type PlanningStatusFilter, type SchedulingTrayProject }
 import { type CalendarSchedule, useCalendarSchedules } from "~/lib/calendar-schedules";
 import { cn } from "~/lib/utils";
 import { getStatusTone } from "~/lib/tones";
+import { CalendarDayTimeline } from "./day-timeline";
 
 type CalendarView = "day" | "week" | "month";
 
@@ -795,6 +796,87 @@ export function Calendar({ isActive = true }: CalendarProps) {
         </CalendarTimeGrid>
     );
 
+    const renderDayTimedGrid = () => {
+        const day = visibleDays[0] ?? startOfDay(anchorDate);
+        const dayItems = scheduledItems.filter(({ schedule }) => isSameDay(parseISO(schedule.startAt), day));
+
+        return (
+            <CalendarTimeGrid className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[var(--r-3)] border border-border bg-card/55">
+                <div
+                    className="grid border-b border-border bg-[var(--bg-elev)]/55"
+                    style={{
+                        gridTemplateColumns: "56px minmax(0, 1fr)",
+                        paddingRight: timeGridGutter,
+                    }}
+                >
+                    <div className="border-r border-border" />
+                    <div
+                        className={cn(
+                            "px-3 py-2",
+                            isToday(day) && "bg-primary/[0.06]"
+                        )}
+                    >
+                        <MetaText as="div" className="uppercase">
+                            {format(day, "EEE")}
+                        </MetaText>
+                        <Heading as="div" variant="panel" className={cn("mt-0.5 text-[length:var(--type-title-size)]", isToday(day) && "text-primary")}>
+                            {format(day, "d")}
+                        </Heading>
+                    </div>
+                </div>
+                <CalendarDayTimeline
+                    scrollRef={timeGridScrollRef}
+                    day={day}
+                    items={dayItems}
+                    now={currentTime}
+                    showCurrentTime={isToday(day)}
+                    hourHeight={TIME_ROW_HEIGHT}
+                    gutterWidth={56}
+                    minEventHeight={MIN_TIMED_EVENT_HEIGHT}
+                    className="custom-scrollbar relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden"
+                    style={{ scrollbarGutter: "stable" }}
+                    eventOverlayClassName="px-1.5"
+                    getSlotAriaLabel={({ slotDate, items: slotItems }) =>
+                        `${format(day, "MMMM d")} at ${format(slotDate, "h a")}, ${slotItems.length} scheduled ${slotItems.length === 1 ? "task" : "tasks"}`
+                    }
+                    onSlotClick={({ hour, items: slotItems }) => {
+                        if (slotItems.length > 0) openSlotDetails(day, hour);
+                        else openCreateTaskAtSlot(day, hour);
+                    }}
+                    onSlotDragEnter={({ targetKey }) => setDragTarget(targetKey)}
+                    onSlotDragLeave={({ targetKey }) => setDragTarget((current) => current === targetKey ? null : current)}
+                    onSlotDragOver={(event, { targetKey }) => {
+                        event.preventDefault();
+                        event.dataTransfer.dropEffect = "move";
+                        setDragTarget(targetKey);
+                    }}
+                    onSlotDrop={(event, { hour }) => handleDrop(event, day, hour)}
+                    slotClassName={({ targetKey }) =>
+                        cn(
+                            "group/cell p-1.5",
+                            dragTarget === targetKey && "bg-primary/[0.08] ring-1 ring-inset ring-primary/35"
+                        )
+                    }
+                    renderSlotContent={({ hour, targetKey, items: slotItems }) =>
+                        slotItems.length === 0 ? (
+                            <div className={cn("pointer-events-none flex h-full items-start justify-end opacity-0 transition-opacity group-hover/cell:opacity-100 group-focus/cell:opacity-100", dragTarget === targetKey && "opacity-100")}>
+                                <MetaText className="inline-flex items-center gap-1 rounded-[var(--r-2)] border border-border bg-background/80 px-1.5 py-0.5 shadow-sm">
+                                    <Plus className="h-3 w-3" />
+                                    {dragTarget === targetKey ? `Drop at ${format(normalizeSlot(day, hour), "h a")}` : "Task"}
+                                </MetaText>
+                            </div>
+                        ) : (
+                            <MetaText as="div" className="pointer-events-none absolute bottom-1 right-1 rounded-[var(--r-1)] bg-background/70 px-1 opacity-0 transition-opacity group-hover/cell:opacity-100">
+                                {slotItems.length} item{slotItems.length === 1 ? "" : "s"}
+                            </MetaText>
+                        )
+                    }
+                    renderEvent={renderTimedEvent}
+                />
+            </CalendarTimeGrid>
+        );
+    };
+
     const renderMonthGrid = () => (
         <CalendarMonthGrid className="h-full flex-1 grid-cols-1 grid-rows-[auto_minmax(0,1fr)] bg-card/55">
             <div className="grid grid-cols-7 border-b border-border bg-[var(--bg-elev)]/55">
@@ -910,6 +992,8 @@ export function Calendar({ isActive = true }: CalendarProps) {
                     </div>
                 ) : view === "month" ? (
                     renderMonthGrid()
+                ) : view === "day" ? (
+                    renderDayTimedGrid()
                 ) : (
                     renderTimedGrid()
                 )}
