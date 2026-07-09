@@ -1,11 +1,12 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { addDays, endOfDay, format, isSameDay, parseISO, startOfDay } from "date-fns";
+import { addDays, addMinutes, endOfDay, format, isSameDay, parseISO, startOfDay } from "date-fns";
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import { EActiveLayout, useAppStore } from "@mindtab/core";
-import { tasksQueryOptions, useDeleteTask, useUpdateTask } from "~/api/hooks";
+import { tasksQueryOptions, useCreateTask, useDeleteTask, useUpdateTask } from "~/api/hooks";
 import { SkeletonBlock } from "~/components/patterns";
-import { TaskDialog } from "~/components/tasks/task-dialog";
+import { TaskDialog, type TaskDialogInput } from "~/components/tasks/task-dialog";
+import { createEnabledScheduleDraft, getScheduleDraftPayload } from "~/components/tasks/task-schedule-fields";
 import { Button } from "~/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "~/components/ui/tooltip";
 import { Heading, MetaText, Text } from "~/components/ui/typography";
@@ -49,8 +50,11 @@ type TimedAgendaItem = AgendaItem & {
     laneCount: number;
 };
 
+type CreateSlotState = { startAt: string; endAt: string } | null;
+
 const HOURS = Array.from({ length: 24 }, (_, index) => index);
 const MINUTES_PER_DAY = 24 * 60;
+const DEFAULT_EVENT_DURATION_MINUTES = 60;
 const TIMELINE_HOUR_HEIGHT = 58;
 const TIMELINE_GUTTER_WIDTH = 42;
 const TIMELINE_EVENT_INSET_X = 5;
@@ -77,6 +81,12 @@ function formatHour(hour: number) {
     const date = new Date();
     date.setHours(hour, 0, 0, 0);
     return format(date, "ha");
+}
+
+function normalizeSlot(date: Date, hour: number, minute = 0) {
+    const next = new Date(date);
+    next.setHours(hour, minute, 0, 0);
+    return next;
 }
 
 function formatAgendaTime(start: Date, end: Date, dayStart: Date, dayEnd: Date) {
@@ -179,14 +189,16 @@ export function TodayEventsPanel() {
     const [selectedDate, setSelectedDate] = useState(() => new Date());
     const scrollRef = useRef<HTMLDivElement | null>(null);
     const lastScrolledDayRef = useRef<string | null>(null);
-    const { schedules } = useCalendarSchedules();
+    const { schedules, scheduleTask } = useCalendarSchedules();
     const { setActiveElement, setActiveProjectId } = useAppStore();
     const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
     const [selectedTaskSnapshot, setSelectedTaskSnapshot] = useState<TaskRecord | null>(null);
+    const [createSlot, setCreateSlot] = useState<CreateSlotState>(null);
 
     const { data: tasksData, isLoading } = useQuery(
         tasksQueryOptions({ includeArchived: true })
     );
+    const { mutate: createTask, isPending: isCreatingTask } = useCreateTask();
     const { mutate: updateTask, isPending: isUpdatingTask } = useUpdateTask();
     const { mutate: deleteTask, isPending: isDeletingTask, variables: deleteTaskVariables } = useDeleteTask();
 
@@ -220,6 +232,10 @@ export function TodayEventsPanel() {
     const currentTimeTop = (currentMinute / 60) * TIMELINE_HOUR_HEIGHT;
     const markerTop = selectedDayIsToday ? currentTimeTop : null;
     const timelineHeight = HOURS.length * TIMELINE_HOUR_HEIGHT;
+    const createSlotScheduleDraft = useMemo(
+        () => createSlot ? createEnabledScheduleDraft(parseISO(createSlot.startAt), parseISO(createSlot.endAt)) : undefined,
+        [createSlot]
+    );
 
     const currentSelectedTask = useMemo(() => {
         if (!selectedTaskId) return null;
@@ -233,6 +249,12 @@ export function TodayEventsPanel() {
     const openTaskDialog = (task: TaskRecord) => {
         setSelectedTaskSnapshot(task);
         setSelectedTaskId(task.id);
+    };
+
+    const openCreateTaskAtSlot = (hour: number) => {
+        const start = normalizeSlot(dayStart, hour);
+        const end = addMinutes(start, DEFAULT_EVENT_DURATION_MINUTES);
+        setCreateSlot({ startAt: start.toISOString(), endAt: end.toISOString() });
     };
 
     const openCalendar = () => {
@@ -256,6 +278,36 @@ export function TodayEventsPanel() {
             setSelectedTaskId(null);
             setSelectedTaskSnapshot(null);
         }
+    };
+
+    const handleCreateTask = (task: TaskDialogInput) => {
+        if (!createSlot) return;
+
+        const { schedule, ...taskFields } = task;
+        const taskData = { ...taskFields, status: "pending", projectId: null };
+        const schedulePayload = getScheduleDraftPayload(schedule);
+        const slot = createSlot;
+
+        createTask(taskData, {
+            onSuccess: (createdTask: any) => {
+                const taskId = createdTask?.id;
+                if (taskId && schedulePayload) {
+                    scheduleTask(taskId, schedulePayload.startAt, schedulePayload.durationMinutes);
+                    return;
+                }
+
+                if (taskId) {
+                    const start = parseISO(slot.startAt);
+                    const end = parseISO(slot.endAt);
+                    scheduleTask(
+                        taskId,
+                        start,
+                        Math.max(1, Math.round((end.getTime() - start.getTime()) / 60_000))
+                    );
+                }
+            },
+        });
+        setCreateSlot(null);
     };
 
     useLayoutEffect(() => {
@@ -333,6 +385,7 @@ export function TodayEventsPanel() {
                             timelineHeight={timelineHeight}
                             dayStart={dayStart}
                             dayEnd={dayEnd}
+                            onCreateAtHour={openCreateTaskAtSlot}
                             onOpenTask={openTaskDialog}
                         />
                     )}
@@ -357,6 +410,17 @@ export function TodayEventsPanel() {
                     deleteVariables={deleteTaskVariables}
                 />
             ) : null}
+
+            <TaskDialog
+                mode="create"
+                open={!!createSlot}
+                onOpenChange={(open) => {
+                    if (!open) setCreateSlot(null);
+                }}
+                onCreate={handleCreateTask}
+                isSaving={isCreatingTask}
+                defaultValues={{ status: "pending", projectId: null, schedule: createSlotScheduleDraft }}
+            />
         </>
     );
 }
@@ -367,6 +431,7 @@ function TodayTimeline({
     timelineHeight,
     dayStart,
     dayEnd,
+    onCreateAtHour,
     onOpenTask,
 }: {
     items: TimedAgendaItem[];
@@ -374,6 +439,7 @@ function TodayTimeline({
     timelineHeight: number;
     dayStart: Date;
     dayEnd: Date;
+    onCreateAtHour: (hour: number) => void;
     onOpenTask: (task: TaskRecord) => void;
 }) {
     return (
@@ -382,16 +448,19 @@ function TodayTimeline({
             style={{ height: timelineHeight }}
         >
             {HOURS.map((hour) => (
-                <div
+                <button
+                    type="button"
                     key={hour}
-                    className="grid border-b border-border/75 last:border-b-0"
+                    className="group/slot grid w-full border-b border-border/75 text-left transition-colors last:border-b-0 hover:bg-secondary/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/30"
                     style={{ height: TIMELINE_HOUR_HEIGHT, gridTemplateColumns: `${TIMELINE_GUTTER_WIDTH}px minmax(0, 1fr)` }}
+                    onClick={() => onCreateAtHour(hour)}
+                    aria-label={`${format(dayStart, "MMMM d")} at ${format(normalizeSlot(dayStart, hour), "h a")}, create scheduled task`}
                 >
                     <MetaText as="div" className="border-r border-border px-1.5 py-2 text-right">
                         {formatHour(hour)}
                     </MetaText>
-                    <div className="bg-background/25" />
-                </div>
+                    <div className="bg-background/25 transition-colors group-hover/slot:bg-transparent" />
+                </button>
             ))}
 
             {nowTop !== null ? (
