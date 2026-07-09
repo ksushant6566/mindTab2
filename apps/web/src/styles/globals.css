@@ -98,6 +98,18 @@ html {
   animation: mobile-placeholder-pop 0.8s ease-out 0.3s both;
 }
 
+@layer components {
+  .task-card-kanban-metadata {
+    container-type: inline-size;
+  }
+
+  @container (max-width: 230px) {
+    .task-card-kanban-impact-label {
+      display: none;
+    }
+  }
+}
+
 @keyframes command-trigger-shimmer {
   0% {
     background-position: 0 0;

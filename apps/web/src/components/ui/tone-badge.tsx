@@ -15,11 +15,13 @@ export function ToneBadge({
   tone,
   icon,
   className,
+  labelClassName,
 }: {
   label: string;
   tone: string;
   icon?: ReactNode;
   className?: string;
+  labelClassName?: string;
 }) {
   return (
     <span
@@ -30,7 +32,7 @@ export function ToneBadge({
       style={{ color: tone }}
     >
       {icon}
-      <span className="truncate">{label}</span>
+      <span className={cn("truncate", labelClassName)}>{label}</span>
     </span>
   );
 }
@@ -47,13 +49,14 @@ export function PriorityBadge({ priority, className }: { priority?: string | nul
   );
 }
 
-export function ImpactBadge({ impact, className }: { impact?: string | null; className?: string }) {
+export function ImpactBadge({ impact, className, labelClassName }: { impact?: string | null; className?: string; labelClassName?: string }) {
   const meta = getImpactTone(impact as ImpactValue);
   return (
     <ToneBadge
       label={meta.label}
       tone={meta.tone}
       className={className}
+      labelClassName={labelClassName}
       icon={
         <span className="inline-flex shrink-0 items-center gap-0.5">
           {Array.from({ length: meta.dots }).map((_, index) => (

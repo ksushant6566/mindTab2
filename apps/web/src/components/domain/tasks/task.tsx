@@ -1,7 +1,6 @@
 import { type CheckedState } from "@radix-ui/react-checkbox";
 import React from "react";
 import { useCalendarSchedules } from "~/lib/calendar-schedules";
-import { DeleteTaskConfirmDialog } from "./delete-task-confirm-dialog";
 import { TaskCardVisual, type TaskCardTask } from "./task-card-visual";
 
 type TaskDialogOpenMode = "view" | "edit";
@@ -9,11 +8,12 @@ type TaskDialogOpenMode = "view" | "edit";
 interface TaskProps {
     task: TaskCardTask;
     onEdit: (id: string, mode?: TaskDialogOpenMode) => void;
-    onDelete: (id: string) => void;
-    onToggleStatus: (id: string, checked: CheckedState) => void;
+    onDelete?: (id: string) => void;
+    onToggleStatus?: (id: string, checked: CheckedState) => void;
     onUpdate?: (id: string, task: Record<string, unknown>) => void;
-    isDeleting: boolean;
+    isDeleting?: boolean;
     deleteVariables?: string;
+    cardVariant?: "default" | "planning";
     surface?: "list" | "kanban";
     isDragging?: boolean;
     isOverlay?: boolean;
@@ -28,10 +28,8 @@ interface TaskProps {
 export const Task: React.FC<TaskProps> = ({
     task,
     onEdit,
-    onDelete,
     onToggleStatus,
-    isDeleting,
-    deleteVariables,
+    cardVariant = "default",
     surface = "list",
     isDragging = false,
     isOverlay = false,
@@ -46,10 +44,8 @@ export const Task: React.FC<TaskProps> = ({
         <TaskCard
             task={task}
             onEdit={onEdit}
-            onDelete={onDelete}
             onToggleStatus={onToggleStatus}
-            isDeleting={isDeleting}
-            deleteVariables={deleteVariables}
+            cardVariant={cardVariant}
             surface={surface}
             isDragging={isDragging}
             isOverlay={isOverlay}
@@ -63,13 +59,11 @@ export const Task: React.FC<TaskProps> = ({
     );
 };
 
-const TaskCard: React.FC<Required<Pick<TaskProps, "task" | "onEdit" | "onDelete" | "onToggleStatus" | "isDeleting" | "surface" | "hideDragHandle" | "showCalendarActions" | "showProjectMetadata">> & Pick<TaskProps, "deleteVariables" | "isDragging" | "isOverlay" | "dragHandleRef" | "dragHandleProps" | "nativeDragTaskId">> = ({
+const TaskCard: React.FC<Required<Pick<TaskProps, "task" | "onEdit" | "cardVariant" | "surface" | "hideDragHandle" | "showCalendarActions" | "showProjectMetadata">> & Pick<TaskProps, "isDragging" | "isOverlay" | "dragHandleRef" | "dragHandleProps" | "nativeDragTaskId" | "onToggleStatus">> = ({
     task,
     onEdit,
-    onDelete,
     onToggleStatus,
-    isDeleting,
-    deleteVariables,
+    cardVariant,
     surface,
     isDragging,
     isOverlay,
@@ -83,7 +77,6 @@ const TaskCard: React.FC<Required<Pick<TaskProps, "task" | "onEdit" | "onDelete"
     const { schedules, unscheduleTask } = useCalendarSchedules();
     const cardRef = React.useRef<HTMLElement>(null);
     const schedule = schedules[task.id];
-    const [deleteConfirmOpen, setDeleteConfirmOpen] = React.useState(false);
 
     const handleNativeDragStart = (event: React.DragEvent<HTMLButtonElement>) => {
         if (!nativeDragTaskId) return;
@@ -98,10 +91,10 @@ const TaskCard: React.FC<Required<Pick<TaskProps, "task" | "onEdit" | "onDelete"
     };
 
     return (
-        <>
         <TaskCardVisual
             ref={cardRef}
             task={task}
+            cardVariant={cardVariant}
             surface={surface}
             isDragging={isDragging}
             isOverlay={isOverlay}
@@ -114,23 +107,8 @@ const TaskCard: React.FC<Required<Pick<TaskProps, "task" | "onEdit" | "onDelete"
             dragHandleProps={dragHandleProps}
             onNativeDragStart={handleNativeDragStart}
             onOpen={() => onEdit(task.id, "view")}
-            onEdit={() => onEdit(task.id, "edit")}
-            onDelete={() => setDeleteConfirmOpen(true)}
             onUnschedule={() => unscheduleTask(task.id)}
-            onToggleStatus={(checked) => onToggleStatus(task.id, checked)}
-            isDeleting={isDeleting && deleteVariables === task.id}
+            onToggleStatus={(checked) => onToggleStatus?.(task.id, checked)}
         />
-        <DeleteTaskConfirmDialog
-            open={deleteConfirmOpen}
-            onOpenChange={setDeleteConfirmOpen}
-            taskTitle={task.title}
-            task={task}
-            isDeleting={isDeleting && deleteVariables === task.id}
-            onConfirm={() => {
-                onDelete(task.id);
-                setDeleteConfirmOpen(false);
-            }}
-        />
-        </>
     );
 };
