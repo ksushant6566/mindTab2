@@ -40,6 +40,7 @@ type TaskCardVisualProps = {
     hideDragHandle?: boolean;
     showCalendarActions?: boolean;
     hasSchedule?: boolean;
+    showProjectMetadata?: boolean;
     nativeDragTaskId?: string;
     dragHandleRef?: React.Ref<HTMLButtonElement>;
     dragHandleProps?: React.ButtonHTMLAttributes<HTMLButtonElement>;
@@ -61,6 +62,7 @@ export const TaskCardVisual = React.forwardRef<HTMLElement, TaskCardVisualProps>
     hideDragHandle = false,
     showCalendarActions = false,
     hasSchedule = false,
+    showProjectMetadata = true,
     nativeDragTaskId,
     dragHandleRef,
     dragHandleProps,
@@ -74,7 +76,7 @@ export const TaskCardVisual = React.forwardRef<HTMLElement, TaskCardVisualProps>
     readOnly = false,
 }, ref) {
     const completed = ["completed", "archived"].includes(task.status);
-    const projectName = task.project?.name || task.projectName;
+    const projectName = showProjectMetadata ? task.project?.name || task.projectName : null;
     const taskCode = task.key || task.code || `TASK-${String(task.id).slice(0, 4).toUpperCase()}`;
     const actionSpace = showCalendarActions && hasSchedule ? "wide" : "normal";
 
@@ -109,7 +111,7 @@ export const TaskCardVisual = React.forwardRef<HTMLElement, TaskCardVisualProps>
             )}
         >
             <div className={cn("grid grid-cols-[28px_minmax(0,1fr)] gap-2 p-3", surface === "list" && "gap-3 px-3.5 py-3")}>
-                <div className="flex flex-col items-center gap-2 pt-0.5">
+                <div className="flex flex-col items-center gap-2 ">
                     {hideDragHandle ? (
                         <span className="flex size-6 items-center justify-center rounded-[var(--r-2)] text-muted-foreground/60">
                             <CalendarDays className="h-3.5 w-3.5" />
@@ -222,16 +224,24 @@ function TaskMetadata({
 }) {
     const actionSpaceClassName = actionSpace === "wide" ? "pr-24" : "pr-16";
 
+    if (!projectName) {
+        return (
+            <div className={cn("mt-1 flex min-w-0 items-center gap-2 text-muted-foreground", actionSpaceClassName)}>
+                <CodeText className="shrink-0 uppercase tracking-[0.04em]">{taskCode}</CodeText>
+                <span className="shrink-0 text-[var(--text-4)]">·</span>
+                <PriorityBadge priority={priority} className="min-w-0 shrink" />
+                <span className="shrink-0 text-[var(--text-4)]">·</span>
+                <ImpactBadge impact={impact} className="min-w-0 shrink" />
+            </div>
+        );
+    }
+
     return (
         <div className={cn("grid min-w-0 gap-1 text-muted-foreground", surface === "list" ? "mt-1" : "mt-0.5")}>
             <div className="flex min-w-0 items-center gap-2">
                 <CodeText className="shrink-0 uppercase tracking-[0.04em]">{taskCode}</CodeText>
-                {projectName && (
-                    <>
-                        <span className="shrink-0 text-[var(--text-4)]">·</span>
-                        <Text as="span" variant="subtle" className="min-w-0 truncate lowercase">{projectName}</Text>
-                    </>
-                )}
+                <span className="shrink-0 text-[var(--text-4)]">·</span>
+                <Text as="span" variant="subtle" className="min-w-0 truncate lowercase">{projectName}</Text>
             </div>
             <div className={cn("flex min-w-0 items-center gap-2", actionSpaceClassName)}>
                 <PriorityBadge priority={priority} />

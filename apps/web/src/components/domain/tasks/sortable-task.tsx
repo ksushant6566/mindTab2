@@ -13,6 +13,7 @@ interface SortableTaskProps {
   isDeleting: boolean
   deleteVariables?: string
   surface?: 'list' | 'kanban'
+  showProjectMetadata?: boolean
 }
 
 export const SortableTask: React.FC<SortableTaskProps> = ({
@@ -24,6 +25,7 @@ export const SortableTask: React.FC<SortableTaskProps> = ({
   isDeleting,
   deleteVariables,
   surface = 'list',
+  showProjectMetadata = true,
 }) => {
   const {
     attributes,
@@ -52,6 +54,7 @@ export const SortableTask: React.FC<SortableTaskProps> = ({
         isDeleting={isDeleting}
         deleteVariables={deleteVariables}
         surface={surface}
+        showProjectMetadata={showProjectMetadata}
         isDragging={isDragging}
         dragHandleRef={setActivatorNodeRef}
         dragHandleProps={{ ...attributes, ...listeners }}

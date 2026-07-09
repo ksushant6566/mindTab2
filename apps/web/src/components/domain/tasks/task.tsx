@@ -21,6 +21,7 @@ interface TaskProps {
     dragHandleProps?: React.ButtonHTMLAttributes<HTMLButtonElement>;
     hideDragHandle?: boolean;
     showCalendarActions?: boolean;
+    showProjectMetadata?: boolean;
     nativeDragTaskId?: string;
 }
 
@@ -38,6 +39,7 @@ export const Task: React.FC<TaskProps> = ({
     dragHandleProps,
     hideDragHandle = false,
     showCalendarActions = false,
+    showProjectMetadata = true,
     nativeDragTaskId,
 }) => {
     return (
@@ -55,12 +57,13 @@ export const Task: React.FC<TaskProps> = ({
             dragHandleProps={dragHandleProps}
             hideDragHandle={hideDragHandle}
             showCalendarActions={showCalendarActions}
+            showProjectMetadata={showProjectMetadata}
             nativeDragTaskId={nativeDragTaskId}
         />
     );
 };
 
-const TaskCard: React.FC<Required<Pick<TaskProps, "task" | "onEdit" | "onDelete" | "onToggleStatus" | "isDeleting" | "surface" | "hideDragHandle" | "showCalendarActions">> & Pick<TaskProps, "deleteVariables" | "isDragging" | "isOverlay" | "dragHandleRef" | "dragHandleProps" | "nativeDragTaskId">> = ({
+const TaskCard: React.FC<Required<Pick<TaskProps, "task" | "onEdit" | "onDelete" | "onToggleStatus" | "isDeleting" | "surface" | "hideDragHandle" | "showCalendarActions" | "showProjectMetadata">> & Pick<TaskProps, "deleteVariables" | "isDragging" | "isOverlay" | "dragHandleRef" | "dragHandleProps" | "nativeDragTaskId">> = ({
     task,
     onEdit,
     onDelete,
@@ -74,6 +77,7 @@ const TaskCard: React.FC<Required<Pick<TaskProps, "task" | "onEdit" | "onDelete"
     dragHandleProps,
     hideDragHandle,
     showCalendarActions,
+    showProjectMetadata,
     nativeDragTaskId,
 }) => {
     const { schedules, unscheduleTask } = useCalendarSchedules();
@@ -103,6 +107,7 @@ const TaskCard: React.FC<Required<Pick<TaskProps, "task" | "onEdit" | "onDelete"
             isOverlay={isOverlay}
             hideDragHandle={hideDragHandle}
             showCalendarActions={showCalendarActions}
+            showProjectMetadata={showProjectMetadata}
             hasSchedule={!!schedule}
             nativeDragTaskId={nativeDragTaskId}
             dragHandleRef={dragHandleRef}

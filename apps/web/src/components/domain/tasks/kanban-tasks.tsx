@@ -155,6 +155,7 @@ export const KanbanTasks: React.FC<KanbanTasksProps> = ({
             isDeleting={isDeleting}
             deleteVariables={deleteVariables}
             surface="kanban"
+            showProjectMetadata={false}
         />
     ));
 
@@ -252,6 +253,7 @@ export const KanbanTasks: React.FC<KanbanTasksProps> = ({
                             isDeleting={isDeleting}
                             deleteVariables={deleteVariables}
                             surface="kanban"
+                            showProjectMetadata={false}
                             isOverlay
                         />
                     </div>

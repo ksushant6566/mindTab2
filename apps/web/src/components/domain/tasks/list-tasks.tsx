@@ -156,6 +156,7 @@ export const ListTasks: React.FC<ListTasksProps> = ({
             isDeleting={isDeleting}
             deleteVariables={deleteVariables}
             surface="list"
+            showProjectMetadata={false}
         />
     ));
 
@@ -205,6 +206,7 @@ export const ListTasks: React.FC<ListTasksProps> = ({
                             isDeleting={isDeleting}
                             deleteVariables={deleteVariables}
                             surface="list"
+                            showProjectMetadata={false}
                             isOverlay
                         />
                     </div>
