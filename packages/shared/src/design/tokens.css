@@ -28,8 +28,8 @@
   --command-shimmer-from: #0a0a0a;
   --command-shimmer-to: #1e2631;
 
-  --font-ui: "Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-  --font-code: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-ui: "Geist", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-code: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   --sans: var(--font-ui);
   --mono: var(--font-code);
 
@@ -186,9 +186,9 @@
   --type-label-size: 0.875rem;
   --type-label-weight: 400;
   --type-label-line: 1.25rem;
-  --type-title-size: 1.125rem;
+  --type-title-size: 1.5rem;
   --type-title-weight: 500;
-  --type-title-line: 1.5rem;
+  --type-title-line: 2rem;
   --type-meta-size: 0.75rem;
   --type-meta-weight: 400;
   --type-meta-line: 1rem;
@@ -208,50 +208,125 @@
   --tone-status-done: var(--green);
   --tone-status-archived: var(--text-4);
   --tone-danger: var(--rose);
+  --tone-task: var(--green);
   --tone-note: var(--amber);
   --tone-project: var(--cyan);
+  --tone-appearance: var(--violet);
+  --tone-calendar-now: var(--rose);
+  --tone-activity-1: color-mix(in srgb, var(--green) 24%, var(--bg-soft));
+  --tone-activity-2: color-mix(in srgb, var(--green) 42%, var(--bg-soft));
+  --tone-activity-3: color-mix(in srgb, var(--green) 64%, var(--bg-soft));
+  --tone-activity-4: var(--green);
+
+  --shadow-inset: 0 1px 0 rgba(255,255,255,0.04) inset;
+  --shadow-elevated: 0 18px 48px -32px rgba(0,0,0,0.65);
+  --shadow-card-hover: 0 10px 28px -26px rgba(0,0,0,0.85);
+  --shadow-popover: 0 18px 44px -34px rgba(0,0,0,0.95);
+  --shadow-command: 0 22px 72px -48px rgba(0,0,0,0.95);
+  --shadow-dialog: 0 20px 64px -48px rgba(0,0,0,0.95);
+  --shadow-drop-target: 0 0 0 1px var(--ink-line), 0 18px 46px -38px rgba(0,0,0,0.95);
+
+  --overlay-subtle: rgba(255,255,255,0.04);
+  --overlay-backdrop: rgba(0,0,0,0.8);
+
+  --prose-code-bg: var(--bg-soft);
+  --prose-code-text: var(--text);
+  --prose-pre-bg: var(--bg-elev);
+  --prose-pre-text: var(--text);
+  --prose-rule: var(--border);
+  --prose-quote-border: var(--border-2);
 }
 
 [data-font="codex"],
-[data-font="inter"] {
-  --font-ui: "Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-  --font-code: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
-  --sans: var(--font-ui);
-  --mono: var(--font-code);
-}
-
 [data-font="linear"],
-[data-font="geist"] {
-  --font-ui: "Inter", "Geist", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-  --font-code: "Geist Mono", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+[data-font="raycast"],
+[data-font="satoshi"],
+[data-font="geist"],
+[data-ui-font="geist"] {
+  --font-ui: "Geist", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   --sans: var(--font-ui);
-  --mono: var(--font-code);
 }
 
-[data-font="github"] {
-  --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-  --font-code: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+[data-ui-font="inter"],
+[data-font="inter"] {
+  --font-ui: Inter, "Inter Variable", "Geist", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   --sans: var(--font-ui);
-  --mono: var(--font-code);
 }
 
-[data-font="notion"] {
-  --font-ui: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-  --font-code: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
-  --sans: var(--font-ui);
-  --mono: var(--font-code);
-}
-
-[data-font="raycast"] {
-  --font-ui: "Geist", "Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-  --font-code: "Geist Mono", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
-  --sans: var(--font-ui);
-  --mono: var(--font-code);
-}
-
+[data-ui-font="system"],
+[data-font="github"],
+[data-font="notion"],
 [data-font="system"] {
   --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-  --font-code: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   --sans: var(--font-ui);
+}
+
+[data-ui-font="sf-pro"] {
+  --font-ui: "SF Pro Display", "SF Pro Text", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --sans: var(--font-ui);
+}
+
+[data-ui-font="helvetica"] {
+  --font-ui: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --sans: var(--font-ui);
+}
+
+[data-ui-font="avenir"] {
+  --font-ui: Avenir, "Avenir Next", "Helvetica Neue", Arial, sans-serif;
+  --sans: var(--font-ui);
+}
+
+[data-ui-font="ibm-plex"] {
+  --font-ui: "IBM Plex Sans", "Geist", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --sans: var(--font-ui);
+}
+
+[data-ui-font="roboto"] {
+  --font-ui: Roboto, "Geist", Arial, sans-serif;
+  --sans: var(--font-ui);
+}
+
+[data-ui-font="segoe"] {
+  --font-ui: "Segoe UI", "Geist", Arial, sans-serif;
+  --sans: var(--font-ui);
+}
+
+[data-code-font="system-mono"] {
+  --font-code: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --mono: var(--font-code);
+}
+
+[data-code-font="geist-mono"] {
+  --font-code: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --mono: var(--font-code);
+}
+
+[data-code-font="sf-mono"] {
+  --font-code: "SF Mono", SFMono-Regular, ui-monospace, Menlo, Monaco, Consolas, monospace;
+  --mono: var(--font-code);
+}
+
+[data-code-font="jetbrains"] {
+  --font-code: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --mono: var(--font-code);
+}
+
+[data-code-font="fira-code"] {
+  --font-code: "Fira Code", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --mono: var(--font-code);
+}
+
+[data-code-font="cascadia"] {
+  --font-code: "Cascadia Code", "Cascadia Mono", ui-monospace, Consolas, monospace;
+  --mono: var(--font-code);
+}
+
+[data-code-font="menlo"] {
+  --font-code: Menlo, Monaco, Consolas, ui-monospace, monospace;
+  --mono: var(--font-code);
+}
+
+[data-code-font="monaco"] {
+  --font-code: Monaco, Menlo, Consolas, ui-monospace, monospace;
   --mono: var(--font-code);
 }

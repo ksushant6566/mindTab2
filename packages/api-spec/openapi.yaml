@@ -387,10 +387,46 @@ paths:
                   type: boolean
                 theme:
                   type: string
-                  enum: [midnight, graphite, paper]
-                font:
+                  enum: [system, dark, light]
+                uiFont:
                   type: string
-                  enum: [codex, linear, github, notion, raycast, system]
+                  enum: [geist, inter, system, sf-pro, helvetica, avenir, ibm-plex, roboto, segoe]
+                codeFont:
+                  type: string
+                  enum: [system-mono, geist-mono, sf-mono, jetbrains, fira-code, cascadia, menlo, monaco]
+                appearanceTemplate:
+                  type: string
+                  enum: [absolutely, ayu, catppuccin, codex, dracula, everforest, github, gruvbox, linear, lobster, material, matrix, monokai, night-owl, nord, notion, one, oscurange, proof, rose-pine, sentry, solarized, temple, tokyo-night, vscode-plus]
+                accentColor:
+                  type: string
+                  pattern: "^#[0-9A-Fa-f]{6}$"
+                backgroundColor:
+                  type: string
+                  pattern: "^#[0-9A-Fa-f]{6}$"
+                foregroundColor:
+                  type: string
+                  pattern: "^#[0-9A-Fa-f]{6}$"
+                contrast:
+                  type: integer
+                  minimum: 0
+                  maximum: 100
+                fontSize:
+                  type: integer
+                  minimum: 12
+                  maximum: 20
+                radius:
+                  type: integer
+                  minimum: 0
+                  maximum: 20
+                weekStartDay:
+                  type: string
+                  enum: [monday, sunday, saturday]
+                timeFormat:
+                  type: string
+                  enum: [12h, 24h]
+                timeZone:
+                  type: string
+                  maxLength: 64
       responses:
         "200":
           description: Updated user
@@ -1467,7 +1503,24 @@ components:
     # ── User ───────────────────────────────────────────────────────────
     User:
       type: object
-      required: [id, email, onboardingCompleted, theme, font, createdAt]
+      required:
+        - id
+        - email
+        - onboardingCompleted
+        - theme
+        - uiFont
+        - codeFont
+        - appearanceTemplate
+        - accentColor
+        - backgroundColor
+        - foregroundColor
+        - contrast
+        - fontSize
+        - radius
+        - weekStartDay
+        - timeFormat
+        - timeZone
+        - createdAt
       properties:
         id:
           type: string
@@ -1487,12 +1540,59 @@ components:
           default: false
         theme:
           type: string
-          enum: [midnight, graphite, paper]
-          default: midnight
-        font:
+          enum: [system, dark, light]
+          default: system
+        uiFont:
           type: string
-          enum: [codex, linear, github, notion, raycast, system]
+          enum: [geist, inter, system, sf-pro, helvetica, avenir, ibm-plex, roboto, segoe]
+          default: geist
+        codeFont:
+          type: string
+          enum: [system-mono, geist-mono, sf-mono, jetbrains, fira-code, cascadia, menlo, monaco]
+          default: system-mono
+        appearanceTemplate:
+          type: string
+          enum: [absolutely, ayu, catppuccin, codex, dracula, everforest, github, gruvbox, linear, lobster, material, matrix, monokai, night-owl, nord, notion, one, oscurange, proof, rose-pine, sentry, solarized, temple, tokyo-night, vscode-plus]
           default: codex
+        accentColor:
+          type: string
+          pattern: "^#[0-9A-Fa-f]{6}$"
+          default: "#0169CC"
+        backgroundColor:
+          type: string
+          pattern: "^#[0-9A-Fa-f]{6}$"
+          default: "#111111"
+        foregroundColor:
+          type: string
+          pattern: "^#[0-9A-Fa-f]{6}$"
+          default: "#FCFCFC"
+        contrast:
+          type: integer
+          minimum: 0
+          maximum: 100
+          default: 60
+        fontSize:
+          type: integer
+          minimum: 12
+          maximum: 20
+          default: 14
+        radius:
+          type: integer
+          minimum: 0
+          maximum: 20
+          default: 7
+        weekStartDay:
+          type: string
+          enum: [monday, sunday, saturday]
+          default: monday
+        timeFormat:
+          type: string
+          enum: [12h, 24h]
+          default: 12h
+        timeZone:
+          type: string
+          maxLength: 64
+          default: auto
         createdAt:
           type: string
           format: date-time

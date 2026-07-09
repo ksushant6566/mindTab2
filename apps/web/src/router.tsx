@@ -6,6 +6,7 @@ import { Route as chatRoute } from "./routes/chat";
 import { Route as chatConversationRoute } from "./routes/chat.$conversationId";
 import { Route as vaultRoute } from "./routes/vault";
 import { Route as vaultDetailRoute } from "./routes/vault.$saveId";
+import { Route as settingsRoute } from "./routes/settings";
 import { Route as userProfileRoute } from "./routes/users/$userId";
 import { Route as googleCallbackRoute } from "./routes/auth/google/callback";
 
@@ -16,6 +17,7 @@ const routeTree = rootRoute.addChildren([
   chatConversationRoute,
   vaultRoute,
   vaultDetailRoute,
+  settingsRoute,
   userProfileRoute,
   googleCallbackRoute,
 ]);

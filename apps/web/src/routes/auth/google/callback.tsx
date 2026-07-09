@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { createRoute, useNavigate } from "@tanstack/react-router";
 import { Route as rootRoute } from "../../__root";
 import { useAuth } from "~/api/hooks/use-auth";
+import { FullscreenLoadingState } from "~/components/patterns";
 
 const AUTH_CHANNEL_NAME = "mindtab-auth";
 const AUTH_COMPLETE_MESSAGE = "mindtab:auth-complete";
@@ -62,12 +63,5 @@ function GoogleCallbackPage() {
     };
   }, [navigate, refreshSession]);
 
-  return (
-    <div className="flex h-screen items-center justify-center bg-background text-foreground">
-      <div className="flex flex-col items-center gap-4">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
-        <p className="text-sm text-muted-foreground">{message}</p>
-      </div>
-    </div>
-  );
+  return <FullscreenLoadingState label={message} />;
 }

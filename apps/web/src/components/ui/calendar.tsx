@@ -13,6 +13,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import * as React from "react";
 
 import { Button } from "~/components/ui/button";
+import { Heading, MetaText } from "~/components/ui/typography";
 import { cn } from "~/lib/utils";
 
 type CalendarProps = {
@@ -43,9 +44,9 @@ export function Calendar({
     };
 
     return (
-        <div className={cn("w-[284px] rounded-[var(--r-2)] border border-border bg-popover p-3 text-popover-foreground shadow-[0_18px_44px_-34px_rgba(0,0,0,0.95)]", className)}>
+        <div className={cn("w-[284px] rounded-[var(--r-2)] border border-border bg-popover p-3 text-popover-foreground shadow-[var(--shadow-popover)]", className)}>
             <div className="mb-3 flex items-center justify-between gap-2">
-                <div className="text-sm font-semibold text-foreground">{format(visibleMonth, "MMMM yyyy")}</div>
+                <Heading as="div" variant="panel">{format(visibleMonth, "MMMM yyyy")}</Heading>
                 <div className="flex items-center gap-1">
                     <Button
                         type="button"
@@ -71,9 +72,9 @@ export function Calendar({
             </div>
             <div className="grid grid-cols-7 gap-1 text-center">
                 {["S", "M", "T", "W", "T", "F", "S"].map((day, index) => (
-                    <div key={`${day}-${index}`} className="h-7 text-[11px] font-medium leading-7 text-muted-foreground">
+                    <MetaText as="div" key={`${day}-${index}`} className="flex h-7 items-center justify-center">
                         {day}
-                    </div>
+                    </MetaText>
                 ))}
                 {days.map((day) => {
                     const selectedDay = selected && isSameDay(day, selected);
@@ -83,7 +84,7 @@ export function Calendar({
                             type="button"
                             onClick={() => onSelect?.(day)}
                             className={cn(
-                                "flex h-8 w-8 items-center justify-center rounded-[var(--r-2)] text-sm text-foreground transition-colors hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
+                                "flex h-8 w-8 items-center justify-center rounded-[var(--r-2)] text-[length:var(--type-body-size)] font-[var(--type-body-weight)] leading-[var(--type-body-line)] text-foreground transition-colors hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
                                 !isSameMonth(day, visibleMonth) && "text-muted-foreground/60",
                                 selectedDay && "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground"
                             )}

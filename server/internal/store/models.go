@@ -159,6 +159,17 @@ type User struct {
 	PasswordHash        pgtype.Text        `json:"password_hash"`
 	Theme               string             `json:"theme"`
 	Font                string             `json:"font"`
+	AppearanceTemplate  string             `json:"appearance_template"`
+	AccentColor         string             `json:"accent_color"`
+	BackgroundColor     string             `json:"background_color"`
+	ForegroundColor     string             `json:"foreground_color"`
+	Contrast            int32              `json:"contrast"`
+	FontSize            int32              `json:"font_size"`
+	WeekStartDay        string             `json:"week_start_day"`
+	TimeFormat          string             `json:"time_format"`
+	TimeZone            string             `json:"time_zone"`
+	CodeFont            string             `json:"code_font"`
+	Radius              int32              `json:"radius"`
 }
 
 type VerificationToken struct {

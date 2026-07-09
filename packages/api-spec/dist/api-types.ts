@@ -720,15 +720,49 @@ export interface components {
             /** @default false */
             onboardingCompleted: boolean;
             /**
-             * @default midnight
+             * @default system
              * @enum {string}
              */
-            theme: "midnight" | "graphite" | "paper";
+            theme: "system" | "dark" | "light";
+            /**
+             * @default geist
+             * @enum {string}
+             */
+            uiFont: "geist" | "inter" | "system" | "sf-pro" | "helvetica" | "avenir" | "ibm-plex" | "roboto" | "segoe";
+            /**
+             * @default system-mono
+             * @enum {string}
+             */
+            codeFont: "system-mono" | "geist-mono" | "sf-mono" | "jetbrains" | "fira-code" | "cascadia" | "menlo" | "monaco";
             /**
              * @default codex
              * @enum {string}
              */
-            font: "codex" | "linear" | "github" | "notion" | "raycast" | "system";
+            appearanceTemplate: "absolutely" | "ayu" | "catppuccin" | "codex" | "dracula" | "everforest" | "github" | "gruvbox" | "linear" | "lobster" | "material" | "matrix" | "monokai" | "night-owl" | "nord" | "notion" | "one" | "oscurange" | "proof" | "rose-pine" | "sentry" | "solarized" | "temple" | "tokyo-night" | "vscode-plus";
+            /** @default #0169CC */
+            accentColor: string;
+            /** @default #111111 */
+            backgroundColor: string;
+            /** @default #FCFCFC */
+            foregroundColor: string;
+            /** @default 60 */
+            contrast: number;
+            /** @default 14 */
+            fontSize: number;
+            /** @default 7 */
+            radius: number;
+            /**
+             * @default monday
+             * @enum {string}
+             */
+            weekStartDay: "monday" | "sunday" | "saturday";
+            /**
+             * @default 12h
+             * @enum {string}
+             */
+            timeFormat: "12h" | "24h";
+            /** @default auto */
+            timeZone: string;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -1503,9 +1537,24 @@ export interface operations {
                 "application/json": {
                     onboardingCompleted?: boolean;
                     /** @enum {string} */
-                    theme?: "midnight" | "graphite" | "paper";
+                    theme?: "system" | "dark" | "light";
                     /** @enum {string} */
-                    font?: "codex" | "linear" | "github" | "notion" | "raycast" | "system";
+                    uiFont?: "geist" | "inter" | "system" | "sf-pro" | "helvetica" | "avenir" | "ibm-plex" | "roboto" | "segoe";
+                    /** @enum {string} */
+                    codeFont?: "system-mono" | "geist-mono" | "sf-mono" | "jetbrains" | "fira-code" | "cascadia" | "menlo" | "monaco";
+                    /** @enum {string} */
+                    appearanceTemplate?: "absolutely" | "ayu" | "catppuccin" | "codex" | "dracula" | "everforest" | "github" | "gruvbox" | "linear" | "lobster" | "material" | "matrix" | "monokai" | "night-owl" | "nord" | "notion" | "one" | "oscurange" | "proof" | "rose-pine" | "sentry" | "solarized" | "temple" | "tokyo-night" | "vscode-plus";
+                    accentColor?: string;
+                    backgroundColor?: string;
+                    foregroundColor?: string;
+                    contrast?: number;
+                    fontSize?: number;
+                    radius?: number;
+                    /** @enum {string} */
+                    weekStartDay?: "monday" | "sunday" | "saturday";
+                    /** @enum {string} */
+                    timeFormat?: "12h" | "24h";
+                    timeZone?: string;
                 };
             };
         };

@@ -1,5 +1,7 @@
 import { Suspense, lazy, useEffect, useState } from "react";
 import { useAuth } from "~/api/hooks/use-auth";
+import { WorkstationFrame } from "~/components/layout";
+import { FullscreenLoadingState } from "~/components/patterns";
 
 const Auth = lazy(() => import("~/components/auth"));
 const Home = lazy(() => import("~/components/home"));
@@ -15,9 +17,7 @@ const Onboarding = lazy(() =>
 );
 
 const PageFallback = () => (
-  <div className="flex h-screen items-center justify-center bg-background">
-    <div className="h-8 w-8 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
-  </div>
+  <FullscreenLoadingState />
 );
 
 export function IndexPage() {
@@ -62,17 +62,9 @@ export function IndexPage() {
 
   return (
     <Suspense fallback={<PageFallback />}>
-      <main className="flex h-screen w-full overflow-hidden bg-background">
-        <AppSidebar />
-        <div className="flex min-w-0 flex-1 flex-col items-center overflow-hidden">
-          <div className="mx-auto flex w-full max-w-screen-2xl shrink-0 flex-col items-center px-10 pb-4 pt-6">
-            <Header />
-          </div>
-          <div className="mx-auto flex min-h-0 w-full max-w-screen-2xl flex-1 justify-center px-10 pb-6">
-            <Home />
-          </div>
-        </div>
-      </main>
+      <WorkstationFrame sidebar={<AppSidebar />} header={<Header />}>
+        <Home />
+      </WorkstationFrame>
     </Suspense>
   );
 }

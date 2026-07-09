@@ -82,7 +82,18 @@ type userJSON struct {
 	Image               string `json:"image"`
 	OnboardingCompleted bool   `json:"onboardingCompleted"`
 	Theme               string `json:"theme"`
-	Font                string `json:"font"`
+	UIFont              string `json:"uiFont"`
+	CodeFont            string `json:"codeFont"`
+	AppearanceTemplate  string `json:"appearanceTemplate"`
+	AccentColor         string `json:"accentColor"`
+	BackgroundColor     string `json:"backgroundColor"`
+	ForegroundColor     string `json:"foregroundColor"`
+	Contrast            int32  `json:"contrast"`
+	FontSize            int32  `json:"fontSize"`
+	Radius              int32  `json:"radius"`
+	WeekStartDay        string `json:"weekStartDay"`
+	TimeFormat          string `json:"timeFormat"`
+	TimeZone            string `json:"timeZone"`
 }
 
 func toUserJSON(u store.User) userJSON {
@@ -92,22 +103,102 @@ func toUserJSON(u store.User) userJSON {
 		Email:               u.Email,
 		Image:               u.Image.String,
 		OnboardingCompleted: u.OnboardingCompleted,
-		Theme:               u.Theme,
-		Font:                normalizeUserFont(u.Font),
+		Theme:               normalizeUserTheme(u.Theme),
+		UIFont:              normalizeUserFont(u.Font),
+		CodeFont:            normalizeCodeFont(u.CodeFont),
+		AppearanceTemplate:  normalizeAppearanceTemplate(u.AppearanceTemplate),
+		AccentColor:         normalizeUserColor(u.AccentColor, "#0169CC"),
+		BackgroundColor:     normalizeUserColor(u.BackgroundColor, "#111111"),
+		ForegroundColor:     normalizeUserColor(u.ForegroundColor, "#FCFCFC"),
+		Contrast:            normalizeIntRange(u.Contrast, 60, 0, 100),
+		FontSize:            normalizeIntRange(u.FontSize, 14, 12, 20),
+		Radius:              normalizeIntRange(u.Radius, 7, 0, 20),
+		WeekStartDay:        normalizeWeekStartDay(u.WeekStartDay),
+		TimeFormat:          normalizeTimeFormat(u.TimeFormat),
+		TimeZone:            normalizeTimeZone(u.TimeZone),
+	}
+}
+
+func normalizeUserTheme(theme string) string {
+	switch theme {
+	case "system", "dark", "light":
+		return theme
+	case "paper":
+		return "light"
+	default:
+		return "dark"
 	}
 }
 
 func normalizeUserFont(font string) string {
 	switch font {
-	case "", "inter":
-		return "codex"
-	case "geist":
-		return "raycast"
-	case "codex", "linear", "github", "notion", "raycast", "system":
+	case "geist", "inter", "system", "sf-pro", "helvetica", "avenir", "ibm-plex", "roboto", "segoe":
 		return font
+	case "github", "notion":
+		return "system"
+	case "codex", "linear", "raycast", "satoshi":
+		return "geist"
+	default:
+		return "geist"
+	}
+}
+
+func normalizeCodeFont(font string) string {
+	switch font {
+	case "system-mono", "geist-mono", "sf-mono", "jetbrains", "fira-code", "cascadia", "menlo", "monaco":
+		return font
+	default:
+		return "system-mono"
+	}
+}
+
+func normalizeAppearanceTemplate(template string) string {
+	switch template {
+	case "absolutely", "ayu", "catppuccin", "codex", "dracula", "everforest", "github", "gruvbox", "linear", "lobster", "material", "matrix", "monokai", "night-owl", "nord", "notion", "one", "oscurange", "proof", "rose-pine", "sentry", "solarized", "temple", "tokyo-night", "vscode-plus":
+		return template
 	default:
 		return "codex"
 	}
+}
+
+func normalizeUserColor(color string, fallback string) string {
+	if _, ok := normalizeHexColor(color); !ok {
+		return fallback
+	}
+	normalized, _ := normalizeHexColor(color)
+	return normalized
+}
+
+func normalizeIntRange(value int32, fallback int32, min int32, max int32) int32 {
+	if value < min || value > max {
+		return fallback
+	}
+	return value
+}
+
+func normalizeWeekStartDay(day string) string {
+	switch day {
+	case "monday", "sunday", "saturday":
+		return day
+	default:
+		return "monday"
+	}
+}
+
+func normalizeTimeFormat(format string) string {
+	switch format {
+	case "12h", "24h":
+		return format
+	default:
+		return "12h"
+	}
+}
+
+func normalizeTimeZone(timeZone string) string {
+	if timeZone == "" || len(timeZone) > 64 {
+		return "auto"
+	}
+	return timeZone
 }
 
 func (h *AuthHandler) issueGoogleSession(ctx context.Context, idToken string) (*issuedAuthSession, int, string, error) {

@@ -64,5 +64,6 @@ export const searchNotesQueryOptions = (query: string) => _searchNotesQueryOptio
 
 // Auth stays web-specific
 export { useAuth } from "./use-auth";
+export type { User } from "./use-auth";
 export { conversationsQueryOptions, conversationMessagesQueryOptions } from "./use-chat";
 export { savesQueryOptions, saveQueryOptions } from "./use-saves";
