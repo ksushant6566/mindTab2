@@ -132,7 +132,6 @@ export function TodayEventsPanel() {
             .sort((left, right) => left.start.getTime() - right.start.getTime());
     }, [dayEnd, dayStart, schedules, taskById]);
     const currentMinute = getCalendarMinuteOfDay(now);
-    const currentTimeTop = (currentMinute / 60) * TIMELINE_HOUR_HEIGHT;
     const createSlotScheduleDraft = useMemo(
         () => createSlot ? createEnabledScheduleDraft(parseISO(createSlot.startAt), parseISO(createSlot.endAt)) : undefined,
         [createSlot]
@@ -316,20 +315,6 @@ export function TodayEventsPanel() {
                                 dayEnd={dayEnd}
                                 onOpen={() => openTaskDialog(item.task)}
                             />
-                        }
-                        emptyState={
-                            <div
-                                className="pointer-events-none absolute inset-x-3 px-3 py-3 text-center"
-                                style={{ top: Math.max(16, currentTimeTop + 18), left: TIMELINE_GUTTER_WIDTH + 8 }}
-                            >
-                                <CalendarDays className="mx-auto h-5 w-5 text-muted-foreground" />
-                                <Heading as="div" variant="panel" className="mt-2">
-                                    Nothing scheduled
-                                </Heading>
-                                <Text variant="muted" className="mt-1">
-                                    Open Calendar to plan the day.
-                                </Text>
-                            </div>
                         }
                     />
                 )}
