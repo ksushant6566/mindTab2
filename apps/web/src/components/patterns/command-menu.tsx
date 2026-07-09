@@ -294,7 +294,7 @@ export const CommandMenu = () => {
             <Button
                 size={"sm"}
                 variant="outline"
-                className="command-trigger-shimmer flex h-9 w-56 items-center justify-between gap-2 rounded-md text-[length:var(--type-body-size)] text-muted-foreground transition-colors"
+                className="command-trigger-shimmer flex h-9 w-64 items-center justify-between gap-2 rounded-md text-[length:var(--type-body-size)] text-muted-foreground transition-colors"
                 style={{
                     backgroundImage:
                         "linear-gradient(110deg, var(--command-shimmer-from), 45%, var(--command-shimmer-to), 55%, var(--command-shimmer-from))",

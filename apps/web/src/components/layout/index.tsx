@@ -29,6 +29,17 @@ export function HeaderBar({ children }: { children: React.ReactNode }) {
   return <div className="flex h-10 w-full items-center justify-between gap-6">{children}</div>;
 }
 
+export function HeaderMeta({ children, ...props }: React.ComponentProps<"time">) {
+  return (
+    <time
+      className="hidden whitespace-nowrap text-[length:var(--type-body-size)] font-[var(--type-label-weight)] leading-[var(--type-body-line)] text-foreground md:inline"
+      {...props}
+    >
+      {children}
+    </time>
+  );
+}
+
 type PageProps = DivProps & {
   width?: "full" | "content" | "wide";
 };

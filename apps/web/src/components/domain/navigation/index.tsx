@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Link } from "@tanstack/react-router";
-import { Box, ChevronDown, ChevronRight, FileText, Folder, MessageSquare, Pin } from "lucide-react";
+import { ChevronDown, ChevronRight, FileText, Folder, FolderOpen, MessageSquare, Pin } from "lucide-react";
 import { Heading, MetaText, Text } from "~/components/ui/typography";
 import { Inline, ScrollPanel, Stack } from "~/components/layout";
 import { cn } from "~/lib/utils";
@@ -298,7 +298,7 @@ export function SidebarProjectGroup({
           onClick={onToggle}
           className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-l-[var(--r-3)] px-2 text-left text-[length:var(--type-body-size)] font-[var(--type-body-weight)] leading-[var(--type-body-line)]"
         >
-          <Box className="h-4 w-4 shrink-0 text-muted-foreground" />
+          <FolderOpen className="h-4 w-4 shrink-0 text-muted-foreground" />
           <span className="min-w-0 flex-1 truncate">{name || "Untitled project"}</span>
           <span className="flex h-4 w-4 shrink-0 items-center justify-center opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
             {open ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}

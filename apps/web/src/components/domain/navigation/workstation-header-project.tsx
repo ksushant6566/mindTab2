@@ -1,7 +1,8 @@
 import { useMemo } from "react";
 import { useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { FolderOpen } from "lucide-react";
+import { CalendarDays, FolderOpen, MessageSquare, Shield } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { EActiveLayout, useAppStore } from "@mindtab/core";
 import { conversationsQueryOptions, projectsStatsQueryOptions } from "~/api/hooks";
 import { Inline } from "~/components/layout";
@@ -47,12 +48,14 @@ export function WorkstationHeaderProject() {
   }, [contextProjectId, projectsData]);
 
   const projectLabel = activeProject?.name || (contextProjectId ? "Selected project" : null);
-  const pageLabel = getPageLabel(pathname, activeElement, activeConversation);
+  const page = getPageContext(pathname, activeElement, activeConversation);
+  const pageLabel = page?.label ?? null;
   const showProjectLabel = Boolean(projectLabel || (pathname === "/" && activeElement !== EActiveLayout.Calendar));
+  const Icon = showProjectLabel ? FolderOpen : page?.icon;
 
   return (
     <Inline gap="sm" className="min-w-0">
-      <FolderOpen className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+      {Icon ? <Icon className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" /> : null}
       {showProjectLabel ? (
         <Heading as="div" variant="panel" className="truncate">
           {projectLabel || "All projects"}
@@ -63,7 +66,7 @@ export function WorkstationHeaderProject() {
           <Heading as="div" variant="panel" className="shrink-0 text-muted-foreground">
             /
           </Heading>
-          <Heading as="div" variant="panel" className="truncate text-muted-foreground">
+          <Heading as="div" variant="panel" className="truncate">
             {pageLabel}
           </Heading>
         </>
@@ -86,15 +89,15 @@ function getConversationProjectId(conversation: ConversationRecord | null) {
   return conversation?.projectId ?? conversation?.project_id ?? null;
 }
 
-function getPageLabel(pathname: string, activeElement: string, conversation: ConversationRecord | null) {
+function getPageContext(pathname: string, activeElement: string, conversation: ConversationRecord | null): { label: string; icon: LucideIcon } | null {
   if (pathname === "/") {
-    if (activeElement === EActiveLayout.Tasks) return "tasks";
-    if (activeElement === EActiveLayout.Notes) return "notes";
-    if (activeElement === EActiveLayout.Calendar) return "calendar";
+    if (activeElement === EActiveLayout.Tasks) return { label: "Tasks", icon: FolderOpen };
+    if (activeElement === EActiveLayout.Notes) return { label: "Notes", icon: FolderOpen };
+    if (activeElement === EActiveLayout.Calendar) return { label: "Calendar", icon: CalendarDays };
   }
 
-  if (pathname === "/chat") return "new chat";
-  if (pathname.startsWith("/chat/")) return conversation?.title || "chat";
-  if (pathname === "/vault" || pathname.startsWith("/vault/")) return "vault";
+  if (pathname === "/chat") return { label: "New Chat", icon: MessageSquare };
+  if (pathname.startsWith("/chat/")) return { label: conversation?.title || "Chat", icon: MessageSquare };
+  if (pathname === "/vault" || pathname.startsWith("/vault/")) return { label: "Vault", icon: Shield };
   return null;
 }
