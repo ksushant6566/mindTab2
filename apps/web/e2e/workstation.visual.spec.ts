@@ -73,7 +73,11 @@ test.describe("authenticated workstation visual checks", () => {
     await expect(page.getByRole("option", { name: /Paper/i })).toBeVisible();
     await page.keyboard.press("Escape");
 
+    const darkModeSaved = page.waitForResponse((response) =>
+      response.url().endsWith("/users/me") && response.request().method() === "PATCH" && response.ok()
+    );
     await page.getByRole("button", { name: "Dark", exact: true }).click();
+    await darkModeSaved;
     await page.getByRole("combobox").first().click();
     await expect(page.getByRole("option", { name: /Graphite/i })).toBeVisible();
     await expect(page.getByRole("option", { name: /Midnight/i })).toBeVisible();
@@ -111,7 +115,7 @@ test.describe("authenticated workstation visual checks", () => {
     const { context, page } = await createAuthenticatedPage(browser, request);
 
     await page.goto("/");
-    await page.getByText("Review workstation sidebar").click();
+    await page.getByRole("button", { name: /Review workstation sidebar TASK-/i }).click();
     await expect(page.getByRole("dialog")).toContainText(/Review workstation sidebar/i);
     await expect(page).toHaveScreenshot("task-dialog.png", workstationScreenshotOptions);
 
@@ -122,6 +126,7 @@ test.describe("authenticated workstation visual checks", () => {
     const { context, page } = await createAuthenticatedPage(browser, request);
 
     await page.goto("/");
+    await page.getByRole("button", { name: "E2E Launch Plan", exact: true }).click();
     await page.getByRole("button", { name: "Notes" }).click();
     await expect(page.locator("body")).toContainText(/Workstation audit notes/i);
     await expect(page).toHaveScreenshot("notes-workspace.png", workstationScreenshotOptions);
@@ -135,7 +140,7 @@ test.describe("authenticated workstation visual checks", () => {
     await page.goto("/");
     await page.getByRole("button", { name: "Calendar", exact: true }).click();
     await expect(page.locator("body")).toContainText(/Unscheduled|Today|Week|Month/i);
-    await page.getByText("12AM", { exact: true }).scrollIntoViewIfNeeded();
+    await page.getByRole("button", { name: /July 8 at 12 AM/i }).scrollIntoViewIfNeeded();
     await expect(page).toHaveScreenshot("calendar-workspace.png", workstationScreenshotOptions);
 
     await context.close();

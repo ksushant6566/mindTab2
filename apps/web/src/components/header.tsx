@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react'
 import { CommandMenu } from './command-menu'
-import Streak from './streak'
 import { HeaderBar, HeaderMeta, Inline } from '~/components/layout'
 import { WorkstationHeaderProject } from '~/components/domain/navigation/workstation-header-project'
+import { WorkstationSidebarControl } from '~/components/domain/navigation/workstation-sidebar-control'
+import { useWorkstationNavigation } from '~/lib/workstation-navigation'
 
 export const Header = () => {
+  const { isSidebarPinned } = useWorkstationNavigation()
   const [isHydrated, setIsHydrated] = useState(false)
   const [now, setNow] = useState(() => new Date())
 
@@ -20,14 +22,16 @@ export const Header = () => {
   if (!isHydrated) return null
 
   return (
-    <HeaderBar>
-      <WorkstationHeaderProject />
-      <Inline gap="lg">
-        <CommandMenu />
-        <HeaderDateTime date={now} />
-        <Streak />
-      </Inline>
-    </HeaderBar>
+    <>
+      <WorkstationSidebarControl />
+      <HeaderBar navigationInset={!isSidebarPinned}>
+        <WorkstationHeaderProject />
+        <Inline gap="lg">
+          <CommandMenu />
+          <HeaderDateTime date={now} />
+        </Inline>
+      </HeaderBar>
+    </>
   )
 }
 

@@ -1,8 +1,9 @@
 import React, { Suspense, useEffect, useMemo, useState } from "react";
 import { LoadingState } from "~/components/patterns";
-import { useAppStore, EActiveLayout } from "@mindtab/core";
+import { EActiveLayout } from "@mindtab/core";
 import type { ActiveLayout } from "@mindtab/core";
 import { TodayEventsPanel } from "~/components/domain/calendar/today-events-panel";
+import { useDashboardNavigation } from "~/lib/dashboard-navigation";
 
 const Tasks = React.lazy(() =>
     import("~/components/domain/tasks/tasks").then((module) => ({ default: module.Tasks }))
@@ -57,10 +58,7 @@ export default function Component() {
         () => new Set([EActiveLayout.Tasks as ActiveLayout])
     );
 
-    const {
-        activeElement,
-        setActiveElement: setStoreActiveElement,
-    } = useAppStore();
+    const { activeElement } = useDashboardNavigation();
 
     const layout = useMemo(() => getDashboardLayout(), []);
     const isCalendarActive = activeElement === EActiveLayout.Calendar;
@@ -78,15 +76,6 @@ export default function Component() {
             return new Set(visited).add(activeCol1Element.title);
         });
     }, [activeCol1Element.title]);
-
-    // Initialize activeElement if missing or left over from retired layouts.
-    useEffect(() => {
-        const activeColumn = layout[layout.activeColumn as "col1" | "col2"];
-        const defaultElement = activeColumn.elements[0]!.title;
-        if (!activeColumn.elements.some(({ title }) => title === activeElement)) {
-            setStoreActiveElement(defaultElement);
-        }
-    }, [activeElement, layout, setStoreActiveElement]);
 
     if (!isHydrated) return null;
 

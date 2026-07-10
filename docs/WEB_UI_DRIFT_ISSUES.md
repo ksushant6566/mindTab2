@@ -342,7 +342,6 @@ Several web components still use raw Tailwind palette colors instead of semantic
 
 Examples found:
 
-- `bg-red-500` and `bg-green-500` in `apps/web/src/components/patterns/streak.tsx`
 - Emerald scales in `apps/web/src/components/patterns/activity-chart.tsx`
 - Red/yellow/green/emerald illustrative colors in onboarding components
 - `bg-gray-200` and `text-red-600` in `apps/web/src/components/domain/projects/project-tabs.tsx`
@@ -363,8 +362,6 @@ Replace raw product UI colors with semantic tokens.
 
 Examples:
 
-- Streak active dot: `bg-[var(--tone-status-done)]`
-- Streak inactive dot: `bg-[var(--tone-danger)]` or a muted token, depending on desired meaning
 - Activity chart: introduce semantic activity intensity tokens such as `--tone-activity-1` through `--tone-activity-4`
 - Destructive project actions: `text-[var(--tone-danger)]`
 
@@ -394,7 +391,6 @@ Expected result:
 
 Browser verify:
 
-- Streak indicator.
 - Activity chart.
 - Onboarding screens.
 - Destructive project/menu actions.
@@ -663,4 +659,3 @@ corepack pnpm --filter @mindtab/web audit:typography
 corepack pnpm --filter @mindtab/web build
 corepack pnpm --filter @mindtab/web e2e
 ```
-

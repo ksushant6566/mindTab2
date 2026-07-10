@@ -219,12 +219,6 @@ main { position: relative; z-index: 1; }
   margin-bottom: 8px;
   display: flex; align-items: center; gap: 10px;
 }
-.dash-date .streak {
-  display: inline-flex; align-items: center; gap: 5px;
-  padding: 3px 8px; border-radius: var(--r-pill);
-  background: var(--ink-soft); border: 1px solid var(--ink-line);
-  color: var(--ink); font-weight: 500;
-}
 .dash-time {
   font-size: 96px; font-weight: 500; letter-spacing: -0.05em;
   line-height: 0.88;
@@ -382,7 +376,7 @@ main { position: relative; z-index: 1; }
 .graph-legend .d { width: 8px; height: 8px; border-radius: 50%; }
 
 .stats-strip {
-  display: grid; grid-template-columns: repeat(5, 1fr);
+  display: grid; grid-template-columns: repeat(4, 1fr);
   gap: 1px; background: var(--border);
   border: 1px solid var(--border); border-radius: var(--r-4); overflow: hidden;
 }

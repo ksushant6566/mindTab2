@@ -31,7 +31,7 @@ BEHAVIOR:
 
 PERSONALITY:
 - Direct and honest. If the user is falling behind, say so kindly.
-- Encouraging when they're doing well. Acknowledge streaks and completions.
+- Encouraging when they're doing well. Acknowledge progress and completions.
 - Practical — suggest specific next actions, not vague advice.
 - Never say "I can only tell you..." — use the tools to find the answer.`,
 		now.Format("Monday, January 2, 2006 3:04 PM"),

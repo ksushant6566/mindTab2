@@ -179,7 +179,6 @@ function buildReaderHtml(content: string): string {
         var parts = [];
         if (d.status) parts.push(d.status.replace(/_/g, ' '));
         if (d.priority) parts.push(d.priority.toUpperCase());
-        if (d.streak !== undefined) parts.push('🔥 ' + d.streak + 'd');
         if (d.projectName) parts.push('📁 ' + d.projectName);
         if (parts.length > 0) {
           var meta = document.createElement('div');

@@ -1,5 +1,6 @@
 import * as React from "react";
 import { cn } from "~/lib/utils";
+import { useWorkstationNavigation } from "~/lib/workstation-navigation";
 
 type DivProps = React.HTMLAttributes<HTMLDivElement>;
 
@@ -11,13 +12,55 @@ type WorkstationFrameProps = {
 
 export function WorkstationFrame({ sidebar, header, children }: WorkstationFrameProps) {
   return (
-    <main className="flex h-screen w-full overflow-hidden bg-background">
-      {sidebar}
-      <div className="flex min-w-0 flex-1 flex-col items-center overflow-hidden">
-        <div className="mx-auto flex w-full max-w-screen-2xl shrink-0 flex-col items-center px-10 pb-6 pt-5">
-          {header}
+    <WorkstationFrameContent sidebar={sidebar} header={header}>
+      {children}
+    </WorkstationFrameContent>
+  );
+}
+
+function WorkstationFrameContent({ sidebar, header, children }: WorkstationFrameProps) {
+  const {
+    isSidebarPinned,
+    isSidebarPreviewVisible,
+    keepSidebarPreviewOpen,
+    scheduleSidebarPreviewClose,
+  } = useWorkstationNavigation();
+  const isSidebarVisible = isSidebarPinned || isSidebarPreviewVisible;
+  const sidebarState = isSidebarPinned ? "pinned" : isSidebarPreviewVisible ? "preview" : "closed";
+  const inactiveSidebarProps = !isSidebarVisible ? ({ inert: "" } as Record<string, string>) : {};
+
+  return (
+    <main className="relative flex h-screen w-full overflow-hidden bg-background">
+      <div
+        aria-hidden="true"
+        className={cn(
+          "h-screen shrink-0 transition-[width] duration-200 ease-out",
+          isSidebarPinned ? "w-[300px]" : "w-0",
+        )}
+      />
+      <div
+        data-testid="sidebar-presentation"
+        data-state={sidebarState}
+        aria-hidden={!isSidebarVisible}
+        {...inactiveSidebarProps}
+        className={cn(
+          "absolute inset-y-0 left-0 z-40 h-screen w-[300px] transition-transform duration-200 ease-out",
+          isSidebarVisible
+            ? "translate-x-0 shadow-[var(--shadow-elevated)]"
+            : "pointer-events-none -translate-x-full",
+        )}
+        onMouseEnter={keepSidebarPreviewOpen}
+        onMouseLeave={scheduleSidebarPreviewClose}
+      >
+        {sidebar}
+      </div>
+      <div data-testid="workstation-content" className="flex min-w-0 flex-1 flex-col items-center overflow-hidden">
+        <div className="w-full shrink-0">
+          <div className="mx-auto flex w-full max-w-screen-2xl flex-col items-center px-10 py-3">
+            {header}
+          </div>
         </div>
-        <div className="mx-auto flex min-h-0 w-full max-w-screen-2xl flex-1 justify-center px-10 pb-6">
+        <div className="mx-auto flex min-h-0 w-full max-w-screen-2xl flex-1 justify-center px-10 pb-6 pt-4">
           {children}
         </div>
       </div>
@@ -25,8 +68,17 @@ export function WorkstationFrame({ sidebar, header, children }: WorkstationFrame
   );
 }
 
-export function HeaderBar({ children }: { children: React.ReactNode }) {
-  return <div className="flex h-10 w-full items-center justify-between gap-6">{children}</div>;
+export function HeaderBar({ children, navigationInset = false }: { children: React.ReactNode; navigationInset?: boolean }) {
+  return (
+    <div
+      className={cn(
+        "flex h-10 w-full items-center justify-between gap-6 transition-[padding] duration-200 ease-out motion-reduce:transition-none",
+        navigationInset && "pl-24",
+      )}
+    >
+      {children}
+    </div>
+  );
 }
 
 export function HeaderMeta({ children, ...props }: React.ComponentProps<"time">) {

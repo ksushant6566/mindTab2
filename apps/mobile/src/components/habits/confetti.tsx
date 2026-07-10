@@ -16,8 +16,8 @@ const COLORS = [
   colors.feedback.warning,
   "#f472b6",
   colors.status.active,
-  colors.streak.purple,
-  colors.streak.orange,
+  colors.accent.violet,
+  colors.priority.p2,
 ];
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 

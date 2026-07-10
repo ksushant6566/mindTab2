@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { ArrowLeft, ExternalLink, FileText, Image, Trash2, Video } from "lucide-react";
@@ -113,6 +113,7 @@ export function WebVaultPage() {
 
 export function WebVaultDetailPage({ saveId }: { saveId: string }) {
     const queryClient = useQueryClient();
+    const navigate = useNavigate();
     const { data, isLoading } = useQuery(saveQueryOptions(saveId));
     const save = data as SaveRecord | undefined;
     const deleteMutation = useMutation({
@@ -124,8 +125,7 @@ export function WebVaultDetailPage({ saveId }: { saveId: string }) {
         },
         onSuccess: () => {
             void queryClient.invalidateQueries({ queryKey: ["saves"] });
-            window.history.pushState(null, "", "/vault");
-            window.dispatchEvent(new PopStateEvent("popstate"));
+            void navigate({ to: "/vault" });
         },
     });
 
