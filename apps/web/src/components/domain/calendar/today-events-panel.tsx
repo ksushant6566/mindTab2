@@ -224,21 +224,21 @@ export function TodayEventsPanel() {
                             type="button"
                             size="icon"
                             variant="ghost"
-                            className="h-8 w-8 shrink-0"
+                            className="h-7 w-7 shrink-0"
                             title="Previous day"
                             aria-label="Previous day"
                             onClick={() => setSelectedDate((date) => addDays(date, -1))}
                         >
                             <ChevronLeft className="h-4 w-4" />
                         </Button>
-                        <Heading as="div" variant="section" className="min-w-[88px] truncate text-center">
+                        <Heading as="div" variant="section" className="truncate text-center">
                             {format(dayStart, "d, MMMM")}
                         </Heading>
                         <Button
                             type="button"
                             size="icon"
                             variant="ghost"
-                            className="h-8 w-8 shrink-0"
+                            className="h-7 w-7 shrink-0"
                             title="Next day"
                             aria-label="Next day"
                             onClick={() => setSelectedDate((date) => addDays(date, 1))}
