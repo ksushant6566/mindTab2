@@ -142,6 +142,28 @@ test("header context moves smoothly with the pinned sidebar", async ({ browser, 
   await context.close();
 });
 
+test("sidebar search icon opens the command palette", async ({ browser, request }) => {
+  const { context, page } = await createAuthenticatedPage(browser, request);
+
+  await page.goto("/?view=tasks");
+  const sidebar = page.getByTestId("workstation-sidebar");
+  const searchButton = sidebar.getByRole("button", { name: "Search", exact: true });
+
+  await expect(searchButton).toBeVisible();
+  await expect(searchButton).toHaveText("");
+  await searchButton.hover();
+  const tooltip = page.getByRole("tooltip");
+  await expect(tooltip).toContainText("Search");
+  await expect(tooltip).toContainText("K");
+  const searchButtonBox = await searchButton.boundingBox();
+  const tooltipBox = await tooltip.boundingBox();
+  expect((tooltipBox?.y ?? 0) + (tooltipBox?.height ?? 0)).toBeLessThanOrEqual(searchButtonBox?.y ?? 0);
+  await searchButton.click();
+  await expect(page.getByPlaceholder("Search notes, tasks, commands...")).toBeVisible();
+
+  await context.close();
+});
+
 test("dashboard history restores task, note, and project context", async ({ browser, request }) => {
   const { context, page } = await createAuthenticatedPage(browser, request);
 

@@ -3,6 +3,7 @@ import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import {
     CalendarDays,
+    Command,
     Landmark,
     LogOut,
     PencilLine,
@@ -28,6 +29,8 @@ import {
 } from "~/components/domain/navigation";
 import { conversationsQueryOptions, projectsStatsQueryOptions } from "~/api/hooks";
 import { useAuth } from "~/api/hooks/use-auth";
+import { Button } from "~/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "~/components/ui/tooltip";
 import { SIDEBAR_STORAGE_KEY, useWorkstationNavigation } from "~/lib/workstation-navigation";
 import { useDashboardNavigation } from "~/lib/dashboard-navigation";
 
@@ -190,13 +193,35 @@ export function AppSidebar() {
                 <Link to="/" search={{ view: "tasks" }} className="min-w-0 flex-1 overflow-hidden">
                     <SidebarLogo className="h-auto px-0">MindTab</SidebarLogo>
                 </Link>
+                <TooltipProvider delayDuration={300}>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 shrink-0"
+                                aria-label="Search"
+                                onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }))}
+                            >
+                                <Search className="h-4 w-4" />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" align="end" sideOffset={8} className="flex items-center gap-3 px-3 py-1.5">
+                            <span>Search</span>
+                            <kbd className="inline-flex items-center gap-1 rounded-[var(--r-pill)] bg-secondary px-2 py-0.5 font-mono text-[length:var(--type-code-size)] text-muted-foreground">
+                                <Command className="h-3 w-3" aria-hidden="true" />
+                                K
+                            </kbd>
+                        </TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
             </SidebarHeader>
 
             <SidebarContent className="custom-scrollbar px-3 pb-4 pt-0">
                 <div className="mt-3 space-y-1">
                     <SidebarActionButton icon={<PencilLine className="h-4 w-4" />} label="New chat" onClick={() => void navigate({ to: "/chat" })} />
                     <SidebarActionButton icon={<Landmark className="h-4 w-4" />} label="Vault" onClick={() => void navigate({ to: "/vault" })} />
-                    <SidebarActionButton icon={<Search className="h-4 w-4" />} label="Search" onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }))} />
                     <SidebarActionButton icon={<CalendarDays className="h-4 w-4" />} label="Calendar" onClick={() => openDashboard(EActiveLayout.Calendar, null)} />
                 </div>
 
