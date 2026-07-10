@@ -396,7 +396,7 @@ paths:
                   enum: [system-mono, geist-mono, sf-mono, jetbrains, fira-code, cascadia, menlo, monaco]
                 appearanceTemplate:
                   type: string
-                  enum: [absolutely, ayu, catppuccin, codex, dracula, everforest, github, gruvbox, linear, lobster, material, matrix, monokai, night-owl, nord, notion, one, oscurange, proof, rose-pine, sentry, solarized, temple, tokyo-night, vscode-plus]
+                  enum: [absolutely, ayu, catppuccin, codex, dracula, everforest, github, graphite, gruvbox, linear, lobster, material, matrix, midnight, monokai, night-owl, nord, notion, one, oscurange, paper, proof, rose-pine, sentry, solarized, temple, tokyo-night, vscode-plus]
                 accentColor:
                   type: string
                   pattern: "^#[0-9A-Fa-f]{6}$"
@@ -1552,7 +1552,7 @@ components:
           default: system-mono
         appearanceTemplate:
           type: string
-          enum: [absolutely, ayu, catppuccin, codex, dracula, everforest, github, gruvbox, linear, lobster, material, matrix, monokai, night-owl, nord, notion, one, oscurange, proof, rose-pine, sentry, solarized, temple, tokyo-night, vscode-plus]
+          enum: [absolutely, ayu, catppuccin, codex, dracula, everforest, github, graphite, gruvbox, linear, lobster, material, matrix, midnight, monokai, night-owl, nord, notion, one, oscurange, paper, proof, rose-pine, sentry, solarized, temple, tokyo-night, vscode-plus]
           default: codex
         accentColor:
           type: string
