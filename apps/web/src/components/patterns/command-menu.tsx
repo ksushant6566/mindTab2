@@ -40,7 +40,6 @@ import {
     useAppStore,
 } from "@mindtab/core";
 import { cn } from "~/lib/utils";
-import { useCalendarSchedules } from "~/lib/calendar-schedules";
 
 const COMMAND_PROMPT_INTERVAL_MS = 3000;
 
@@ -93,16 +92,16 @@ export const CommandMenu = () => {
 
     const createTaskMutation = useCreateTask();
     const isCreatingTask = createTaskMutation.isPending;
-    const { scheduleTask } = useCalendarSchedules();
     const createTask = (values: TaskDialogInput & { status?: string; projectId?: string | null }) => {
         const { schedule, ...taskFields } = values;
         const schedulePayload = getScheduleDraftPayload(schedule);
-        createTaskMutation.mutate(taskFields, {
-            onSuccess: (createdTask: any) => {
-                if (createdTask?.id && schedulePayload) {
-                    scheduleTask(createdTask.id, schedulePayload.startAt, schedulePayload.durationMinutes);
-                }
-            },
+        createTaskMutation.mutate({
+            ...taskFields,
+            ...(schedulePayload ? {
+                scheduledStartAt: schedulePayload.startAt.toISOString(),
+                scheduledEndAt: schedulePayload.endAt.toISOString(),
+            } : {}),
+        }, {
             onSettled: () => setIsTaskCreateOpen(false),
         });
     };

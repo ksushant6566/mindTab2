@@ -786,6 +786,10 @@ export interface components {
             updatedAt?: string | null;
             /** Format: date-time */
             completedAt?: string | null;
+            /** Format: date-time */
+            scheduledStartAt?: string | null;
+            /** Format: date-time */
+            scheduledEndAt?: string | null;
         };
         TaskCreate: {
             title: string;
@@ -798,6 +802,10 @@ export interface components {
             projectId?: string | null;
             /** Format: date-time */
             completedAt?: string;
+            /** Format: date-time */
+            scheduledStartAt?: string | null;
+            /** Format: date-time */
+            scheduledEndAt?: string | null;
         };
         TaskUpdate: {
             title?: string;
@@ -810,6 +818,10 @@ export interface components {
             projectId?: string | null;
             /** Format: date-time */
             completedAt?: string | null;
+            /** Format: date-time */
+            scheduledStartAt?: string | null;
+            /** Format: date-time */
+            scheduledEndAt?: string | null;
         };
         Note: {
             /** Format: uuid */

@@ -132,19 +132,21 @@ type RefreshToken struct {
 }
 
 type Task struct {
-	ID          pgtype.UUID        `json:"id"`
-	Title       pgtype.Text        `json:"title"`
-	Description pgtype.Text        `json:"description"`
-	Status      interface{}        `json:"status"`
-	Priority    interface{}        `json:"priority"`
-	Impact      interface{}        `json:"impact"`
-	Position    int32              `json:"position"`
-	CreatedAt   pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
-	CompletedAt pgtype.Timestamptz `json:"completed_at"`
-	DeletedAt   pgtype.Timestamptz `json:"deleted_at"`
-	UserID      string             `json:"user_id"`
-	ProjectID   pgtype.UUID        `json:"project_id"`
+	ID               pgtype.UUID        `json:"id"`
+	Title            pgtype.Text        `json:"title"`
+	Description      pgtype.Text        `json:"description"`
+	Status           interface{}        `json:"status"`
+	Priority         interface{}        `json:"priority"`
+	Impact           interface{}        `json:"impact"`
+	Position         int32              `json:"position"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
+	CompletedAt      pgtype.Timestamptz `json:"completed_at"`
+	DeletedAt        pgtype.Timestamptz `json:"deleted_at"`
+	UserID           string             `json:"user_id"`
+	ProjectID        pgtype.UUID        `json:"project_id"`
+	ScheduledStartAt pgtype.Timestamptz `json:"scheduled_start_at"`
+	ScheduledEndAt   pgtype.Timestamptz `json:"scheduled_end_at"`
 }
 
 type User struct {

@@ -35,6 +35,8 @@ type TaskRecord = {
     createdAt?: string | null;
     updatedAt?: string | null;
     completedAt?: string | null;
+    scheduledStartAt?: string | null;
+    scheduledEndAt?: string | null;
     project?: {
         id?: string | null;
         name?: string | null;
@@ -96,7 +98,7 @@ export function TodayEventsPanel() {
     const [selectedDate, setSelectedDate] = useState(() => new Date());
     const scrollRef = useRef<HTMLDivElement | null>(null);
     const lastScrolledDayRef = useRef<string | null>(null);
-    const { schedules, scheduleTask } = useCalendarSchedules();
+    const { schedules } = useCalendarSchedules();
     const { setActiveElement, setActiveProjectId } = useAppStore();
     const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
     const [selectedTaskSnapshot, setSelectedTaskSnapshot] = useState<TaskRecord | null>(null);
@@ -184,28 +186,16 @@ export function TodayEventsPanel() {
         if (!createSlot) return;
 
         const { schedule, ...taskFields } = task;
-        const taskData = { ...taskFields, status: "pending", projectId: null };
         const schedulePayload = getScheduleDraftPayload(schedule);
         const slot = createSlot;
-
-        createTask(taskData, {
-            onSuccess: (createdTask: any) => {
-                const taskId = createdTask?.id;
-                if (taskId && schedulePayload) {
-                    scheduleTask(taskId, schedulePayload.startAt, schedulePayload.durationMinutes);
-                    return;
-                }
-
-                if (taskId) {
-                    const start = parseISO(slot.startAt);
-                    const end = parseISO(slot.endAt);
-                    scheduleTask(
-                        taskId,
-                        start,
-                        Math.max(1, Math.round((end.getTime() - start.getTime()) / 60_000))
-                    );
-                }
-            },
+        const scheduledStart = schedulePayload?.startAt ?? parseISO(slot.startAt);
+        const scheduledEnd = schedulePayload?.endAt ?? parseISO(slot.endAt);
+        createTask({
+            ...taskFields,
+            status: "pending",
+            projectId: null,
+            scheduledStartAt: scheduledStart.toISOString(),
+            scheduledEndAt: scheduledEnd.toISOString(),
         });
         setCreateSlot(null);
     };

@@ -136,7 +136,7 @@ export function TaskDialog({
     deleteVariables,
 }: TaskDialogProps) {
     const { data: projects } = useQuery(projectsQueryOptions());
-    const { schedules, scheduleTask, unscheduleTask } = useCalendarSchedules();
+    const { schedules, unscheduleTask } = useCalendarSchedules();
     const schedule = task?.id ? schedules[task.id] : undefined;
     const defaultSchedule = defaultValues.schedule ?? createScheduleDraft(schedule);
     const [mode, setMode] = React.useState<TaskDialogMode>(initialMode);
@@ -217,13 +217,9 @@ export function TaskDialog({
             impact: formData.impact,
             status: formData.status,
             projectId: formData.projectId,
+            scheduledStartAt: schedulePayload?.startAt.toISOString() ?? null,
+            scheduledEndAt: schedulePayload?.endAt.toISOString() ?? null,
         });
-
-        if (schedulePayload) {
-            scheduleTask(task.id, schedulePayload.startAt, schedulePayload.durationMinutes);
-        } else {
-            unscheduleTask(task.id);
-        }
         setMode("view");
     };
 

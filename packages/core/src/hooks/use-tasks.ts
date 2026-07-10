@@ -73,6 +73,8 @@ export function useCreateTask(api: ApiClient) {
       position?: number;
       projectId?: string | null;
       completedAt?: string;
+      scheduledStartAt?: string | null;
+      scheduledEndAt?: string | null;
     }) => {
       const { data, error } = await api.POST("/tasks", {
         body: body as any,
@@ -103,6 +105,8 @@ export function useUpdateTask(api: ApiClient) {
       position?: number;
       projectId?: string | null;
       completedAt?: string | null;
+      scheduledStartAt?: string | null;
+      scheduledEndAt?: string | null;
     }) => {
       const { data, error } = await api.PATCH("/tasks/{id}", {
         params: { path: { id } },

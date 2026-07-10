@@ -191,7 +191,7 @@ func (t *CreateTaskTool) Execute(ctx context.Context, userID string, argsAny any
 		count = 0
 	}
 
-	err = t.queries.CreateTask(ctx, store.CreateTaskParams{
+	_, err = t.queries.CreateTask(ctx, store.CreateTaskParams{
 		Title:     pgtype.Text{String: args.Title, Valid: true},
 		Status:    "active",
 		Priority:  priority,
@@ -304,15 +304,16 @@ func (t *UpdateTaskTool) Execute(ctx context.Context, userID string, argsAny any
 	}
 
 	err = t.queries.UpdateTask(ctx, store.UpdateTaskParams{
-		ID:          pgID,
-		UserID:      userID,
-		Title:       title,
-		Description: existing.Description,
-		Status:      status,
-		Priority:    priority,
-		Impact:      existing.Impact,
-		Position:    existing.Position,
-		CompletedAt: completedAt,
+		ID:             pgID,
+		UserID:         userID,
+		Title:          title,
+		Description:    existing.Description,
+		Status:         status,
+		Priority:       priority,
+		Impact:         existing.Impact,
+		Position:       existing.Position,
+		CompletedAt:    completedAt,
+		CompletedAtSet: args.Status != nil && *args.Status != "archived",
 	})
 	if err != nil {
 		return nil, fmt.Errorf("update task: %w", err)

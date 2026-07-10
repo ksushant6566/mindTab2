@@ -123,7 +123,7 @@ export function getScheduleDraftPayload(draft?: TaskScheduleDraft | null) {
         return null;
     }
 
-    return { startAt: start, durationMinutes };
+    return { startAt: start, endAt: end, durationMinutes };
 }
 
 export function isScheduleDraftValid(draft?: TaskScheduleDraft | null) {

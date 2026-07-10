@@ -209,7 +209,7 @@ func (q *Queries) ListTaskStatsByProject(ctx context.Context, arg ListTaskStatsB
 }
 
 const listTasksByProject = `-- name: ListTasksByProject :many
-SELECT id, title, description, status, priority, impact, position, created_at, updated_at, completed_at, deleted_at, user_id, project_id FROM tasks
+SELECT id, title, description, status, priority, impact, position, created_at, updated_at, completed_at, deleted_at, user_id, project_id, scheduled_start_at, scheduled_end_at FROM tasks
 WHERE project_id = $1 AND user_id = $2 AND deleted_at IS NULL AND status != 'archived'
 ORDER BY position ASC, priority ASC, created_at DESC
 `
@@ -242,6 +242,8 @@ func (q *Queries) ListTasksByProject(ctx context.Context, arg ListTasksByProject
 			&i.DeletedAt,
 			&i.UserID,
 			&i.ProjectID,
+			&i.ScheduledStartAt,
+			&i.ScheduledEndAt,
 		); err != nil {
 			return nil, err
 		}

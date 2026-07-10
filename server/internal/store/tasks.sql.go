@@ -63,25 +63,31 @@ func (q *Queries) CountTasks(ctx context.Context, arg CountTasksParams) (int32, 
 	return column_1, err
 }
 
-const createTask = `-- name: CreateTask :exec
-INSERT INTO tasks (title, description, status, priority, impact, position, user_id, project_id, completed_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+const createTask = `-- name: CreateTask :one
+INSERT INTO tasks (
+    title, description, status, priority, impact, position, user_id, project_id,
+    completed_at, scheduled_start_at, scheduled_end_at
+)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+RETURNING id, title, description, status, priority, impact, position, created_at, updated_at, completed_at, deleted_at, user_id, project_id, scheduled_start_at, scheduled_end_at
 `
 
 type CreateTaskParams struct {
-	Title       pgtype.Text        `json:"title"`
-	Description pgtype.Text        `json:"description"`
-	Status      interface{}        `json:"status"`
-	Priority    interface{}        `json:"priority"`
-	Impact      interface{}        `json:"impact"`
-	Position    int32              `json:"position"`
-	UserID      string             `json:"user_id"`
-	ProjectID   pgtype.UUID        `json:"project_id"`
-	CompletedAt pgtype.Timestamptz `json:"completed_at"`
+	Title            pgtype.Text        `json:"title"`
+	Description      pgtype.Text        `json:"description"`
+	Status           interface{}        `json:"status"`
+	Priority         interface{}        `json:"priority"`
+	Impact           interface{}        `json:"impact"`
+	Position         int32              `json:"position"`
+	UserID           string             `json:"user_id"`
+	ProjectID        pgtype.UUID        `json:"project_id"`
+	CompletedAt      pgtype.Timestamptz `json:"completed_at"`
+	ScheduledStartAt pgtype.Timestamptz `json:"scheduled_start_at"`
+	ScheduledEndAt   pgtype.Timestamptz `json:"scheduled_end_at"`
 }
 
-func (q *Queries) CreateTask(ctx context.Context, arg CreateTaskParams) error {
-	_, err := q.db.Exec(ctx, createTask,
+func (q *Queries) CreateTask(ctx context.Context, arg CreateTaskParams) (Task, error) {
+	row := q.db.QueryRow(ctx, createTask,
 		arg.Title,
 		arg.Description,
 		arg.Status,
@@ -91,13 +97,34 @@ func (q *Queries) CreateTask(ctx context.Context, arg CreateTaskParams) error {
 		arg.UserID,
 		arg.ProjectID,
 		arg.CompletedAt,
+		arg.ScheduledStartAt,
+		arg.ScheduledEndAt,
 	)
-	return err
+	var i Task
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Description,
+		&i.Status,
+		&i.Priority,
+		&i.Impact,
+		&i.Position,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.CompletedAt,
+		&i.DeletedAt,
+		&i.UserID,
+		&i.ProjectID,
+		&i.ScheduledStartAt,
+		&i.ScheduledEndAt,
+	)
+	return i, err
 }
 
 const getTaskByID = `-- name: GetTaskByID :one
 SELECT g.id, g.title, g.description, g.status, g.priority, g.impact, g.position,
-       g.created_at, g.updated_at, g.completed_at, g.deleted_at, g.user_id, g.project_id,
+       g.created_at, g.updated_at, g.completed_at, g.scheduled_start_at, g.scheduled_end_at,
+       g.deleted_at, g.user_id, g.project_id,
        p.id as "project_ref_id", p.name as "project_name", p.status as "project_status"
 FROM tasks g
 LEFT JOIN projects p ON g.project_id = p.id
@@ -110,22 +137,24 @@ type GetTaskByIDParams struct {
 }
 
 type GetTaskByIDRow struct {
-	ID            pgtype.UUID        `json:"id"`
-	Title         pgtype.Text        `json:"title"`
-	Description   pgtype.Text        `json:"description"`
-	Status        interface{}        `json:"status"`
-	Priority      interface{}        `json:"priority"`
-	Impact        interface{}        `json:"impact"`
-	Position      int32              `json:"position"`
-	CreatedAt     pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
-	CompletedAt   pgtype.Timestamptz `json:"completed_at"`
-	DeletedAt     pgtype.Timestamptz `json:"deleted_at"`
-	UserID        string             `json:"user_id"`
-	ProjectID     pgtype.UUID        `json:"project_id"`
-	ProjectRefID  pgtype.UUID        `json:"project_ref_id"`
-	ProjectName   pgtype.Text        `json:"project_name"`
-	ProjectStatus interface{}        `json:"project_status"`
+	ID               pgtype.UUID        `json:"id"`
+	Title            pgtype.Text        `json:"title"`
+	Description      pgtype.Text        `json:"description"`
+	Status           interface{}        `json:"status"`
+	Priority         interface{}        `json:"priority"`
+	Impact           interface{}        `json:"impact"`
+	Position         int32              `json:"position"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
+	CompletedAt      pgtype.Timestamptz `json:"completed_at"`
+	ScheduledStartAt pgtype.Timestamptz `json:"scheduled_start_at"`
+	ScheduledEndAt   pgtype.Timestamptz `json:"scheduled_end_at"`
+	DeletedAt        pgtype.Timestamptz `json:"deleted_at"`
+	UserID           string             `json:"user_id"`
+	ProjectID        pgtype.UUID        `json:"project_id"`
+	ProjectRefID     pgtype.UUID        `json:"project_ref_id"`
+	ProjectName      pgtype.Text        `json:"project_name"`
+	ProjectStatus    interface{}        `json:"project_status"`
 }
 
 func (q *Queries) GetTaskByID(ctx context.Context, arg GetTaskByIDParams) (GetTaskByIDRow, error) {
@@ -142,6 +171,8 @@ func (q *Queries) GetTaskByID(ctx context.Context, arg GetTaskByIDParams) (GetTa
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.CompletedAt,
+		&i.ScheduledStartAt,
+		&i.ScheduledEndAt,
 		&i.DeletedAt,
 		&i.UserID,
 		&i.ProjectID,
@@ -154,7 +185,8 @@ func (q *Queries) GetTaskByID(ctx context.Context, arg GetTaskByIDParams) (GetTa
 
 const listTasks = `-- name: ListTasks :many
 SELECT g.id, g.title, g.description, g.status, g.priority, g.impact, g.position,
-       g.created_at, g.updated_at, g.completed_at, g.deleted_at, g.user_id, g.project_id,
+       g.created_at, g.updated_at, g.completed_at, g.scheduled_start_at, g.scheduled_end_at,
+       g.deleted_at, g.user_id, g.project_id,
        p.id as "project_ref_id", p.name as "project_name", p.status as "project_status"
 FROM tasks g
 LEFT JOIN projects p ON g.project_id = p.id
@@ -172,22 +204,24 @@ type ListTasksParams struct {
 }
 
 type ListTasksRow struct {
-	ID            pgtype.UUID        `json:"id"`
-	Title         pgtype.Text        `json:"title"`
-	Description   pgtype.Text        `json:"description"`
-	Status        interface{}        `json:"status"`
-	Priority      interface{}        `json:"priority"`
-	Impact        interface{}        `json:"impact"`
-	Position      int32              `json:"position"`
-	CreatedAt     pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
-	CompletedAt   pgtype.Timestamptz `json:"completed_at"`
-	DeletedAt     pgtype.Timestamptz `json:"deleted_at"`
-	UserID        string             `json:"user_id"`
-	ProjectID     pgtype.UUID        `json:"project_id"`
-	ProjectRefID  pgtype.UUID        `json:"project_ref_id"`
-	ProjectName   pgtype.Text        `json:"project_name"`
-	ProjectStatus interface{}        `json:"project_status"`
+	ID               pgtype.UUID        `json:"id"`
+	Title            pgtype.Text        `json:"title"`
+	Description      pgtype.Text        `json:"description"`
+	Status           interface{}        `json:"status"`
+	Priority         interface{}        `json:"priority"`
+	Impact           interface{}        `json:"impact"`
+	Position         int32              `json:"position"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
+	CompletedAt      pgtype.Timestamptz `json:"completed_at"`
+	ScheduledStartAt pgtype.Timestamptz `json:"scheduled_start_at"`
+	ScheduledEndAt   pgtype.Timestamptz `json:"scheduled_end_at"`
+	DeletedAt        pgtype.Timestamptz `json:"deleted_at"`
+	UserID           string             `json:"user_id"`
+	ProjectID        pgtype.UUID        `json:"project_id"`
+	ProjectRefID     pgtype.UUID        `json:"project_ref_id"`
+	ProjectName      pgtype.Text        `json:"project_name"`
+	ProjectStatus    interface{}        `json:"project_status"`
 }
 
 func (q *Queries) ListTasks(ctx context.Context, arg ListTasksParams) ([]ListTasksRow, error) {
@@ -210,6 +244,8 @@ func (q *Queries) ListTasks(ctx context.Context, arg ListTasksParams) ([]ListTas
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.CompletedAt,
+			&i.ScheduledStartAt,
+			&i.ScheduledEndAt,
 			&i.DeletedAt,
 			&i.UserID,
 			&i.ProjectID,
@@ -228,7 +264,7 @@ func (q *Queries) ListTasks(ctx context.Context, arg ListTasksParams) ([]ListTas
 }
 
 const listUnassignedTasks = `-- name: ListUnassignedTasks :many
-SELECT id, title, description, status, priority, impact, position, created_at, updated_at, completed_at, deleted_at, user_id, project_id FROM tasks
+SELECT id, title, description, status, priority, impact, position, created_at, updated_at, completed_at, deleted_at, user_id, project_id, scheduled_start_at, scheduled_end_at FROM tasks
 WHERE user_id = $1 AND project_id IS NULL AND deleted_at IS NULL AND status != 'archived'
 ORDER BY position ASC, priority ASC, created_at DESC
 `
@@ -256,6 +292,8 @@ func (q *Queries) ListUnassignedTasks(ctx context.Context, userID string) ([]Tas
 			&i.DeletedAt,
 			&i.UserID,
 			&i.ProjectID,
+			&i.ScheduledStartAt,
+			&i.ScheduledEndAt,
 		); err != nil {
 			return nil, err
 		}
@@ -268,7 +306,7 @@ func (q *Queries) ListUnassignedTasks(ctx context.Context, userID string) ([]Tas
 }
 
 const searchTasks = `-- name: SearchTasks :many
-SELECT id, title, description, status, priority, impact, position, created_at, updated_at, completed_at, deleted_at, user_id, project_id FROM tasks
+SELECT id, title, description, status, priority, impact, position, created_at, updated_at, completed_at, deleted_at, user_id, project_id, scheduled_start_at, scheduled_end_at FROM tasks
 WHERE user_id = $1 AND deleted_at IS NULL AND status != 'archived'
   AND title ILIKE '%' || $2 || '%'
 ORDER BY created_at DESC LIMIT 5
@@ -302,6 +340,8 @@ func (q *Queries) SearchTasks(ctx context.Context, arg SearchTasksParams) ([]Tas
 			&i.DeletedAt,
 			&i.UserID,
 			&i.ProjectID,
+			&i.ScheduledStartAt,
+			&i.ScheduledEndAt,
 		); err != nil {
 			return nil, err
 		}
@@ -352,23 +392,39 @@ UPDATE tasks SET
     impact = COALESCE($7, impact),
     position = COALESCE($8, position),
     project_id = CASE WHEN $9::boolean THEN $10::uuid ELSE project_id END,
-    completed_at = $11,
+    completed_at = CASE
+        WHEN $11::boolean THEN $12::timestamptz
+        ELSE completed_at
+    END,
+    scheduled_start_at = CASE
+        WHEN $13::boolean THEN $14::timestamptz
+        ELSE scheduled_start_at
+    END,
+    scheduled_end_at = CASE
+        WHEN $15::boolean THEN $16::timestamptz
+        ELSE scheduled_end_at
+    END,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = $1 AND user_id = $2
 `
 
 type UpdateTaskParams struct {
-	ID           pgtype.UUID        `json:"id"`
-	UserID       string             `json:"user_id"`
-	Title        pgtype.Text        `json:"title"`
-	Description  pgtype.Text        `json:"description"`
-	Status       interface{}        `json:"status"`
-	Priority     interface{}        `json:"priority"`
-	Impact       interface{}        `json:"impact"`
-	Position     int32              `json:"position"`
-	ProjectIDSet bool               `json:"project_id_set"`
-	ProjectID    pgtype.UUID        `json:"project_id"`
-	CompletedAt  pgtype.Timestamptz `json:"completed_at"`
+	ID                  pgtype.UUID        `json:"id"`
+	UserID              string             `json:"user_id"`
+	Title               pgtype.Text        `json:"title"`
+	Description         pgtype.Text        `json:"description"`
+	Status              interface{}        `json:"status"`
+	Priority            interface{}        `json:"priority"`
+	Impact              interface{}        `json:"impact"`
+	Position            int32              `json:"position"`
+	ProjectIDSet        bool               `json:"project_id_set"`
+	ProjectID           pgtype.UUID        `json:"project_id"`
+	CompletedAtSet      bool               `json:"completed_at_set"`
+	CompletedAt         pgtype.Timestamptz `json:"completed_at"`
+	ScheduledStartAtSet bool               `json:"scheduled_start_at_set"`
+	ScheduledStartAt    pgtype.Timestamptz `json:"scheduled_start_at"`
+	ScheduledEndAtSet   bool               `json:"scheduled_end_at_set"`
+	ScheduledEndAt      pgtype.Timestamptz `json:"scheduled_end_at"`
 }
 
 func (q *Queries) UpdateTask(ctx context.Context, arg UpdateTaskParams) error {
@@ -383,7 +439,12 @@ func (q *Queries) UpdateTask(ctx context.Context, arg UpdateTaskParams) error {
 		arg.Position,
 		arg.ProjectIDSet,
 		arg.ProjectID,
+		arg.CompletedAtSet,
 		arg.CompletedAt,
+		arg.ScheduledStartAtSet,
+		arg.ScheduledStartAt,
+		arg.ScheduledEndAtSet,
+		arg.ScheduledEndAt,
 	)
 	return err
 }
