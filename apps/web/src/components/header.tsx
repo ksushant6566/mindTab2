@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react'
 import { CommandMenu } from './command-menu'
-import Streak from './streak'
 import { HeaderBar, HeaderMeta, Inline } from '~/components/layout'
 import { WorkstationHeaderProject } from '~/components/domain/navigation/workstation-header-project'
 
@@ -25,7 +24,6 @@ export const Header = () => {
       <Inline gap="lg">
         <CommandMenu />
         <HeaderDateTime date={now} />
-        <Streak />
       </Inline>
     </HeaderBar>
   )

@@ -30,19 +30,6 @@ export const ProfileSkeleton = () => {
                         </CardContent>
                     </Card>
 
-                    {/* Streak Skeleton */}
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Streak</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="flex items-center gap-2">
-                                <Skeleton className="h-2 w-2 rounded-full" />
-                                <Skeleton className="h-4 w-24" />
-                            </div>
-                        </CardContent>
-                    </Card>
-
                     {/* Statistics Skeleton */}
                     <Card>
                         <CardHeader>

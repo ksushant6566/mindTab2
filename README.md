@@ -10,7 +10,7 @@ MindTab is a personal productivity platform that combines task tracking, habit b
 Set tasks with priorities, organize them into projects, and watch your progress. MindTab doesn't just store your tasks — it helps you move through them, one status change at a time.
 
 ### Build better habits
-Create daily or weekly habits and track them with a single tap. Streaks, completion rings, and XP rewards make consistency feel rewarding instead of tedious.
+Create daily or weekly habits and track them with a single tap. Completion rings and XP rewards make consistency feel rewarding instead of tedious.
 
 ### Capture your thinking
 Capture notes, articles, book highlights, video takeaways, and podcast insights. Everything is searchable, project-tagged, and always accessible.

@@ -19,8 +19,6 @@ import { X, LogOut } from "lucide-react-native";
 import { colors } from "~/styles/colors";
 import Constants from "expo-constants";
 
-// -- Streak tier ring color --
-
 // -- Screen --
 
 export default function ProfileModal() {

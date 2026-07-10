@@ -82,7 +82,6 @@ type MentionEntity = {
   priority?: string;
   impact?: string;
   projectName?: string;
-  streak?: number;
   frequency?: string;
   createdAt?: string;
 };

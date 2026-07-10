@@ -56,12 +56,6 @@ export const colors = {
     medium: "#fbbf24",
     high: "#f59e0b",
   },
-  streak: {
-    orange: "#f97316",
-    gold: "#eab308",
-    purple: "#a855f7",
-    rainbow: ["#ef4444", "#f97316", "#eab308", "#22c55e", "#3b82f6", "#8b5cf6"],
-  },
   confetti: [mindtabColors.ink, "#22c55e", mindtabColors.violet, mindtabColors.rose, mindtabColors.cyan] as const,
   // Feedback
   feedback: {
