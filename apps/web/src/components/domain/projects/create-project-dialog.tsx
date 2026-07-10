@@ -56,6 +56,8 @@ export const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
                 startDate: new Date().toISOString().split("T")[0],
                 endDate: undefined,
             });
+        } catch {
+            // The caller owns error presentation. Keep the entered project details intact.
         } finally {
             setIsSubmitting(false);
         }
