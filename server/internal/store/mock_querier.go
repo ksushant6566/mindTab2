@@ -88,7 +88,7 @@ var _ Querier = &QuerierMock{}
 //			CreateRefreshTokenFunc: func(ctx context.Context, arg CreateRefreshTokenParams) error {
 //				panic("mock out the CreateRefreshToken method")
 //			},
-//			CreateTaskFunc: func(ctx context.Context, arg CreateTaskParams) error {
+//			CreateTaskFunc: func(ctx context.Context, arg CreateTaskParams) (Task, error) {
 //				panic("mock out the CreateTask method")
 //			},
 //			CreateVerificationTokenFunc: func(ctx context.Context, arg CreateVerificationTokenParams) error {
@@ -366,7 +366,7 @@ type QuerierMock struct {
 	CreateRefreshTokenFunc func(ctx context.Context, arg CreateRefreshTokenParams) error
 
 	// CreateTaskFunc mocks the CreateTask method.
-	CreateTaskFunc func(ctx context.Context, arg CreateTaskParams) error
+	CreateTaskFunc func(ctx context.Context, arg CreateTaskParams) (Task, error)
 
 	// CreateVerificationTokenFunc mocks the CreateVerificationToken method.
 	CreateVerificationTokenFunc func(ctx context.Context, arg CreateVerificationTokenParams) error
@@ -2116,7 +2116,7 @@ func (mock *QuerierMock) CreateRefreshTokenCalls() []struct {
 }
 
 // CreateTask calls CreateTaskFunc.
-func (mock *QuerierMock) CreateTask(ctx context.Context, arg CreateTaskParams) error {
+func (mock *QuerierMock) CreateTask(ctx context.Context, arg CreateTaskParams) (Task, error) {
 	if mock.CreateTaskFunc == nil {
 		panic("QuerierMock.CreateTaskFunc: method is nil but Querier.CreateTask was just called")
 	}

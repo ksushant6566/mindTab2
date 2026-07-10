@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/ksushant6566/mindtab/server/internal/providers/llm"
 	"github.com/ksushant6566/mindtab/server/internal/store"
+	"github.com/ksushant6566/mindtab/server/internal/taskstate"
 )
 
 // ---------------------------------------------------------------------------
@@ -191,7 +192,7 @@ func (t *CreateTaskTool) Execute(ctx context.Context, userID string, argsAny any
 		count = 0
 	}
 
-	err = t.queries.CreateTask(ctx, store.CreateTaskParams{
+	_, err = t.queries.CreateTask(ctx, store.CreateTaskParams{
 		Title:     pgtype.Text{String: args.Title, Valid: true},
 		Status:    "active",
 		Priority:  priority,
@@ -292,27 +293,19 @@ func (t *UpdateTaskTool) Execute(ctx context.Context, userID string, argsAny any
 		priority = *args.Priority
 	}
 
-	// Handle completed_at based on status change
-	completedAt := existing.CompletedAt
-	if args.Status != nil {
-		if *args.Status == "completed" {
-			now := time.Now()
-			completedAt = pgtype.Timestamptz{Time: now, Valid: true}
-		} else if *args.Status != "archived" {
-			completedAt = pgtype.Timestamptz{} // clear it
-		}
-	}
+	completedAtSet, completedAt := taskstate.ComputeCompletedAtUpdate(ifaceToString(existing.Status), args.Status)
 
 	err = t.queries.UpdateTask(ctx, store.UpdateTaskParams{
-		ID:          pgID,
-		UserID:      userID,
-		Title:       title,
-		Description: existing.Description,
-		Status:      status,
-		Priority:    priority,
-		Impact:      existing.Impact,
-		Position:    existing.Position,
-		CompletedAt: completedAt,
+		ID:             pgID,
+		UserID:         userID,
+		Title:          title,
+		Description:    existing.Description,
+		Status:         status,
+		Priority:       priority,
+		Impact:         existing.Impact,
+		Position:       existing.Position,
+		CompletedAt:    completedAt,
+		CompletedAtSet: completedAtSet,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("update task: %w", err)

@@ -786,6 +786,16 @@ export interface components {
             updatedAt?: string | null;
             /** Format: date-time */
             completedAt?: string | null;
+            /**
+             * Format: date-time
+             * @description Schedule start. Must be provided together with scheduledEndAt.
+             */
+            scheduledStartAt?: string | null;
+            /**
+             * Format: date-time
+             * @description Schedule end. Must be provided together with scheduledStartAt and be later than it.
+             */
+            scheduledEndAt?: string | null;
         };
         TaskCreate: {
             title: string;
@@ -798,6 +808,16 @@ export interface components {
             projectId?: string | null;
             /** Format: date-time */
             completedAt?: string;
+            /**
+             * Format: date-time
+             * @description Schedule start. Must be provided together with scheduledEndAt.
+             */
+            scheduledStartAt?: string | null;
+            /**
+             * Format: date-time
+             * @description Schedule end. Must be provided together with scheduledStartAt and be later than it.
+             */
+            scheduledEndAt?: string | null;
         };
         TaskUpdate: {
             title?: string;
@@ -810,6 +830,16 @@ export interface components {
             projectId?: string | null;
             /** Format: date-time */
             completedAt?: string | null;
+            /**
+             * Format: date-time
+             * @description Schedule start. Must be provided together with scheduledEndAt.
+             */
+            scheduledStartAt?: string | null;
+            /**
+             * Format: date-time
+             * @description Schedule end. Must be provided together with scheduledStartAt and be later than it.
+             */
+            scheduledEndAt?: string | null;
         };
         Note: {
             /** Format: uuid */

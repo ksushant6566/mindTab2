@@ -9,7 +9,6 @@ import { KanbanTasks } from "./kanban-tasks";
 import { ListTasks } from "./list-tasks";
 import { TaskDialog, type TaskDialogInput, type TaskDialogMode } from "./task-dialog";
 import { getScheduleDraftPayload } from "./task-schedule-fields";
-import { useCalendarSchedules } from "~/lib/calendar-schedules";
 import { useAppStore } from "@mindtab/core";
 
 export type ViewMode = "list" | "kanban";
@@ -40,19 +39,18 @@ export const Tasks: React.FC<TasksProps> = ({ viewMode }) => {
     const { mutate: updateTask } = useUpdateTask();
     const { mutate: deleteTask, isPending: isDeletingTask, variables: deleteTaskVariables } = useDeleteTask();
     const { mutate: archiveCompletedTasks } = useArchiveCompletedTasks();
-    const { scheduleTask } = useCalendarSchedules();
-
     const onCreateTask = (task: TaskDialogInput & { status?: string; position?: number; projectId?: string | null; completedAt?: string }) => {
         const { schedule, ...taskFields } = task;
-        const taskData = activeProjectId ? { ...taskFields, projectId: activeProjectId } : taskFields;
         const schedulePayload = getScheduleDraftPayload(schedule);
-        createTask(taskData, {
-            onSuccess: (createdTask: any) => {
-                if (createdTask?.id && schedulePayload) {
-                    scheduleTask(createdTask.id, schedulePayload.startAt, schedulePayload.durationMinutes);
-                }
-            },
-        });
+        const taskData = {
+            ...taskFields,
+            ...(activeProjectId ? { projectId: activeProjectId } : {}),
+            ...(schedulePayload ? {
+                scheduledStartAt: schedulePayload.startAt.toISOString(),
+                scheduledEndAt: schedulePayload.endAt.toISOString(),
+            } : {}),
+        };
+        createTask(taskData);
         setIsCreateTaskOpen(false);
     };
 

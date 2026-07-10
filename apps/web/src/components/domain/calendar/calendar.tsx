@@ -61,6 +61,8 @@ type TaskRecord = {
     position?: number | null;
     createdAt?: string | null;
     updatedAt?: string | null;
+    scheduledStartAt?: string | null;
+    scheduledEndAt?: string | null;
     projectId?: string | null;
     projectName?: string | null;
     key?: string | null;
@@ -516,6 +518,8 @@ export function Calendar({ isActive = true }: CalendarProps) {
             position?: number;
             projectId?: string | null;
             completedAt?: string | null;
+            scheduledStartAt?: string | null;
+            scheduledEndAt?: string | null;
         });
     };
 
@@ -523,20 +527,15 @@ export function Calendar({ isActive = true }: CalendarProps) {
         if (!createSlot) return;
 
         const { schedule, ...taskFields } = task;
-        const taskData = { ...taskFields, status: "pending", projectId: null };
         const schedulePayload = getScheduleDraftPayload(schedule);
-        const slot = createSlot;
-        createTask(taskData, {
-            onSuccess: (createdTask: any) => {
-                const taskId = createdTask?.id;
-                if (taskId && schedulePayload) {
-                    scheduleTask(taskId, schedulePayload.startAt, schedulePayload.durationMinutes);
-                } else if (taskId) {
-                    const start = parseISO(slot.startAt);
-                    const end = parseISO(slot.endAt);
-                    scheduleTask(taskId, start, Math.max(1, Math.round((end.getTime() - start.getTime()) / 60_000)));
-                }
-            },
+        createTask({
+            ...taskFields,
+            status: "pending",
+            projectId: null,
+            ...(schedulePayload ? {
+                scheduledStartAt: schedulePayload.startAt.toISOString(),
+                scheduledEndAt: schedulePayload.endAt.toISOString(),
+            } : {}),
         });
         setCreateSlot(null);
     };

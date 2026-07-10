@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/ksushant6566/mindtab/server/internal/middleware"
 	"github.com/ksushant6566/mindtab/server/internal/store"
+	"github.com/ksushant6566/mindtab/server/internal/taskstate"
 )
 
 // TasksHandler handles task endpoints.
@@ -28,19 +30,21 @@ func NewTasksHandler(queries store.Querier, pool *pgxpool.Pool) *TasksHandler {
 // --- JSON response types ---
 
 type taskJSON struct {
-	ID            string     `json:"id"`
-	Title         string     `json:"title"`
-	Description   *string    `json:"description"`
-	Status        string     `json:"status"`
-	Priority      string     `json:"priority"`
-	Impact        string     `json:"impact"`
-	Position      int32      `json:"position"`
-	CreatedAt     *time.Time `json:"createdAt"`
-	UpdatedAt     *time.Time `json:"updatedAt"`
-	CompletedAt   *time.Time `json:"completedAt"`
-	ProjectID     *string    `json:"projectId"`
-	ProjectName   *string    `json:"projectName,omitempty"`
-	ProjectStatus *string    `json:"projectStatus,omitempty"`
+	ID               string     `json:"id"`
+	Title            string     `json:"title"`
+	Description      *string    `json:"description"`
+	Status           string     `json:"status"`
+	Priority         string     `json:"priority"`
+	Impact           string     `json:"impact"`
+	Position         int32      `json:"position"`
+	CreatedAt        *time.Time `json:"createdAt"`
+	UpdatedAt        *time.Time `json:"updatedAt"`
+	CompletedAt      *time.Time `json:"completedAt"`
+	ScheduledStartAt *time.Time `json:"scheduledStartAt"`
+	ScheduledEndAt   *time.Time `json:"scheduledEndAt"`
+	ProjectID        *string    `json:"projectId"`
+	ProjectName      *string    `json:"projectName,omitempty"`
+	ProjectStatus    *string    `json:"projectStatus,omitempty"`
 }
 
 func taskFromListRow(g store.ListTasksRow) taskJSON {
@@ -57,19 +61,21 @@ func taskFromListRow(g store.ListTasksRow) taskJSON {
 		projStatus = &ps
 	}
 	return taskJSON{
-		ID:            uuidToString(g.ID),
-		Title:         textToString(g.Title),
-		Description:   textToPtr(g.Description),
-		Status:        ifaceToString(g.Status),
-		Priority:      ifaceToString(g.Priority),
-		Impact:        ifaceToString(g.Impact),
-		Position:      g.Position,
-		CreatedAt:     timestamptzToPtr(g.CreatedAt),
-		UpdatedAt:     timestamptzToPtr(g.UpdatedAt),
-		CompletedAt:   timestamptzToPtr(g.CompletedAt),
-		ProjectID:     projID,
-		ProjectName:   projName,
-		ProjectStatus: projStatus,
+		ID:               uuidToString(g.ID),
+		Title:            textToString(g.Title),
+		Description:      textToPtr(g.Description),
+		Status:           ifaceToString(g.Status),
+		Priority:         ifaceToString(g.Priority),
+		Impact:           ifaceToString(g.Impact),
+		Position:         g.Position,
+		CreatedAt:        timestamptzToPtr(g.CreatedAt),
+		UpdatedAt:        timestamptzToPtr(g.UpdatedAt),
+		CompletedAt:      timestamptzToPtr(g.CompletedAt),
+		ScheduledStartAt: timestamptzToPtr(g.ScheduledStartAt),
+		ScheduledEndAt:   timestamptzToPtr(g.ScheduledEndAt),
+		ProjectID:        projID,
+		ProjectName:      projName,
+		ProjectStatus:    projStatus,
 	}
 }
 
@@ -87,19 +93,21 @@ func taskFromGetRow(g store.GetTaskByIDRow) taskJSON {
 		projStatus = &ps
 	}
 	return taskJSON{
-		ID:            uuidToString(g.ID),
-		Title:         textToString(g.Title),
-		Description:   textToPtr(g.Description),
-		Status:        ifaceToString(g.Status),
-		Priority:      ifaceToString(g.Priority),
-		Impact:        ifaceToString(g.Impact),
-		Position:      g.Position,
-		CreatedAt:     timestamptzToPtr(g.CreatedAt),
-		UpdatedAt:     timestamptzToPtr(g.UpdatedAt),
-		CompletedAt:   timestamptzToPtr(g.CompletedAt),
-		ProjectID:     projID,
-		ProjectName:   projName,
-		ProjectStatus: projStatus,
+		ID:               uuidToString(g.ID),
+		Title:            textToString(g.Title),
+		Description:      textToPtr(g.Description),
+		Status:           ifaceToString(g.Status),
+		Priority:         ifaceToString(g.Priority),
+		Impact:           ifaceToString(g.Impact),
+		Position:         g.Position,
+		CreatedAt:        timestamptzToPtr(g.CreatedAt),
+		UpdatedAt:        timestamptzToPtr(g.UpdatedAt),
+		CompletedAt:      timestamptzToPtr(g.CompletedAt),
+		ScheduledStartAt: timestamptzToPtr(g.ScheduledStartAt),
+		ScheduledEndAt:   timestamptzToPtr(g.ScheduledEndAt),
+		ProjectID:        projID,
+		ProjectName:      projName,
+		ProjectStatus:    projStatus,
 	}
 }
 
@@ -110,18 +118,43 @@ func taskFromModel(g store.Task) taskJSON {
 		projID = &s
 	}
 	return taskJSON{
-		ID:          uuidToString(g.ID),
-		Title:       textToString(g.Title),
-		Description: textToPtr(g.Description),
-		Status:      ifaceToString(g.Status),
-		Priority:    ifaceToString(g.Priority),
-		Impact:      ifaceToString(g.Impact),
-		Position:    g.Position,
-		CreatedAt:   timestamptzToPtr(g.CreatedAt),
-		UpdatedAt:   timestamptzToPtr(g.UpdatedAt),
-		CompletedAt: timestamptzToPtr(g.CompletedAt),
-		ProjectID:   projID,
+		ID:               uuidToString(g.ID),
+		Title:            textToString(g.Title),
+		Description:      textToPtr(g.Description),
+		Status:           ifaceToString(g.Status),
+		Priority:         ifaceToString(g.Priority),
+		Impact:           ifaceToString(g.Impact),
+		Position:         g.Position,
+		CreatedAt:        timestamptzToPtr(g.CreatedAt),
+		UpdatedAt:        timestamptzToPtr(g.UpdatedAt),
+		CompletedAt:      timestamptzToPtr(g.CompletedAt),
+		ScheduledStartAt: timestamptzToPtr(g.ScheduledStartAt),
+		ScheduledEndAt:   timestamptzToPtr(g.ScheduledEndAt),
+		ProjectID:        projID,
 	}
+}
+
+func parseScheduleRange(start, end *string) (pgtype.Timestamptz, pgtype.Timestamptz, error) {
+	if (start == nil) != (end == nil) {
+		return pgtype.Timestamptz{}, pgtype.Timestamptz{}, fmt.Errorf("scheduledStartAt and scheduledEndAt must be provided together")
+	}
+	if start == nil {
+		return pgtype.Timestamptz{}, pgtype.Timestamptz{}, nil
+	}
+
+	startTime, err := time.Parse(time.RFC3339, *start)
+	if err != nil {
+		return pgtype.Timestamptz{}, pgtype.Timestamptz{}, fmt.Errorf("invalid scheduledStartAt")
+	}
+	endTime, err := time.Parse(time.RFC3339, *end)
+	if err != nil {
+		return pgtype.Timestamptz{}, pgtype.Timestamptz{}, fmt.Errorf("invalid scheduledEndAt")
+	}
+	if !endTime.After(startTime) {
+		return pgtype.Timestamptz{}, pgtype.Timestamptz{}, fmt.Errorf("scheduledEndAt must be after scheduledStartAt")
+	}
+
+	return pgtype.Timestamptz{Time: startTime, Valid: true}, pgtype.Timestamptz{Time: endTime, Valid: true}, nil
 }
 
 // List handles GET /tasks.
@@ -162,14 +195,16 @@ func (h *TasksHandler) List(w http.ResponseWriter, r *http.Request) {
 
 // createTaskRequest is the request body for POST /tasks.
 type createTaskRequest struct {
-	Title       string  `json:"title"`
-	Description *string `json:"description,omitempty"`
-	Status      *string `json:"status,omitempty"`
-	Priority    *string `json:"priority,omitempty"`
-	Impact      *string `json:"impact,omitempty"`
-	Position    *int32  `json:"position,omitempty"`
-	ProjectID   *string `json:"projectId,omitempty"`
-	CompletedAt *string `json:"completedAt,omitempty"`
+	Title            string  `json:"title"`
+	Description      *string `json:"description,omitempty"`
+	Status           *string `json:"status,omitempty"`
+	Priority         *string `json:"priority,omitempty"`
+	Impact           *string `json:"impact,omitempty"`
+	Position         *int32  `json:"position,omitempty"`
+	ProjectID        *string `json:"projectId,omitempty"`
+	CompletedAt      *string `json:"completedAt,omitempty"`
+	ScheduledStartAt *string `json:"scheduledStartAt,omitempty"`
+	ScheduledEndAt   *string `json:"scheduledEndAt,omitempty"`
 }
 
 // Create handles POST /tasks.
@@ -227,14 +262,21 @@ func (h *TasksHandler) Create(w http.ResponseWriter, r *http.Request) {
 			params.CompletedAt = pgtype.Timestamptz{Time: t, Valid: true}
 		}
 	}
+	var scheduleErr error
+	params.ScheduledStartAt, params.ScheduledEndAt, scheduleErr = parseScheduleRange(req.ScheduledStartAt, req.ScheduledEndAt)
+	if scheduleErr != nil {
+		WriteError(w, http.StatusBadRequest, scheduleErr.Error())
+		return
+	}
 
-	if err := h.queries.CreateTask(r.Context(), params); err != nil {
+	task, err := h.queries.CreateTask(r.Context(), params)
+	if err != nil {
 		slog.Error("failed to create task", "error", err)
 		WriteError(w, http.StatusInternalServerError, "failed to create task")
 		return
 	}
 
-	WriteJSON(w, http.StatusCreated, map[string]string{"message": "task created"})
+	WriteJSON(w, http.StatusCreated, taskFromModel(task))
 }
 
 // Get handles GET /tasks/{id}.
@@ -261,14 +303,16 @@ func (h *TasksHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 // updateTaskRequest is the request body for PATCH /tasks/{id}.
 type updateTaskRequest struct {
-	Title       *string                `json:"title,omitempty"`
-	Description *string                `json:"description,omitempty"`
-	Status      *string                `json:"status,omitempty"`
-	Priority    *string                `json:"priority,omitempty"`
-	Impact      *string                `json:"impact,omitempty"`
-	Position    *int32                 `json:"position,omitempty"`
-	ProjectID   optionalNullableString `json:"projectId"`
-	CompletedAt *string                `json:"completedAt"`
+	Title            *string                `json:"title,omitempty"`
+	Description      *string                `json:"description,omitempty"`
+	Status           *string                `json:"status,omitempty"`
+	Priority         *string                `json:"priority,omitempty"`
+	Impact           *string                `json:"impact,omitempty"`
+	Position         *int32                 `json:"position,omitempty"`
+	ProjectID        optionalNullableString `json:"projectId"`
+	CompletedAt      *string                `json:"completedAt"`
+	ScheduledStartAt optionalNullableString `json:"scheduledStartAt"`
+	ScheduledEndAt   optionalNullableString `json:"scheduledEndAt"`
 }
 
 // Update handles PATCH /tasks/{id}.
@@ -323,17 +367,35 @@ func (h *TasksHandler) Update(w http.ResponseWriter, r *http.Request) {
 			params.ProjectID = uuidFromGoogle(parsed)
 		}
 	}
-
-	// Handle completedAt logic based on status
-	if req.Status != nil {
-		switch *req.Status {
-		case "completed":
-			params.CompletedAt = timestamptzNow()
-		case "pending", "in_progress":
-			params.CompletedAt = nullTimestamptz()
-			// archived: keep existing completedAt — we pass null which means COALESCE keeps existing
-		}
+	if req.ScheduledStartAt.Set != req.ScheduledEndAt.Set {
+		WriteError(w, http.StatusBadRequest, "scheduledStartAt and scheduledEndAt must be provided together")
+		return
 	}
+	if req.ScheduledStartAt.Set {
+		start, end, err := parseScheduleRange(req.ScheduledStartAt.Value, req.ScheduledEndAt.Value)
+		if err != nil {
+			WriteError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		params.ScheduledStartAtSet = true
+		params.ScheduledEndAtSet = true
+		params.ScheduledStartAt = start
+		params.ScheduledEndAt = end
+	}
+
+	currentStatus := ""
+	if req.Status != nil && *req.Status == "completed" {
+		existing, err := h.queries.GetTaskByID(r.Context(), store.GetTaskByIDParams{
+			ID:     uuidFromGoogle(id),
+			UserID: userID,
+		})
+		if err != nil {
+			WriteError(w, http.StatusNotFound, "task not found")
+			return
+		}
+		currentStatus = ifaceToString(existing.Status)
+	}
+	params.CompletedAtSet, params.CompletedAt = taskstate.ComputeCompletedAtUpdate(currentStatus, req.Status)
 
 	if err := h.queries.UpdateTask(r.Context(), params); err != nil {
 		slog.Error("failed to update task", "error", err)

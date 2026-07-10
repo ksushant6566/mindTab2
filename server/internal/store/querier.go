@@ -34,7 +34,7 @@ type Querier interface {
 	CreateNote(ctx context.Context, arg CreateNoteParams) error
 	CreateProject(ctx context.Context, arg CreateProjectParams) (Project, error)
 	CreateRefreshToken(ctx context.Context, arg CreateRefreshTokenParams) error
-	CreateTask(ctx context.Context, arg CreateTaskParams) error
+	CreateTask(ctx context.Context, arg CreateTaskParams) (Task, error)
 	CreateVerificationToken(ctx context.Context, arg CreateVerificationTokenParams) error
 	// Atomically deletes expired drafts and returns the media_key of each deleted
 	// row. Combining SELECT + DELETE into one statement closes the TOCTOU window
