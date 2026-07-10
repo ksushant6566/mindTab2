@@ -70,7 +70,12 @@ function WorkstationFrameContent({ sidebar, header, children }: WorkstationFrame
 
 export function HeaderBar({ children, navigationInset = false }: { children: React.ReactNode; navigationInset?: boolean }) {
   return (
-    <div className={cn("flex h-10 w-full items-center justify-between gap-6", navigationInset && "pl-24")}>
+    <div
+      className={cn(
+        "flex h-10 w-full items-center justify-between gap-6 transition-[padding] duration-200 ease-out motion-reduce:transition-none",
+        navigationInset && "pl-24",
+      )}
+    >
       {children}
     </div>
   );

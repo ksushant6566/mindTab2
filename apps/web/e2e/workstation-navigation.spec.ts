@@ -100,6 +100,48 @@ test("login is not an eligible navigation destination", async ({ browser, reques
   await context.close();
 });
 
+test("header context moves smoothly with the pinned sidebar", async ({ browser, request }) => {
+  const { context, page } = await createAuthenticatedPage(browser, request);
+
+  await page.addInitScript(() => {
+    window.localStorage.setItem("mindtab-sidebar", JSON.stringify({ collapsed: true }));
+  });
+  await page.goto("/?view=tasks");
+  await expect(page.getByTestId("sidebar-toggle")).toBeVisible();
+  await expect(page.getByTestId("workstation-header-context")).toBeVisible();
+
+  const positions = await page.evaluate(async () => {
+    const toggle = document.querySelector<HTMLElement>("[data-testid='sidebar-toggle']");
+    const context = document.querySelector<HTMLElement>("[data-testid='workstation-header-context']");
+    if (!toggle || !context) throw new Error("Navigation controls did not render");
+
+    const sampleShortcut = async () => {
+      const samples = [context.getBoundingClientRect().x];
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "b", metaKey: true, bubbles: true, cancelable: true }));
+      for (let frame = 0; frame < 18; frame += 1) {
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+        samples.push(context.getBoundingClientRect().x);
+      }
+      return samples;
+    };
+
+    return {
+      opening: await sampleShortcut(),
+      closing: await sampleShortcut(),
+    };
+  });
+
+  const openingDeltas = positions.opening.slice(1).map((position, index) => position - positions.opening[index]!);
+  const closingDeltas = positions.closing.slice(1).map((position, index) => position - positions.closing[index]!);
+  expect(positions.opening.at(-1)! - positions.opening[0]!).toBeGreaterThan(150);
+  expect(positions.closing[0]! - positions.closing.at(-1)!).toBeGreaterThan(150);
+  expect(Math.min(...openingDeltas)).toBeGreaterThan(-5);
+  expect(Math.max(...closingDeltas)).toBeLessThan(5);
+  expect(Math.max(...openingDeltas.map(Math.abs), ...closingDeltas.map(Math.abs))).toBeLessThan(80);
+
+  await context.close();
+});
+
 test("dashboard history restores task, note, and project context", async ({ browser, request }) => {
   const { context, page } = await createAuthenticatedPage(browser, request);
 
