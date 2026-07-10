@@ -63,6 +63,24 @@ test.describe("authenticated workstation visual checks", () => {
     await context.close();
   });
 
+  test("legacy appearance templates are available in their matching modes", async ({ browser, request }) => {
+    const { context, page } = await createAuthenticatedPage(browser, request);
+
+    await page.goto("/settings");
+
+    await page.getByRole("button", { name: "Light", exact: true }).click();
+    await page.getByRole("combobox").first().click();
+    await expect(page.getByRole("option", { name: /Paper/i })).toBeVisible();
+    await page.keyboard.press("Escape");
+
+    await page.getByRole("button", { name: "Dark", exact: true }).click();
+    await page.getByRole("combobox").first().click();
+    await expect(page.getByRole("option", { name: /Graphite/i })).toBeVisible();
+    await expect(page.getByRole("option", { name: /Midnight/i })).toBeVisible();
+
+    await context.close();
+  });
+
   test("sidebar profile menu opens profile settings", async ({ browser, request }) => {
     const { context, page } = await createAuthenticatedPage(browser, request);
 

@@ -154,7 +154,7 @@ func normalizeCodeFont(font string) string {
 
 func normalizeAppearanceTemplate(template string) string {
 	switch template {
-	case "absolutely", "ayu", "catppuccin", "codex", "dracula", "everforest", "github", "gruvbox", "linear", "lobster", "material", "matrix", "monokai", "night-owl", "nord", "notion", "one", "oscurange", "proof", "rose-pine", "sentry", "solarized", "temple", "tokyo-night", "vscode-plus":
+	case "absolutely", "ayu", "catppuccin", "codex", "dracula", "everforest", "github", "graphite", "gruvbox", "linear", "lobster", "material", "matrix", "midnight", "monokai", "night-owl", "nord", "notion", "one", "oscurange", "paper", "proof", "rose-pine", "sentry", "solarized", "temple", "tokyo-night", "vscode-plus":
 		return template
 	default:
 		return "codex"

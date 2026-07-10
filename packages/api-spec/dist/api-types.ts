@@ -738,7 +738,7 @@ export interface components {
              * @default codex
              * @enum {string}
              */
-            appearanceTemplate: "absolutely" | "ayu" | "catppuccin" | "codex" | "dracula" | "everforest" | "github" | "gruvbox" | "linear" | "lobster" | "material" | "matrix" | "monokai" | "night-owl" | "nord" | "notion" | "one" | "oscurange" | "proof" | "rose-pine" | "sentry" | "solarized" | "temple" | "tokyo-night" | "vscode-plus";
+            appearanceTemplate: "absolutely" | "ayu" | "catppuccin" | "codex" | "dracula" | "everforest" | "github" | "graphite" | "gruvbox" | "linear" | "lobster" | "material" | "matrix" | "midnight" | "monokai" | "night-owl" | "nord" | "notion" | "one" | "oscurange" | "paper" | "proof" | "rose-pine" | "sentry" | "solarized" | "temple" | "tokyo-night" | "vscode-plus";
             /** @default #0169CC */
             accentColor: string;
             /** @default #111111 */
@@ -1573,7 +1573,7 @@ export interface operations {
                     /** @enum {string} */
                     codeFont?: "system-mono" | "geist-mono" | "sf-mono" | "jetbrains" | "fira-code" | "cascadia" | "menlo" | "monaco";
                     /** @enum {string} */
-                    appearanceTemplate?: "absolutely" | "ayu" | "catppuccin" | "codex" | "dracula" | "everforest" | "github" | "gruvbox" | "linear" | "lobster" | "material" | "matrix" | "monokai" | "night-owl" | "nord" | "notion" | "one" | "oscurange" | "proof" | "rose-pine" | "sentry" | "solarized" | "temple" | "tokyo-night" | "vscode-plus";
+                    appearanceTemplate?: "absolutely" | "ayu" | "catppuccin" | "codex" | "dracula" | "everforest" | "github" | "graphite" | "gruvbox" | "linear" | "lobster" | "material" | "matrix" | "midnight" | "monokai" | "night-owl" | "nord" | "notion" | "one" | "oscurange" | "paper" | "proof" | "rose-pine" | "sentry" | "solarized" | "temple" | "tokyo-night" | "vscode-plus";
                     accentColor?: string;
                     backgroundColor?: string;
                     foregroundColor?: string;
