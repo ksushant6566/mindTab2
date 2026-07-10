@@ -528,15 +528,14 @@ export function Calendar({ isActive = true }: CalendarProps) {
 
         const { schedule, ...taskFields } = task;
         const schedulePayload = getScheduleDraftPayload(schedule);
-        const slot = createSlot;
-        const scheduledStart = schedulePayload?.startAt ?? parseISO(slot.startAt);
-        const scheduledEnd = schedulePayload?.endAt ?? parseISO(slot.endAt);
         createTask({
             ...taskFields,
             status: "pending",
             projectId: null,
-            scheduledStartAt: scheduledStart.toISOString(),
-            scheduledEndAt: scheduledEnd.toISOString(),
+            ...(schedulePayload ? {
+                scheduledStartAt: schedulePayload.startAt.toISOString(),
+                scheduledEndAt: schedulePayload.endAt.toISOString(),
+            } : {}),
         });
         setCreateSlot(null);
     };

@@ -1644,10 +1644,12 @@ components:
           type: string
           format: date-time
           nullable: true
+          description: Schedule start. Must be provided together with scheduledEndAt.
         scheduledEndAt:
           type: string
           format: date-time
           nullable: true
+          description: Schedule end. Must be provided together with scheduledStartAt and be later than it.
 
     TaskCreate:
       type: object
@@ -1677,10 +1679,12 @@ components:
           type: string
           format: date-time
           nullable: true
+          description: Schedule start. Must be provided together with scheduledEndAt.
         scheduledEndAt:
           type: string
           format: date-time
           nullable: true
+          description: Schedule end. Must be provided together with scheduledStartAt and be later than it.
 
     TaskUpdate:
       type: object
@@ -1711,10 +1715,12 @@ components:
           type: string
           format: date-time
           nullable: true
+          description: Schedule start. Must be provided together with scheduledEndAt.
         scheduledEndAt:
           type: string
           format: date-time
           nullable: true
+          description: Schedule end. Must be provided together with scheduledStartAt and be later than it.
 
     # ── Note ────────────────────────────────────────────────────────
     Note:

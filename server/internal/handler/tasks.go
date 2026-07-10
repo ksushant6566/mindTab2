@@ -13,6 +13,7 @@ import (
 
 	"github.com/ksushant6566/mindtab/server/internal/middleware"
 	"github.com/ksushant6566/mindtab/server/internal/store"
+	"github.com/ksushant6566/mindtab/server/internal/taskstate"
 )
 
 // TasksHandler handles task endpoints.
@@ -382,18 +383,19 @@ func (h *TasksHandler) Update(w http.ResponseWriter, r *http.Request) {
 		params.ScheduledEndAt = end
 	}
 
-	// Handle completedAt logic based on status
-	if req.Status != nil {
-		switch *req.Status {
-		case "completed":
-			params.CompletedAtSet = true
-			params.CompletedAt = timestamptzNow()
-		case "pending", "in_progress":
-			params.CompletedAtSet = true
-			params.CompletedAt = nullTimestamptz()
-			// archived: keep existing completedAt.
+	currentStatus := ""
+	if req.Status != nil && *req.Status == "completed" {
+		existing, err := h.queries.GetTaskByID(r.Context(), store.GetTaskByIDParams{
+			ID:     uuidFromGoogle(id),
+			UserID: userID,
+		})
+		if err != nil {
+			WriteError(w, http.StatusNotFound, "task not found")
+			return
 		}
+		currentStatus = ifaceToString(existing.Status)
 	}
+	params.CompletedAtSet, params.CompletedAt = taskstate.ComputeCompletedAtUpdate(currentStatus, req.Status)
 
 	if err := h.queries.UpdateTask(r.Context(), params); err != nil {
 		slog.Error("failed to update task", "error", err)

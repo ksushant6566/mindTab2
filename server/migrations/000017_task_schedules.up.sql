@@ -8,4 +8,8 @@ ALTER TABLE tasks
             AND scheduled_end_at IS NOT NULL
             AND scheduled_end_at > scheduled_start_at
         )
-    );
+    ) NOT VALID;
+
+-- Validate separately after deployment so the schema migration does not scan
+-- the live tasks table. Run out of band:
+-- ALTER TABLE tasks VALIDATE CONSTRAINT tasks_schedule_range_check;

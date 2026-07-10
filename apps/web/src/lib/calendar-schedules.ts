@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo } from "react";
+import { toast } from "sonner";
 import { tasksQueryOptions, useUpdateTask } from "~/api/hooks";
 
 export type CalendarSchedule = {
@@ -156,6 +157,8 @@ export function useCalendarSchedules() {
             id: taskId,
             scheduledStartAt: startAt.toISOString(),
             scheduledEndAt: endAt.toISOString(),
+        }, {
+            onError: () => toast.error("Failed to save task schedule"),
         });
     }, [updateTask]);
 
@@ -164,7 +167,9 @@ export function useCalendarSchedules() {
     }, [setSchedule]);
 
     const unscheduleTask = useCallback((taskId: string) => {
-        updateTask({ id: taskId, scheduledStartAt: null, scheduledEndAt: null });
+        updateTask({ id: taskId, scheduledStartAt: null, scheduledEndAt: null }, {
+            onError: () => toast.error("Failed to remove task from calendar"),
+        });
     }, [updateTask]);
 
     return { schedules, setSchedule, scheduleTask, unscheduleTask };
