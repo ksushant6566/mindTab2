@@ -36,10 +36,8 @@ import { CreateNoteDialog } from "~/components/notes/create-note-dialog";
 import { NoteDialog } from "~/components/notes/note-dialog";
 import { TaskDialog, type TaskDialogInput } from "~/components/tasks/task-dialog";
 import { getScheduleDraftPayload } from "~/components/tasks/task-schedule-fields";
-import {
-    useAppStore,
-} from "@mindtab/core";
 import { cn } from "~/lib/utils";
+import { useDashboardNavigation } from "~/lib/dashboard-navigation";
 
 const COMMAND_PROMPT_INTERVAL_MS = 3000;
 
@@ -286,7 +284,7 @@ export const CommandMenu = () => {
         return () => clearInterval(interval);
     }, []);
 
-    const activeProjectId = useAppStore((state) => state.activeProjectId);
+    const { activeProjectId } = useDashboardNavigation();
 
     return (
         <div className="flex items-center justify-center">

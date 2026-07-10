@@ -10,7 +10,7 @@ import {
     Settings,
     UserCircle,
 } from "lucide-react";
-import { EActiveLayout, useAppStore } from "@mindtab/core";
+import { EActiveLayout } from "@mindtab/core";
 import {
     SidebarActionButton,
     SidebarAccountItem,
@@ -29,6 +29,7 @@ import {
 import { conversationsQueryOptions, projectsStatsQueryOptions } from "~/api/hooks";
 import { useAuth } from "~/api/hooks/use-auth";
 import { SIDEBAR_STORAGE_KEY, useWorkstationNavigation } from "~/lib/workstation-navigation";
+import { useDashboardNavigation } from "~/lib/dashboard-navigation";
 
 type ProjectRecord = {
     id: string;
@@ -74,7 +75,7 @@ export function AppSidebar() {
         isSidebarPreviewVisible,
         releaseSidebarPreviewHold,
     } = useWorkstationNavigation();
-    const { activeElement, activeProjectId, setActiveElement, setActiveProjectId } = useAppStore();
+    const { activeElement, activeProjectId, openDashboard } = useDashboardNavigation();
     const initialStorage = useMemo(() => readSidebarStorage(), []);
     const [pinnedProjectIds, setPinnedProjectIds] = useState<Set<string>>(
         () => new Set(initialStorage.pinnedProjectIds ?? (initialStorage.pinnedProjectId ? [initialStorage.pinnedProjectId] : []))
@@ -115,12 +116,6 @@ export function AppSidebar() {
         releaseSidebarPreviewHold();
         setAccountMenuOpen(false);
     }, [isSidebarPinned, isSidebarPreviewVisible, releaseSidebarPreviewHold]);
-
-    const openDashboard = (element: typeof EActiveLayout[keyof typeof EActiveLayout], projectId: string | null = activeProjectId) => {
-        setActiveProjectId(projectId);
-        setActiveElement(element);
-        void navigate({ to: "/" });
-    };
 
     const toggleProject = (projectId: string) => {
         setExpandedProjectIds((current) => {
@@ -192,7 +187,7 @@ export function AppSidebar() {
     return (
         <SidebarShell data-testid="workstation-sidebar" className="h-screen w-[300px] shrink-0 pt-14">
             <SidebarHeader className="pl-5">
-                <Link to="/" className="min-w-0 flex-1 overflow-hidden">
+                <Link to="/" search={{ view: "tasks" }} className="min-w-0 flex-1 overflow-hidden">
                     <SidebarLogo className="h-auto px-0">MindTab</SidebarLogo>
                 </Link>
             </SidebarHeader>

@@ -73,7 +73,11 @@ test.describe("authenticated workstation visual checks", () => {
     await expect(page.getByRole("option", { name: /Paper/i })).toBeVisible();
     await page.keyboard.press("Escape");
 
+    const darkModeSaved = page.waitForResponse((response) =>
+      response.url().endsWith("/users/me") && response.request().method() === "PATCH" && response.ok()
+    );
     await page.getByRole("button", { name: "Dark", exact: true }).click();
+    await darkModeSaved;
     await page.getByRole("combobox").first().click();
     await expect(page.getByRole("option", { name: /Graphite/i })).toBeVisible();
     await expect(page.getByRole("option", { name: /Midnight/i })).toBeVisible();

@@ -9,7 +9,7 @@ import { KanbanTasks } from "./kanban-tasks";
 import { ListTasks } from "./list-tasks";
 import { TaskDialog, type TaskDialogInput, type TaskDialogMode } from "./task-dialog";
 import { getScheduleDraftPayload } from "./task-schedule-fields";
-import { useAppStore } from "@mindtab/core";
+import { useDashboardNavigation } from "~/lib/dashboard-navigation";
 
 export type ViewMode = "list" | "kanban";
 type TasksProps = { viewMode: ViewMode; };
@@ -24,7 +24,7 @@ const isStatusOnlyUpdate = (values: Record<string, unknown>) => {
 };
 
 export const Tasks: React.FC<TasksProps> = ({ viewMode }) => {
-    const { activeProjectId } = useAppStore();
+    const { activeProjectId } = useDashboardNavigation();
     const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
     const [editTaskId, setEditTaskId] = useState<string | null>(null);
     const [editTaskMode, setEditTaskMode] = useState<TaskDialogMode>("view");

@@ -3,10 +3,11 @@ import { useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { CalendarDays, FolderOpen, Landmark, MessageSquare } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { EActiveLayout, useAppStore } from "@mindtab/core";
+import { EActiveLayout } from "@mindtab/core";
 import { conversationsQueryOptions, projectsStatsQueryOptions } from "~/api/hooks";
 import { Inline } from "~/components/layout";
 import { Heading } from "~/components/ui/typography";
+import { useDashboardNavigation } from "~/lib/dashboard-navigation";
 
 type ProjectRecord = {
   id: string;
@@ -22,7 +23,7 @@ type ConversationRecord = {
 
 export function WorkstationHeaderProject() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
-  const { activeElement, activeProjectId } = useAppStore();
+  const { activeElement, activeProjectId } = useDashboardNavigation();
   const conversationId = getConversationIdFromPath(pathname);
   const { data: projectsData } = useQuery(projectsStatsQueryOptions());
   const { data: conversationData } = useQuery({
@@ -54,7 +55,7 @@ export function WorkstationHeaderProject() {
   const Icon = showProjectLabel ? FolderOpen : page?.icon;
 
   return (
-    <Inline gap="sm" className="min-w-0">
+    <Inline gap="sm" className="min-w-0" data-testid="workstation-header-context">
       {Icon ? <Icon className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" /> : null}
       {showProjectLabel ? (
         <Heading as="div" variant="panel" className="truncate">

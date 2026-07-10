@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { addDays, addMinutes, endOfDay, format, isSameDay, parseISO, startOfDay } from "date-fns";
 import { CalendarDays, ChevronLeft, ChevronRight, Plus } from "lucide-react";
-import { EActiveLayout, useAppStore } from "@mindtab/core";
+import { EActiveLayout } from "@mindtab/core";
 import { tasksQueryOptions, useCreateTask, useDeleteTask, useUpdateTask } from "~/api/hooks";
 import { SkeletonBlock } from "~/components/patterns";
 import { TaskDialog, type TaskDialogInput } from "~/components/tasks/task-dialog";
@@ -13,6 +13,7 @@ import { Heading, MetaText, Text } from "~/components/ui/typography";
 import { useCalendarSchedules } from "~/lib/calendar-schedules";
 import { getStatusTone } from "~/lib/tones";
 import { cn } from "~/lib/utils";
+import { useDashboardNavigation } from "~/lib/dashboard-navigation";
 import {
     CalendarDayTimeline,
     type CalendarTimelineItem,
@@ -99,7 +100,7 @@ export function TodayEventsPanel() {
     const scrollRef = useRef<HTMLDivElement | null>(null);
     const lastScrolledDayRef = useRef<string | null>(null);
     const { schedules } = useCalendarSchedules();
-    const { setActiveElement, setActiveProjectId } = useAppStore();
+    const { openDashboard } = useDashboardNavigation();
     const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
     const [selectedTaskSnapshot, setSelectedTaskSnapshot] = useState<TaskRecord | null>(null);
     const [createSlot, setCreateSlot] = useState<CreateSlotState>(null);
@@ -160,8 +161,7 @@ export function TodayEventsPanel() {
     };
 
     const openCalendar = () => {
-        setActiveProjectId(null);
-        setActiveElement(EActiveLayout.Calendar);
+        openDashboard(EActiveLayout.Calendar);
     };
 
     const handleUpdateTask = (taskId: string, values: Record<string, unknown>) => {

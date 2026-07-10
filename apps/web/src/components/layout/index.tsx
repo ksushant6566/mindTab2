@@ -1,9 +1,6 @@
 import * as React from "react";
 import { cn } from "~/lib/utils";
-import {
-  WorkstationNavigationProvider,
-  useWorkstationNavigation,
-} from "~/lib/workstation-navigation";
+import { useWorkstationNavigation } from "~/lib/workstation-navigation";
 
 type DivProps = React.HTMLAttributes<HTMLDivElement>;
 
@@ -15,11 +12,9 @@ type WorkstationFrameProps = {
 
 export function WorkstationFrame({ sidebar, header, children }: WorkstationFrameProps) {
   return (
-    <WorkstationNavigationProvider>
-      <WorkstationFrameContent sidebar={sidebar} header={header}>
-        {children}
-      </WorkstationFrameContent>
-    </WorkstationNavigationProvider>
+    <WorkstationFrameContent sidebar={sidebar} header={header}>
+      {children}
+    </WorkstationFrameContent>
   );
 }
 
@@ -75,7 +70,7 @@ function WorkstationFrameContent({ sidebar, header, children }: WorkstationFrame
 
 export function HeaderBar({ children, navigationInset = false }: { children: React.ReactNode; navigationInset?: boolean }) {
   return (
-    <div className={cn("flex h-10 w-full items-center justify-between gap-6", navigationInset && "pl-12")}>
+    <div className={cn("flex h-10 w-full items-center justify-between gap-6", navigationInset && "pl-24")}>
       {children}
     </div>
   );

@@ -1,7 +1,6 @@
 import { Plus } from "lucide-react";
 import React, { useCallback, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useAppStore } from "@mindtab/core";
 import { notesQueryOptions, useDeleteNote } from "~/api/hooks";
 import { NoteGrid, NoteSkeletonGrid, NotesEmptyState } from "~/components/domain/notes";
 import { Button } from "~/components/ui/button";
@@ -10,9 +9,10 @@ import { NoteDialog } from "./note-dialog";
 import { CreateNoteDialog } from "./create-note-dialog";
 import { NotePreview } from "./note-preview";
 import type { NoteLike } from "./note-utils";
+import { useDashboardNavigation } from "~/lib/dashboard-navigation";
 
 export const Notes: React.FC = () => {
-    const { activeProjectId } = useAppStore();
+    const { activeProjectId } = useDashboardNavigation();
 
     const { data: notes, isFetching: isFetchingNotes } = useQuery(
         notesQueryOptions(activeProjectId ? { projectId: activeProjectId } : undefined)
