@@ -203,28 +203,25 @@ export function SidebarLogo({ children, className }: { children: React.ReactNode
 export function SidebarActionButton({
   icon,
   label,
-  collapsed,
   onClick,
 }: {
   icon: React.ReactNode;
   label: string;
-  collapsed: boolean;
   onClick: () => void;
 }) {
   return (
     <button
       type="button"
-      title={collapsed ? label : undefined}
       aria-label={label}
       onClick={onClick}
       className={cn(
         "flex h-8 w-full items-center rounded-[var(--r-3)] text-[length:var(--type-body-size)] font-[var(--type-body-weight)] leading-[var(--type-body-line)]",
         sidebarItemClassName,
-        collapsed ? "justify-center px-0" : "gap-3 px-2"
+        "gap-3 px-2"
       )}
     >
       {icon}
-      {!collapsed && <span className="truncate">{label}</span>}
+      <span className="truncate">{label}</span>
     </button>
   );
 }

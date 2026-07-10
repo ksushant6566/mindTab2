@@ -111,7 +111,7 @@ test.describe("authenticated workstation visual checks", () => {
     const { context, page } = await createAuthenticatedPage(browser, request);
 
     await page.goto("/");
-    await page.getByText("Review workstation sidebar").click();
+    await page.getByRole("button", { name: /Review workstation sidebar TASK-/i }).click();
     await expect(page.getByRole("dialog")).toContainText(/Review workstation sidebar/i);
     await expect(page).toHaveScreenshot("task-dialog.png", workstationScreenshotOptions);
 
@@ -122,6 +122,7 @@ test.describe("authenticated workstation visual checks", () => {
     const { context, page } = await createAuthenticatedPage(browser, request);
 
     await page.goto("/");
+    await page.getByRole("button", { name: "E2E Launch Plan", exact: true }).click();
     await page.getByRole("button", { name: "Notes" }).click();
     await expect(page.locator("body")).toContainText(/Workstation audit notes/i);
     await expect(page).toHaveScreenshot("notes-workspace.png", workstationScreenshotOptions);
@@ -135,7 +136,7 @@ test.describe("authenticated workstation visual checks", () => {
     await page.goto("/");
     await page.getByRole("button", { name: "Calendar", exact: true }).click();
     await expect(page.locator("body")).toContainText(/Unscheduled|Today|Week|Month/i);
-    await page.getByText("12AM", { exact: true }).scrollIntoViewIfNeeded();
+    await page.getByRole("button", { name: /July 8 at 12 AM/i }).scrollIntoViewIfNeeded();
     await expect(page).toHaveScreenshot("calendar-workspace.png", workstationScreenshotOptions);
 
     await context.close();

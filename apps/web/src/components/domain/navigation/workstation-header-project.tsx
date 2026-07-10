@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { CalendarDays, FolderOpen, MessageSquare, Shield } from "lucide-react";
+import { CalendarDays, FolderOpen, Landmark, MessageSquare } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { EActiveLayout, useAppStore } from "@mindtab/core";
 import { conversationsQueryOptions, projectsStatsQueryOptions } from "~/api/hooks";
@@ -98,6 +98,6 @@ function getPageContext(pathname: string, activeElement: string, conversation: C
 
   if (pathname === "/chat") return { label: "New Chat", icon: MessageSquare };
   if (pathname.startsWith("/chat/")) return { label: conversation?.title || "Chat", icon: MessageSquare };
-  if (pathname === "/vault" || pathname.startsWith("/vault/")) return { label: "Vault", icon: Shield };
+  if (pathname === "/vault" || pathname.startsWith("/vault/")) return { label: "Vault", icon: Landmark };
   return null;
 }

@@ -3,13 +3,11 @@ import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import {
     CalendarDays,
-    ChevronsLeft,
-    ChevronsRight,
+    Landmark,
     LogOut,
     PencilLine,
     Search,
     Settings,
-    Shield,
     UserCircle,
 } from "lucide-react";
 import { EActiveLayout, useAppStore } from "@mindtab/core";
@@ -28,10 +26,9 @@ import {
     SidebarProjectGroup,
     SidebarSectionButton,
 } from "~/components/domain/navigation";
-import { Button } from "~/components/ui/button";
 import { conversationsQueryOptions, projectsStatsQueryOptions } from "~/api/hooks";
 import { useAuth } from "~/api/hooks/use-auth";
-import { cn } from "~/lib/utils";
+import { SIDEBAR_STORAGE_KEY, useWorkstationNavigation } from "~/lib/workstation-navigation";
 
 type ProjectRecord = {
     id: string;
@@ -49,10 +46,7 @@ type ConversationRecord = {
     created_at?: string | null;
 };
 
-const SIDEBAR_STORAGE_KEY = "mindtab-sidebar";
-
 type SidebarStorage = {
-    collapsed?: boolean;
     pinnedProjectId?: string | null;
     pinnedProjectIds?: string[];
     pinnedOpen?: boolean;
@@ -74,9 +68,14 @@ export function AppSidebar() {
     const navigate = useNavigate();
     const pathname = useRouterState({ select: (state) => state.location.pathname });
     const { user, logout } = useAuth();
+    const {
+        holdSidebarPreviewOpen,
+        isSidebarPinned,
+        isSidebarPreviewVisible,
+        releaseSidebarPreviewHold,
+    } = useWorkstationNavigation();
     const { activeElement, activeProjectId, setActiveElement, setActiveProjectId } = useAppStore();
     const initialStorage = useMemo(() => readSidebarStorage(), []);
-    const [collapsed, setCollapsed] = useState(Boolean(initialStorage.collapsed));
     const [pinnedProjectIds, setPinnedProjectIds] = useState<Set<string>>(
         () => new Set(initialStorage.pinnedProjectIds ?? (initialStorage.pinnedProjectId ? [initialStorage.pinnedProjectId] : []))
     );
@@ -99,19 +98,23 @@ export function AppSidebar() {
 
     useEffect(() => {
         const nextStorage: SidebarStorage = {
-            collapsed,
             pinnedProjectIds: Array.from(pinnedProjectIds),
             pinnedOpen,
             projectsOpen,
             chatsOpen,
             expandedProjectIds: Array.from(expandedProjectIds),
         };
-        window.localStorage.setItem(SIDEBAR_STORAGE_KEY, JSON.stringify(nextStorage));
-    }, [chatsOpen, collapsed, expandedProjectIds, pinnedOpen, pinnedProjectIds, projectsOpen]);
+        window.localStorage.setItem(
+            SIDEBAR_STORAGE_KEY,
+            JSON.stringify({ ...readSidebarStorage(), ...nextStorage })
+        );
+    }, [chatsOpen, expandedProjectIds, pinnedOpen, pinnedProjectIds, projectsOpen]);
 
     useEffect(() => {
-        if (collapsed) setAccountMenuOpen(false);
-    }, [collapsed]);
+        if (isSidebarPinned || isSidebarPreviewVisible) return;
+        releaseSidebarPreviewHold();
+        setAccountMenuOpen(false);
+    }, [isSidebarPinned, isSidebarPreviewVisible, releaseSidebarPreviewHold]);
 
     const openDashboard = (element: typeof EActiveLayout[keyof typeof EActiveLayout], projectId: string | null = activeProjectId) => {
         setActiveProjectId(projectId);
@@ -170,67 +173,39 @@ export function AppSidebar() {
     };
 
     const handleLogout = async () => {
+        releaseSidebarPreviewHold();
         await logout();
         void navigate({ to: "/" });
     };
 
-    return (
-        <SidebarShell
-            className={cn(
-                "relative h-screen shrink-0 transition-[width] duration-200",
-                "pt-5",
-                collapsed ? "w-[64px]" : "w-[300px]"
-            )}
-        >
-            <SidebarHeader>
-                {collapsed ? (
-                    <Link to="/" className="min-w-0 overflow-hidden">
-                        <SidebarLogo className="h-auto px-2">MindTab</SidebarLogo>
-                    </Link>
-                ) : (
-                    <Link to="/" className="min-w-0 flex-1 overflow-hidden">
-                        <SidebarLogo className="h-auto px-2">MindTab</SidebarLogo>
-                    </Link>
-                )}
-                {!collapsed && (
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        title="Collapse sidebar"
-                        aria-label="Collapse sidebar"
-                        onClick={() => setCollapsed(true)}
-                    >
-                        <ChevronsLeft className="h-4 w-4" />
-                    </Button>
-                )}
-            </SidebarHeader>
+    const toggleAccountMenu = () => {
+        if (accountMenuOpen) releaseSidebarPreviewHold();
+        else holdSidebarPreviewOpen();
+        setAccountMenuOpen(!accountMenuOpen);
+    };
 
-            {collapsed && (
-                <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    className="absolute right-[-14px] top-[26px] z-20 h-7 w-7 rounded-full bg-card shadow-sm"
-                    title="Expand sidebar"
-                    aria-label="Expand sidebar"
-                    onClick={() => setCollapsed(false)}
-                >
-                    <ChevronsRight className="h-3.5 w-3.5" />
-                </Button>
-            )}
+    const closeAccountMenu = () => {
+        releaseSidebarPreviewHold();
+        setAccountMenuOpen(false);
+    };
+
+    return (
+        <SidebarShell data-testid="workstation-sidebar" className="h-screen w-[300px] shrink-0 pt-14">
+            <SidebarHeader className="pl-5">
+                <Link to="/" className="min-w-0 flex-1 overflow-hidden">
+                    <SidebarLogo className="h-auto px-0">MindTab</SidebarLogo>
+                </Link>
+            </SidebarHeader>
 
             <SidebarContent className="custom-scrollbar px-3 pb-4 pt-0">
                 <div className="mt-3 space-y-1">
-                    <SidebarActionButton collapsed={collapsed} icon={<PencilLine className="h-4 w-4" />} label="New chat" onClick={() => void navigate({ to: "/chat" })} />
-                    <SidebarActionButton collapsed={collapsed} icon={<Shield className="h-4 w-4" />} label="Vault" onClick={() => void navigate({ to: "/vault" })} />
-                    <SidebarActionButton collapsed={collapsed} icon={<Search className="h-4 w-4" />} label="Search" onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }))} />
-                    <SidebarActionButton collapsed={collapsed} icon={<CalendarDays className="h-4 w-4" />} label="Calendar" onClick={() => openDashboard(EActiveLayout.Calendar, null)} />
+                    <SidebarActionButton icon={<PencilLine className="h-4 w-4" />} label="New chat" onClick={() => void navigate({ to: "/chat" })} />
+                    <SidebarActionButton icon={<Landmark className="h-4 w-4" />} label="Vault" onClick={() => void navigate({ to: "/vault" })} />
+                    <SidebarActionButton icon={<Search className="h-4 w-4" />} label="Search" onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }))} />
+                    <SidebarActionButton icon={<CalendarDays className="h-4 w-4" />} label="Calendar" onClick={() => openDashboard(EActiveLayout.Calendar, null)} />
                 </div>
 
-                {!collapsed && (
-                    <div className="mt-4 space-y-4">
+                <div className="mt-4 space-y-4">
                         <section>
                             <SidebarSectionButton open={pinnedOpen} onClick={() => setPinnedOpen((value) => !value)}>
                                 Pinned
@@ -281,13 +256,11 @@ export function AppSidebar() {
                                 </div>
                             )}
                         </section>
-                    </div>
-                )}
+                </div>
             </SidebarContent>
 
-            {!collapsed && (
-                <SidebarAccountMenu>
-                    <SidebarAccountItem user={user} onClick={() => setAccountMenuOpen((value) => !value)} />
+            <SidebarAccountMenu>
+                    <SidebarAccountItem user={user} onClick={toggleAccountMenu} />
 
                     {accountMenuOpen && (
                         <SidebarAccountPopover>
@@ -297,7 +270,7 @@ export function AppSidebar() {
                             <div className="py-1">
                                 <SidebarItem
                                     onClick={() => {
-                                        setAccountMenuOpen(false);
+                                        closeAccountMenu();
                                         void navigate({ to: "/settings", search: { section: "profile" } });
                                     }}
                                     icon={<UserCircle className="h-4 w-4" />}
@@ -307,7 +280,7 @@ export function AppSidebar() {
                                 </SidebarItem>
                                 <SidebarItem
                                     onClick={() => {
-                                        setAccountMenuOpen(false);
+                                        closeAccountMenu();
                                         void navigate({ to: "/settings", search: { section: "general" } });
                                     }}
                                     icon={<Settings className="h-4 w-4" />}
@@ -327,8 +300,7 @@ export function AppSidebar() {
                             </div>
                         </SidebarAccountPopover>
                     )}
-                </SidebarAccountMenu>
-            )}
+            </SidebarAccountMenu>
         </SidebarShell>
     );
 }
