@@ -159,7 +159,39 @@ test("sidebar search icon opens the command palette", async ({ browser, request 
   const tooltipBox = await tooltip.boundingBox();
   expect((tooltipBox?.y ?? 0) + (tooltipBox?.height ?? 0)).toBeLessThanOrEqual(searchButtonBox?.y ?? 0);
   await searchButton.click();
-  await expect(page.getByPlaceholder("Search notes, tasks, commands...")).toBeVisible();
+  const commandDialog = page.getByRole("dialog");
+  await expect(commandDialog.getByPlaceholder("Search tasks, notes, projects, chats, saves, and commands...")).toBeVisible();
+
+  await expect(commandDialog.getByText("Quick actions", { exact: true })).toBeVisible();
+  await expect(commandDialog.getByText("Go to", { exact: true })).toBeVisible();
+  await expect(commandDialog.getByText("Projects", { exact: true })).toBeVisible();
+
+  await commandDialog.getByText("E2E Launch Plan", { exact: true }).click();
+  await expect(commandDialog.getByText("Project actions", { exact: true })).toBeVisible();
+  await expect(commandDialog.getByText("Open project tasks", { exact: true })).toBeVisible();
+  await expect(commandDialog.getByText("Create note in project", { exact: true })).toBeVisible();
+
+  await page.keyboard.press("Escape");
+  await expect(commandDialog.getByText("Quick actions", { exact: true })).toBeVisible();
+
+  const commandInput = commandDialog.getByPlaceholder("Search tasks, notes, projects, chats, saves, and commands...");
+
+  await commandInput.fill("new task");
+  await expect(commandDialog.locator("[cmdk-item]").first()).toContainText("Create task");
+  await expect(commandDialog.locator("[cmdk-item]").first()).toContainText("Exact");
+
+  await commandInput.fill("calender");
+  await expect(commandDialog.locator("[cmdk-item]").first()).toContainText("Calendar");
+  await expect(commandDialog.locator("[cmdk-item]").first()).toContainText("Fuzzy");
+
+  await commandInput.fill("project:E2E");
+  await expect(commandDialog.locator("[cmdk-item]").first()).toContainText("E2E Launch Plan");
+
+  await commandInput.fill("Review workstation sidebar");
+  const taskResult = commandDialog.getByText("Review workstation sidebar", { exact: true });
+  await expect(taskResult).toBeVisible();
+  await taskResult.click();
+  await expect(page.getByRole("dialog")).toContainText("Review workstation sidebar");
 
   await context.close();
 });

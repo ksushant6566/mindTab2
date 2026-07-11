@@ -6,7 +6,7 @@ import { Command as CommandPrimitive } from "cmdk"
 import { Search } from "lucide-react"
 
 import { cn } from "~/lib/utils"
-import { Dialog, DialogContent } from "~/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "~/components/ui/dialog"
 
 const Command = React.forwardRef<
   React.ElementRef<typeof CommandPrimitive>,
@@ -23,13 +23,32 @@ const Command = React.forwardRef<
 ))
 Command.displayName = CommandPrimitive.displayName
 
-interface CommandDialogProps extends DialogProps {}
+interface CommandDialogProps extends DialogProps {
+  title?: string
+  description?: string
+  onEscapeKeyDown?: React.ComponentPropsWithoutRef<typeof DialogContent>["onEscapeKeyDown"]
+  shouldFilter?: React.ComponentPropsWithoutRef<typeof Command>["shouldFilter"]
+  loop?: React.ComponentPropsWithoutRef<typeof Command>["loop"]
+}
 
-const CommandDialog = ({ children, ...props }: CommandDialogProps) => {
+const CommandDialog = ({
+  children,
+  title = "Command menu",
+  description = "Search and run a command",
+  onEscapeKeyDown,
+  shouldFilter,
+  loop,
+  ...props
+}: CommandDialogProps) => {
   return (
     <Dialog {...props}>
-      <DialogContent className="max-w-xl overflow-hidden border border-border bg-[var(--bg-elev)] p-0 shadow-[var(--shadow-command)] sm:rounded-[var(--r-4)]">
-        <Command>
+      <DialogContent
+        className="max-w-2xl overflow-hidden border border-border bg-[var(--bg-elev)] p-0 shadow-[var(--shadow-command)] sm:rounded-[var(--r-4)]"
+        onEscapeKeyDown={onEscapeKeyDown}
+      >
+        <DialogTitle className="sr-only">{title}</DialogTitle>
+        <DialogDescription className="sr-only">{description}</DialogDescription>
+        <Command shouldFilter={shouldFilter} loop={loop}>
           {children}
         </Command>
       </DialogContent>
@@ -42,7 +61,7 @@ const CommandInput = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof CommandPrimitive.Input>
 >(({ className, ...props }, ref) => (
   <div
-    className="flex h-14 items-center gap-3 border-b border-border bg-[var(--bg)]/35 px-4"
+    className="flex h-16 items-center gap-3 border-b border-border bg-[var(--bg)]/35 px-4"
     cmdk-input-wrapper=""
   >
     <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -65,7 +84,7 @@ const CommandList = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <CommandPrimitive.List
     ref={ref}
-    className={cn("custom-scrollbar max-h-[440px] overflow-y-auto overflow-x-hidden p-2", className)}
+    className={cn("custom-scrollbar max-h-[min(62vh,560px)] overflow-y-auto overflow-x-hidden p-2", className)}
     {...props}
   />
 ))

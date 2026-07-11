@@ -102,9 +102,10 @@ test.describe("authenticated workstation visual checks", () => {
 
     await page.goto("/");
     await page.getByRole("button", { name: /⌘K/ }).click();
-    await expect(page.getByText("Settings")).toBeVisible();
-    await expect(page.getByText("Theme: Dark")).toHaveCount(0);
-    await page.getByText("Keyboard Shortcuts").click();
+    const commandDialog = page.getByRole("dialog");
+    await expect(commandDialog.getByText("Settings", { exact: true })).toBeVisible();
+    await expect(commandDialog.getByText("Theme: Dark")).toHaveCount(0);
+    await commandDialog.getByText("Keyboard Shortcuts").click();
     await expect(page).toHaveURL(/\/settings\?section=shortcuts/);
     await expect(page.getByRole("heading", { name: "Keyboard Shortcuts" })).toBeVisible();
 
