@@ -1,6 +1,29 @@
 import { expect, test } from "@playwright/test";
 import { createAuthenticatedPage } from "./helpers/e2e-auth";
 
+test("bare root defaults to Calendar and restores the last signed-in location", async ({ browser, request }) => {
+  const { context, page } = await createAuthenticatedPage(browser, request);
+
+  await page.goto("/");
+  await expect.poll(() => new URL(page.url()).searchParams.get("view")).toBe("calendar");
+  await expect(page.getByRole("button", { name: "Calendar", exact: true })).toHaveAttribute("aria-current", "page");
+
+  await page.goto("/chat/00000000-0000-4000-8000-000000000401");
+  await expect(page.getByRole("button", { name: "New chat", exact: true })).toHaveAttribute("aria-current", "page");
+
+  await page.goto("/");
+  await expect(page).toHaveURL(/\/chat\/00000000-0000-4000-8000-000000000401$/);
+
+  await page.getByRole("button", { name: "Vault", exact: true }).click();
+  await expect(page).toHaveURL(/\/vault$/);
+  await expect(page.getByRole("button", { name: "Vault", exact: true })).toHaveAttribute("aria-current", "page");
+
+  await page.goto("/");
+  await expect(page).toHaveURL(/\/vault$/);
+
+  await context.close();
+});
+
 test("sidebar preview overlays content while click-pinning changes the layout", async ({ browser, request }) => {
   const { context, page } = await createAuthenticatedPage(browser, request);
 
@@ -47,7 +70,7 @@ test("sidebar preview overlays content while click-pinning changes the layout", 
   expect(await toggle.boundingBox()).toEqual(initialToggleBox);
 
   await back.click();
-  await expect(page).toHaveURL(/\/$/);
+  await expect.poll(() => new URL(page.url()).searchParams.get("view")).toBe("calendar");
   await expect(back).toBeDisabled();
   await expect(forward).toBeEnabled();
   await forward.click();
@@ -93,7 +116,7 @@ test("login is not an eligible navigation destination", async ({ browser, reques
   const { context, page } = await createAuthenticatedPage(browser, request);
 
   await page.goto("/login");
-  await expect(page).toHaveURL(/\/$/);
+  await expect.poll(() => new URL(page.url()).searchParams.get("view")).toBe("calendar");
   await expect(page.getByTestId("navigation-back")).toBeDisabled();
   await expect(page.getByTestId("navigation-forward")).toBeDisabled();
 
@@ -192,6 +215,23 @@ test("sidebar search icon opens the command palette", async ({ browser, request 
   await expect(taskResult).toBeVisible();
   await taskResult.click();
   await expect(page.getByRole("dialog")).toContainText("Review workstation sidebar");
+
+  await context.close();
+});
+
+test("header command trigger uses the themed Command icon and keeps its shimmer", async ({ browser, request }) => {
+  const { context, page } = await createAuthenticatedPage(browser, request);
+
+  await page.goto("/?view=calendar");
+  const commandTrigger = page.getByRole("button", { name: "Open command menu (⌘K)" });
+  await expect(commandTrigger.locator(".lucide-command")).toBeVisible();
+  await expect(commandTrigger).toHaveClass(/command-trigger-shimmer/);
+
+  const radius = await commandTrigger.evaluate((element) => ({
+    actual: getComputedStyle(element).borderRadius,
+    themed: getComputedStyle(element).getPropertyValue("--r-2").trim(),
+  }));
+  expect(radius.actual).toBe(radius.themed);
 
   await context.close();
 });

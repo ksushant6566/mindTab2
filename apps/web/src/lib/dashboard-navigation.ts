@@ -42,7 +42,7 @@ export function useDashboardNavigation() {
   const location = useRouterState({ select: (state) => state.location });
   const search = normalizeDashboardSearch(location.search as Record<string, unknown>);
   const isDashboard = location.pathname === "/";
-  const view = isDashboard ? search.view ?? "tasks" : "tasks";
+  const view = isDashboard ? search.view ?? "calendar" : "tasks";
   const activeElement = layoutByView[view];
   const activeProjectId = isDashboard && view !== "calendar" ? search.project ?? null : null;
 
