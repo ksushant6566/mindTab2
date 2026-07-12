@@ -3,6 +3,7 @@ import {
     CalendarDays,
     Check,
     ChevronRight,
+    Command,
     FileText,
     FolderKanban,
     FolderPlus,
@@ -602,7 +603,7 @@ export const CommandMenu = () => {
             <Button
                 size="sm"
                 variant="outline"
-                className="command-trigger-shimmer h-9 w-72 justify-between gap-3 rounded-[var(--r-2)] px-3 text-muted-foreground"
+                className="command-trigger-shimmer h-9 w-72 justify-between gap-3 px-3 text-muted-foreground"
                 style={{
                     backgroundImage: "linear-gradient(110deg, var(--command-shimmer-from), 45%, var(--command-shimmer-to), 55%, var(--command-shimmer-from))",
                     backgroundSize: "200% 100%",
@@ -614,7 +615,10 @@ export const CommandMenu = () => {
                     <Search className="h-3.5 w-3.5 shrink-0" />
                     <Text as="span" variant="muted" className="truncate">Search or run a command</Text>
                 </span>
-                <CodeText as="kbd" className="rounded-[var(--r-1)] border border-border bg-background/70 px-1.5 py-0.5">⌘K</CodeText>
+                <CodeText as="kbd" className="inline-flex items-center gap-1 rounded-[var(--r-1)] border border-border bg-background/70 px-1.5 py-0.5">
+                    <Command className="h-3 w-3" aria-hidden="true" />
+                    K
+                </CodeText>
             </Button>
 
             <CommandDialog

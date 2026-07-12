@@ -203,20 +203,24 @@ export function SidebarLogo({ children, className }: { children: React.ReactNode
 export function SidebarActionButton({
   icon,
   label,
+  active,
   onClick,
 }: {
   icon: React.ReactNode;
   label: string;
+  active?: boolean;
   onClick: () => void;
 }) {
   return (
     <button
       type="button"
       aria-label={label}
+      aria-current={active ? "page" : undefined}
       onClick={onClick}
       className={cn(
         "flex h-8 w-full items-center rounded-[var(--r-3)] text-[length:var(--type-body-size)] font-[var(--type-body-weight)] leading-[var(--type-body-line)]",
         sidebarItemClassName,
+        active && sidebarItemActiveClassName,
         "gap-3 px-2"
       )}
     >

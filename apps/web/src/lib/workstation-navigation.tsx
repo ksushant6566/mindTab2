@@ -1,7 +1,9 @@
 import * as React from "react";
 import { useRouter } from "@tanstack/react-router";
+import { useAuth } from "~/api/hooks/use-auth";
 
 export const SIDEBAR_STORAGE_KEY = "mindtab-sidebar";
+export const LAST_LOCATION_STORAGE_KEY_PREFIX = "mindtab-last-location";
 
 type WorkstationNavigationContextValue = {
   isSidebarPinned: boolean;
@@ -31,7 +33,10 @@ type NavigationHistoryState = {
 };
 
 type HistoryLocation = {
+  href: string;
   pathname: string;
+  search: string;
+  hash: string;
   state: { __TSR_index: number };
 };
 
@@ -43,6 +48,51 @@ function createNavigationEntry(location: HistoryLocation): NavigationEntry {
   return {
     navigable: isAppDestination(location.pathname),
   };
+}
+
+function getLastLocationStorageKey(userId: string) {
+  return `${LAST_LOCATION_STORAGE_KEY_PREFIX}:${userId}`;
+}
+
+function isBareDashboardLocation(location: HistoryLocation) {
+  return location.pathname === "/" && !location.search && !location.hash;
+}
+
+function isPersistableLocation(pathname: string) {
+  return pathname === "/"
+    || pathname === "/chat"
+    || pathname.startsWith("/chat/")
+    || pathname === "/vault"
+    || pathname.startsWith("/vault/")
+    || pathname === "/settings"
+    || pathname.startsWith("/users/");
+}
+
+function readLastLocation(userId: string) {
+  try {
+    const value = window.localStorage.getItem(getLastLocationStorageKey(userId));
+    if (!value) return null;
+
+    const destination = new URL(value, window.location.origin);
+    if (destination.origin !== window.location.origin || !isPersistableLocation(destination.pathname)) {
+      return null;
+    }
+
+    const href = `${destination.pathname}${destination.search}${destination.hash}`;
+    return href === "/" ? null : href;
+  } catch {
+    return null;
+  }
+}
+
+function persistLastLocation(userId: string, location: HistoryLocation) {
+  if (!isPersistableLocation(location.pathname) || isBareDashboardLocation(location)) return;
+
+  try {
+    window.localStorage.setItem(getLastLocationStorageKey(userId), location.href);
+  } catch {
+    // Navigation remains functional when browser storage is unavailable.
+  }
 }
 
 function findNavigationIndex(
@@ -87,6 +137,7 @@ function persistPinnedState(isPinned: boolean) {
 
 export function WorkstationNavigationProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const { user, isAuthenticated, isLoading } = useAuth();
   const [isSidebarPinned, setIsSidebarPinned] = React.useState(readInitialPinnedState);
   const [isSidebarPreviewVisible, setIsSidebarPreviewVisible] = React.useState(false);
   const [navigationHistory, setNavigationHistory] = React.useState<NavigationHistoryState>(() => {
@@ -119,6 +170,24 @@ export function WorkstationNavigationProvider({ children }: { children: React.Re
       });
     });
   }, [router]);
+
+  React.useEffect(() => {
+    if (isLoading || !isAuthenticated || !user) return;
+
+    const handleLocation = (location: HistoryLocation) => {
+      if (isBareDashboardLocation(location)) {
+        router.history.replace(readLastLocation(user.id) ?? "/?view=calendar");
+        return;
+      }
+
+      persistLastLocation(user.id, location);
+    };
+
+    handleLocation(router.history.location as HistoryLocation);
+    return router.history.subscribe(({ location }) => {
+      handleLocation(location as HistoryLocation);
+    });
+  }, [isAuthenticated, isLoading, router, user]);
 
   const previousNavigationIndex = findNavigationIndex(navigationHistory, "back");
   const nextNavigationIndex = findNavigationIndex(navigationHistory, "forward");

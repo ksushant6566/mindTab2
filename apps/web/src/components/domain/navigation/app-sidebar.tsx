@@ -220,9 +220,9 @@ export function AppSidebar() {
 
             <SidebarContent className="custom-scrollbar px-3 pb-4 pt-0">
                 <div className="mt-3 space-y-1">
-                    <SidebarActionButton icon={<PencilLine className="h-4 w-4" />} label="New chat" onClick={() => void navigate({ to: "/chat" })} />
-                    <SidebarActionButton icon={<Landmark className="h-4 w-4" />} label="Vault" onClick={() => void navigate({ to: "/vault" })} />
-                    <SidebarActionButton icon={<CalendarDays className="h-4 w-4" />} label="Calendar" onClick={() => openDashboard(EActiveLayout.Calendar, null)} />
+                    <SidebarActionButton active={pathname.startsWith("/chat")} icon={<PencilLine className="h-4 w-4" />} label="New chat" onClick={() => void navigate({ to: "/chat" })} />
+                    <SidebarActionButton active={pathname.startsWith("/vault")} icon={<Landmark className="h-4 w-4" />} label="Vault" onClick={() => void navigate({ to: "/vault" })} />
+                    <SidebarActionButton active={pathname === "/" && activeElement === EActiveLayout.Calendar} icon={<CalendarDays className="h-4 w-4" />} label="Calendar" onClick={() => openDashboard(EActiveLayout.Calendar, null)} />
                 </div>
 
                 <div className="mt-4 space-y-4">
