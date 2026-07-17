@@ -1308,6 +1308,82 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
 
+  /ai/providers:
+    get:
+      operationId: listAIProviders
+      tags: [AI]
+      summary: List model providers and their user-specific configuration state
+      responses:
+        "200":
+          description: Available providers and models
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [providers]
+                properties:
+                  providers:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AIProviderConfiguration"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /ai/providers/{provider}:
+    parameters:
+      - name: provider
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/AIProviderId"
+    put:
+      operationId: saveAIProviderCredential
+      tags: [AI]
+      summary: Encrypt and save a provider API key for the current user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [api_key]
+              properties:
+                api_key:
+                  type: string
+                  minLength: 8
+                  maxLength: 4096
+                  writeOnly: true
+      responses:
+        "200":
+          description: Provider configured
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [provider, configured, key_hint]
+                properties:
+                  provider:
+                    $ref: "#/components/schemas/AIProviderId"
+                  configured:
+                    type: boolean
+                  key_hint:
+                    type: string
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    delete:
+      operationId: deleteAIProviderCredential
+      tags: [AI]
+      summary: Remove a saved provider API key
+      responses:
+        "204":
+          description: Provider credential removed
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
   /conversations/{id}/messages:
     get:
       operationId: getMessages
@@ -2224,7 +2300,7 @@ components:
     # ── Chat ────────────────────────────────────────────────────────────
     ConversationListItem:
       type: object
-      required: [id, created_at, updated_at]
+      required: [id, provider, model, created_at, updated_at]
       properties:
         id:
           type: string
@@ -2233,6 +2309,16 @@ components:
           type: string
           nullable: true
           description: Conversation title (auto-generated or user-set)
+        provider:
+          $ref: "#/components/schemas/AIProviderId"
+        model:
+          type: string
+          description: Provider-specific model identifier used by this conversation
+        project_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: Optional project context for the conversation
         created_at:
           type: string
           format: date-time
@@ -2267,6 +2353,43 @@ components:
         created_at:
           type: string
           format: date-time
+
+    AIProviderId:
+      type: string
+      enum: [openai, anthropic, gemini, openrouter]
+
+    AIModelOption:
+      type: object
+      required: [id, name, description]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+
+    AIProviderConfiguration:
+      type: object
+      required: [id, name, configured, managed, models]
+      properties:
+        id:
+          $ref: "#/components/schemas/AIProviderId"
+        name:
+          type: string
+        configured:
+          type: boolean
+        managed:
+          type: boolean
+          description: True when MindTab supplies the credential for this provider
+        key_hint:
+          type: string
+          nullable: true
+          description: Masked last four characters of the user's saved key
+        models:
+          type: array
+          items:
+            $ref: "#/components/schemas/AIModelOption"
 
     AttachmentUploadResponse:
       type: object

@@ -3,6 +3,7 @@ package chat
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -10,14 +11,14 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/ksushant6566/mindtab/server/internal/providers"
+	appai "github.com/ksushant6566/mindtab/server/internal/ai"
 	"github.com/ksushant6566/mindtab/server/internal/providers/llm"
 	"github.com/ksushant6566/mindtab/server/internal/store"
 )
 
-func buildSystemPrompt() string {
+func buildSystemPrompt(projectContext string) string {
 	now := time.Now()
-	return fmt.Sprintf(`You are MindTab, a professional project workstation assistant. You have access to the user's tasks, notes, projects, calendar schedules, conversations, and saved vault items.
+	prompt := fmt.Sprintf(`You are MindTab, a professional project workstation assistant. You have access to the user's tasks, notes, projects, calendar schedules, conversations, and saved vault items.
 
 CURRENT DATE & TIME: %s (timezone: %s)
 
@@ -36,6 +37,10 @@ PERSONALITY:
 - Never say "I can only tell you..." — use the tools to find the answer.`,
 		now.Format("Monday, January 2, 2006 3:04 PM"),
 		now.Format("MST"))
+	if projectContext != "" {
+		prompt += "\n\nACTIVE PROJECT:\n" + projectContext + "\nTreat this project as the primary context unless the user explicitly asks about the wider workspace."
+	}
+	return prompt
 }
 
 const maxToolIterations = 5
@@ -61,21 +66,26 @@ type WSClientMessage struct {
 	ConversationID *string  `json:"conversation_id,omitempty"`
 	Content        string   `json:"content,omitempty"`
 	Attachments    []string `json:"attachments,omitempty"`
+	Provider       string   `json:"provider,omitempty"`
+	Model          string   `json:"model,omitempty"`
+	ProjectID      *string  `json:"project_id,omitempty"`
+}
+
+type LLMResolver interface {
+	Resolve(ctx context.Context, userID, provider, model string) (llm.LLMProvider, error)
 }
 
 // Orchestrator coordinates chat interactions between the client, LLM, and tools.
 type Orchestrator struct {
 	queries  store.Querier
-	llmChain *providers.Chain[llm.LLMProvider]
+	resolver LLMResolver
 	registry *Registry
 }
 
 // NewOrchestrator creates a new Orchestrator.
-func NewOrchestrator(queries store.Querier, llmChain *providers.Chain[llm.LLMProvider], registry *Registry) *Orchestrator {
+func NewOrchestrator(queries store.Querier, resolver LLMResolver, registry *Registry) *Orchestrator {
 	return &Orchestrator{
-		queries:  queries,
-		llmChain: llmChain,
-		registry: registry,
+		queries: queries, resolver: resolver, registry: registry,
 	}
 }
 
@@ -92,18 +102,13 @@ func trySend(ctx context.Context, writeChan chan<- WSServerMessage, msg WSServer
 
 // HandleMessage processes an incoming user message through the full chat pipeline.
 func (o *Orchestrator) HandleMessage(ctx context.Context, userID string, msg WSClientMessage, writeChan chan<- WSServerMessage) {
-	if o.llmChain == nil {
-		trySend(ctx, writeChan, WSServerMessage{
-			Type:    "error",
-			Code:    "not_configured",
-			Message: "Chat is not available — LLM providers are not configured.",
-		})
-		return
-	}
-
 	// 1. Resolve or create conversation
 	var conversationID pgtype.UUID
 	isNewConversation := false
+	providerID := msg.Provider
+	modelID := msg.Model
+	var projectID pgtype.UUID
+	projectContext := ""
 
 	if msg.ConversationID != nil && *msg.ConversationID != "" {
 		parsed, err := uuid.Parse(*msg.ConversationID)
@@ -116,8 +121,70 @@ func (o *Orchestrator) HandleMessage(ctx context.Context, userID string, msg WSC
 			return
 		}
 		conversationID = pgtype.UUID{Bytes: parsed, Valid: true}
+		conversation, err := o.queries.GetConversation(ctx, store.GetConversationParams{
+			ID: conversationID, UserID: userID,
+		})
+		if err != nil {
+			trySend(ctx, writeChan, WSServerMessage{Type: "error", Code: "conversation_not_found", Message: "Conversation not found."})
+			return
+		}
+		if providerID == "" {
+			providerID = conversation.Provider
+		}
+		if modelID == "" {
+			modelID = conversation.Model
+		}
+		projectID = conversation.ProjectID
 	} else {
-		conv, err := o.queries.CreateConversation(ctx, userID)
+		if providerID == "" {
+			providerID = appai.ProviderGemini
+		}
+		if modelID == "" {
+			modelID = "gemini-2.5-flash"
+		}
+		isNewConversation = true
+	}
+
+	if !appai.IsModel(providerID, modelID) {
+		trySend(ctx, writeChan, WSServerMessage{Type: "error", Code: "invalid_model", Message: "That model is not available for this provider."})
+		return
+	}
+
+	if msg.ProjectID != nil {
+		projectID = pgtype.UUID{}
+		if *msg.ProjectID != "" {
+			parsedProjectID, err := uuid.Parse(*msg.ProjectID)
+			if err != nil {
+				trySend(ctx, writeChan, WSServerMessage{Type: "error", Code: "invalid_project_id", Message: "Invalid project selection."})
+				return
+			}
+			projectID = pgtype.UUID{Bytes: parsedProjectID, Valid: true}
+		}
+	}
+	if projectID.Valid {
+		project, err := o.queries.GetProjectByID(ctx, store.GetProjectByIDParams{ID: projectID, CreatedBy: userID})
+		if err != nil {
+			trySend(ctx, writeChan, WSServerMessage{Type: "error", Code: "project_not_found", Message: "Project not found."})
+			return
+		}
+		projectContext = fmt.Sprintf("%s (project id: %s)", pgtextToString(project.Name), uuidToString(project.ID))
+	}
+
+	selectedProvider, err := o.resolver.Resolve(ctx, userID, providerID, modelID)
+	if err != nil {
+		message := "This model provider is not configured. Add its API key in Settings → Models."
+		if !errors.Is(err, appai.ErrProviderNotConfigured) {
+			slog.Error("failed to resolve chat provider", "error", err, "provider", providerID, "model", modelID, "userID", userID)
+			message = "MindTab could not prepare that model. Check its API key and try again."
+		}
+		trySend(ctx, writeChan, WSServerMessage{Type: "error", Code: "provider_not_configured", Message: message})
+		return
+	}
+
+	if isNewConversation {
+		conv, err := o.queries.CreateConversation(ctx, store.CreateConversationParams{
+			UserID: userID, Provider: providerID, Model: modelID, ProjectID: projectID,
+		})
 		if err != nil {
 			slog.Error("failed to create conversation", "error", err, "userID", userID)
 			trySend(ctx, writeChan, WSServerMessage{
@@ -128,7 +195,14 @@ func (o *Orchestrator) HandleMessage(ctx context.Context, userID string, msg WSC
 			return
 		}
 		conversationID = conv.ID
-		isNewConversation = true
+	} else if msg.Provider != "" || msg.Model != "" || msg.ProjectID != nil {
+		if _, err := o.queries.UpdateConversationConfiguration(ctx, store.UpdateConversationConfigurationParams{
+			ID: conversationID, UserID: userID, Provider: providerID, Model: modelID, ProjectID: projectID,
+		}); err != nil {
+			slog.Error("failed to update conversation configuration", "error", err, "conversationID", uuidToString(conversationID))
+			trySend(ctx, writeChan, WSServerMessage{Type: "error", Code: "db_error", Message: "Failed to update conversation settings."})
+			return
+		}
 	}
 
 	convIDStr := uuidToString(conversationID)
@@ -139,7 +213,7 @@ func (o *Orchestrator) HandleMessage(ctx context.Context, userID string, msg WSC
 		attachmentsJSON = nil
 	}
 
-	_, err := o.queries.CreateMessage(ctx, store.CreateMessageParams{
+	_, err = o.queries.CreateMessage(ctx, store.CreateMessageParams{
 		ConversationID: conversationID,
 		Role:           "user",
 		Content:        msg.Content,
@@ -183,7 +257,7 @@ func (o *Orchestrator) HandleMessage(ctx context.Context, userID string, msg WSC
 	})
 
 	// 6. LLM streaming loop with tool call support
-	fullResponse, err := o.streamWithTools(ctx, userPrompt, history, writeChan, userID, conversationID)
+	fullResponse, err := o.streamWithTools(ctx, selectedProvider, projectContext, userPrompt, history, writeChan, userID, conversationID)
 	if err != nil {
 		slog.Error("LLM stream failed", "error", err, "conversationID", convIDStr)
 		trySend(ctx, writeChan, WSServerMessage{
@@ -217,7 +291,7 @@ func (o *Orchestrator) HandleMessage(ctx context.Context, userID string, msg WSC
 
 	// 9. Generate title for new conversations
 	if isNewConversation {
-		o.generateTitle(ctx, userID, conversationID, msg.Content, writeChan)
+		o.generateTitle(ctx, selectedProvider, userID, conversationID, msg.Content, writeChan)
 	}
 
 	// 10. Touch conversation updated_at
@@ -229,6 +303,8 @@ func (o *Orchestrator) HandleMessage(ctx context.Context, userID string, msg WSC
 // streamWithTools runs the LLM with streaming and handles tool call loops.
 func (o *Orchestrator) streamWithTools(
 	ctx context.Context,
+	provider llm.LLMProvider,
+	projectContext string,
 	userPrompt string,
 	history []store.Message,
 	writeChan chan<- WSServerMessage,
@@ -244,53 +320,65 @@ func (o *Orchestrator) streamWithTools(
 
 	for iteration := 0; iteration <= maxToolIterations; iteration++ {
 		var pendingToolCalls []llm.ToolCall
-		var pendingCallIDs []string
 		var iterText strings.Builder
+		continuation := newRepeatedPrefixSuppressor(fullText.String())
 
 		req := llm.LLMRequest{
-			SystemPrompt: buildSystemPrompt(),
+			SystemPrompt: buildSystemPrompt(projectContext),
 			UserPrompt:   currentPrompt,
 			MaxTokens:    4096,
 			Temperature:  0.7,
 		}
 
-		streamErr := o.llmChain.Execute(func(name string, provider llm.LLMProvider) error {
-			return provider.StreamComplete(ctx, req, toolDefs, func(delta llm.StreamDelta) error {
-				if delta.Content != "" {
-					iterText.WriteString(delta.Content)
+		streamErr := provider.StreamComplete(ctx, req, toolDefs, func(delta llm.StreamDelta) error {
+			if delta.Content != "" {
+				visibleContent := continuation.Write(delta.Content)
+				if visibleContent != "" {
+					iterText.WriteString(visibleContent)
 					if !trySend(ctx, writeChan, WSServerMessage{
 						Type:    "stream.delta",
-						Content: delta.Content,
+						Content: visibleContent,
 					}) {
 						return fmt.Errorf("connection closed")
 					}
 				}
-				if len(delta.ToolCalls) > 0 {
-					for idx, tc := range delta.ToolCalls {
-						callID := tc.ID
-						if callID == "" {
-							callID = fmt.Sprintf("%s-%d", tc.Name, len(pendingToolCalls)+idx)
-						}
-						pendingCallIDs = append(pendingCallIDs, callID)
-						var argsData interface{}
-						_ = json.Unmarshal([]byte(tc.Arguments), &argsData)
-						if !trySend(ctx, writeChan, WSServerMessage{
-							Type:   "stream.tool_call",
-							Tool:   tc.Name,
-							CallID: callID,
-							Args:   argsData,
-						}) {
-							return fmt.Errorf("connection closed")
-						}
+			}
+			if len(delta.ToolCalls) > 0 {
+				normalizedToolCalls := make([]llm.ToolCall, 0, len(delta.ToolCalls))
+				for idx, tc := range delta.ToolCalls {
+					callID := tc.ID
+					if callID == "" {
+						callID = fmt.Sprintf("%s-%d", tc.Name, len(pendingToolCalls)+idx)
 					}
-					pendingToolCalls = append(pendingToolCalls, delta.ToolCalls...)
+					tc.ID = callID
+					normalizedToolCalls = append(normalizedToolCalls, tc)
+					var argsData interface{}
+					_ = json.Unmarshal([]byte(tc.Arguments), &argsData)
+					if !trySend(ctx, writeChan, WSServerMessage{
+						Type:   "stream.tool_call",
+						Tool:   tc.Name,
+						CallID: callID,
+						Args:   argsData,
+					}) {
+						return fmt.Errorf("connection closed")
+					}
 				}
-				return nil
-			})
+				pendingToolCalls = append(pendingToolCalls, normalizedToolCalls...)
+			}
+			return nil
 		})
 
 		if streamErr != nil {
 			return fullText.String(), fmt.Errorf("stream: %w", streamErr)
+		}
+		if trailingContent := continuation.Flush(); trailingContent != "" {
+			iterText.WriteString(trailingContent)
+			if !trySend(ctx, writeChan, WSServerMessage{
+				Type:    "stream.delta",
+				Content: trailingContent,
+			}) {
+				return fullText.String(), fmt.Errorf("connection closed")
+			}
 		}
 
 		fullText.WriteString(iterText.String())
@@ -311,11 +399,8 @@ func (o *Orchestrator) streamWithTools(
 
 		// Execute each tool call and build follow-up prompt
 		var toolResultParts []string
-		for i, tc := range pendingToolCalls {
-			callID := ""
-			if i < len(pendingCallIDs) {
-				callID = pendingCallIDs[i]
-			}
+		for _, tc := range pendingToolCalls {
+			callID := tc.ID
 			result, execErr := o.registry.Execute(ctx, userID, tc.Name, tc.Arguments)
 
 			// Send tool result to client
@@ -356,16 +441,86 @@ func (o *Orchestrator) streamWithTools(
 			})
 		}
 
-		// Append tool results to prompt for next iteration
-		currentPrompt = currentPrompt + "\n\nAssistant used tools. Results:\n" + strings.Join(toolResultParts, "\n") + "\n\nPlease respond to the user based on the tool results."
+		// Append tool results and the already-visible response so the next model
+		// iteration continues the turn instead of restating its pre-tool preamble.
+		currentPrompt = currentPrompt + "\n\nAssistant used tools. Results:\n" + strings.Join(toolResultParts, "\n") +
+			"\n\nThe assistant has already shown the user this partial response:\n" + strings.TrimSpace(fullText.String()) +
+			"\n\nContinue from that response using the tool results. Do not repeat or restart text the user has already seen."
 	}
 
 	return fullText.String(), nil
 }
 
+type repeatedPrefixSuppressor struct {
+	prefix   string
+	matched  int
+	pending  strings.Builder
+	resolved bool
+}
+
+func newRepeatedPrefixSuppressor(prefix string) *repeatedPrefixSuppressor {
+	prefix = strings.TrimSpace(prefix)
+	return &repeatedPrefixSuppressor{
+		prefix:   prefix,
+		resolved: prefix == "",
+	}
+}
+
+// Write suppresses a repeated copy of the response already streamed before a
+// tool call. Matching bytes are held only until the continuation either
+// diverges (and must be emitted) or matches the entire prior response.
+func (s *repeatedPrefixSuppressor) Write(chunk string) string {
+	if chunk == "" {
+		return ""
+	}
+	if s.resolved {
+		return chunk
+	}
+
+	for index := 0; index < len(chunk); index++ {
+		current := chunk[index]
+		if s.matched == 0 && isASCIISpace(current) {
+			s.pending.WriteByte(current)
+			continue
+		}
+		if s.matched < len(s.prefix) && current == s.prefix[s.matched] {
+			s.pending.WriteByte(current)
+			s.matched++
+			if s.matched == len(s.prefix) {
+				s.pending.Reset()
+				s.resolved = true
+				return chunk[index+1:]
+			}
+			continue
+		}
+
+		visible := s.pending.String() + chunk[index:]
+		s.pending.Reset()
+		s.resolved = true
+		return visible
+	}
+
+	return ""
+}
+
+func (s *repeatedPrefixSuppressor) Flush() string {
+	if s.resolved {
+		return ""
+	}
+	visible := s.pending.String()
+	s.pending.Reset()
+	s.resolved = true
+	return visible
+}
+
+func isASCIISpace(value byte) bool {
+	return value == ' ' || value == '\n' || value == '\r' || value == '\t'
+}
+
 // generateTitle creates a conversation title from the first user message.
 func (o *Orchestrator) generateTitle(
 	ctx context.Context,
+	provider llm.LLMProvider,
 	userID string,
 	conversationID pgtype.UUID,
 	firstMessage string,
@@ -376,25 +531,17 @@ func (o *Orchestrator) generateTitle(
 	titleReq := llm.LLMRequest{
 		SystemPrompt: "Generate a short title (3-6 words) for this conversation based on the user's first message. Return only the title, nothing else.",
 		UserPrompt:   firstMessage,
-		Model:        "gemini-2.5-flash-lite", // lightweight model for fast, cheap title generation
 		MaxTokens:    1024,
 		Temperature:  0.5,
 	}
 
-	var title string
-	err := o.llmChain.Execute(func(name string, provider llm.LLMProvider) error {
-		resp, err := provider.Complete(ctx, titleReq)
-		if err != nil {
-			return err
-		}
-		title = strings.TrimSpace(resp.Text)
-		return nil
-	})
+	resp, err := provider.Complete(ctx, titleReq)
 
 	if err != nil {
 		slog.Error("failed to generate conversation title", "error", err, "conversationID", convIDStr)
 		return
 	}
+	title := strings.TrimSpace(resp.Text)
 
 	// Update title in DB
 	if err := o.queries.UpdateConversationTitle(ctx, store.UpdateConversationTitleParams{

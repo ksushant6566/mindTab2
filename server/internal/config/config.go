@@ -16,15 +16,16 @@ func init() {
 }
 
 type Config struct {
-	Port               string
-	DatabaseURL        string
-	JWTSecret          string
-	GoogleClientID     string
-	GoogleClientSecret string
-	APIPublicURL       string
-	AllowedOrigins     []string
-	StaticDir          string
-	ResendAPIKey       string
+	Port                       string
+	DatabaseURL                string
+	JWTSecret                  string
+	GoogleClientID             string
+	GoogleClientSecret         string
+	APIPublicURL               string
+	AllowedOrigins             []string
+	StaticDir                  string
+	ResendAPIKey               string
+	AICredentialsEncryptionKey string
 
 	// Saves feature
 	RedisURL                string
@@ -154,6 +155,7 @@ func Load() (*Config, error) {
 	// Social sources
 	cfg.XBearerToken = os.Getenv("X_BEARER_TOKEN")
 	cfg.RedditUserAgent = getEnv("REDDIT_USER_AGENT", "web:mindtab.reddit-summary:v0.1.1")
+	cfg.AICredentialsEncryptionKey = getEnv("AI_CREDENTIALS_ENCRYPTION_KEY", cfg.JWTSecret)
 
 	if cfg.DatabaseURL == "" {
 		return nil, fmt.Errorf("DATABASE_URL is required")

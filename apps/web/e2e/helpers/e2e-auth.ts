@@ -270,14 +270,59 @@ ON CONFLICT (id) DO UPDATE SET
   updated_at = CURRENT_TIMESTAMP,
   deleted_at = NULL;
 
-INSERT INTO messages (id, conversation_id, role, content, created_at)
+INSERT INTO messages (id, conversation_id, role, content, tool_calls, tool_call_id, created_at)
 VALUES
-  ('00000000-0000-4000-8000-000000000402', '00000000-0000-4000-8000-000000000401', 'user', 'Summarize the current workstation redesign status.', CURRENT_TIMESTAMP - INTERVAL '2 minutes'),
-  ('00000000-0000-4000-8000-000000000403', '00000000-0000-4000-8000-000000000401', 'assistant', 'Sidebar, settings, typography tokens, and visual e2e coverage are being hardened.', CURRENT_TIMESTAMP - INTERVAL '1 minute')
+  (
+    '00000000-0000-4000-8000-000000000402',
+    '00000000-0000-4000-8000-000000000401',
+    'user',
+    'Summarize the current workstation redesign status and check the vault.',
+    NULL,
+    NULL,
+    CURRENT_TIMESTAMP - INTERVAL '4 minutes'
+  ),
+  (
+    '00000000-0000-4000-8000-000000000404',
+    '00000000-0000-4000-8000-000000000401',
+    'assistant',
+    $message$I'll check the vault first, then summarize what is ready to review.$message$,
+    jsonb_build_array(jsonb_build_object(
+      'ID', 'call-e2e-search-vault',
+      'Name', 'search_vault',
+      'Arguments', '{"query":"workstation redesign"}'
+    )),
+    NULL,
+    CURRENT_TIMESTAMP - INTERVAL '3 minutes'
+  ),
+  (
+    '00000000-0000-4000-8000-000000000405',
+    '00000000-0000-4000-8000-000000000401',
+    'tool',
+    '{"count":1,"items":[{"title":"MindTab visual baseline","source_type":"article"}]}',
+    NULL,
+    'call-e2e-search-vault',
+    CURRENT_TIMESTAMP - INTERVAL '2 minutes'
+  ),
+  (
+    '00000000-0000-4000-8000-000000000403',
+    '00000000-0000-4000-8000-000000000401',
+    'assistant',
+    $message$I'll check the vault first, then summarize what is ready to review.### Workstation status
+
+The sidebar, settings, typography tokens, and visual coverage are being hardened.
+
+- **Vault:** the saved visual baseline is ready to review.
+- **Next:** validate the richer chat steps and vault workflows end to end.$message$,
+    NULL,
+    NULL,
+    CURRENT_TIMESTAMP - INTERVAL '1 minute'
+  )
 ON CONFLICT (id) DO UPDATE SET
   conversation_id = EXCLUDED.conversation_id,
   role = EXCLUDED.role,
   content = EXCLUDED.content,
+  tool_calls = EXCLUDED.tool_calls,
+  tool_call_id = EXCLUDED.tool_call_id,
   created_at = EXCLUDED.created_at;
 
 INSERT INTO content (
@@ -299,7 +344,7 @@ VALUES (
   '00000000-0000-4000-8000-000000000501',
   (SELECT id FROM users WHERE email = ${email}),
   'https://example.com/mindtab-e2e',
-  'website',
+  'article',
   'MindTab visual baseline',
   'Seeded saved item for Playwright visual coverage.',
   'A compact saved reference used to verify the vault web UI.',

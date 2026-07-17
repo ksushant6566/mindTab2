@@ -56,6 +56,9 @@ type Conversation struct {
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
 	DeletedAt pgtype.Timestamptz `json:"deleted_at"`
+	Provider  string             `json:"provider"`
+	Model     string             `json:"model"`
+	ProjectID pgtype.UUID        `json:"project_id"`
 }
 
 type Job struct {
@@ -172,6 +175,16 @@ type User struct {
 	TimeZone            string             `json:"time_zone"`
 	CodeFont            string             `json:"code_font"`
 	Radius              int32              `json:"radius"`
+}
+
+type UserAiProviderCredential struct {
+	UserID          string             `json:"user_id"`
+	Provider        string             `json:"provider"`
+	EncryptedApiKey []byte             `json:"encrypted_api_key"`
+	Nonce           []byte             `json:"nonce"`
+	KeyHint         string             `json:"key_hint"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
 }
 
 type VerificationToken struct {

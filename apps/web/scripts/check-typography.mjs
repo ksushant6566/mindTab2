@@ -6,6 +6,7 @@ const srcDir = path.join(root, "src");
 
 const allowedPathParts = [
   `${path.sep}components${path.sep}ui${path.sep}`,
+  `${path.sep}components${path.sep}ai-elements${path.sep}`,
   `${path.sep}components${path.sep}layout${path.sep}`,
   `${path.sep}components${path.sep}patterns${path.sep}`,
   `${path.sep}components${path.sep}domain${path.sep}`,

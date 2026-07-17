@@ -628,6 +628,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/ai/providers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List model providers and their user-specific configuration state */
+        get: operations["listAIProviders"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/ai/providers/{provider}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                provider: components["schemas"]["AIProviderId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /** Encrypt and save a provider API key for the current user */
+        put: operations["saveAIProviderCredential"];
+        post?: never;
+        /** Remove a saved provider API key */
+        delete: operations["deleteAIProviderCredential"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/conversations/{id}/messages": {
         parameters: {
             query?: never;
@@ -1132,6 +1169,14 @@ export interface components {
             id: string;
             /** @description Conversation title (auto-generated or user-set) */
             title?: string | null;
+            provider: components["schemas"]["AIProviderId"];
+            /** @description Provider-specific model identifier used by this conversation */
+            model: string;
+            /**
+             * Format: uuid
+             * @description Optional project context for the conversation
+             */
+            project_id?: string | null;
             /** Format: date-time */
             created_at: string;
             /** Format: date-time */
@@ -1155,6 +1200,23 @@ export interface components {
             tool_call_id?: string | null;
             /** Format: date-time */
             created_at: string;
+        };
+        /** @enum {string} */
+        AIProviderId: "openai" | "anthropic" | "gemini" | "openrouter";
+        AIModelOption: {
+            id: string;
+            name: string;
+            description: string;
+        };
+        AIProviderConfiguration: {
+            id: components["schemas"]["AIProviderId"];
+            name: string;
+            configured: boolean;
+            /** @description True when MindTab supplies the credential for this provider */
+            managed: boolean;
+            /** @description Masked last four characters of the user's saved key */
+            key_hint?: string | null;
+            models: components["schemas"]["AIModelOption"][];
         };
         AttachmentUploadResponse: {
             /** @description Storage key for the uploaded file (format: chat/{userID}/{uuid}/{filename}) */
@@ -2541,6 +2603,85 @@ export interface operations {
                     };
                 };
             };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    listAIProviders: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Available providers and models */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        providers: components["schemas"]["AIProviderConfiguration"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    saveAIProviderCredential: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                provider: components["schemas"]["AIProviderId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    api_key: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Provider configured */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        provider: components["schemas"]["AIProviderId"];
+                        configured: boolean;
+                        key_hint: string;
+                    };
+                };
+            };
+            400: components["responses"]["ValidationError"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    deleteAIProviderCredential: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                provider: components["schemas"]["AIProviderId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Provider credential removed */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["ValidationError"];
             401: components["responses"]["Unauthorized"];
         };
     };

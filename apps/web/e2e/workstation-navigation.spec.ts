@@ -24,6 +24,30 @@ test("bare root defaults to Calendar and restores the last signed-in location", 
   await context.close();
 });
 
+test("settings returns to the most recent workstation destination", async ({ browser, request }) => {
+  const { context, page } = await createAuthenticatedPage(browser, request);
+
+  await page.goto("/settings?section=general");
+  await page.evaluate(() => {
+    window.localStorage.setItem("mindtab-last-location:mindtab-e2e-web-user", "/settings?section=general");
+  });
+  await page.getByRole("button", { name: "Back to app", exact: true }).click();
+  await expect.poll(() => new URL(page.url()).searchParams.get("view")).toBe("calendar");
+
+  await page.goto("/vault");
+  await expect(page.getByRole("button", { name: "Vault", exact: true })).toHaveAttribute("aria-current", "page");
+
+  await page.goto("/settings?section=general");
+  await page.getByRole("button", { name: "Back to app", exact: true }).click();
+  await expect(page).toHaveURL(/\/vault$/);
+
+  await page.goto("/settings?section=appearance");
+  await page.keyboard.press("Escape");
+  await expect(page).toHaveURL(/\/vault$/);
+
+  await context.close();
+});
+
 test("sidebar preview overlays content while click-pinning changes the layout", async ({ browser, request }) => {
   const { context, page } = await createAuthenticatedPage(browser, request);
 
