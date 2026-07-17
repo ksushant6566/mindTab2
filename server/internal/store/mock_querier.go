@@ -67,7 +67,7 @@ var _ Querier = &QuerierMock{}
 //			CreateContentWithExtractedFunc: func(ctx context.Context, arg CreateContentWithExtractedParams) (CreateContentWithExtractedRow, error) {
 //				panic("mock out the CreateContentWithExtracted method")
 //			},
-//			CreateConversationFunc: func(ctx context.Context, userID string) (CreateConversationRow, error) {
+//			CreateConversationFunc: func(ctx context.Context, arg CreateConversationParams) (CreateConversationRow, error) {
 //				panic("mock out the CreateConversation method")
 //			},
 //			CreateEmailUserFunc: func(ctx context.Context, arg CreateEmailUserParams) (User, error) {
@@ -93,6 +93,9 @@ var _ Querier = &QuerierMock{}
 //			},
 //			CreateVerificationTokenFunc: func(ctx context.Context, arg CreateVerificationTokenParams) error {
 //				panic("mock out the CreateVerificationToken method")
+//			},
+//			DeleteAIProviderCredentialFunc: func(ctx context.Context, arg DeleteAIProviderCredentialParams) error {
+//				panic("mock out the DeleteAIProviderCredential method")
 //			},
 //			DeleteExpiredDraftsReturningKeysFunc: func(ctx context.Context, updatedAt pgtype.Timestamptz) ([]DeleteExpiredDraftsReturningKeysRow, error) {
 //				panic("mock out the DeleteExpiredDraftsReturningKeys method")
@@ -120,6 +123,9 @@ var _ Querier = &QuerierMock{}
 //			},
 //			FailJobFunc: func(ctx context.Context, arg FailJobParams) error {
 //				panic("mock out the FailJob method")
+//			},
+//			GetAIProviderCredentialFunc: func(ctx context.Context, arg GetAIProviderCredentialParams) (UserAiProviderCredential, error) {
+//				panic("mock out the GetAIProviderCredential method")
 //			},
 //			GetConnectedNotesFunc: func(ctx context.Context, arg GetConnectedNotesParams) ([]GetConnectedNotesRow, error) {
 //				panic("mock out the GetConnectedNotes method")
@@ -171,6 +177,9 @@ var _ Querier = &QuerierMock{}
 //			},
 //			IsContentDeletedFunc: func(ctx context.Context, id pgtype.UUID) (bool, error) {
 //				panic("mock out the IsContentDeleted method")
+//			},
+//			ListAIProviderCredentialsFunc: func(ctx context.Context, userID string) ([]ListAIProviderCredentialsRow, error) {
+//				panic("mock out the ListAIProviderCredentials method")
 //			},
 //			ListContentFunc: func(ctx context.Context, arg ListContentParams) ([]ListContentRow, error) {
 //				panic("mock out the ListContent method")
@@ -259,6 +268,9 @@ var _ Querier = &QuerierMock{}
 //			UpdateContentVideoFieldsFunc: func(ctx context.Context, arg UpdateContentVideoFieldsParams) error {
 //				panic("mock out the UpdateContentVideoFields method")
 //			},
+//			UpdateConversationConfigurationFunc: func(ctx context.Context, arg UpdateConversationConfigurationParams) (UpdateConversationConfigurationRow, error) {
+//				panic("mock out the UpdateConversationConfiguration method")
+//			},
 //			UpdateConversationTitleFunc: func(ctx context.Context, arg UpdateConversationTitleParams) error {
 //				panic("mock out the UpdateConversationTitle method")
 //			},
@@ -282,6 +294,9 @@ var _ Querier = &QuerierMock{}
 //			},
 //			UpdateUserAppearanceFunc: func(ctx context.Context, arg UpdateUserAppearanceParams) (User, error) {
 //				panic("mock out the UpdateUserAppearance method")
+//			},
+//			UpsertAIProviderCredentialFunc: func(ctx context.Context, arg UpsertAIProviderCredentialParams) (UserAiProviderCredential, error) {
+//				panic("mock out the UpsertAIProviderCredential method")
 //			},
 //			UpsertNoteFromSyncFunc: func(ctx context.Context, arg UpsertNoteFromSyncParams) error {
 //				panic("mock out the UpsertNoteFromSync method")
@@ -345,7 +360,7 @@ type QuerierMock struct {
 	CreateContentWithExtractedFunc func(ctx context.Context, arg CreateContentWithExtractedParams) (CreateContentWithExtractedRow, error)
 
 	// CreateConversationFunc mocks the CreateConversation method.
-	CreateConversationFunc func(ctx context.Context, userID string) (CreateConversationRow, error)
+	CreateConversationFunc func(ctx context.Context, arg CreateConversationParams) (CreateConversationRow, error)
 
 	// CreateEmailUserFunc mocks the CreateEmailUser method.
 	CreateEmailUserFunc func(ctx context.Context, arg CreateEmailUserParams) (User, error)
@@ -370,6 +385,9 @@ type QuerierMock struct {
 
 	// CreateVerificationTokenFunc mocks the CreateVerificationToken method.
 	CreateVerificationTokenFunc func(ctx context.Context, arg CreateVerificationTokenParams) error
+
+	// DeleteAIProviderCredentialFunc mocks the DeleteAIProviderCredential method.
+	DeleteAIProviderCredentialFunc func(ctx context.Context, arg DeleteAIProviderCredentialParams) error
 
 	// DeleteExpiredDraftsReturningKeysFunc mocks the DeleteExpiredDraftsReturningKeys method.
 	DeleteExpiredDraftsReturningKeysFunc func(ctx context.Context, updatedAt pgtype.Timestamptz) ([]DeleteExpiredDraftsReturningKeysRow, error)
@@ -397,6 +415,9 @@ type QuerierMock struct {
 
 	// FailJobFunc mocks the FailJob method.
 	FailJobFunc func(ctx context.Context, arg FailJobParams) error
+
+	// GetAIProviderCredentialFunc mocks the GetAIProviderCredential method.
+	GetAIProviderCredentialFunc func(ctx context.Context, arg GetAIProviderCredentialParams) (UserAiProviderCredential, error)
 
 	// GetConnectedNotesFunc mocks the GetConnectedNotes method.
 	GetConnectedNotesFunc func(ctx context.Context, arg GetConnectedNotesParams) ([]GetConnectedNotesRow, error)
@@ -448,6 +469,9 @@ type QuerierMock struct {
 
 	// IsContentDeletedFunc mocks the IsContentDeleted method.
 	IsContentDeletedFunc func(ctx context.Context, id pgtype.UUID) (bool, error)
+
+	// ListAIProviderCredentialsFunc mocks the ListAIProviderCredentials method.
+	ListAIProviderCredentialsFunc func(ctx context.Context, userID string) ([]ListAIProviderCredentialsRow, error)
 
 	// ListContentFunc mocks the ListContent method.
 	ListContentFunc func(ctx context.Context, arg ListContentParams) ([]ListContentRow, error)
@@ -536,6 +560,9 @@ type QuerierMock struct {
 	// UpdateContentVideoFieldsFunc mocks the UpdateContentVideoFields method.
 	UpdateContentVideoFieldsFunc func(ctx context.Context, arg UpdateContentVideoFieldsParams) error
 
+	// UpdateConversationConfigurationFunc mocks the UpdateConversationConfiguration method.
+	UpdateConversationConfigurationFunc func(ctx context.Context, arg UpdateConversationConfigurationParams) (UpdateConversationConfigurationRow, error)
+
 	// UpdateConversationTitleFunc mocks the UpdateConversationTitle method.
 	UpdateConversationTitleFunc func(ctx context.Context, arg UpdateConversationTitleParams) error
 
@@ -559,6 +586,9 @@ type QuerierMock struct {
 
 	// UpdateUserAppearanceFunc mocks the UpdateUserAppearance method.
 	UpdateUserAppearanceFunc func(ctx context.Context, arg UpdateUserAppearanceParams) (User, error)
+
+	// UpsertAIProviderCredentialFunc mocks the UpsertAIProviderCredential method.
+	UpsertAIProviderCredentialFunc func(ctx context.Context, arg UpsertAIProviderCredentialParams) (UserAiProviderCredential, error)
 
 	// UpsertNoteFromSyncFunc mocks the UpsertNoteFromSync method.
 	UpsertNoteFromSyncFunc func(ctx context.Context, arg UpsertNoteFromSyncParams) error
@@ -684,8 +714,8 @@ type QuerierMock struct {
 		CreateConversation []struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
-			// UserID is the userID argument value.
-			UserID string
+			// Arg is the arg argument value.
+			Arg CreateConversationParams
 		}
 		// CreateEmailUser holds details about calls to the CreateEmailUser method.
 		CreateEmailUser []struct {
@@ -742,6 +772,13 @@ type QuerierMock struct {
 			Ctx context.Context
 			// Arg is the arg argument value.
 			Arg CreateVerificationTokenParams
+		}
+		// DeleteAIProviderCredential holds details about calls to the DeleteAIProviderCredential method.
+		DeleteAIProviderCredential []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Arg is the arg argument value.
+			Arg DeleteAIProviderCredentialParams
 		}
 		// DeleteExpiredDraftsReturningKeys holds details about calls to the DeleteExpiredDraftsReturningKeys method.
 		DeleteExpiredDraftsReturningKeys []struct {
@@ -801,6 +838,13 @@ type QuerierMock struct {
 			Ctx context.Context
 			// Arg is the arg argument value.
 			Arg FailJobParams
+		}
+		// GetAIProviderCredential holds details about calls to the GetAIProviderCredential method.
+		GetAIProviderCredential []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Arg is the arg argument value.
+			Arg GetAIProviderCredentialParams
 		}
 		// GetConnectedNotes holds details about calls to the GetConnectedNotes method.
 		GetConnectedNotes []struct {
@@ -920,6 +964,13 @@ type QuerierMock struct {
 			Ctx context.Context
 			// ID is the id argument value.
 			ID pgtype.UUID
+		}
+		// ListAIProviderCredentials holds details about calls to the ListAIProviderCredentials method.
+		ListAIProviderCredentials []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// UserID is the userID argument value.
+			UserID string
 		}
 		// ListContent holds details about calls to the ListContent method.
 		ListContent []struct {
@@ -1124,6 +1175,13 @@ type QuerierMock struct {
 			// Arg is the arg argument value.
 			Arg UpdateContentVideoFieldsParams
 		}
+		// UpdateConversationConfiguration holds details about calls to the UpdateConversationConfiguration method.
+		UpdateConversationConfiguration []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Arg is the arg argument value.
+			Arg UpdateConversationConfigurationParams
+		}
 		// UpdateConversationTitle holds details about calls to the UpdateConversationTitle method.
 		UpdateConversationTitle []struct {
 			// Ctx is the ctx argument value.
@@ -1180,6 +1238,13 @@ type QuerierMock struct {
 			// Arg is the arg argument value.
 			Arg UpdateUserAppearanceParams
 		}
+		// UpsertAIProviderCredential holds details about calls to the UpsertAIProviderCredential method.
+		UpsertAIProviderCredential []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Arg is the arg argument value.
+			Arg UpsertAIProviderCredentialParams
+		}
 		// UpsertNoteFromSync holds details about calls to the UpsertNoteFromSync method.
 		UpsertNoteFromSync []struct {
 			// Ctx is the ctx argument value.
@@ -1220,6 +1285,7 @@ type QuerierMock struct {
 	lockCreateRefreshToken                     sync.RWMutex
 	lockCreateTask                             sync.RWMutex
 	lockCreateVerificationToken                sync.RWMutex
+	lockDeleteAIProviderCredential             sync.RWMutex
 	lockDeleteExpiredDraftsReturningKeys       sync.RWMutex
 	lockDeleteExpiredRefreshTokens             sync.RWMutex
 	lockDeleteExpiredVerificationTokens        sync.RWMutex
@@ -1229,6 +1295,7 @@ type QuerierMock struct {
 	lockDeleteVerificationToken                sync.RWMutex
 	lockDeleteVerificationTokensByUserAndType  sync.RWMutex
 	lockFailJob                                sync.RWMutex
+	lockGetAIProviderCredential                sync.RWMutex
 	lockGetConnectedNotes                      sync.RWMutex
 	lockGetContentByID                         sync.RWMutex
 	lockGetConversation                        sync.RWMutex
@@ -1246,6 +1313,7 @@ type QuerierMock struct {
 	lockGetVerificationTokenByUserAndType      sync.RWMutex
 	lockIncrementVerificationAttempts          sync.RWMutex
 	lockIsContentDeleted                       sync.RWMutex
+	lockListAIProviderCredentials              sync.RWMutex
 	lockListContent                            sync.RWMutex
 	lockListConversations                      sync.RWMutex
 	lockListMessages                           sync.RWMutex
@@ -1275,6 +1343,7 @@ type QuerierMock struct {
 	lockUpdateContentStatus                    sync.RWMutex
 	lockUpdateContentTranscriptSource          sync.RWMutex
 	lockUpdateContentVideoFields               sync.RWMutex
+	lockUpdateConversationConfiguration        sync.RWMutex
 	lockUpdateConversationTitle                sync.RWMutex
 	lockUpdateJobStatus                        sync.RWMutex
 	lockUpdateJobStepResults                   sync.RWMutex
@@ -1283,6 +1352,7 @@ type QuerierMock struct {
 	lockUpdateTask                             sync.RWMutex
 	lockUpdateTaskPosition                     sync.RWMutex
 	lockUpdateUserAppearance                   sync.RWMutex
+	lockUpsertAIProviderCredential             sync.RWMutex
 	lockUpsertNoteFromSync                     sync.RWMutex
 	lockUpsertUser                             sync.RWMutex
 }
@@ -1864,21 +1934,21 @@ func (mock *QuerierMock) CreateContentWithExtractedCalls() []struct {
 }
 
 // CreateConversation calls CreateConversationFunc.
-func (mock *QuerierMock) CreateConversation(ctx context.Context, userID string) (CreateConversationRow, error) {
+func (mock *QuerierMock) CreateConversation(ctx context.Context, arg CreateConversationParams) (CreateConversationRow, error) {
 	if mock.CreateConversationFunc == nil {
 		panic("QuerierMock.CreateConversationFunc: method is nil but Querier.CreateConversation was just called")
 	}
 	callInfo := struct {
-		Ctx    context.Context
-		UserID string
+		Ctx context.Context
+		Arg CreateConversationParams
 	}{
-		Ctx:    ctx,
-		UserID: userID,
+		Ctx: ctx,
+		Arg: arg,
 	}
 	mock.lockCreateConversation.Lock()
 	mock.calls.CreateConversation = append(mock.calls.CreateConversation, callInfo)
 	mock.lockCreateConversation.Unlock()
-	return mock.CreateConversationFunc(ctx, userID)
+	return mock.CreateConversationFunc(ctx, arg)
 }
 
 // CreateConversationCalls gets all the calls that were made to CreateConversation.
@@ -1886,12 +1956,12 @@ func (mock *QuerierMock) CreateConversation(ctx context.Context, userID string) 
 //
 //	len(mockedQuerier.CreateConversationCalls())
 func (mock *QuerierMock) CreateConversationCalls() []struct {
-	Ctx    context.Context
-	UserID string
+	Ctx context.Context
+	Arg CreateConversationParams
 } {
 	var calls []struct {
-		Ctx    context.Context
-		UserID string
+		Ctx context.Context
+		Arg CreateConversationParams
 	}
 	mock.lockCreateConversation.RLock()
 	calls = mock.calls.CreateConversation
@@ -2184,6 +2254,42 @@ func (mock *QuerierMock) CreateVerificationTokenCalls() []struct {
 	mock.lockCreateVerificationToken.RLock()
 	calls = mock.calls.CreateVerificationToken
 	mock.lockCreateVerificationToken.RUnlock()
+	return calls
+}
+
+// DeleteAIProviderCredential calls DeleteAIProviderCredentialFunc.
+func (mock *QuerierMock) DeleteAIProviderCredential(ctx context.Context, arg DeleteAIProviderCredentialParams) error {
+	if mock.DeleteAIProviderCredentialFunc == nil {
+		panic("QuerierMock.DeleteAIProviderCredentialFunc: method is nil but Querier.DeleteAIProviderCredential was just called")
+	}
+	callInfo := struct {
+		Ctx context.Context
+		Arg DeleteAIProviderCredentialParams
+	}{
+		Ctx: ctx,
+		Arg: arg,
+	}
+	mock.lockDeleteAIProviderCredential.Lock()
+	mock.calls.DeleteAIProviderCredential = append(mock.calls.DeleteAIProviderCredential, callInfo)
+	mock.lockDeleteAIProviderCredential.Unlock()
+	return mock.DeleteAIProviderCredentialFunc(ctx, arg)
+}
+
+// DeleteAIProviderCredentialCalls gets all the calls that were made to DeleteAIProviderCredential.
+// Check the length with:
+//
+//	len(mockedQuerier.DeleteAIProviderCredentialCalls())
+func (mock *QuerierMock) DeleteAIProviderCredentialCalls() []struct {
+	Ctx context.Context
+	Arg DeleteAIProviderCredentialParams
+} {
+	var calls []struct {
+		Ctx context.Context
+		Arg DeleteAIProviderCredentialParams
+	}
+	mock.lockDeleteAIProviderCredential.RLock()
+	calls = mock.calls.DeleteAIProviderCredential
+	mock.lockDeleteAIProviderCredential.RUnlock()
 	return calls
 }
 
@@ -2500,6 +2606,42 @@ func (mock *QuerierMock) FailJobCalls() []struct {
 	mock.lockFailJob.RLock()
 	calls = mock.calls.FailJob
 	mock.lockFailJob.RUnlock()
+	return calls
+}
+
+// GetAIProviderCredential calls GetAIProviderCredentialFunc.
+func (mock *QuerierMock) GetAIProviderCredential(ctx context.Context, arg GetAIProviderCredentialParams) (UserAiProviderCredential, error) {
+	if mock.GetAIProviderCredentialFunc == nil {
+		panic("QuerierMock.GetAIProviderCredentialFunc: method is nil but Querier.GetAIProviderCredential was just called")
+	}
+	callInfo := struct {
+		Ctx context.Context
+		Arg GetAIProviderCredentialParams
+	}{
+		Ctx: ctx,
+		Arg: arg,
+	}
+	mock.lockGetAIProviderCredential.Lock()
+	mock.calls.GetAIProviderCredential = append(mock.calls.GetAIProviderCredential, callInfo)
+	mock.lockGetAIProviderCredential.Unlock()
+	return mock.GetAIProviderCredentialFunc(ctx, arg)
+}
+
+// GetAIProviderCredentialCalls gets all the calls that were made to GetAIProviderCredential.
+// Check the length with:
+//
+//	len(mockedQuerier.GetAIProviderCredentialCalls())
+func (mock *QuerierMock) GetAIProviderCredentialCalls() []struct {
+	Ctx context.Context
+	Arg GetAIProviderCredentialParams
+} {
+	var calls []struct {
+		Ctx context.Context
+		Arg GetAIProviderCredentialParams
+	}
+	mock.lockGetAIProviderCredential.RLock()
+	calls = mock.calls.GetAIProviderCredential
+	mock.lockGetAIProviderCredential.RUnlock()
 	return calls
 }
 
@@ -3112,6 +3254,42 @@ func (mock *QuerierMock) IsContentDeletedCalls() []struct {
 	mock.lockIsContentDeleted.RLock()
 	calls = mock.calls.IsContentDeleted
 	mock.lockIsContentDeleted.RUnlock()
+	return calls
+}
+
+// ListAIProviderCredentials calls ListAIProviderCredentialsFunc.
+func (mock *QuerierMock) ListAIProviderCredentials(ctx context.Context, userID string) ([]ListAIProviderCredentialsRow, error) {
+	if mock.ListAIProviderCredentialsFunc == nil {
+		panic("QuerierMock.ListAIProviderCredentialsFunc: method is nil but Querier.ListAIProviderCredentials was just called")
+	}
+	callInfo := struct {
+		Ctx    context.Context
+		UserID string
+	}{
+		Ctx:    ctx,
+		UserID: userID,
+	}
+	mock.lockListAIProviderCredentials.Lock()
+	mock.calls.ListAIProviderCredentials = append(mock.calls.ListAIProviderCredentials, callInfo)
+	mock.lockListAIProviderCredentials.Unlock()
+	return mock.ListAIProviderCredentialsFunc(ctx, userID)
+}
+
+// ListAIProviderCredentialsCalls gets all the calls that were made to ListAIProviderCredentials.
+// Check the length with:
+//
+//	len(mockedQuerier.ListAIProviderCredentialsCalls())
+func (mock *QuerierMock) ListAIProviderCredentialsCalls() []struct {
+	Ctx    context.Context
+	UserID string
+} {
+	var calls []struct {
+		Ctx    context.Context
+		UserID string
+	}
+	mock.lockListAIProviderCredentials.RLock()
+	calls = mock.calls.ListAIProviderCredentials
+	mock.lockListAIProviderCredentials.RUnlock()
 	return calls
 }
 
@@ -4159,6 +4337,42 @@ func (mock *QuerierMock) UpdateContentVideoFieldsCalls() []struct {
 	return calls
 }
 
+// UpdateConversationConfiguration calls UpdateConversationConfigurationFunc.
+func (mock *QuerierMock) UpdateConversationConfiguration(ctx context.Context, arg UpdateConversationConfigurationParams) (UpdateConversationConfigurationRow, error) {
+	if mock.UpdateConversationConfigurationFunc == nil {
+		panic("QuerierMock.UpdateConversationConfigurationFunc: method is nil but Querier.UpdateConversationConfiguration was just called")
+	}
+	callInfo := struct {
+		Ctx context.Context
+		Arg UpdateConversationConfigurationParams
+	}{
+		Ctx: ctx,
+		Arg: arg,
+	}
+	mock.lockUpdateConversationConfiguration.Lock()
+	mock.calls.UpdateConversationConfiguration = append(mock.calls.UpdateConversationConfiguration, callInfo)
+	mock.lockUpdateConversationConfiguration.Unlock()
+	return mock.UpdateConversationConfigurationFunc(ctx, arg)
+}
+
+// UpdateConversationConfigurationCalls gets all the calls that were made to UpdateConversationConfiguration.
+// Check the length with:
+//
+//	len(mockedQuerier.UpdateConversationConfigurationCalls())
+func (mock *QuerierMock) UpdateConversationConfigurationCalls() []struct {
+	Ctx context.Context
+	Arg UpdateConversationConfigurationParams
+} {
+	var calls []struct {
+		Ctx context.Context
+		Arg UpdateConversationConfigurationParams
+	}
+	mock.lockUpdateConversationConfiguration.RLock()
+	calls = mock.calls.UpdateConversationConfiguration
+	mock.lockUpdateConversationConfiguration.RUnlock()
+	return calls
+}
+
 // UpdateConversationTitle calls UpdateConversationTitleFunc.
 func (mock *QuerierMock) UpdateConversationTitle(ctx context.Context, arg UpdateConversationTitleParams) error {
 	if mock.UpdateConversationTitleFunc == nil {
@@ -4444,6 +4658,42 @@ func (mock *QuerierMock) UpdateUserAppearanceCalls() []struct {
 	mock.lockUpdateUserAppearance.RLock()
 	calls = mock.calls.UpdateUserAppearance
 	mock.lockUpdateUserAppearance.RUnlock()
+	return calls
+}
+
+// UpsertAIProviderCredential calls UpsertAIProviderCredentialFunc.
+func (mock *QuerierMock) UpsertAIProviderCredential(ctx context.Context, arg UpsertAIProviderCredentialParams) (UserAiProviderCredential, error) {
+	if mock.UpsertAIProviderCredentialFunc == nil {
+		panic("QuerierMock.UpsertAIProviderCredentialFunc: method is nil but Querier.UpsertAIProviderCredential was just called")
+	}
+	callInfo := struct {
+		Ctx context.Context
+		Arg UpsertAIProviderCredentialParams
+	}{
+		Ctx: ctx,
+		Arg: arg,
+	}
+	mock.lockUpsertAIProviderCredential.Lock()
+	mock.calls.UpsertAIProviderCredential = append(mock.calls.UpsertAIProviderCredential, callInfo)
+	mock.lockUpsertAIProviderCredential.Unlock()
+	return mock.UpsertAIProviderCredentialFunc(ctx, arg)
+}
+
+// UpsertAIProviderCredentialCalls gets all the calls that were made to UpsertAIProviderCredential.
+// Check the length with:
+//
+//	len(mockedQuerier.UpsertAIProviderCredentialCalls())
+func (mock *QuerierMock) UpsertAIProviderCredentialCalls() []struct {
+	Ctx context.Context
+	Arg UpsertAIProviderCredentialParams
+} {
+	var calls []struct {
+		Ctx context.Context
+		Arg UpsertAIProviderCredentialParams
+	}
+	mock.lockUpsertAIProviderCredential.RLock()
+	calls = mock.calls.UpsertAIProviderCredential
+	mock.lockUpsertAIProviderCredential.RUnlock()
 	return calls
 }
 

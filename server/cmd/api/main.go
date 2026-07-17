@@ -18,13 +18,13 @@ import (
 	pgxvector "github.com/pgvector/pgvector-go/pgx"
 	"golang.org/x/time/rate"
 
+	appai "github.com/ksushant6566/mindtab/server/internal/ai"
 	"github.com/ksushant6566/mindtab/server/internal/chat"
 	"github.com/ksushant6566/mindtab/server/internal/config"
 	"github.com/ksushant6566/mindtab/server/internal/email"
 	"github.com/ksushant6566/mindtab/server/internal/handler"
 	mw "github.com/ksushant6566/mindtab/server/internal/middleware"
 	"github.com/ksushant6566/mindtab/server/internal/providers"
-	"github.com/ksushant6566/mindtab/server/internal/providers/llm"
 	"github.com/ksushant6566/mindtab/server/internal/providers/transcription"
 	"github.com/ksushant6566/mindtab/server/internal/queue"
 	"github.com/ksushant6566/mindtab/server/internal/search"
@@ -66,12 +66,16 @@ func main() {
 	slog.Info("connected to database")
 
 	queries := store.New(pool)
+	credentialCipher, err := appai.NewCredentialCipher(cfg.AICredentialsEncryptionKey)
+	if err != nil {
+		slog.Error("failed to initialize AI credential encryption", "error", err)
+		os.Exit(1)
+	}
 
 	// Redis + saves feature (optional — disabled if REDIS_URL not set)
 	var savesHandler *handler.SavesHandler
 	var dispatcher *worker.Dispatcher
 	var storage services.StorageProvider
-	var llmChain *providers.Chain[llm.LLMProvider]
 	var semanticSearch *search.SemanticSearch
 	if cfg.RedisURL != "" {
 		redisClient, err := queue.ConnectRedis(context.Background(), cfg.RedisURL)
@@ -110,9 +114,6 @@ func main() {
 
 		// Search
 		semanticSearch = search.NewSemanticSearch(pool, registry.Embedding)
-
-		// LLM chain (used by chat orchestrator)
-		llmChain = registry.LLM
 
 		// Saves handler
 		savesHandler = handler.NewSavesHandler(queries, producer, semanticSearch, storage, int64(cfg.MaxFileSizeMB)*1024*1024, cfg.JWTSecret, ffmpeg)
@@ -222,6 +223,7 @@ func main() {
 	readingListsHandler := handler.NewReadingListsHandler(queries)
 	searchHandler := handler.NewSearchHandler(queries)
 	mentionsHandler := handler.NewMentionsHandler(queries)
+	aiProvidersHandler := handler.NewAIProvidersHandler(queries, credentialCipher, cfg.GeminiAPIKey != "")
 
 	// Periodic cleanup of expired tokens.
 	go func() {
@@ -305,7 +307,13 @@ func main() {
 	registry.Register(chat.NewSearchEverythingTool(queries, semanticSearch))
 	registry.Register(chat.NewComparePeriodsTool(queries))
 	registry.Register(chat.NewGetStaleItemsTool(queries))
-	orchestrator := chat.NewOrchestrator(queries, llmChain, registry)
+	providerResolver := appai.NewProviderResolver(
+		queries,
+		credentialCipher,
+		cfg.GeminiAPIKey,
+		cfg.GeminiModel,
+	)
+	orchestrator := chat.NewOrchestrator(queries, providerResolver, registry)
 	wsHandler := handler.NewWSHandler(orchestrator, cfg.JWTSecret, cfg.AllowedOrigins, queries)
 	r.Get("/ws/chat", wsHandler.HandleChat)
 
@@ -321,6 +329,9 @@ func main() {
 
 		r.Get("/users/me", usersHandler.GetMe)
 		r.Patch("/users/me", usersHandler.UpdateMe)
+		r.Get("/ai/providers", aiProvidersHandler.List)
+		r.Put("/ai/providers/{provider}", aiProvidersHandler.Save)
+		r.Delete("/ai/providers/{provider}", aiProvidersHandler.Delete)
 
 		// Tasks — register literal paths before {id} param.
 		r.Get("/tasks", tasksHandler.List)

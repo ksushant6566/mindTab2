@@ -1,12 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
+  Bot,
   CalendarDays,
+  CheckCircle2,
   Clock3,
+  ExternalLink,
+  Eye,
+  EyeOff,
   Globe2,
+  KeyRound,
   Keyboard,
   Palette,
   Search,
@@ -30,13 +36,18 @@ import {
   type WeekStartDay,
 } from "@mindtab/core";
 import {
+  aiProvidersQueryOptions,
   conversationsQueryOptions,
+  deleteAIProviderCredential,
   notesCountQueryOptions,
+  saveAIProviderCredential,
   tasksCountQueryOptions,
   useAuth,
   type User,
+  type AIProviderId,
 } from "~/api/hooks";
 import { Button } from "~/components/ui/button";
+import { Input } from "~/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select";
 import { CodeText, Heading, MetaText, Text } from "~/components/ui/typography";
 import { LoadingState, StatCell as ProfileStatCell } from "~/components/patterns";
@@ -65,13 +76,14 @@ import {
 } from "~/lib/appearance";
 import { cn } from "~/lib/utils";
 
-type SettingsSection = "general" | "profile" | "appearance" | "shortcuts";
+type SettingsSection = "general" | "profile" | "appearance" | "models" | "shortcuts";
 type SettingsPatch = Partial<AppearanceSettings & GeneralSettings>;
 
 const sections: Array<{ id: SettingsSection; label: string; icon: ReactNode }> = [
   { id: "general", label: "General", icon: <Settings className="h-4 w-4" /> },
   { id: "profile", label: "Profile", icon: <UserCircle className="h-4 w-4" /> },
   { id: "appearance", label: "Appearance", icon: <Palette className="h-4 w-4" /> },
+  { id: "models", label: "Models", icon: <Bot className="h-4 w-4" /> },
   { id: "shortcuts", label: "Keyboard Shortcuts", icon: <Keyboard className="h-4 w-4" /> },
 ];
 
@@ -148,11 +160,28 @@ export function SettingsPage() {
   const { data: noteCount = 0 } = useQuery({ ...notesCountQueryOptions(), enabled: isAuthenticated });
   const { data: conversationData } = useQuery({ ...conversationsQueryOptions({ limit: 1, offset: 0 }), enabled: isAuthenticated });
 
+  const returnToApp = useCallback(() => {
+    void navigate({ to: "/" });
+  }, [navigate]);
+
   useEffect(() => {
     if (!isLoading && (!isAuthenticated || !user)) {
       void navigate({ to: "/login" });
     }
   }, [isAuthenticated, isLoading, navigate, user]);
+
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.repeat || event.defaultPrevented) return;
+      if (event.target instanceof HTMLElement && event.target.closest("input, textarea, select, [contenteditable='true']")) return;
+
+      event.preventDefault();
+      returnToApp();
+    };
+
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [returnToApp]);
 
   useEffect(() => {
     if (!user) return;
@@ -235,7 +264,7 @@ export function SettingsPage() {
       <SettingsSidebar className="px-0 py-0">
         <div className="px-3 pb-3 pt-4">
           <SettingsBackButton
-            onClick={() => void navigate({ to: "/" })}
+            onClick={returnToApp}
             icon={<ArrowLeft className="h-4 w-4" />}
             className="gap-3 px-2"
           >
@@ -288,10 +317,180 @@ export function SettingsPage() {
           {activeSection === "appearance" && (
             <AppearanceSettingsSection draft={draft} onChange={commitSettings} />
           )}
+          {activeSection === "models" && <ModelsSettingsSection />}
           {activeSection === "shortcuts" && <KeyboardShortcutsSection />}
         </div>
       </SettingsMainPanel>
     </SettingsShell>
+  );
+}
+
+const providerKeyLinks: Record<AIProviderId, string> = {
+  openai: "https://platform.openai.com/api-keys",
+  anthropic: "https://console.anthropic.com/settings/keys",
+  gemini: "https://aistudio.google.com/app/apikey",
+  openrouter: "https://openrouter.ai/settings/keys",
+};
+
+function ModelsSettingsSection() {
+  const queryClient = useQueryClient();
+  const { data: providers = [], isLoading } = useQuery(aiProvidersQueryOptions());
+  const [editingProvider, setEditingProvider] = useState<AIProviderId | null>(null);
+  const [apiKey, setAPIKey] = useState("");
+  const [showKey, setShowKey] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [removing, setRemoving] = useState(false);
+
+  const closeEditor = () => {
+    setEditingProvider(null);
+    setAPIKey("");
+    setShowKey(false);
+  };
+
+  const saveProvider = async () => {
+    if (!editingProvider || apiKey.trim().length < 8) return;
+    setSaving(true);
+    try {
+      await saveAIProviderCredential(editingProvider, apiKey.trim());
+      await queryClient.invalidateQueries({ queryKey: ["ai-providers"] });
+      toast.success("API key saved");
+      closeEditor();
+    } catch {
+      toast.error("Could not save that API key");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const removeProvider = async () => {
+    if (!editingProvider) return;
+    setRemoving(true);
+    try {
+      await deleteAIProviderCredential(editingProvider);
+      await queryClient.invalidateQueries({ queryKey: ["ai-providers"] });
+      toast.success("API key removed");
+      closeEditor();
+    } catch {
+      toast.error("Could not remove that API key");
+    } finally {
+      setRemoving(false);
+    }
+  };
+
+  return (
+    <SettingsPanel
+      title="Models"
+      description="Connect your own providers, then choose a model for each chat. Keys are encrypted before they are stored and are never shown again."
+    >
+      <SettingsCard>
+        {isLoading ? (
+          <div className="px-4 py-5">
+            <MetaText>Loading model providers…</MetaText>
+          </div>
+        ) : providers.map((provider) => {
+          const isEditing = editingProvider === provider.id;
+          const hasUserKey = Boolean(provider.key_hint);
+          const status = provider.managed
+            ? "Included with MindTab"
+            : provider.key_hint ?? "Not connected";
+
+          return (
+            <div key={provider.id}>
+              <SettingsRow
+                label={provider.name}
+                description={`${status} · ${provider.models.length} models available`}
+                icon={provider.configured
+                  ? <CheckCircle2 className="h-4 w-4 text-[var(--tone-status-done)]" />
+                  : <KeyRound className="h-4 w-4" />}
+                control={(
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      if (isEditing) {
+                        closeEditor();
+                      } else {
+                        setEditingProvider(provider.id);
+                        setAPIKey("");
+                        setShowKey(false);
+                      }
+                    }}
+                  >
+                    {isEditing ? "Cancel" : hasUserKey ? "Replace" : provider.managed ? "Use own key" : "Connect"}
+                  </Button>
+                )}
+              />
+              {isEditing ? (
+                <div className="border-b border-border bg-secondary/20 px-4 py-4 last:border-b-0">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                    <label className="min-w-0 flex-1">
+                      <MetaText as="span" className="mb-1.5 block">{provider.name} API key</MetaText>
+                      <div className="relative">
+                        <Input
+                          type={showKey ? "text" : "password"}
+                          value={apiKey}
+                          onChange={(event) => setAPIKey(event.target.value)}
+                          placeholder={provider.key_hint ?? "Paste your API key"}
+                          autoComplete="off"
+                          className="pr-10"
+                          autoFocus
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="absolute right-1 top-1 size-7"
+                          onClick={() => setShowKey((current) => !current)}
+                          aria-label={showKey ? "Hide API key" : "Show API key"}
+                        >
+                          {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        onClick={() => void saveProvider()}
+                        disabled={saving || apiKey.trim().length < 8}
+                      >
+                        {saving ? "Saving…" : "Save key"}
+                      </Button>
+                      {hasUserKey ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          onClick={() => void removeProvider()}
+                          disabled={removing}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          {removing ? "Removing…" : "Remove"}
+                        </Button>
+                      ) : null}
+                    </div>
+                  </div>
+                  <a
+                    href={providerKeyLinks[provider.id]}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-3 inline-flex items-center gap-1 text-[length:var(--type-meta-size)] text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    Create a key with {provider.name}
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                </div>
+              ) : null}
+            </div>
+          );
+        })}
+      </SettingsCard>
+      <div className="flex items-start gap-2 px-1">
+        <KeyRound className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+        <MetaText>
+          Provider keys are used only for your requests. Removing a key immediately disables its models in the composer.
+        </MetaText>
+      </div>
+    </SettingsPanel>
   );
 }
 

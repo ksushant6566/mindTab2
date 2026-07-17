@@ -12,6 +12,12 @@ Atomic primitives and shadcn/Radix wrappers.
 
 Use this layer for buttons, inputs, dialogs, selects, tooltips, typography, badges, tables, and other small reusable controls. Tailwind is allowed here because this is one of the places where visual policy is defined.
 
+### `apps/web/src/components/ai-elements`
+
+Owned shadcn registry components for AI-native interaction.
+
+Use this layer for conversation scrolling, streaming markdown, prompt input, tool-step disclosure, code blocks, and other reusable AI response primitives. These files come from the AI Elements registry and may be adapted to MindTab's aliases, button sizes, tokens, and accessibility rules. Product-specific chat behavior and styling still belongs in `components/domain/chat`; route and page files should not style these primitives directly.
+
 ### `apps/web/src/components/layout`
 
 Reusable composition primitives.
@@ -49,6 +55,7 @@ Rich text UI should be composed through `components/patterns/rich-text` exports 
 Tailwind is allowed in:
 
 - `components/ui`
+- `components/ai-elements`
 - `components/layout`
 - `components/patterns`
 - `components/domain`

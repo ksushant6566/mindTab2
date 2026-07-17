@@ -27,7 +27,7 @@ type Querier interface {
 	CountTasks(ctx context.Context, arg CountTasksParams) (int32, error)
 	CreateContent(ctx context.Context, arg CreateContentParams) (CreateContentRow, error)
 	CreateContentWithExtracted(ctx context.Context, arg CreateContentWithExtractedParams) (CreateContentWithExtractedRow, error)
-	CreateConversation(ctx context.Context, userID string) (CreateConversationRow, error)
+	CreateConversation(ctx context.Context, arg CreateConversationParams) (CreateConversationRow, error)
 	CreateEmailUser(ctx context.Context, arg CreateEmailUserParams) (User, error)
 	CreateJob(ctx context.Context, arg CreateJobParams) (pgtype.UUID, error)
 	CreateMessage(ctx context.Context, arg CreateMessageParams) (Message, error)
@@ -36,6 +36,7 @@ type Querier interface {
 	CreateRefreshToken(ctx context.Context, arg CreateRefreshTokenParams) error
 	CreateTask(ctx context.Context, arg CreateTaskParams) (Task, error)
 	CreateVerificationToken(ctx context.Context, arg CreateVerificationTokenParams) error
+	DeleteAIProviderCredential(ctx context.Context, arg DeleteAIProviderCredentialParams) error
 	// Atomically deletes expired drafts and returns the media_key of each deleted
 	// row. Combining SELECT + DELETE into one statement closes the TOCTOU window
 	// where a draft could be committed between the two queries, which previously
@@ -49,6 +50,7 @@ type Querier interface {
 	DeleteVerificationToken(ctx context.Context, id pgtype.UUID) error
 	DeleteVerificationTokensByUserAndType(ctx context.Context, arg DeleteVerificationTokensByUserAndTypeParams) error
 	FailJob(ctx context.Context, arg FailJobParams) error
+	GetAIProviderCredential(ctx context.Context, arg GetAIProviderCredentialParams) (UserAiProviderCredential, error)
 	// Find notes whose content contains a mention of the given entity.
 	// mention_pattern should be like '%data-id="task:UUID"%' or '%data-id="note:UUID"%'.
 	GetConnectedNotes(ctx context.Context, arg GetConnectedNotesParams) ([]GetConnectedNotesRow, error)
@@ -68,6 +70,7 @@ type Querier interface {
 	GetVerificationTokenByUserAndType(ctx context.Context, arg GetVerificationTokenByUserAndTypeParams) (VerificationToken, error)
 	IncrementVerificationAttempts(ctx context.Context, id pgtype.UUID) error
 	IsContentDeleted(ctx context.Context, id pgtype.UUID) (bool, error)
+	ListAIProviderCredentials(ctx context.Context, userID string) ([]ListAIProviderCredentialsRow, error)
 	ListContent(ctx context.Context, arg ListContentParams) ([]ListContentRow, error)
 	ListConversations(ctx context.Context, arg ListConversationsParams) ([]ListConversationsRow, error)
 	ListMessages(ctx context.Context, arg ListMessagesParams) ([]Message, error)
@@ -97,6 +100,7 @@ type Querier interface {
 	UpdateContentStatus(ctx context.Context, arg UpdateContentStatusParams) error
 	UpdateContentTranscriptSource(ctx context.Context, arg UpdateContentTranscriptSourceParams) error
 	UpdateContentVideoFields(ctx context.Context, arg UpdateContentVideoFieldsParams) error
+	UpdateConversationConfiguration(ctx context.Context, arg UpdateConversationConfigurationParams) (UpdateConversationConfigurationRow, error)
 	UpdateConversationTitle(ctx context.Context, arg UpdateConversationTitleParams) error
 	UpdateJobStatus(ctx context.Context, arg UpdateJobStatusParams) error
 	UpdateJobStepResults(ctx context.Context, arg UpdateJobStepResultsParams) error
@@ -105,6 +109,7 @@ type Querier interface {
 	UpdateTask(ctx context.Context, arg UpdateTaskParams) error
 	UpdateTaskPosition(ctx context.Context, arg UpdateTaskPositionParams) error
 	UpdateUserAppearance(ctx context.Context, arg UpdateUserAppearanceParams) (User, error)
+	UpsertAIProviderCredential(ctx context.Context, arg UpsertAIProviderCredentialParams) (UserAiProviderCredential, error)
 	UpsertNoteFromSync(ctx context.Context, arg UpsertNoteFromSyncParams) error
 	UpsertUser(ctx context.Context, arg UpsertUserParams) (User, error)
 }

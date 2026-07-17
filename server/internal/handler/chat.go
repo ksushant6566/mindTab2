@@ -32,6 +32,9 @@ func NewChatHandler(queries store.Querier, maxSize int64) *ChatHandler {
 type conversationListItem struct {
 	ID        string     `json:"id"`
 	Title     *string    `json:"title"`
+	Provider  string     `json:"provider"`
+	Model     string     `json:"model"`
+	ProjectID *string    `json:"project_id"`
 	CreatedAt *time.Time `json:"created_at"`
 	UpdatedAt *time.Time `json:"updated_at"`
 }
@@ -106,6 +109,9 @@ func (h *ChatHandler) ListConversations(w http.ResponseWriter, r *http.Request) 
 		items = append(items, conversationListItem{
 			ID:        uuidToString(row.ID),
 			Title:     textToPtr(row.Title),
+			Provider:  row.Provider,
+			Model:     row.Model,
+			ProjectID: uuidToPtr(row.ProjectID),
 			CreatedAt: timestamptzToPtr(row.CreatedAt),
 			UpdatedAt: timestamptzToPtr(row.UpdatedAt),
 		})

@@ -64,7 +64,6 @@ function isPersistableLocation(pathname: string) {
     || pathname.startsWith("/chat/")
     || pathname === "/vault"
     || pathname.startsWith("/vault/")
-    || pathname === "/settings"
     || pathname.startsWith("/users/");
 }
 

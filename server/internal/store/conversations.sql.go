@@ -24,26 +24,44 @@ func (q *Queries) CountConversations(ctx context.Context, userID string) (int64,
 }
 
 const createConversation = `-- name: CreateConversation :one
-INSERT INTO conversations (user_id)
-VALUES ($1)
-RETURNING id, user_id, title, created_at, updated_at
+INSERT INTO conversations (user_id, provider, model, project_id)
+VALUES ($1, $2, $3, $4)
+RETURNING id, user_id, title, provider, model, project_id, created_at, updated_at
 `
+
+type CreateConversationParams struct {
+	UserID    string      `json:"user_id"`
+	Provider  string      `json:"provider"`
+	Model     string      `json:"model"`
+	ProjectID pgtype.UUID `json:"project_id"`
+}
 
 type CreateConversationRow struct {
 	ID        pgtype.UUID        `json:"id"`
 	UserID    string             `json:"user_id"`
 	Title     pgtype.Text        `json:"title"`
+	Provider  string             `json:"provider"`
+	Model     string             `json:"model"`
+	ProjectID pgtype.UUID        `json:"project_id"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
 }
 
-func (q *Queries) CreateConversation(ctx context.Context, userID string) (CreateConversationRow, error) {
-	row := q.db.QueryRow(ctx, createConversation, userID)
+func (q *Queries) CreateConversation(ctx context.Context, arg CreateConversationParams) (CreateConversationRow, error) {
+	row := q.db.QueryRow(ctx, createConversation,
+		arg.UserID,
+		arg.Provider,
+		arg.Model,
+		arg.ProjectID,
+	)
 	var i CreateConversationRow
 	err := row.Scan(
 		&i.ID,
 		&i.UserID,
 		&i.Title,
+		&i.Provider,
+		&i.Model,
+		&i.ProjectID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -51,7 +69,7 @@ func (q *Queries) CreateConversation(ctx context.Context, userID string) (Create
 }
 
 const getConversation = `-- name: GetConversation :one
-SELECT id, user_id, title, created_at, updated_at
+SELECT id, user_id, title, provider, model, project_id, created_at, updated_at
 FROM conversations
 WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL
 `
@@ -65,6 +83,9 @@ type GetConversationRow struct {
 	ID        pgtype.UUID        `json:"id"`
 	UserID    string             `json:"user_id"`
 	Title     pgtype.Text        `json:"title"`
+	Provider  string             `json:"provider"`
+	Model     string             `json:"model"`
+	ProjectID pgtype.UUID        `json:"project_id"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
 }
@@ -76,6 +97,9 @@ func (q *Queries) GetConversation(ctx context.Context, arg GetConversationParams
 		&i.ID,
 		&i.UserID,
 		&i.Title,
+		&i.Provider,
+		&i.Model,
+		&i.ProjectID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -83,7 +107,7 @@ func (q *Queries) GetConversation(ctx context.Context, arg GetConversationParams
 }
 
 const listConversations = `-- name: ListConversations :many
-SELECT id, user_id, title, created_at, updated_at
+SELECT id, user_id, title, provider, model, project_id, created_at, updated_at
 FROM conversations
 WHERE user_id = $1 AND deleted_at IS NULL
 ORDER BY updated_at DESC
@@ -100,6 +124,9 @@ type ListConversationsRow struct {
 	ID        pgtype.UUID        `json:"id"`
 	UserID    string             `json:"user_id"`
 	Title     pgtype.Text        `json:"title"`
+	Provider  string             `json:"provider"`
+	Model     string             `json:"model"`
+	ProjectID pgtype.UUID        `json:"project_id"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
 }
@@ -117,6 +144,9 @@ func (q *Queries) ListConversations(ctx context.Context, arg ListConversationsPa
 			&i.ID,
 			&i.UserID,
 			&i.Title,
+			&i.Provider,
+			&i.Model,
+			&i.ProjectID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -155,6 +185,57 @@ WHERE id = $1
 func (q *Queries) TouchConversation(ctx context.Context, id pgtype.UUID) error {
 	_, err := q.db.Exec(ctx, touchConversation, id)
 	return err
+}
+
+const updateConversationConfiguration = `-- name: UpdateConversationConfiguration :one
+UPDATE conversations
+SET provider = $3,
+    model = $4,
+    project_id = $5,
+    updated_at = now()
+WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL
+RETURNING id, user_id, title, provider, model, project_id, created_at, updated_at
+`
+
+type UpdateConversationConfigurationParams struct {
+	ID        pgtype.UUID `json:"id"`
+	UserID    string      `json:"user_id"`
+	Provider  string      `json:"provider"`
+	Model     string      `json:"model"`
+	ProjectID pgtype.UUID `json:"project_id"`
+}
+
+type UpdateConversationConfigurationRow struct {
+	ID        pgtype.UUID        `json:"id"`
+	UserID    string             `json:"user_id"`
+	Title     pgtype.Text        `json:"title"`
+	Provider  string             `json:"provider"`
+	Model     string             `json:"model"`
+	ProjectID pgtype.UUID        `json:"project_id"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+}
+
+func (q *Queries) UpdateConversationConfiguration(ctx context.Context, arg UpdateConversationConfigurationParams) (UpdateConversationConfigurationRow, error) {
+	row := q.db.QueryRow(ctx, updateConversationConfiguration,
+		arg.ID,
+		arg.UserID,
+		arg.Provider,
+		arg.Model,
+		arg.ProjectID,
+	)
+	var i UpdateConversationConfigurationRow
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Title,
+		&i.Provider,
+		&i.Model,
+		&i.ProjectID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
 const updateConversationTitle = `-- name: UpdateConversationTitle :exec

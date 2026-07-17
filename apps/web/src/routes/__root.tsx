@@ -1,5 +1,6 @@
 import { createRootRoute, Outlet } from "@tanstack/react-router";
 import { WorkstationNavigationProvider } from "~/lib/workstation-navigation";
+import { WebChatProvider } from "~/lib/web-chat";
 
 export const Route = createRootRoute({
   component: RootLayout,
@@ -8,7 +9,9 @@ export const Route = createRootRoute({
 function RootLayout() {
   return (
     <WorkstationNavigationProvider>
-      <Outlet />
+      <WebChatProvider>
+        <Outlet />
+      </WebChatProvider>
     </WorkstationNavigationProvider>
   );
 }

@@ -16,6 +16,14 @@ func uuidToString(u pgtype.UUID) string {
 	return uuid.UUID(u.Bytes).String()
 }
 
+func uuidToPtr(u pgtype.UUID) *string {
+	if !u.Valid {
+		return nil
+	}
+	value := uuid.UUID(u.Bytes).String()
+	return &value
+}
+
 func uuidFromGoogle(u uuid.UUID) pgtype.UUID {
 	return pgtype.UUID{Bytes: u, Valid: true}
 }

@@ -2,6 +2,7 @@ import createClient from "openapi-fetch";
 import type { paths } from "@mindtab/api-spec";
 
 let accessToken: string | null = null;
+const baseUrl = import.meta.env.VITE_API_URL || "";
 
 export function setAccessToken(token: string | null) {
   accessToken = token;
@@ -12,9 +13,44 @@ export function getAccessToken() {
 }
 
 export const api = createClient<paths>({
-  baseUrl: import.meta.env.VITE_API_URL || "",
+  baseUrl,
   credentials: "include",
 });
+
+async function refreshAccessToken() {
+  const refreshRes = await fetch(`${baseUrl}/auth/refresh`, {
+    method: "POST",
+    credentials: "include",
+  });
+  if (!refreshRes.ok) return null;
+  const data = await refreshRes.json() as { accessToken?: string };
+  const token = data.accessToken ?? null;
+  setAccessToken(token);
+  return token;
+}
+
+export async function authedFetch(path: string, init: RequestInit = {}) {
+  const run = (token: string | null) => {
+    const headers = new Headers(init.headers);
+    if (token) headers.set("Authorization", `Bearer ${token}`);
+    return fetch(`${baseUrl}${path}`, {
+      ...init,
+      credentials: "include",
+      headers,
+    });
+  };
+
+  let response = await run(accessToken);
+  if (response.status !== 401 || path.startsWith("/auth/")) return response;
+
+  try {
+    const token = await refreshAccessToken();
+    if (token) response = await run(token);
+  } catch {
+    setAccessToken(null);
+  }
+  return response;
+}
 
 // Add auth interceptor
 api.use({
@@ -30,17 +66,9 @@ api.use({
     if (response.status === 401 && !url.pathname.startsWith("/auth/")) {
       // Attempt to refresh the token
       try {
-        const refreshRes = await fetch(
-          `${import.meta.env.VITE_API_URL || ""}/auth/refresh`,
-          {
-            method: "POST",
-            credentials: "include",
-          },
-        );
+        const token = await refreshAccessToken();
 
-        if (refreshRes.ok) {
-          const data = await refreshRes.json();
-          setAccessToken(data.accessToken);
+        if (token) {
 
           // Retry the original request with the new token
           const retryRequest = new Request(request, {
@@ -48,7 +76,7 @@ api.use({
           });
           retryRequest.headers.set(
             "Authorization",
-            `Bearer ${data.accessToken}`,
+            `Bearer ${token}`,
           );
           return fetch(retryRequest);
         }

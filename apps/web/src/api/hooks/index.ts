@@ -66,4 +66,15 @@ export const searchNotesQueryOptions = (query: string) => _searchNotesQueryOptio
 export { useAuth } from "./use-auth";
 export type { User } from "./use-auth";
 export { conversationsQueryOptions, conversationMessagesQueryOptions } from "./use-chat";
-export { savesQueryOptions, saveQueryOptions } from "./use-saves";
+export {
+  aiProvidersQueryOptions,
+  saveAIProviderCredential,
+  deleteAIProviderCredential,
+} from "./use-ai-providers";
+export type {
+  AIProviderConfiguration,
+  AIProviderId,
+  AIModelOption,
+} from "./use-ai-providers";
+export { savesInfiniteQueryOptions, savesQueryOptions, saveQueryOptions } from "./use-saves";
+export type { SaveDetail, SaveListItem } from "./use-saves";
